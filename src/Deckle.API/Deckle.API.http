@@ -1,0 +1,6 @@
+@Deckle.API_HostAddress = http://localhost:5209
+
+GET {{Deckle.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

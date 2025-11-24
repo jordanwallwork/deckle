@@ -14,4 +14,8 @@
     <PackageReference Include="Aspire.Hosting.AppHost" Version="13.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Deckle.API\Deckle.API.csproj" />
+  </ItemGroup>
+
 </Project>

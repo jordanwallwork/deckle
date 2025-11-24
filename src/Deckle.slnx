@@ -1,5 +1,10 @@
 <Solution>
-  <Project Path="Deckle.API/Deckle.API.csproj" />
+  <Folder Name="/Application/">
+    <Project Path="Deckle.API/Deckle.API.csproj" />
+  </Folder>
+  <Folder Name="/Domain/">
+    <Project Path="Deckle.Domain/Deckle.Domain.csproj" />
+  </Folder>
   <Project Path="Deckle.AppHost/Deckle.AppHost.csproj" />
   <Project Path="Deckle.ServiceDefaults/Deckle.ServiceDefaults.csproj" />
 </Solution>

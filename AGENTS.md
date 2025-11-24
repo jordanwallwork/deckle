@@ -34,6 +34,21 @@ dotnet test
 
 ## Development Rules
 
+### Adding New Projects
+
+When creating a new .NET project:
+
+1. **Add to Solution**: Always add the project to `src/Deckle.slnx`
+   ```xml
+   <Project Path="ProjectName/ProjectName.csproj" />
+   ```
+   Keep projects sorted alphabetically for consistency.
+
+2. **Verify**: Ensure the solution builds after adding the project
+   ```bash
+   dotnet build
+   ```
+
 ### Before Committing
 
 1. **Build Successfully**: Ensure the entire solution builds without errors
@@ -70,7 +85,46 @@ dotnet test
 
 - `Deckle.AppHost`: Aspire AppHost project that orchestrates the application
 - `Deckle.API`: Minimal API project with Scalar documentation
+- `Deckle.Web`: Svelte 5 + SvelteKit web application
 - `Deckle.ServiceDefaults`: Shared service configuration and defaults
+
+## Svelte Development Guide
+
+When working with Svelte components in this project, follow the guidelines from https://svelte.dev/llms-small.txt:
+
+### Core Svelte 5 Concepts
+
+**Runes** are language keywords (prefixed with `$`) that manage reactivity.
+
+- `$state` creates reactive variables: `let count = $state(0);`
+- `$derived` computes reactive values: `let doubled = $derived(count * 2);`
+- `$effect` executes when reactive state changes: `$effect(() => console.log(size));`
+- `$props` accesses component inputs: `let { adjective = 'happy' } = $props();`
+- `$bindable()` enables two-way data flow on specific props
+
+### SvelteKit Project Setup
+
+Use `npx sv create` (not deprecated `npm create svelte`). Project structure:
+- `src/routes/` – pages and endpoints (filesystem router)
+- `src/lib/` – shared code (`$lib` alias)
+- `static/` – public assets
+
+### Event Handling
+
+Use `onclick={...}` instead of `on:click={...}` in Svelte 5.
+
+### Loading Data
+
+- `+page.js` exports `load({ fetch, params })` for universal data fetching
+- `+page.server.js` exports `load()` for private data
+- Use SvelteKit's `fetch` in load functions for proper SSR support
+
+### Forms
+
+- `+page.server.js` exports `actions: { default, namedAction }`
+- Use `<form method="POST">` with `use:enhance` for progressive enhancement
+
+For complete reference, see https://svelte.dev/llms-small.txt
 
 ## Notes
 

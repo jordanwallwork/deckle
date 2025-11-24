@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Deckle.AppHost/Deckle.AppHost.csproj" />
+  <Project Path="Deckle.ServiceDefaults/Deckle.ServiceDefaults.csproj" />
+</Solution>

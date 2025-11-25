@@ -144,6 +144,11 @@
   }
 </script>
 
+<svelte:head>
+  <title>Data Sources · {data.project.name} · Deckle</title>
+  <meta name="description" content="Connect Google Sheets and other data sources to {data.project.name}. Link spreadsheets to populate your game components with data." />
+</svelte:head>
+
 <div class="tab-content">
   <div class="tab-header">
     <h2>Data Sources</h2>

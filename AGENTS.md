@@ -51,7 +51,7 @@ When creating a new .NET project:
 
 ### Before Committing
 
-1. **Build Successfully**: Ensure the entire solution builds without errors
+1. **Build Successfully**: Ensure the entire solution builds without errors by running the following command from ./src
    ```bash
    dotnet build
    ```

@@ -4,6 +4,11 @@
   let { data }: { data: PageData } = $props();
 </script>
 
+<svelte:head>
+  <title>Components · {data.project.name} · Deckle</title>
+  <meta name="description" content="Manage game components for {data.project.name}. Design cards, tokens, and other game pieces from your data sources." />
+</svelte:head>
+
 <div class="tab-content">
   <div class="tab-header">
     <h2>Components</h2>

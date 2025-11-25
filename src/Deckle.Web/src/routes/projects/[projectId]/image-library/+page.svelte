@@ -4,6 +4,11 @@
   let { data }: { data: PageData } = $props();
 </script>
 
+<svelte:head>
+  <title>Image Library · {data.project.name} · Deckle</title>
+  <meta name="description" content="Manage images and artwork for {data.project.name}. Upload and organize visual assets to use in your game components." />
+</svelte:head>
+
 <div class="tab-content">
   <div class="tab-header">
     <h2>Image Library</h2>

@@ -124,6 +124,16 @@
   }
 </script>
 
+<svelte:head>
+  {#if dataSource}
+    <title>{dataSource.name} · Data Sources · {data.project.name} · Deckle</title>
+    <meta name="description" content="View and manage {dataSource.name} data source for {data.project.name}. Preview spreadsheet data and configure how it connects to your game components." />
+  {:else}
+    <title>Data Source · {data.project.name} · Deckle</title>
+    <meta name="description" content="View data source details for {data.project.name}." />
+  {/if}
+</svelte:head>
+
 <div class="data-source-detail">
   {#if loading}
     <div class="loading">Loading...</div>

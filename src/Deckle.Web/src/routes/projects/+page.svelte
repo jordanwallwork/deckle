@@ -4,6 +4,8 @@
 
   let { data }: { data: PageData } = $props();
 
+  const projectCount = $derived(data.projects.length);
+
   let showCreateDialog = $state(false);
   let projectName = $state('');
   let projectDescription = $state('');
@@ -45,6 +47,11 @@
     projectDescription = '';
   }
 </script>
+
+<svelte:head>
+  <title>Projects · Deckle</title>
+  <meta name="description" content="Manage your game design projects. Create and organize game components, data sources, and image libraries for your tabletop games." />
+</svelte:head>
 
 <div class="container">
   <header>

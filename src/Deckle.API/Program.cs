@@ -60,17 +60,13 @@ builder.Services.AddAuthentication(options =>
 
     options.Events.OnCreatingTicket = async context =>
     {
-        // Check if this is a Google Sheets auth flow by looking at the redirect URI
-        var redirectUri = context.Properties.RedirectUri;
-        if (redirectUri?.Contains("/google-sheets-auth/callback") == true)
-        {
-            // Skip user creation for Google Sheets auth flow
-            // The tokens will be available in the callback endpoint
-            return;
-        }
-
         var userService = context.HttpContext.RequestServices.GetRequiredService<UserService>();
 
+        // Check if this is a Google Sheets auth flow
+        context.Properties.Items.TryGetValue("loginType", out var loginType);
+        var isGoogleSheetsAuth = loginType == "google-sheets";
+
+        // Extract user info from Google
         var googleId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var email = context.Principal?.FindFirst(ClaimTypes.Email)?.Value;
         var name = context.Principal?.FindFirst(ClaimTypes.Name)?.Value;
@@ -84,11 +80,47 @@ builder.Services.AddAuthentication(options =>
             throw new InvalidOperationException("Failed to retrieve user information from Google");
         }
 
+        // Create or update user
         var userInfo = new GoogleUserInfo(googleId, email, name, givenName, familyName, picture, locale);
         var user = await userService.CreateOrUpdateUserAsync(userInfo);
 
+        // Add user_id claim
         var identity = context.Principal?.Identity as ClaimsIdentity;
         identity?.AddClaim(new Claim("user_id", user.Id.ToString()));
+
+        // If this is a Google Sheets auth flow, save the tokens
+        if (isGoogleSheetsAuth)
+        {
+            // Extract tokens
+            var accessToken = context.AccessToken;
+            var refreshToken = context.RefreshToken;
+            var tokenType = context.TokenType ?? "Bearer";
+            var expiresAt = context.ExpiresIn.HasValue
+                ? DateTime.UtcNow.AddSeconds(context.ExpiresIn.Value.TotalSeconds)
+                : DateTime.UtcNow.AddHours(1);
+
+            // Get the scope from the properties
+            context.Properties.Items.TryGetValue("scope", out var scope);
+            scope ??= "";
+
+            if (!string.IsNullOrEmpty(accessToken) && !string.IsNullOrEmpty(refreshToken))
+            {
+                await userService.SaveOrUpdateGoogleCredentialAsync(
+                    user.Id,
+                    accessToken,
+                    refreshToken,
+                    tokenType,
+                    expiresAt,
+                    scope
+                );
+            }
+
+            // Preserve the returnUrl for the callback
+            if (context.Properties.Items.TryGetValue("returnUrl", out var returnUrl) && !string.IsNullOrEmpty(returnUrl))
+            {
+                context.Properties.Items["returnUrl"] = returnUrl;
+            }
+        }
     };
 });
 

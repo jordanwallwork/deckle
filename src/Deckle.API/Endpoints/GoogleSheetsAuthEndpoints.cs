@@ -28,15 +28,22 @@ public static class GoogleSheetsAuthEndpoints
         .WithName("GetGoogleSheetsAuthStatus");
 
         // Initiate Google Sheets OAuth flow
-        group.MapGet("authorize", (HttpContext httpContext, string? returnUrl) =>
+        group.MapGet("authorize", (HttpContext httpContext, IConfiguration configuration, string? returnUrl) =>
         {
+            var frontendUrl = configuration["FrontendUrl"] ?? "http://localhost:5173";
             var properties = new AuthenticationProperties
             {
-                RedirectUri = $"/google-sheets-auth/callback?returnUrl={Uri.EscapeDataString(returnUrl ?? "/")}"
+                RedirectUri = $"/google-sheets-auth/callback"
             };
+
+            // Store the return URL in the state for later retrieval
+            properties.Items["returnUrl"] = returnUrl ?? "/";
 
             // Force consent to ensure we get a refresh token
             properties.Items["prompt"] = "consent";
+
+            // Mark this as a Google Sheets auth flow (not a regular login)
+            properties.Items["loginType"] = "google-sheets";
 
             // Add custom scopes - include profile and email so Google OAuth handler can fetch user info
             // The handler requires these to complete successfully
@@ -49,54 +56,35 @@ public static class GoogleSheetsAuthEndpoints
         .WithName("AuthorizeGoogleSheets");
 
         // OAuth callback handler
-        group.MapGet("callback", async (HttpContext httpContext, string? returnUrl, UserService userService) =>
+        // This is called after the Google OAuth flow completes via OnCreatingTicket event
+        group.MapGet("callback", async (HttpContext httpContext, UserService userService, IConfiguration configuration) =>
         {
+            var frontendUrl = configuration["FrontendUrl"] ?? "http://localhost:5173";
+
+            // The returnUrl should be in the cookie authentication properties
+            var authenticateResult = await httpContext.AuthenticateAsync();
+            var returnUrl = "/";
+            if (authenticateResult.Properties?.Items.TryGetValue("returnUrl", out var returnUrlValue) == true)
+            {
+                returnUrl = returnUrlValue ?? "/";
+            }
+
+            // Check if Google Sheets auth was successful by verifying the user has credentials
             var userId = UserService.GetUserIdFromClaims(httpContext.User);
 
             if (userId == null)
             {
-                return Results.Redirect($"{returnUrl ?? "/"}?error=unauthorized");
+                return Results.Redirect($"{frontendUrl}{returnUrl}?error=unauthorized");
             }
 
-            // Get the authentication result from the main Google scheme
-            var authenticateResult = await httpContext.AuthenticateAsync("Google");
+            var hasAuth = await userService.HasGoogleSheetsAuthAsync(userId.Value);
 
-            if (!authenticateResult.Succeeded)
+            if (!hasAuth)
             {
-                return Results.Redirect($"{returnUrl ?? "/"}?error=auth_failed");
+                return Results.Redirect($"{frontendUrl}{returnUrl}?error=auth_failed");
             }
 
-            // Extract tokens
-            var tokens = authenticateResult.Properties?.Items;
-            var accessToken = tokens?.FirstOrDefault(x => x.Key == ".Token.access_token").Value;
-            var refreshToken = tokens?.FirstOrDefault(x => x.Key == ".Token.refresh_token").Value;
-            var tokenType = tokens?.FirstOrDefault(x => x.Key == ".Token.token_type").Value ?? "Bearer";
-            var expiresAt = tokens?.FirstOrDefault(x => x.Key == ".Token.expires_at").Value;
-            var scope = tokens?.FirstOrDefault(x => x.Key == ".Token.scope").Value ?? "";
-
-            if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(refreshToken))
-            {
-                return Results.Redirect($"{returnUrl ?? "/"}?error=no_tokens");
-            }
-
-            // Parse expiration
-            DateTime expiresAtDate = DateTime.UtcNow.AddHours(1);
-            if (!string.IsNullOrEmpty(expiresAt) && DateTime.TryParse(expiresAt, out var parsedDate))
-            {
-                expiresAtDate = parsedDate.ToUniversalTime();
-            }
-
-            // Save the credentials
-            await userService.SaveOrUpdateGoogleCredentialAsync(
-                userId.Value,
-                accessToken,
-                refreshToken,
-                tokenType,
-                expiresAtDate,
-                scope
-            );
-
-            return Results.Redirect($"{returnUrl ?? "/"}?success=true");
+            return Results.Redirect($"{frontendUrl}{returnUrl}?success=true");
         })
         .RequireAuthorization()
         .WithName("GoogleSheetsCallback");

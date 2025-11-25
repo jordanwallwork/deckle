@@ -62,7 +62,7 @@
   {:else}
     <div class="projects-grid">
       {#each data.projects as project}
-        <div class="project-card">
+        <a href="/projects/{project.id}" class="project-card">
           <div class="project-header">
             <h2>{project.name}</h2>
             <span class="role-badge">{project.role}</span>
@@ -75,7 +75,7 @@
               Created {new Date(project.createdAt).toLocaleDateString()}
             </span>
           </div>
-        </div>
+        </a>
       {/each}
     </div>
   {/if}
@@ -185,6 +185,9 @@
     padding: 1.5rem;
     transition: all 0.2s ease;
     cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: block;
   }
 
   .project-card:hover {

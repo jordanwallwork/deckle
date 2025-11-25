@@ -32,6 +32,25 @@ public class ProjectService
         return projects;
     }
 
+    public async Task<ProjectDto?> GetProjectByIdAsync(Guid userId, Guid projectId)
+    {
+        var project = await _dbContext.UserProjects
+            .Where(up => up.UserId == userId && up.ProjectId == projectId)
+            .Include(up => up.Project)
+            .Select(up => new ProjectDto
+            {
+                Id = up.Project.Id,
+                Name = up.Project.Name,
+                Description = up.Project.Description,
+                CreatedAt = up.Project.CreatedAt,
+                UpdatedAt = up.Project.UpdatedAt,
+                Role = up.Role.ToString()
+            })
+            .FirstOrDefaultAsync();
+
+        return project;
+    }
+
     public async Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string? description)
     {
         var project = new Project

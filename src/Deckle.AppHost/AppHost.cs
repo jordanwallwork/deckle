@@ -8,7 +8,7 @@ var postgres = builder.AddPostgres("postgres")
     .AddDatabase("deckledb");
 
 var web = builder.AddNpmApp("web", "../Deckle.Web")
-    .WithHttpEndpoint(env: "PORT")
+    .WithHttpEndpoint(port: 5173, env: "PORT")
     .WithExternalHttpEndpoints()
     .PublishAsDockerFile();
 

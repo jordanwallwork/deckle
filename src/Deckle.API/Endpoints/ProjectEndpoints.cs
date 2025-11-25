@@ -25,6 +25,26 @@ public static class ProjectEndpoints
         })
         .WithName("GetProjects");
 
+        group.MapGet("{id:guid}", async (Guid id, ClaimsPrincipal user, ProjectService projectService) =>
+        {
+            var userId = UserService.GetUserIdFromClaims(user);
+
+            if (userId == null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var project = await projectService.GetProjectByIdAsync(userId.Value, id);
+
+            if (project == null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(project);
+        })
+        .WithName("GetProjectById");
+
         group.MapPost("", async (ClaimsPrincipal user, ProjectService projectService, CreateProjectRequest request) =>
         {
             var userId = UserService.GetUserIdFromClaims(user);

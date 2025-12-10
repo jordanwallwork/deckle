@@ -1,23 +1,18 @@
-import { config } from '$lib/config';
+import { componentsApi, ApiError } from '$lib/api';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, fetch }) => {
   try {
-    const response = await fetch(`${config.apiUrl}/projects/${params.projectId}/components`, {
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { components: [] };
-      }
-      throw error(response.status, 'Failed to load components');
-    }
-
-    const components = await response.json();
+    const components = await componentsApi.listByProject(params.projectId, fetch);
     return { components };
   } catch (err) {
+    if (err instanceof ApiError) {
+      if (err.status === 404) {
+        return { components: [] };
+      }
+      throw error(err.status, err.message);
+    }
     if (err && typeof err === 'object' && 'status' in err) {
       throw err;
     }

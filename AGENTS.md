@@ -152,6 +152,143 @@ Use `onclick={...}` instead of `on:click={...}` in Svelte 5.
 
 For complete reference, see https://svelte.dev/llms-small.txt
 
+## Frontend Architecture Patterns
+
+### API Client Layer
+
+The frontend uses a centralized API client located in `src/Deckle.Web/src/lib/api/`.
+
+**Structure:**
+- `client.ts` - Core API client with fetch wrapper
+- `projects.ts` - Project-related API calls
+- `components.ts` - Component-related API calls
+- `dataSources.ts` - Data source API calls
+- `auth.ts` - Authentication API calls
+- `index.ts` - Re-exports all modules
+
+**Usage in server-side load functions:**
+```typescript
+import { projectsApi } from '$lib/api';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ fetch }) => {
+  try {
+    const projects = await projectsApi.list(fetch);
+    return { projects };
+  } catch (error) {
+    console.error('Failed to load projects:', error);
+    return { projects: [] };
+  }
+};
+```
+
+**Usage in client-side components:**
+```typescript
+import { projectsApi, ApiError } from '$lib/api';
+
+async function createProject() {
+  try {
+    await projectsApi.create({ name: projectName, description });
+    // Handle success
+  } catch (error) {
+    if (error instanceof ApiError) {
+      // Handle API error with error.status and error.message
+    }
+  }
+}
+```
+
+**Important:** Always pass SvelteKit's enhanced `fetch` function to API calls in server-side load functions.
+
+### Shared Types
+
+TypeScript type definitions are centralized in `src/Deckle.Web/src/lib/types/`.
+
+**Structure:**
+- `user.ts` - User types
+- `project.ts` - Project and DTO types
+- `component.ts` - Component types (Card, Dice, GameComponent)
+- `dataSource.ts` - Data source types
+- `index.ts` - Re-exports all types
+
+**Usage:**
+```typescript
+import type { Project, CreateProjectDto } from '$lib/types';
+```
+
+### Shared Constants
+
+Configuration constants are centralized in `src/Deckle.Web/src/lib/constants/`.
+
+**Structure:**
+- `components.ts` - Card sizes, dice types, styles, and colors
+- `index.ts` - Re-exports all constants
+
+**Usage:**
+```typescript
+import { CARD_SIZES, DICE_COLORS } from '$lib/constants';
+```
+
+### Component Organization
+
+**Reusable Components:** `src/Deckle.Web/src/lib/components/`
+- General-purpose components used across the application
+- Examples: Card, Dialog, Sidebar, TopBar
+
+**Page-Specific Components:** `src/Deckle.Web/src/routes/[route]/_components/`
+- Components specific to a particular page or feature
+- Use underscore prefix `_components/` to prevent SvelteKit from treating them as routes
+- Examples: ComponentCard, DiceConfigForm, CardConfigForm
+
+### Error Handling
+
+**API Errors:**
+```typescript
+import { ApiError } from '$lib/api';
+
+try {
+  await someApiCall();
+} catch (err) {
+  if (err instanceof ApiError) {
+    // Handle API error: err.status, err.message, err.response
+  } else {
+    // Handle other errors
+  }
+}
+```
+
+**SvelteKit Load Errors:**
+```typescript
+import { error } from '@sveltejs/kit';
+import { ApiError } from '$lib/api';
+
+export const load = async ({ fetch }) => {
+  try {
+    return await apiCall(fetch);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      throw error(err.status, err.message);
+    }
+    throw error(500, 'Internal server error');
+  }
+};
+```
+
+### Adding New API Endpoints
+
+1. Add types to appropriate file in `src/Deckle.Web/src/lib/types/`
+2. Add API function to appropriate module in `src/Deckle.Web/src/lib/api/`
+3. Use the API function in components or load functions
+
+Example:
+```typescript
+// In lib/api/projects.ts
+export const projectsApi = {
+  update: (id: string, data: UpdateProjectDto, fetchFn?: typeof fetch) =>
+    api.put<Project>(`/projects/${id}`, data, undefined, fetchFn),
+};
+```
+
 ## Notes
 
 - This is an Aspire-based application

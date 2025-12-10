@@ -3,6 +3,7 @@
   import { config } from '$lib/config';
   import { onMount } from 'svelte';
   import Card from '$lib/components/Card.svelte';
+  import Dialog from '$lib/components/Dialog.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -203,48 +204,42 @@
   {/if}
 </div>
 
-{#if showAddModal}
-  <div class="modal-overlay" onclick={() => showAddModal = false}>
-    <div class="modal" onclick={(e) => e.stopPropagation()}>
-      <h3>Add Google Sheets Data Source</h3>
+<Dialog bind:show={showAddModal} title="Add Google Sheets Data Source" onclose={() => showAddModal = false}>
+  {#if errorMessage}
+    <div class="error-message">{errorMessage}</div>
+  {/if}
 
-      {#if errorMessage}
-        <div class="error-message">{errorMessage}</div>
-      {/if}
-
-      <div class="form-group">
-        <label for="source-url">Google Sheets URL *</label>
-        <input
-          id="source-url"
-          type="url"
-          bind:value={newSourceUrl}
-          placeholder="https://docs.google.com/spreadsheets/d/..."
-          disabled={addingSource}
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="source-name">Name (optional)</label>
-        <input
-          id="source-name"
-          type="text"
-          bind:value={newSourceName}
-          placeholder="Leave empty to use spreadsheet title"
-          disabled={addingSource}
-        />
-      </div>
-
-      <div class="modal-actions">
-        <button class="cancel-button" onclick={() => showAddModal = false} disabled={addingSource}>
-          Cancel
-        </button>
-        <button class="submit-button" onclick={addDataSource} disabled={addingSource}>
-          {addingSource ? 'Adding...' : 'Add Data Source'}
-        </button>
-      </div>
-    </div>
+  <div class="form-group">
+    <label for="source-url">Google Sheets URL *</label>
+    <input
+      id="source-url"
+      type="url"
+      bind:value={newSourceUrl}
+      placeholder="https://docs.google.com/spreadsheets/d/..."
+      disabled={addingSource}
+    />
   </div>
-{/if}
+
+  <div class="form-group">
+    <label for="source-name">Name (optional)</label>
+    <input
+      id="source-name"
+      type="text"
+      bind:value={newSourceName}
+      placeholder="Leave empty to use spreadsheet title"
+      disabled={addingSource}
+    />
+  </div>
+
+  {#snippet actions()}
+    <button class="secondary cancel-button" onclick={() => showAddModal = false} disabled={addingSource}>
+      Cancel
+    </button>
+    <button class="primary submit-button" onclick={addDataSource} disabled={addingSource}>
+      {addingSource ? 'Adding...' : 'Add Data Source'}
+    </button>
+  {/snippet}
+</Dialog>
 
 <style>
   .tab-content {
@@ -387,35 +382,6 @@
     background-color: #c0392b;
   }
 
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .modal {
-    background-color: white;
-    border-radius: 12px;
-    padding: 2rem;
-    max-width: 500px;
-    width: 90%;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  }
-
-  .modal h3 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-sage);
-    margin: 0 0 1.5rem 0;
-  }
-
   .error-message {
     background-color: #fee;
     border: 1px solid #fcc;
@@ -454,54 +420,6 @@
 
   .form-group input:disabled {
     background-color: #f5f5f5;
-    cursor: not-allowed;
-  }
-
-  .modal-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-  }
-
-  .cancel-button {
-    background-color: white;
-    color: var(--color-muted-teal);
-    border: 2px solid var(--color-muted-teal);
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .cancel-button:hover:not(:disabled) {
-    background-color: var(--color-teal-grey);
-  }
-
-  .cancel-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .submit-button {
-    background-color: var(--color-muted-teal);
-    color: white;
-    border: none;
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .submit-button:hover:not(:disabled) {
-    background-color: var(--color-sage);
-  }
-
-  .submit-button:disabled {
-    opacity: 0.5;
     cursor: not-allowed;
   }
 </style>

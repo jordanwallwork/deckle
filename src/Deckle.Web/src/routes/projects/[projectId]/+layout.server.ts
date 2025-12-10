@@ -1,23 +1,18 @@
-import { config } from '$lib/config';
+import { projectsApi, ApiError } from '$lib/api';
 import type { LayoutServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
 export const load: LayoutServerLoad = async ({ params, fetch }) => {
   try {
-    const response = await fetch(`${config.apiUrl}/projects/${params.projectId}`, {
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw error(404, 'Project not found');
-      }
-      throw error(response.status, 'Failed to load project');
-    }
-
-    const project = await response.json();
+    const project = await projectsApi.getById(params.projectId, fetch);
     return { project };
   } catch (err) {
+    if (err instanceof ApiError) {
+      if (err.status === 404) {
+        throw error(404, 'Project not found');
+      }
+      throw error(err.status, err.message);
+    }
     if (err && typeof err === 'object' && 'status' in err) {
       throw err;
     }

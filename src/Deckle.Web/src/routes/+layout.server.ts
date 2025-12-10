@@ -1,18 +1,10 @@
-import { config } from '$lib/config';
+import { authApi } from '$lib/api';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ fetch }) => {
   try {
-    const response = await fetch(`${config.apiUrl}/auth/me`, {
-      credentials: 'include'
-    });
-
-    if (response.ok) {
-      const user = await response.json();
-      return { user };
-    }
-
-    return { user: null };
+    const user = await authApi.me(fetch);
+    return { user };
   } catch (error) {
     return { user: null };
   }

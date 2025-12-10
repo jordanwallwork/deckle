@@ -204,6 +204,5 @@ app.MapProjectEndpoints();
 app.MapDataSourceEndpoints();
 app.MapGoogleSheetsAuthEndpoints();
 app.MapComponentEndpoints();
-app.MapConfigurationEndpoints();
 
 app.Run();

@@ -4,25 +4,23 @@ import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, fetch }) => {
   try {
-    // Fetch components and configuration options in parallel
-    const [componentsResponse, configResponse] = await Promise.all([
-      fetch(`${config.apiUrl}/projects/${params.projectId}/components`, {
-        credentials: 'include'
-      }),
-      fetch(`${config.apiUrl}/configuration/component-options`)
-    ]);
+    const response = await fetch(`${config.apiUrl}/projects/${params.projectId}/components`, {
+      credentials: 'include'
+    });
 
-    if (!componentsResponse.ok) {
-      if (componentsResponse.status === 404) {
+    if (!response.ok) {
+      if (response.status === 404) {
         return { components: [], configOptions: null };
       }
-      throw error(componentsResponse.status, 'Failed to load components');
+      throw error(response.status, 'Failed to load components');
     }
 
-    const components = await componentsResponse.json();
-    const configOptions = configResponse.ok ? await configResponse.json() : null;
+    const data = await response.json();
 
-    return { components, configOptions };
+    return {
+      components: data.components || [],
+      configOptions: data.configurationOptions || null
+    };
   } catch (err) {
     if (err && typeof err === 'object' && 'status' in err) {
       throw err;

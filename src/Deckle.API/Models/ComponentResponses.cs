@@ -1,5 +1,11 @@
 namespace Deckle.API.Models;
 
+public record ProjectComponentsResponse
+{
+    public List<ComponentResponse> Components { get; init; } = [];
+    public ComponentConfigurationOptions ConfigurationOptions { get; init; } = new();
+}
+
 public abstract record ComponentResponse
 {
     public Guid Id { get; init; }

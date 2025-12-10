@@ -8,20 +8,26 @@ namespace Deckle.API.Services;
 public class ComponentService
 {
     private readonly AppDbContext _context;
+    private readonly ConfigurationService _configurationService;
 
-    public ComponentService(AppDbContext context)
+    public ComponentService(AppDbContext context, ConfigurationService configurationService)
     {
         _context = context;
+        _configurationService = configurationService;
     }
 
-    public async Task<List<ComponentResponse>> GetProjectComponentsAsync(Guid userId, Guid projectId)
+    public async Task<ProjectComponentsResponse> GetProjectComponentsAsync(Guid userId, Guid projectId)
     {
         var hasAccess = await _context.UserProjects
             .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
 
         if (!hasAccess)
         {
-            return new List<ComponentResponse>();
+            return new ProjectComponentsResponse
+            {
+                Components = [],
+                ConfigurationOptions = _configurationService.GetComponentConfigurationOptions()
+            };
         }
 
         var components = await _context.Components
@@ -29,7 +35,11 @@ public class ComponentService
             .OrderBy(c => c.CreatedAt)
             .ToListAsync();
 
-        return components.Select(MapComponentToResponse).ToList();
+        return new ProjectComponentsResponse
+        {
+            Components = components.Select(MapComponentToResponse).ToList(),
+            ConfigurationOptions = _configurationService.GetComponentConfigurationOptions()
+        };
     }
 
     private static ComponentResponse MapComponentToResponse(Component component)

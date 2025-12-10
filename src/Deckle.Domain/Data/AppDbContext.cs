@@ -14,6 +14,9 @@ public class AppDbContext : DbContext
     public DbSet<UserProject> UserProjects { get; set; }
     public DbSet<DataSource> DataSources { get; set; }
     public DbSet<GoogleCredential> GoogleCredentials { get; set; }
+    public DbSet<Component> Components { get; set; }
+    public DbSet<Card> Cards { get; set; }
+    public DbSet<Dice> Dices { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -170,6 +173,60 @@ public class AppDbContext : DbContext
                 .WithMany(u => u.GoogleCredentials)
                 .HasForeignKey(gc => gc.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Component>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+
+            entity.Property(c => c.Name)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(c => c.CreatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(c => c.UpdatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(c => c.Project)
+                .WithMany(p => p.Components)
+                .HasForeignKey(c => c.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasDiscriminator<string>("ComponentType")
+                .HasValue<Card>("Card")
+                .HasValue<Dice>("Dice");
+        });
+
+        modelBuilder.Entity<Card>(entity =>
+        {
+            entity.Property(c => c.Size)
+                .IsRequired()
+                .HasConversion<string>();
+
+            entity.Property(c => c.FrontDesign)
+                .HasColumnType("text");
+
+            entity.Property(c => c.BackDesign)
+                .HasColumnType("text");
+        });
+
+        modelBuilder.Entity<Dice>(entity =>
+        {
+            entity.Property(d => d.Type)
+                .IsRequired()
+                .HasConversion<string>();
+
+            entity.Property(d => d.Style)
+                .IsRequired()
+                .HasConversion<string>();
+
+            entity.Property(d => d.BaseColor)
+                .IsRequired()
+                .HasConversion<string>();
         });
     }
 }

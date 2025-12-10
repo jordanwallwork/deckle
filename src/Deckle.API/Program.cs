@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -156,11 +157,18 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddOpenApi();
 
+// Configure JSON options to accept string enum values
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
 // Register application services
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<GoogleSheetsService>();
 builder.Services.AddScoped<DataSourceService>();
+builder.Services.AddScoped<ComponentService>();
 
 var app = builder.Build();
 
@@ -194,5 +202,6 @@ app.MapAuthEndpoints();
 app.MapProjectEndpoints();
 app.MapDataSourceEndpoints();
 app.MapGoogleSheetsAuthEndpoints();
+app.MapComponentEndpoints();
 
 app.Run();

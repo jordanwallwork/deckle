@@ -1,3 +1,4 @@
+using Deckle.API.Models;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -13,20 +14,60 @@ public class ComponentService
         _context = context;
     }
 
-    public async Task<List<Component>> GetProjectComponentsAsync(Guid userId, Guid projectId)
+    public async Task<List<ComponentResponse>> GetProjectComponentsAsync(Guid userId, Guid projectId)
     {
         var hasAccess = await _context.UserProjects
             .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
 
         if (!hasAccess)
         {
-            return new List<Component>();
+            return new List<ComponentResponse>();
         }
 
-        return await _context.Components
+        var components = await _context.Components
             .Where(c => c.ProjectId == projectId)
             .OrderBy(c => c.CreatedAt)
             .ToListAsync();
+
+        return components.Select(MapComponentToResponse).ToList();
+    }
+
+    private static ComponentResponse MapComponentToResponse(Component component)
+    {
+        return component switch
+        {
+            Card card => new CardResponse
+            {
+                Id = card.Id,
+                Name = card.Name,
+                Type = "Card",
+                CreatedAt = card.CreatedAt,
+                UpdatedAt = card.UpdatedAt,
+                Size = card.Size.ToString(),
+                SizeLabel = card.Size.GetName(),
+                WidthMm = card.Size.GetWidthMm(),
+                HeightMm = card.Size.GetHeightMm()
+            },
+            Dice dice => new DiceResponse
+            {
+                Id = dice.Id,
+                Name = dice.Name,
+                Type = "Dice",
+                CreatedAt = dice.CreatedAt,
+                UpdatedAt = dice.UpdatedAt,
+                DiceType = dice.Type.ToString(),
+                DiceTypeLabel = dice.Type.GetName(),
+                Style = dice.Style.ToString(),
+                BaseColor = dice.BaseColor.ToString(),
+                BaseColorLabel = dice.BaseColor.GetName(),
+                BaseColorHex = dice.BaseColor.GetHexCode(),
+                ColorblindFriendly = dice.BaseColor.IsColorblindFriendly(),
+                WidthMm = dice.Type.GetWidthMm(),
+                HeightMm = dice.Type.GetHeightMm(),
+                DepthMm = dice.Type.GetDepthMm()
+            },
+            _ => throw new InvalidOperationException($"Unknown component type: {component.GetType().Name}")
+        };
     }
 
     public async Task<Component?> GetComponentByIdAsync(Guid userId, Guid componentId)

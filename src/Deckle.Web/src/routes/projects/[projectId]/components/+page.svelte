@@ -20,48 +20,11 @@
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
-  const cardSizes = [
-    { value: 'MiniAmerican', label: 'Mini American (41mm × 63mm)' },
-    { value: 'MiniEuro', label: 'Mini Euro (44mm × 67mm)' },
-    { value: 'Bridge', label: 'Bridge (57.2mm × 88.9mm)' },
-    { value: 'MetricPoker', label: 'Metric Poker (63mm × 88mm)' },
-    { value: 'StandardPoker', label: 'Standard Poker (63.5mm × 88.9mm)' },
-    { value: 'Tarot', label: 'Tarot (70mm × 120mm)' },
-    { value: 'Jumbo', label: 'Jumbo (88mm × 126mm)' },
-    { value: 'ExtraSmallSquare', label: 'Extra Small Square (55mm × 55mm)' },
-    { value: 'SmallSquare', label: 'Small Square (63.5mm × 63.5mm)' },
-    { value: 'MediumSquare', label: 'Medium Square (70mm × 70mm)' },
-    { value: 'LargeSquare', label: 'Large Square (88.9mm × 88.9mm)' }
-  ];
-
-  const diceTypes = [
-    { value: 'D4', label: 'D4' },
-    { value: 'D6', label: 'D6' },
-    { value: 'D8', label: 'D8' },
-    { value: 'D10', label: 'D10' },
-    { value: 'D12', label: 'D12' },
-    { value: 'D20', label: 'D20' }
-  ];
-
-  const diceStyles = [
-    { value: 'Numbered', label: 'Numbered' },
-    { value: 'Pips', label: 'Pips' },
-    { value: 'Blank', label: 'Blank' }
-  ];
-
-  const diceColors = [
-    { value: 'EarthGreen', label: 'Earth Green', hex: '#3cb8b5', colorblindFriendly: true },
-    { value: 'MarsRed', label: 'Mars Red', hex: '#e00022', colorblindFriendly: true },
-    { value: 'MercuryGrey', label: 'Mercury Grey', hex: '#e5e1e6', colorblindFriendly: true },
-    { value: 'NeptuneBlue', label: 'Neptune Blue', hex: '#1d50b8', colorblindFriendly: true },
-    { value: 'SpaceBlack', label: 'Space Black', hex: '#111820', colorblindFriendly: true },
-    { value: 'SunYellow', label: 'Sun Yellow', hex: '#f4e834', colorblindFriendly: true },
-    { value: 'EmeraldGreen', label: 'Emerald Green', hex: '#34ab49', colorblindFriendly: false },
-    { value: 'JupiterOrange', label: 'Jupiter Orange', hex: '#ed8100', colorblindFriendly: false },
-    { value: 'NebularPurple', label: 'Nebular Purple', hex: '#872a92', colorblindFriendly: false },
-    { value: 'PlutoBrown', label: 'Pluto Brown', hex: '#8e4400', colorblindFriendly: false },
-    { value: 'StarWhite', label: 'Star White', hex: '#ffffff', colorblindFriendly: false }
-  ];
+  // Use configuration options from backend, fallback to empty arrays
+  const cardSizes = data.configOptions?.cardSizes || [];
+  const diceTypes = data.configOptions?.diceTypes || [];
+  const diceStyles = data.configOptions?.diceStyles || [];
+  const diceColors = data.configOptions?.diceColors || [];
 
   function openModal() {
     showModal = true;
@@ -149,20 +112,30 @@
       {#each data.components as component}
         <div class="component-card">
           <h3>{component.name}</h3>
-          {#if component.type}
-            <div class="dice-info">
-              <p class="component-type">{component.type}</p>
+          {#if component.type === 'Card'}
+            <div class="component-details">
+              <p class="component-type">Card</p>
+              <p class="component-spec">{component.sizeLabel}</p>
+              <p class="component-dimensions">{component.widthMm}mm × {component.heightMm}mm</p>
+            </div>
+          {:else if component.type === 'Dice'}
+            <div class="component-details">
+              <p class="component-type">{component.diceTypeLabel} • {component.style}</p>
               <div class="dice-color-display">
                 <span
                   class="color-indicator"
-                  style="background-color: {diceColors.find(c => c.value === component.baseColor)?.hex}"
-                  title={diceColors.find(c => c.value === component.baseColor)?.label}
+                  style="background-color: {component.baseColorHex}"
+                  title={component.baseColorLabel}
                 ></span>
-                <span class="color-name">{diceColors.find(c => c.value === component.baseColor)?.label}</span>
+                <span class="color-name">
+                  {component.baseColorLabel}
+                  {#if component.colorblindFriendly}
+                    <span class="colorblind-indicator" title="Colorblind friendly">👁️</span>
+                  {/if}
+                </span>
               </div>
+              <p class="component-dimensions">{component.widthMm}mm × {component.heightMm}mm × {component.depthMm}mm</p>
             </div>
-          {:else if component.size}
-            <p class="component-type">Card • {cardSizes.find(s => s.value === component.size)?.label || component.size}</p>
           {:else}
             <p class="component-type">Component</p>
           {/if}
@@ -250,7 +223,7 @@
                         class="color-option"
                         class:selected={diceColor === color.value}
                         onclick={() => diceColor = color.value}
-                        style="background-color: {color.hex}; border-color: {color.hex};"
+                        style="background-color: {color.hexCode}; border-color: {color.hexCode};"
                         title={color.label}
                       >
                         {#if diceColor === color.value}
@@ -357,16 +330,30 @@
     margin: 0 0 0.5rem 0;
   }
 
+  .component-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
   .component-type {
     font-size: 0.875rem;
     color: var(--color-muted-teal);
     margin: 0;
+    font-weight: 600;
   }
 
-  .dice-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+  .component-spec {
+    font-size: 0.875rem;
+    color: var(--color-sage);
+    margin: 0;
+  }
+
+  .component-dimensions {
+    font-size: 0.75rem;
+    color: var(--color-muted-teal);
+    margin: 0;
+    font-family: monospace;
   }
 
   .dice-color-display {
@@ -387,6 +374,13 @@
     font-size: 0.875rem;
     color: var(--color-sage);
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .colorblind-indicator {
+    font-size: 0.75rem;
   }
 
   .empty-state {

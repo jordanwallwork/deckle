@@ -169,6 +169,7 @@ builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<GoogleSheetsService>();
 builder.Services.AddScoped<DataSourceService>();
 builder.Services.AddScoped<ComponentService>();
+builder.Services.AddScoped<ConfigurationService>();
 
 var app = builder.Build();
 
@@ -203,5 +204,6 @@ app.MapProjectEndpoints();
 app.MapDataSourceEndpoints();
 app.MapGoogleSheetsAuthEndpoints();
 app.MapComponentEndpoints();
+app.MapConfigurationEndpoints();
 
 app.Run();

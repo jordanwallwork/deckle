@@ -1,11 +1,5 @@
 namespace Deckle.API.Models;
 
-public record ProjectComponentsResponse
-{
-    public List<ComponentResponse> Components { get; init; } = [];
-    public ComponentConfigurationOptions ConfigurationOptions { get; init; } = new();
-}
-
 public abstract record ComponentResponse
 {
     public Guid Id { get; init; }
@@ -13,6 +7,7 @@ public abstract record ComponentResponse
     public string Type { get; init; } = string.Empty;
     public DateTime CreatedAt { get; init; }
     public DateTime UpdatedAt { get; init; }
+    public ComponentConfigurationOptions ConfigurationOptions { get; init; } = new();
 }
 
 public record CardResponse : ComponentResponse

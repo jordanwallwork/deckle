@@ -16,18 +16,14 @@ public class ComponentService
         _configurationService = configurationService;
     }
 
-    public async Task<ProjectComponentsResponse> GetProjectComponentsAsync(Guid userId, Guid projectId)
+    public async Task<List<ComponentResponse>> GetProjectComponentsAsync(Guid userId, Guid projectId)
     {
         var hasAccess = await _context.UserProjects
             .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
 
         if (!hasAccess)
         {
-            return new ProjectComponentsResponse
-            {
-                Components = [],
-                ConfigurationOptions = _configurationService.GetComponentConfigurationOptions()
-            };
+            return [];
         }
 
         var components = await _context.Components
@@ -35,14 +31,12 @@ public class ComponentService
             .OrderBy(c => c.CreatedAt)
             .ToListAsync();
 
-        return new ProjectComponentsResponse
-        {
-            Components = components.Select(MapComponentToResponse).ToList(),
-            ConfigurationOptions = _configurationService.GetComponentConfigurationOptions()
-        };
+        var configOptions = _configurationService.GetComponentConfigurationOptions();
+
+        return components.Select(c => MapComponentToResponse(c, configOptions)).ToList();
     }
 
-    private static ComponentResponse MapComponentToResponse(Component component)
+    private static ComponentResponse MapComponentToResponse(Component component, ComponentConfigurationOptions configOptions)
     {
         return component switch
         {
@@ -56,7 +50,8 @@ public class ComponentService
                 Size = card.Size.ToString(),
                 SizeLabel = card.Size.GetName(),
                 WidthMm = card.Size.GetWidthMm(),
-                HeightMm = card.Size.GetHeightMm()
+                HeightMm = card.Size.GetHeightMm(),
+                ConfigurationOptions = configOptions
             },
             Dice dice => new DiceResponse
             {
@@ -74,7 +69,8 @@ public class ComponentService
                 ColorblindFriendly = dice.BaseColor.IsColorblindFriendly(),
                 WidthMm = dice.Type.GetWidthMm(),
                 HeightMm = dice.Type.GetHeightMm(),
-                DepthMm = dice.Type.GetDepthMm()
+                DepthMm = dice.Type.GetDepthMm(),
+                ConfigurationOptions = configOptions
             },
             _ => throw new InvalidOperationException($"Unknown component type: {component.GetType().Name}")
         };

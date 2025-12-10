@@ -15,11 +15,11 @@ export const load: PageServerLoad = async ({ params, fetch }) => {
       throw error(response.status, 'Failed to load components');
     }
 
-    const data = await response.json();
+    const components = await response.json();
 
     return {
-      components: data.components || [],
-      configOptions: data.configurationOptions || null
+      components: components || [],
+      configOptions: components.length > 0 ? components[0].configurationOptions : null
     };
   } catch (err) {
     if (err && typeof err === 'object' && 'status' in err) {

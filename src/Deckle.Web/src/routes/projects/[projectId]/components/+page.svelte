@@ -3,16 +3,19 @@
   import { componentsApi, ApiError } from '$lib/api';
   import { invalidateAll } from '$app/navigation';
   import Dialog from '$lib/components/Dialog.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import ComponentCard from './_components/ComponentCard.svelte';
   import ComponentTypeSelector from './_components/ComponentTypeSelector.svelte';
   import CardConfigForm from './_components/CardConfigForm.svelte';
   import DiceConfigForm from './_components/DiceConfigForm.svelte';
+  import type { GameComponent } from '$lib/types';
 
   let { data }: { data: PageData } = $props();
 
   let showModal = $state(false);
   let selectedType: 'card' | 'dice' | null = $state(null);
   let componentName = $state('');
+  let editingComponent: GameComponent | null = $state(null);
 
   // Card configuration
   let cardSize = $state('StandardPoker');
@@ -26,10 +29,15 @@
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
+  // Delete confirmation
+  let showDeleteConfirm = $state(false);
+  let componentToDelete: GameComponent | null = $state(null);
+
   function openModal() {
     showModal = true;
     selectedType = null;
     componentName = '';
+    editingComponent = null;
     cardSize = 'StandardPoker';
     diceType = 'D6';
     diceStyle = 'Numbered';
@@ -42,12 +50,57 @@
     showModal = false;
     selectedType = null;
     componentName = '';
+    editingComponent = null;
     errorMessage = '';
   }
 
   function selectType(type: 'card' | 'dice') {
     selectedType = type;
     errorMessage = '';
+  }
+
+  function handleEdit(component: GameComponent) {
+    editingComponent = component;
+    componentName = component.name;
+
+    if (component.type === 'Card') {
+      selectedType = 'card';
+      cardSize = component.cardSize;
+    } else {
+      selectedType = 'dice';
+      diceType = component.diceType;
+      diceStyle = component.diceStyle;
+      diceColor = component.diceBaseColor;
+      diceNumber = component.diceNumber;
+    }
+
+    showModal = true;
+    errorMessage = '';
+  }
+
+  function handleDeleteClick(component: GameComponent) {
+    componentToDelete = component;
+    showDeleteConfirm = true;
+  }
+
+  async function confirmDelete() {
+    if (!componentToDelete) return;
+
+    try {
+      await componentsApi.delete(data.project.id, componentToDelete.id);
+      await invalidateAll();
+      showDeleteConfirm = false;
+      componentToDelete = null;
+    } catch (err) {
+      console.error('Error deleting component:', err);
+      showDeleteConfirm = false;
+      componentToDelete = null;
+    }
+  }
+
+  function cancelDelete() {
+    showDeleteConfirm = false;
+    componentToDelete = null;
   }
 
   async function handleSubmit() {
@@ -65,29 +118,48 @@
     errorMessage = '';
 
     try {
-      if (selectedType === 'card') {
-        await componentsApi.createCard(data.project.id, {
-          name: componentName,
-          size: cardSize
-        });
+      if (editingComponent) {
+        // Update existing component
+        if (selectedType === 'card') {
+          await componentsApi.updateCard(data.project.id, editingComponent.id, {
+            name: componentName,
+            size: cardSize
+          });
+        } else {
+          await componentsApi.updateDice(data.project.id, editingComponent.id, {
+            name: componentName,
+            type: diceType,
+            style: diceStyle,
+            baseColor: diceColor,
+            number: diceNumber
+          });
+        }
       } else {
-        await componentsApi.createDice(data.project.id, {
-          name: componentName,
-          type: diceType,
-          style: diceStyle,
-          baseColor: diceColor,
-          number: diceNumber
-        });
+        // Create new component
+        if (selectedType === 'card') {
+          await componentsApi.createCard(data.project.id, {
+            name: componentName,
+            size: cardSize
+          });
+        } else {
+          await componentsApi.createDice(data.project.id, {
+            name: componentName,
+            type: diceType,
+            style: diceStyle,
+            baseColor: diceColor,
+            number: diceNumber
+          });
+        }
       }
 
       await invalidateAll();
       closeModal();
     } catch (err) {
-      console.error('Error creating component:', err);
+      console.error('Error saving component:', err);
       if (err instanceof ApiError) {
         errorMessage = err.message;
       } else {
-        errorMessage = 'Failed to create component. Please try again.';
+        errorMessage = `Failed to ${editingComponent ? 'update' : 'create'} component. Please try again.`;
       }
     } finally {
       isSubmitting = false;
@@ -108,7 +180,7 @@
   {#if data.components && data.components.length > 0}
     <div class="components-list">
       {#each data.components as component}
-        <ComponentCard {component} />
+        <ComponentCard {component} onEdit={handleEdit} onDelete={handleDeleteClick} />
       {/each}
     </div>
   {:else}
@@ -119,11 +191,13 @@
   {/if}
 </div>
 
-<Dialog bind:show={showModal} title="New Component" maxWidth="600px" onclose={closeModal}>
+<Dialog bind:show={showModal} title={editingComponent ? 'Edit Component' : 'New Component'} maxWidth="600px" onclose={closeModal}>
   {#if !selectedType}
     <ComponentTypeSelector onSelectType={selectType} />
   {:else}
-    <button class="back-button" onclick={() => selectedType = null}>← Back to component types</button>
+    {#if !editingComponent}
+      <button class="back-button" onclick={() => selectedType = null}>← Back to component types</button>
+    {/if}
 
     {#if selectedType === 'card'}
       <CardConfigForm bind:cardSize bind:componentName />
@@ -140,11 +214,26 @@
     {#if selectedType}
       <button class="secondary cancel-button" onclick={closeModal} disabled={isSubmitting}>Cancel</button>
       <button class="primary submit-button" onclick={handleSubmit} disabled={isSubmitting}>
-        {isSubmitting ? 'Adding...' : 'Add Component'}
+        {#if isSubmitting}
+          {editingComponent ? 'Updating...' : 'Adding...'}
+        {:else}
+          {editingComponent ? 'Update Component' : 'Add Component'}
+        {/if}
       </button>
     {/if}
   {/snippet}
 </Dialog>
+
+<ConfirmDialog
+  bind:show={showDeleteConfirm}
+  title="Delete Component"
+  message="Are you sure you want to delete '{componentToDelete?.name}'? This action cannot be undone."
+  confirmText="Delete"
+  cancelText="Cancel"
+  confirmButtonClass="danger"
+  onconfirm={confirmDelete}
+  oncancel={cancelDelete}
+/>
 
 <style>
   .tab-content {

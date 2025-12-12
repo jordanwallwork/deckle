@@ -10,13 +10,40 @@
 
   let {
     component,
+    onEdit,
+    onDelete,
   }: {
     component: GameComponent;
+    onEdit?: (component: GameComponent) => void;
+    onDelete?: (component: GameComponent) => void;
   } = $props();
 </script>
 
 <Card>
-  <h3>{component.name}</h3>
+  <div class="card-header">
+    <h3>{component.name}</h3>
+    <div class="card-actions">
+      {#if onEdit}
+        <button class="icon-button edit-button" onclick={() => onEdit(component)} title="Edit component">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+            <path d="m15 5 4 4"/>
+          </svg>
+        </button>
+      {/if}
+      {#if onDelete}
+        <button class="icon-button delete-button" onclick={() => onDelete(component)} title="Delete component">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18"/>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            <line x1="10" x2="10" y1="11" y2="17"/>
+            <line x1="14" x2="14" y1="11" y2="17"/>
+          </svg>
+        </button>
+      {/if}
+    </div>
+  </div>
   {#if component.type === "Dice"}
     <div class="dice-info">
       <p class="component-type">
@@ -66,11 +93,55 @@
 </Card>
 
 <style>
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+  }
+
   h3 {
     font-size: 1.125rem;
     font-weight: 600;
     color: var(--color-sage);
-    margin: 0 0 0.5rem 0;
+    margin: 0;
+    flex: 1;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: 0.5rem;
+  }
+
+  .icon-button {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .edit-button {
+    color: var(--color-muted-teal);
+  }
+
+  .edit-button:hover {
+    background-color: var(--color-teal-grey);
+    color: var(--color-sage);
+  }
+
+  .delete-button {
+    color: #d32f2f;
+  }
+
+  .delete-button:hover {
+    background-color: #ffebee;
+    color: #b71c1c;
   }
 
   .component-type {

@@ -38,3 +38,16 @@ export interface CreateDiceDto {
   baseColor: string;
   number: number;
 }
+
+export interface UpdateCardDto {
+  name: string;
+  size: string;
+}
+
+export interface UpdateDiceDto {
+  name: string;
+  type: string;
+  style: string;
+  baseColor: string;
+  number: number;
+}

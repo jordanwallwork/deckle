@@ -51,3 +51,7 @@ public record DiceDto
 public record CreateCardRequest(string Name, CardSize Size);
 
 public record CreateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);
+
+public record UpdateCardRequest(string Name, CardSize Size);
+
+public record UpdateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);

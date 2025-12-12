@@ -88,6 +88,66 @@ public static class ComponentEndpoints
         })
         .WithName("CreateDice");
 
+        group.MapPut("cards/{id:guid}", async (Guid projectId, Guid id, ClaimsPrincipal user, ComponentService componentService, UpdateCardRequest request) =>
+        {
+            var userId = UserService.GetUserIdFromClaims(user);
+
+            if (userId == null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var card = await componentService.UpdateCardAsync(userId.Value, id, request.Name, request.Size);
+
+            if (card == null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(card);
+        })
+        .WithName("UpdateCard");
+
+        group.MapPut("dice/{id:guid}", async (Guid projectId, Guid id, ClaimsPrincipal user, ComponentService componentService, UpdateDiceRequest request) =>
+        {
+            var userId = UserService.GetUserIdFromClaims(user);
+
+            if (userId == null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var dice = await componentService.UpdateDiceAsync(userId.Value, id, request.Name, request.Type, request.Style, request.BaseColor, request.Number);
+
+            if (dice == null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(dice);
+        })
+        .WithName("UpdateDice");
+
+        group.MapDelete("{id:guid}", async (Guid projectId, Guid id, ClaimsPrincipal user, ComponentService componentService) =>
+        {
+            var userId = UserService.GetUserIdFromClaims(user);
+
+            if (userId == null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var deleted = await componentService.DeleteComponentAsync(userId.Value, id);
+
+            if (!deleted)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.NoContent();
+        })
+        .WithName("DeleteComponent");
+
         return group;
     }
 }

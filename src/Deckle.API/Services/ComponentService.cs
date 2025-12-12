@@ -189,4 +189,88 @@ public class ComponentService
             UpdatedAt = dice.UpdatedAt
         };
     }
+
+    public async Task<CardDto?> UpdateCardAsync(Guid userId, Guid componentId, string name, CardSize size)
+    {
+        var card = await _context.Cards
+            .Where(c => c.Id == componentId &&
+                        c.Project.Users.Any(u => u.Id == userId))
+            .FirstOrDefaultAsync();
+
+        if (card == null)
+        {
+            return null;
+        }
+
+        card.Name = name;
+        card.Size = size;
+        card.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new CardDto
+        {
+            Id = card.Id,
+            ProjectId = card.ProjectId,
+            Name = card.Name,
+            Size = card.Size.ToString(),
+            FrontDesign = card.FrontDesign,
+            BackDesign = card.BackDesign,
+            CreatedAt = card.CreatedAt,
+            UpdatedAt = card.UpdatedAt
+        };
+    }
+
+    public async Task<DiceDto?> UpdateDiceAsync(Guid userId, Guid componentId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
+    {
+        var dice = await _context.Dices
+            .Where(d => d.Id == componentId &&
+                        d.Project.Users.Any(u => u.Id == userId))
+            .FirstOrDefaultAsync();
+
+        if (dice == null)
+        {
+            return null;
+        }
+
+        dice.Name = name;
+        dice.Type = type;
+        dice.Style = style;
+        dice.BaseColor = baseColor;
+        dice.Number = number;
+        dice.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return new DiceDto
+        {
+            Id = dice.Id,
+            ProjectId = dice.ProjectId,
+            Name = dice.Name,
+            Type = dice.Type.ToString(),
+            Style = dice.Style.ToString(),
+            BaseColor = dice.BaseColor.ToString(),
+            Number = dice.Number,
+            CreatedAt = dice.CreatedAt,
+            UpdatedAt = dice.UpdatedAt
+        };
+    }
+
+    public async Task<bool> DeleteComponentAsync(Guid userId, Guid componentId)
+    {
+        var component = await _context.Components
+            .Where(c => c.Id == componentId &&
+                        c.Project.Users.Any(u => u.Id == userId))
+            .FirstOrDefaultAsync();
+
+        if (component == null)
+        {
+            return false;
+        }
+
+        _context.Components.Remove(component);
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
 }

@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { GameComponent, CreateCardDto, CreateDiceDto } from '$lib/types';
+import type { GameComponent, CreateCardDto, CreateDiceDto, UpdateCardDto, UpdateDiceDto } from '$lib/types';
 
 /**
  * Components API
@@ -28,4 +28,22 @@ export const componentsApi = {
    */
   createDice: (projectId: string, data: CreateDiceDto, fetchFn?: typeof fetch) =>
     api.post<GameComponent>(`/projects/${projectId}/components/dice`, data, undefined, fetchFn),
+
+  /**
+   * Update a card component
+   */
+  updateCard: (projectId: string, componentId: string, data: UpdateCardDto, fetchFn?: typeof fetch) =>
+    api.put<GameComponent>(`/projects/${projectId}/components/cards/${componentId}`, data, undefined, fetchFn),
+
+  /**
+   * Update a dice component
+   */
+  updateDice: (projectId: string, componentId: string, data: UpdateDiceDto, fetchFn?: typeof fetch) =>
+    api.put<GameComponent>(`/projects/${projectId}/components/dice/${componentId}`, data, undefined, fetchFn),
+
+  /**
+   * Delete a component
+   */
+  delete: (projectId: string, componentId: string, fetchFn?: typeof fetch) =>
+    api.delete(`/projects/${projectId}/components/${componentId}`, undefined, fetchFn),
 };

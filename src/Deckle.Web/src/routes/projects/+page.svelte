@@ -1,6 +1,7 @@
 <script lang="ts">
   import { projectsApi, ApiError } from '$lib/api';
   import type { PageData } from './$types';
+  import PageLayout from '$lib/components/PageLayout.svelte';
   import Dialog from '$lib/components/Dialog.svelte';
   import { FormField, Input, TextArea } from '$lib/components/forms';
   import ProjectCard from './_components/ProjectCard.svelte';
@@ -54,34 +55,33 @@
   <meta name="description" content="Manage your game design projects. Create and organize game components, data sources, and image libraries for your tabletop games." />
 </svelte:head>
 
-<div class="page">
-  <div class="page-header">
-    <div class="header-content">
-      <div class="header-text">
-        <h1>Projects</h1>
-        <p class="subtitle">Manage your game design projects</p>
-      </div>
-      <button class="create-button" onclick={() => (showCreateDialog = true)}>
-        <svg viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-        </svg>
-        New Project
-      </button>
+<PageLayout>
+  {#snippet header()}
+    <div class="header-text">
+      <h1>Projects</h1>
+      <p class="subtitle">Manage your game design projects</p>
     </div>
-  </div>
+  {/snippet}
 
-  <div class="page-content">
-    {#if data.projects.length === 0}
-      <EmptyProjectsState onCreateClick={openCreateDialog} />
-    {:else}
-      <div class="projects-grid">
-        {#each data.projects as project}
-          <ProjectCard {project} />
-        {/each}
-      </div>
-    {/if}
-  </div>
-</div>
+  {#snippet headerActions()}
+    <button class="create-button" onclick={() => (showCreateDialog = true)}>
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+      </svg>
+      New Project
+    </button>
+  {/snippet}
+
+  {#if data.projects.length === 0}
+    <EmptyProjectsState onCreateClick={openCreateDialog} />
+  {:else}
+    <div class="projects-grid">
+      {#each data.projects as project}
+        <ProjectCard {project} />
+      {/each}
+    </div>
+  {/if}
+</PageLayout>
 
 <Dialog bind:show={showCreateDialog} title="Create New Project" onclose={closeDialog}>
   <form onsubmit={(e) => { e.preventDefault(); createProject(); }}>
@@ -114,25 +114,6 @@
 </Dialog>
 
 <style>
-  .page {
-    min-height: 100%;
-  }
-
-  .page-header {
-    background: linear-gradient(135deg, var(--color-teal-grey) 0%, var(--color-muted-teal) 100%);
-    padding: 2rem;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .header-content {
-    max-width: 1600px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 2rem;
-  }
-
   .header-text h1 {
     font-size: 1.875rem;
     font-weight: 700;
@@ -170,12 +151,6 @@
     background-color: rgba(255, 255, 255, 0.95);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
-  }
-
-  .page-content {
-    padding: 2rem;
-    max-width: 1600px;
-    margin: 0 auto;
   }
 
   .projects-grid {

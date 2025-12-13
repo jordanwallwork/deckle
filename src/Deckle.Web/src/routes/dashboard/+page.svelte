@@ -1,6 +1,7 @@
 <script lang="ts">
   import { config } from '$lib/config';
   import type { PageData } from './$types';
+  import PageLayout from '$lib/components/PageLayout.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -12,13 +13,13 @@
   <meta name="description" content="Your Deckle dashboard - manage game design projects and create game components." />
 </svelte:head>
 
-<div class="dashboard">
-  <div class="dashboard-header">
-    <div class="header-content">
+<PageLayout>
+  {#snippet header()}
+    <div class="header-text">
       <h1>Dashboard</h1>
-      <p class="subtitle">Welcome back, {data.user?.Name?.split(' ')[0] || 'there'}</p>
+      <p class="subtitle">Welcome back, {data.user?.name?.split(' ')[0] || 'there'}</p>
     </div>
-  </div>
+  {/snippet}
 
   <div class="dashboard-content">
     <!-- Stats cards -->
@@ -156,20 +157,10 @@
       </div>
     </div>
   </div>
-</div>
+</PageLayout>
 
 <style>
-  .dashboard {
-    min-height: 100%;
-  }
-
-  .dashboard-header {
-    background: linear-gradient(135deg, var(--color-teal-grey) 0%, var(--color-muted-teal) 100%);
-    padding: 2rem 2rem 3rem 2rem;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .header-content h1 {
+  .header-text h1 {
     font-size: 2rem;
     font-weight: 700;
     color: white;
@@ -182,9 +173,7 @@
   }
 
   .dashboard-content {
-    padding: 2rem;
-    max-width: 1600px;
-    margin: 0 auto;
+    margin-top: -1rem;
   }
 
   .stats-grid {
@@ -192,7 +181,6 @@
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1.25rem;
     margin-bottom: 2rem;
-    margin-top: -3rem;
   }
 
   .stat-card {
@@ -468,22 +456,8 @@
   }
 
   @media (max-width: 768px) {
-    .dashboard-header {
-      padding: 1.5rem 1rem 2.5rem 1rem;
-    }
-
-    .header-content h1 {
+    .header-text h1 {
       font-size: 1.5rem;
-    }
-
-    .dashboard-content {
-      padding: 1.5rem 1rem;
-    }
-
-    .stats-grid {
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 1rem;
-      margin-top: -2rem;
     }
 
     .stat-card {

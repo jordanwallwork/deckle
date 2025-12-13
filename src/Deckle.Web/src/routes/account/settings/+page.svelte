@@ -1,14 +1,17 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import PageLayout from '$lib/components/PageLayout.svelte';
 
   let { data }: { data: PageData } = $props();
 </script>
 
-<div class="settings-container">
-  <div class="settings-header">
-    <h1>Account Settings</h1>
-    <p class="subtitle">View and manage your account information</p>
-  </div>
+<PageLayout>
+  {#snippet header()}
+    <div class="header-text">
+      <h1>Account Settings</h1>
+      <p class="subtitle">View and manage your account information</p>
+    </div>
+  {/snippet}
 
   <div class="settings-content">
     <div class="settings-section">
@@ -44,30 +47,19 @@
       </div>
     </div>
   </div>
-</div>
+</PageLayout>
 
 <style>
-  .settings-container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-
-  .settings-header {
-    margin-bottom: 2rem;
-  }
-
-  .settings-header h1 {
-    font-size: 2rem;
+  .header-text h1 {
+    font-size: 1.875rem;
     font-weight: 700;
-    color: var(--color-sage);
-    margin: 0 0 0.5rem 0;
+    color: white;
+    margin-bottom: 0.25rem;
   }
 
   .subtitle {
-    color: var(--color-muted-teal);
     font-size: 0.9375rem;
-    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .settings-content {

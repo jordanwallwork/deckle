@@ -26,7 +26,6 @@
 
 <style>
   .tab-content {
-    min-height: 400px;
     padding: 2rem;
   }
 

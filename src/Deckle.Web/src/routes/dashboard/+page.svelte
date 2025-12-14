@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { config } from '$lib/config';
-  import type { PageData } from './$types';
-  import PageLayout from '$lib/components/PageLayout.svelte';
+  import type { PageData } from "./$types";
+  import { PageLayout, Badge, EmptyState } from "$lib/components";
 
   let { data }: { data: PageData } = $props();
 
@@ -10,14 +9,19 @@
 
 <svelte:head>
   <title>Dashboard · Deckle</title>
-  <meta name="description" content="Your Deckle dashboard - manage game design projects and create game components." />
+  <meta
+    name="description"
+    content="Your Deckle dashboard - manage game design projects and create game components."
+  />
 </svelte:head>
 
 <PageLayout>
   {#snippet header()}
     <div class="header-text">
       <h1>Dashboard</h1>
-      <p class="subtitle">Welcome back, {data.user?.name?.split(' ')[0] || 'there'}</p>
+      <p class="subtitle">
+        Welcome back, {data.user?.name?.split(" ")[0] || "there"}
+      </p>
     </div>
   {/snippet}
 
@@ -27,7 +31,9 @@
       <div class="stat-card">
         <div class="stat-icon projects">
           <svg viewBox="0 0 20 20" fill="currentColor">
-            <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            <path
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
           </svg>
         </div>
         <div class="stat-content">
@@ -39,7 +45,9 @@
       <div class="stat-card">
         <div class="stat-icon components">
           <svg viewBox="0 0 20 20" fill="currentColor">
-            <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
+            <path
+              d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"
+            />
           </svg>
         </div>
         <div class="stat-content">
@@ -51,7 +59,11 @@
       <div class="stat-card">
         <div class="stat-icon sources">
           <svg viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd" />
+            <path
+              fill-rule="evenodd"
+              d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z"
+              clip-rule="evenodd"
+            />
           </svg>
         </div>
         <div class="stat-content">
@@ -63,7 +75,11 @@
       <div class="stat-card">
         <div class="stat-icon images">
           <svg viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+            <path
+              fill-rule="evenodd"
+              d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+              clip-rule="evenodd"
+            />
           </svg>
         </div>
         <div class="stat-content">
@@ -81,21 +97,27 @@
       </div>
 
       {#if recentProjects.length === 0}
-        <div class="empty-state">
-          <svg viewBox="0 0 20 20" fill="currentColor">
-            <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
-          <p class="empty-message">No projects yet</p>
-          <p class="empty-subtitle">Create your first project to get started</p>
-          <a href="/projects" class="empty-action">Go to Projects</a>
-        </div>
+        <EmptyState
+          title="No projects yet"
+          subtitle="Create your first project to get started"
+          actionText="Go to Projects"
+          actionHref="/projects"
+        >
+          {#snippet icon()}
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+          {/snippet}
+        </EmptyState>
       {:else}
         <div class="projects-grid">
           {#each recentProjects as project}
             <a href="/projects/{project.id}" class="project-card">
               <div class="project-header">
                 <h3>{project.name}</h3>
-                <span class="role-badge">{project.role}</span>
+                <Badge variant="default">{project.role}</Badge>
               </div>
               {#if project.description}
                 <p class="project-description">{project.description}</p>
@@ -121,7 +143,11 @@
         <a href="/projects" class="action-card">
           <div class="action-icon">
             <svg viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                clip-rule="evenodd"
+              />
             </svg>
           </div>
           <div class="action-content">
@@ -133,7 +159,11 @@
         <a href="/projects" class="action-card">
           <div class="action-icon">
             <svg viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                clip-rule="evenodd"
+              />
             </svg>
           </div>
           <div class="action-content">
@@ -146,7 +176,11 @@
           <div class="action-icon">
             <svg viewBox="0 0 20 20" fill="currentColor">
               <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-              <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                clip-rule="evenodd"
+              />
             </svg>
           </div>
           <div class="action-content">
@@ -174,6 +208,7 @@
 
   .dashboard-content {
     margin-top: -1rem;
+    padding: 0 2rem;
   }
 
   .stats-grid {
@@ -320,17 +355,6 @@
     text-overflow: ellipsis;
   }
 
-  .role-badge {
-    background-color: rgba(120, 160, 131, 0.1);
-    color: var(--color-sage);
-    padding: 0.25rem 0.625rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
   .project-description {
     color: var(--color-text-secondary);
     margin-bottom: 1rem;
@@ -382,7 +406,11 @@
     width: 44px;
     height: 44px;
     border-radius: var(--radius-md);
-    background: linear-gradient(135deg, var(--color-muted-teal) 0%, var(--color-sage) 100%);
+    background: linear-gradient(
+      135deg,
+      var(--color-muted-teal) 0%,
+      var(--color-sage) 100%
+    );
     color: white;
     display: flex;
     align-items: center;
@@ -406,53 +434,6 @@
     font-size: 0.875rem;
     color: var(--color-text-secondary);
     line-height: 1.4;
-  }
-
-  .empty-state {
-    background: white;
-    border: 2px dashed var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 3rem 2rem;
-    text-align: center;
-  }
-
-  .empty-state svg {
-    width: 48px;
-    height: 48px;
-    color: var(--color-muted-teal);
-    margin: 0 auto 1rem;
-    opacity: 0.5;
-  }
-
-  .empty-message {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--color-sage);
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-subtitle {
-    font-size: 1rem;
-    color: var(--color-text-secondary);
-    margin-bottom: 1.5rem;
-  }
-
-  .empty-action {
-    display: inline-block;
-    background-color: var(--color-muted-teal);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    border-radius: var(--radius-md);
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-
-  .empty-action:hover {
-    background-color: var(--color-sage);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
   }
 
   @media (max-width: 768px) {

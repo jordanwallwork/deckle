@@ -2,8 +2,7 @@
   import type { PageData } from "./$types";
   import { componentsApi, ApiError } from "$lib/api";
   import { invalidateAll } from "$app/navigation";
-  import Dialog from "$lib/components/Dialog.svelte";
-  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
+  import { Button, Dialog, ConfirmDialog, EmptyState } from "$lib/components";
   import ComponentCard from "./_components/ComponentCard.svelte";
   import ComponentTypeSelector from "./_components/ComponentTypeSelector.svelte";
   import CardConfigForm from "./_components/CardConfigForm.svelte";
@@ -178,7 +177,9 @@
 
 <div class="tab-content">
   <div class="tab-actions">
-    <button class="add-button" onclick={openModal}>+ Add Component</button>
+    <Button variant="primary" size="sm" onclick={openModal}>
+      + Add Component
+    </Button>
   </div>
 
   {#if data.components && data.components.length > 0}
@@ -192,12 +193,11 @@
       {/each}
     </div>
   {:else}
-    <div class="empty-state">
-      <p class="empty-message">No components yet</p>
-      <p class="empty-subtitle">
-        Add components to build your game's card decks
-      </p>
-    </div>
+    <EmptyState
+      title="No components yet"
+      subtitle="Add components to build your game's card decks"
+      border={false}
+    />
   {/if}
 </div>
 
@@ -211,9 +211,9 @@
     <ComponentTypeSelector onSelectType={selectType} />
   {:else}
     {#if !editingComponent}
-      <button class="back-button" onclick={() => (selectedType = null)}
-        >← Back to component types</button
-      >
+      <Button variant="text" onclick={() => (selectedType = null)}>
+        ← Back to component types
+      </Button>
     {/if}
 
     {#if selectedType === "card"}
@@ -235,13 +235,15 @@
 
   {#snippet actions()}
     {#if selectedType}
-      <button
-        class="secondary cancel-button"
+      <Button
+        variant="secondary"
         onclick={closeModal}
-        disabled={isSubmitting}>Cancel</button
+        disabled={isSubmitting}
       >
-      <button
-        class="primary submit-button"
+        Cancel
+      </Button>
+      <Button
+        variant="primary"
         onclick={handleSubmit}
         disabled={isSubmitting}
       >
@@ -250,7 +252,7 @@
         {:else}
           {editingComponent ? "Update Component" : "Add Component"}
         {/if}
-      </button>
+      </Button>
     {/if}
   {/snippet}
 </Dialog>
@@ -261,7 +263,7 @@
   message="Are you sure you want to delete '{componentToDelete?.name}'? This action cannot be undone."
   confirmText="Delete"
   cancelText="Cancel"
-  confirmButtonClass="danger"
+  confirmVariant="danger"
   onconfirm={confirmDelete}
   oncancel={cancelDelete}
 />
@@ -278,62 +280,10 @@
     margin-bottom: 1.5rem;
   }
 
-  .add-button {
-    background-color: var(--color-muted-teal);
-    color: white;
-    border: none;
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .add-button:hover {
-    background-color: var(--color-sage);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(120, 160, 131, 0.3);
-  }
-
   .components-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-  }
-
-  .empty-message {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--color-sage);
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-subtitle {
-    font-size: 1rem;
-    color: var(--color-muted-teal);
-  }
-
-  .back-button {
-    background: none;
-    border: none;
-    color: var(--color-muted-teal);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    padding: 0.5rem 0;
-    text-align: left;
-    transition: color 0.2s ease;
-    margin-bottom: 1rem;
-  }
-
-  .back-button:hover {
-    color: var(--color-sage);
   }
 
   .error-message {

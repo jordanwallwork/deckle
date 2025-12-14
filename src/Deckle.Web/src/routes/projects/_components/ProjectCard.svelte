@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Card from '$lib/components/Card.svelte';
+  import { Card, Badge } from '$lib/components';
   import type { Project } from '$lib/types';
 
   let {
@@ -12,7 +12,7 @@
 <Card href="/projects/{project.id}">
   <div class="project-header">
     <h2>{project.name}</h2>
-    <span class="role-badge">{project.role}</span>
+    <Badge variant="default">{project.role}</Badge>
   </div>
   {#if project.description}
     <p class="project-description">{project.description}</p>
@@ -42,17 +42,6 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .role-badge {
-    background-color: rgba(120, 160, 131, 0.1);
-    color: var(--color-sage);
-    padding: 0.25rem 0.625rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    white-space: nowrap;
   }
 
   .project-description {

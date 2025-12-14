@@ -95,42 +95,4 @@
     gap: 1rem;
     justify-content: flex-end;
   }
-
-  .dialog-actions :global(button) {
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-  }
-
-  .dialog-actions :global(button.secondary) {
-    background-color: var(--color-teal-grey);
-    color: var(--color-sage);
-  }
-
-  .dialog-actions :global(button.secondary:hover) {
-    background-color: var(--color-muted-teal);
-    color: white;
-  }
-
-  .dialog-actions :global(button.primary) {
-    background-color: var(--color-muted-teal);
-    color: white;
-  }
-
-  .dialog-actions :global(button.primary:hover) {
-    background-color: var(--color-sage);
-  }
-
-  .dialog-actions :global(button:disabled) {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .dialog-actions :global(button.primary:disabled:hover) {
-    background-color: var(--color-muted-teal);
-  }
 </style>

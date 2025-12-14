@@ -2,8 +2,7 @@
   import type { PageData } from "./$types";
   import { config } from "$lib/config";
   import { onMount } from "svelte";
-  import Card from "$lib/components/Card.svelte";
-  import Dialog from "$lib/components/Dialog.svelte";
+  import { Card, Dialog, Button, EmptyState } from "$lib/components";
 
   let { data }: { data: PageData } = $props();
 
@@ -163,11 +162,11 @@
 
 <div class="tab-content">
   <div class="tab-actions">
-    <button class="add-button" onclick={openAddModal}>
+    <Button variant="primary" size="sm" onclick={openAddModal}>
       {isGoogleSheetsAuthorized
         ? "+ Add Data Source"
         : "Authorize Google Sheets"}
-    </button>
+    </Button>
   </div>
 
   {#if !isGoogleSheetsAuthorized && !checkingAuth}
@@ -182,16 +181,13 @@
   {/if}
 
   {#if loading}
-    <div class="empty-state">
-      <p class="empty-message">Loading...</p>
-    </div>
+    <EmptyState title="Loading..." border={false} />
   {:else if dataSources.length === 0}
-    <div class="empty-state">
-      <p class="empty-message">No data sources yet</p>
-      <p class="empty-subtitle">
-        Connect data sources to populate your game components
-      </p>
-    </div>
+    <EmptyState
+      title="No data sources yet"
+      subtitle="Connect data sources to populate your game components"
+      border={false}
+    />
   {:else}
     <div class="data-sources-list">
       {#each dataSources as source}
@@ -214,14 +210,17 @@
             <div class="source-actions">
               <a
                 href={`/projects/${data.project.id}/data-sources/${source.id}`}
-                class="view-button"
+                style="text-decoration: none;"
               >
-                View
+                <Button variant="primary" size="sm">View</Button>
               </a>
-              <button
-                class="delete-button"
-                onclick={() => deleteDataSource(source.id)}>Delete</button
+              <Button
+                variant="danger"
+                size="sm"
+                onclick={() => deleteDataSource(source.id)}
               >
+                Delete
+              </Button>
             </div>
           </div>
         </Card>
@@ -262,20 +261,20 @@
   </div>
 
   {#snippet actions()}
-    <button
-      class="secondary cancel-button"
+    <Button
+      variant="secondary"
       onclick={() => (showAddModal = false)}
       disabled={addingSource}
     >
       Cancel
-    </button>
-    <button
-      class="primary submit-button"
+    </Button>
+    <Button
+      variant="primary"
       onclick={addDataSource}
       disabled={addingSource}
     >
       {addingSource ? "Adding..." : "Add Data Source"}
-    </button>
+    </Button>
   {/snippet}
 </Dialog>
 
@@ -289,24 +288,6 @@
     display: flex;
     justify-content: flex-end;
     margin-bottom: 1.5rem;
-  }
-
-  .add-button {
-    background-color: var(--color-muted-teal);
-    color: white;
-    border: none;
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .add-button:hover {
-    background-color: var(--color-sage);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
   }
 
   .auth-banner {
@@ -328,23 +309,6 @@
     margin: 0;
     opacity: 0.95;
     line-height: 1.5;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-  }
-
-  .empty-message {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--color-sage);
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-subtitle {
-    font-size: 1rem;
-    color: var(--color-muted-teal);
   }
 
   .data-sources-list {
@@ -386,39 +350,6 @@
   .source-actions {
     display: flex;
     gap: 0.75rem;
-  }
-
-  .view-button {
-    background-color: var(--color-muted-teal);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: all 0.2s ease;
-  }
-
-  .view-button:hover {
-    background-color: var(--color-sage);
-  }
-
-  .delete-button {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .delete-button:hover {
-    background-color: #c0392b;
   }
 
   .error-message {

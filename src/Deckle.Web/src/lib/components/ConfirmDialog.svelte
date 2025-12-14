@@ -1,5 +1,7 @@
 <script lang="ts">
   import Dialog from './Dialog.svelte';
+  import Button from './Button.svelte';
+  import type { ButtonVariant } from '$lib/types';
 
   interface Props {
     show: boolean;
@@ -7,7 +9,7 @@
     message: string;
     confirmText?: string;
     cancelText?: string;
-    confirmButtonClass?: string;
+    confirmVariant?: ButtonVariant;
     onconfirm: () => void;
     oncancel: () => void;
   }
@@ -18,7 +20,7 @@
     message,
     confirmText = 'Confirm',
     cancelText = 'Cancel',
-    confirmButtonClass = 'primary',
+    confirmVariant = 'primary',
     onconfirm,
     oncancel
   }: Props = $props();
@@ -36,12 +38,12 @@
   <p class="confirm-message">{message}</p>
 
   {#snippet actions()}
-    <button class="secondary cancel-button" onclick={handleCancel}>
+    <Button variant="secondary" onclick={handleCancel}>
       {cancelText}
-    </button>
-    <button class="{confirmButtonClass} confirm-button" onclick={handleConfirm}>
+    </Button>
+    <Button variant={confirmVariant} onclick={handleConfirm}>
       {confirmText}
-    </button>
+    </Button>
   {/snippet}
 </Dialog>
 
@@ -51,14 +53,5 @@
     color: var(--color-sage);
     line-height: 1.6;
     margin: 0;
-  }
-
-  .confirm-button.danger {
-    background-color: #d32f2f;
-    color: white;
-  }
-
-  .confirm-button.danger:hover {
-    background-color: #b71c1c;
   }
 </style>

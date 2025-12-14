@@ -9,6 +9,7 @@
   height={height}
   fill="none"
   xmlns="http://www.w3.org/2000/svg"
+  style="display: block; flex-shrink: 0;"
 >
   <g
     fill="var(--color-sage)"

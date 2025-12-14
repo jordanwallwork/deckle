@@ -127,11 +127,6 @@
     opacity: 0.9;
   }
 
-  .logomark {
-    display: block;
-    flex-shrink: 0;
-  }
-
   .brand-name {
     font-size: 1.25rem;
     font-weight: 600;

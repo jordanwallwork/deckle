@@ -110,13 +110,14 @@
         href="/projects/{component.projectId}/components/{component.id}/front"
         class="design-link"
       >
-        Edit Front Design
+        Edit Front
       </a>
+      <span class="design-link-separator">•</span>
       <a
         href="/projects/{component.projectId}/components/{component.id}/back"
         class="design-link"
       >
-        Edit Back Design
+        Edit Back
       </a>
     </div>
   {:else}
@@ -205,12 +206,14 @@
 
   .design-links {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 0.5rem;
     margin-top: 0.75rem;
+    justify-content: center;
   }
 
-  .design-link {
+  .design-link,
+  .design-link-separator {
     display: inline-block;
     font-size: 0.875rem;
     color: var(--color-muted-teal);

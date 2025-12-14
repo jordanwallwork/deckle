@@ -6,7 +6,6 @@
     placeholder,
     disabled = false,
     required = false,
-    autofocus = false,
     error = false,
   }: {
     value: string;
@@ -15,7 +14,6 @@
     placeholder?: string;
     disabled?: boolean;
     required?: boolean;
-    autofocus?: boolean;
     error?: boolean;
   } = $props();
 </script>
@@ -27,7 +25,6 @@
   {placeholder}
   {disabled}
   {required}
-  {autofocus}
   class="base-input"
   class:error
 />

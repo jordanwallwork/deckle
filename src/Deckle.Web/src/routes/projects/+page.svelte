@@ -122,7 +122,6 @@
         bind:value={projectName}
         placeholder="My Game Project"
         required
-        autofocus
       />
     </FormField>
 

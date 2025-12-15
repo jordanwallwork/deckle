@@ -16,7 +16,9 @@
   // Update breadcrumbs for this page
   const breadcrumbs = getBreadcrumbs();
   $effect(() => {
-    breadcrumbs.set(buildComponentsBreadcrumbs(data.project.id, data.project.name));
+    breadcrumbs.set(
+      buildComponentsBreadcrumbs(data.project.id, data.project.name)
+    );
   });
 
   let showModal = $state(false);
@@ -72,7 +74,7 @@
 
     if (component.type === "Card") {
       selectedType = "card";
-      cardSize = component.cardSize;
+      cardSize = component.size;
     } else {
       selectedType = "dice";
       diceType = component.diceType;
@@ -243,18 +245,10 @@
 
   {#snippet actions()}
     {#if selectedType}
-      <Button
-        variant="secondary"
-        onclick={closeModal}
-        disabled={isSubmitting}
-      >
+      <Button variant="secondary" onclick={closeModal} disabled={isSubmitting}>
         Cancel
       </Button>
-      <Button
-        variant="primary"
-        onclick={handleSubmit}
-        disabled={isSubmitting}
-      >
+      <Button variant="primary" onclick={handleSubmit} disabled={isSubmitting}>
         {#if isSubmitting}
           {editingComponent ? "Updating..." : "Adding..."}
         {:else}

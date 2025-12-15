@@ -1,21 +1,29 @@
 using Deckle.Domain.Entities;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 namespace Deckle.API.DTOs;
 
-public record ComponentDto
+[JsonDerivedType(typeof(CardDto), typeDiscriminator: "Card")]
+[JsonDerivedType(typeof(DiceDto), typeDiscriminator: "Dice")]
+public abstract record ComponentDto
 {
+    public required string Type { get; init; }
     public required Guid Id { get; init; }
     public required Guid ProjectId { get; init; }
     public required string Name { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
 
-    public ComponentDto() { }
+    public ComponentDto(string type)
+    {
+        Type = type;
+    }
 
     [SetsRequiredMembers]
-    public ComponentDto(Component component)
+    public ComponentDto(string type, Component component)
     {
+        Type = type;
         Id = component.Id;
         ProjectId = component.ProjectId;
         Name = component.Name;
@@ -39,16 +47,15 @@ public static class ComponentExtensions
 
 public record CardDto : ComponentDto
 {
-    public string Type = "Card";
     public required string Size { get; init; }
     public required Dimensions Dimensions { get; init; }
     public string? FrontDesign { get; init; }
     public string? BackDesign { get; init; }
 
-    public CardDto() { }
+    public CardDto() : base("Card") { }
 
     [SetsRequiredMembers]
-    public CardDto(Card card) : base(card)
+    public CardDto(Card card) : base("Card", card)
     {
         Size = card.Size.ToString();
         Dimensions = card.Size.GetDimensions(false);
@@ -59,15 +66,14 @@ public record CardDto : ComponentDto
 
 public record DiceDto : ComponentDto
 {
-    public string Type = "Dice";
     public required string Style { get; init; }
     public required string BaseColor { get; init; }
     public required int Number { get; init; }
 
-    public DiceDto() { }
+    public DiceDto() : base("Dice") { }
 
     [SetsRequiredMembers]
-    public DiceDto(Dice dice) : base(dice)
+    public DiceDto(Dice dice) : base("Dice", dice)
     {
         Style = dice.Style.ToString();
         BaseColor = dice.BaseColor.ToString();

@@ -102,8 +102,8 @@
     </div>
   {:else if component.type === "Card"}
     <p class="component-type">
-      Card • {CARD_SIZES.find((s) => s.value === component.cardSize)?.label ||
-        component.cardSize}
+      Card • {CARD_SIZES.find((s) => s.value === component.size)?.label ||
+        component.size}
     </p>
     <div class="design-links">
       <a

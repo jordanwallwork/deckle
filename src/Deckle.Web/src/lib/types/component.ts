@@ -23,7 +23,7 @@ export interface ComponentWithDimensions extends Component {
 
 export interface CardComponent extends ComponentWithDimensions {
   type: 'Card';
-  cardSize: string;
+  size: string;
   frontDesign?: string | null;
   backDesign?: string | null;
 }

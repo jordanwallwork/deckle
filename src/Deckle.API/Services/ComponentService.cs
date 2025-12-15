@@ -19,10 +19,7 @@ public class ComponentService
         var hasAccess = await _context.UserProjects
             .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
 
-        if (!hasAccess)
-        {
-            return new List<ComponentDto>();
-        }
+        if (!hasAccess) return [];
 
         var components = await _context.Components
             .Where(c => c.ProjectId == projectId)

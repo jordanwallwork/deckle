@@ -1,6 +1,6 @@
+using Deckle.API.Filters;
 using Deckle.API.Services;
 using Microsoft.AspNetCore.Authentication;
-using System.Security.Claims;
 
 namespace Deckle.API.Endpoints;
 
@@ -12,19 +12,14 @@ public static class GoogleSheetsAuthEndpoints
             .WithTags("GoogleSheetsAuth");
 
         // Check if user has authorized Google Sheets
-        group.MapGet("status", async (ClaimsPrincipal user, UserService userService) =>
+        group.MapGet("status", async (HttpContext httpContext, UserService userService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var hasAuth = await userService.HasGoogleSheetsAuthAsync(userId.Value);
+            var userId = httpContext.GetUserId();
+            var hasAuth = await userService.HasGoogleSheetsAuthAsync(userId);
             return Results.Ok(new { authorized = hasAuth });
         })
         .RequireAuthorization()
+        .RequireUserId()
         .WithName("GetGoogleSheetsAuthStatus");
 
         // Initiate Google Sheets OAuth flow
@@ -70,14 +65,8 @@ public static class GoogleSheetsAuthEndpoints
             }
 
             // Check if Google Sheets auth was successful by verifying the user has credentials
-            var userId = UserService.GetUserIdFromClaims(httpContext.User);
-
-            if (userId == null)
-            {
-                return Results.Redirect($"{frontendUrl}{returnUrl}?error=unauthorized");
-            }
-
-            var hasAuth = await userService.HasGoogleSheetsAuthAsync(userId.Value);
+            var userId = httpContext.GetUserId();
+            var hasAuth = await userService.HasGoogleSheetsAuthAsync(userId);
 
             if (!hasAuth)
             {
@@ -87,22 +76,18 @@ public static class GoogleSheetsAuthEndpoints
             return Results.Redirect($"{frontendUrl}{returnUrl}?success=true");
         })
         .RequireAuthorization()
+        .RequireUserId()
         .WithName("GoogleSheetsCallback");
 
         // Revoke Google Sheets authorization
-        group.MapPost("revoke", async (ClaimsPrincipal user, UserService userService) =>
+        group.MapPost("revoke", async (HttpContext httpContext, UserService userService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            await userService.RevokeGoogleCredentialAsync(userId.Value);
+            var userId = httpContext.GetUserId();
+            await userService.RevokeGoogleCredentialAsync(userId);
             return Results.Ok(new { success = true });
         })
         .RequireAuthorization()
+        .RequireUserId()
         .WithName("RevokeGoogleSheetsAuth");
 
         return group;

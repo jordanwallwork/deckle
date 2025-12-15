@@ -1,6 +1,6 @@
 using Deckle.API.DTOs;
+using Deckle.API.Filters;
 using Deckle.API.Services;
-using System.Security.Claims;
 
 namespace Deckle.API.Endpoints;
 
@@ -10,32 +10,21 @@ public static class ComponentEndpoints
     {
         var group = routes.MapGroup("/projects/{projectId:guid}/components")
             .WithTags("Components")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireUserId();
 
-        group.MapGet("", async (Guid projectId, ClaimsPrincipal user, ComponentService componentService) =>
+        group.MapGet("", async (Guid projectId, HttpContext httpContext, ComponentService componentService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var components = await componentService.GetProjectComponentsAsync(userId.Value, projectId);
+            var userId = httpContext.GetUserId();
+            var components = await componentService.GetProjectComponentsAsync(userId, projectId);
             return Results.Ok(components);
         })
         .WithName("GetProjectComponents");
 
-        group.MapGet("{id:guid}", async (Guid projectId, Guid id, ClaimsPrincipal user, ComponentService componentService) =>
+        group.MapGet("{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var component = await componentService.GetComponentByIdAsync(userId.Value, id);
+            var userId = httpContext.GetUserId();
+            var component = await componentService.GetComponentByIdAsync(userId, id);
 
             if (component == null || component.ProjectId != projectId)
             {
@@ -46,18 +35,13 @@ public static class ComponentEndpoints
         })
         .WithName("GetComponentById");
 
-        group.MapPost("cards", async (Guid projectId, ClaimsPrincipal user, ComponentService componentService, CreateCardRequest request) =>
+        group.MapPost("cards", async (Guid projectId, HttpContext httpContext, ComponentService componentService, CreateCardRequest request) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
+            var userId = httpContext.GetUserId();
 
             try
             {
-                var card = await componentService.CreateCardAsync(userId.Value, projectId, request.Name, request.Size);
+                var card = await componentService.CreateCardAsync(userId, projectId, request.Name, request.Size);
                 return Results.Created($"/projects/{projectId}/components/{card.Id}", card);
             }
             catch (UnauthorizedAccessException)
@@ -67,18 +51,13 @@ public static class ComponentEndpoints
         })
         .WithName("CreateCard");
 
-        group.MapPost("dice", async (Guid projectId, ClaimsPrincipal user, ComponentService componentService, CreateDiceRequest request) =>
+        group.MapPost("dice", async (Guid projectId, HttpContext httpContext, ComponentService componentService, CreateDiceRequest request) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
+            var userId = httpContext.GetUserId();
 
             try
             {
-                var dice = await componentService.CreateDiceAsync(userId.Value, projectId, request.Name, request.Type, request.Style, request.BaseColor, request.Number);
+                var dice = await componentService.CreateDiceAsync(userId, projectId, request.Name, request.Type, request.Style, request.BaseColor, request.Number);
                 return Results.Created($"/projects/{projectId}/components/{dice.Id}", dice);
             }
             catch (UnauthorizedAccessException)
@@ -88,16 +67,10 @@ public static class ComponentEndpoints
         })
         .WithName("CreateDice");
 
-        group.MapPut("cards/{id:guid}", async (Guid projectId, Guid id, ClaimsPrincipal user, ComponentService componentService, UpdateCardRequest request) =>
+        group.MapPut("cards/{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateCardRequest request) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var card = await componentService.UpdateCardAsync(userId.Value, id, request.Name, request.Size);
+            var userId = httpContext.GetUserId();
+            var card = await componentService.UpdateCardAsync(userId, id, request.Name, request.Size);
 
             if (card == null)
             {
@@ -108,16 +81,10 @@ public static class ComponentEndpoints
         })
         .WithName("UpdateCard");
 
-        group.MapPut("dice/{id:guid}", async (Guid projectId, Guid id, ClaimsPrincipal user, ComponentService componentService, UpdateDiceRequest request) =>
+        group.MapPut("dice/{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateDiceRequest request) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var dice = await componentService.UpdateDiceAsync(userId.Value, id, request.Name, request.Type, request.Style, request.BaseColor, request.Number);
+            var userId = httpContext.GetUserId();
+            var dice = await componentService.UpdateDiceAsync(userId, id, request.Name, request.Type, request.Style, request.BaseColor, request.Number);
 
             if (dice == null)
             {
@@ -128,16 +95,10 @@ public static class ComponentEndpoints
         })
         .WithName("UpdateDice");
 
-        group.MapDelete("{id:guid}", async (Guid projectId, Guid id, ClaimsPrincipal user, ComponentService componentService) =>
+        group.MapDelete("{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var deleted = await componentService.DeleteComponentAsync(userId.Value, id);
+            var userId = httpContext.GetUserId();
+            var deleted = await componentService.DeleteComponentAsync(userId, id);
 
             if (!deleted)
             {

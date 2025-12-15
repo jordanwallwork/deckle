@@ -1,5 +1,10 @@
 namespace Deckle.Domain.Entities;
 
+public interface IComponentWithDimensions
+{
+    Dimensions GetDimensions();
+}
+
 public abstract class Component
 {
     public Guid Id { get; set; }

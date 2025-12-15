@@ -7,9 +7,8 @@ export const load: PageServerLoad = async ({ params, fetch, parent }) => {
 		const parentData = await parent();
 		const component = await componentsApi.getById(params.projectId, params.componentId, fetch);
 
-		// TODO: Once we support other component types, update this validation
-		if (component.type !== 'Card') {
-			throw error(400, 'Component is not a card');
+		if (!("dimensions" in component)) {
+			throw error(400, 'Component does not have dimensions');
 		}
 
 		return {

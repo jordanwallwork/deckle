@@ -1,6 +1,6 @@
 using Deckle.API.DTOs;
+using Deckle.API.Filters;
 using Deckle.API.Services;
-using System.Security.Claims;
 
 namespace Deckle.API.Endpoints;
 
@@ -10,20 +10,16 @@ public static class DataSourceEndpoints
     {
         var group = routes.MapGroup("/data-sources")
             .WithTags("DataSources")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireUserId();
 
-        group.MapGet("project/{projectId:guid}", async (Guid projectId, ClaimsPrincipal user, DataSourceService dataSourceService) =>
+        group.MapGet("project/{projectId:guid}", async (Guid projectId, HttpContext httpContext, DataSourceService dataSourceService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
+            var userId = httpContext.GetUserId();
 
             try
             {
-                var dataSources = await dataSourceService.GetProjectDataSourcesAsync(userId.Value, projectId);
+                var dataSources = await dataSourceService.GetProjectDataSourcesAsync(userId, projectId);
                 return Results.Ok(dataSources);
             }
             catch (UnauthorizedAccessException)
@@ -33,18 +29,13 @@ public static class DataSourceEndpoints
         })
         .WithName("GetProjectDataSources");
 
-        group.MapGet("{id:guid}", async (Guid id, ClaimsPrincipal user, DataSourceService dataSourceService) =>
+        group.MapGet("{id:guid}", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
+            var userId = httpContext.GetUserId();
 
             try
             {
-                var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId.Value, id);
+                var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
 
                 if (dataSource == null)
                 {
@@ -60,19 +51,14 @@ public static class DataSourceEndpoints
         })
         .WithName("GetDataSourceById");
 
-        group.MapPost("", async (ClaimsPrincipal user, DataSourceService dataSourceService, CreateDataSourceRequest request) =>
+        group.MapPost("", async (HttpContext httpContext, DataSourceService dataSourceService, CreateDataSourceRequest request) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
+            var userId = httpContext.GetUserId();
 
             try
             {
                 var dataSource = await dataSourceService.CreateGoogleSheetsDataSourceAsync(
-                    userId.Value,
+                    userId,
                     request.ProjectId,
                     request.Name,
                     request.Url
@@ -95,18 +81,13 @@ public static class DataSourceEndpoints
         })
         .WithName("CreateDataSource");
 
-        group.MapDelete("{id:guid}", async (Guid id, ClaimsPrincipal user, DataSourceService dataSourceService) =>
+        group.MapDelete("{id:guid}", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
+            var userId = httpContext.GetUserId();
 
             try
             {
-                var deleted = await dataSourceService.DeleteDataSourceAsync(userId.Value, id);
+                var deleted = await dataSourceService.DeleteDataSourceAsync(userId, id);
 
                 if (!deleted)
                 {
@@ -123,18 +104,13 @@ public static class DataSourceEndpoints
         .WithName("DeleteDataSource");
 
         // Endpoint to get spreadsheet metadata
-        group.MapGet("{id:guid}/metadata", async (Guid id, ClaimsPrincipal user, DataSourceService dataSourceService, GoogleSheetsService googleSheetsService) =>
+        group.MapGet("{id:guid}/metadata", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService, GoogleSheetsService googleSheetsService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
+            var userId = httpContext.GetUserId();
 
             try
             {
-                var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId.Value, id);
+                var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
 
                 if (dataSource == null)
                 {
@@ -146,7 +122,7 @@ public static class DataSourceEndpoints
                     return Results.BadRequest(new { error = "Data source is not a Google Sheet" });
                 }
 
-                var metadata = await googleSheetsService.GetSpreadsheetMetadataAsync(userId.Value, dataSource.GoogleSheetsId);
+                var metadata = await googleSheetsService.GetSpreadsheetMetadataAsync(userId, dataSource.GoogleSheetsId);
                 return Results.Ok(metadata);
             }
             catch (UnauthorizedAccessException)
@@ -157,18 +133,13 @@ public static class DataSourceEndpoints
         .WithName("GetDataSourceMetadata");
 
         // Endpoint to get sheet data
-        group.MapGet("{id:guid}/data", async (Guid id, string? range, ClaimsPrincipal user, DataSourceService dataSourceService, GoogleSheetsService googleSheetsService) =>
+        group.MapGet("{id:guid}/data", async (Guid id, string? range, HttpContext httpContext, DataSourceService dataSourceService, GoogleSheetsService googleSheetsService) =>
         {
-            var userId = UserService.GetUserIdFromClaims(user);
-
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
+            var userId = httpContext.GetUserId();
 
             try
             {
-                var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId.Value, id);
+                var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
 
                 if (dataSource == null)
                 {
@@ -182,7 +153,7 @@ public static class DataSourceEndpoints
 
                 // Default to first sheet if no range specified
                 var dataRange = range ?? "A1:Z1000";
-                var data = await googleSheetsService.GetSheetDataAsync(userId.Value, dataSource.GoogleSheetsId, dataRange);
+                var data = await googleSheetsService.GetSheetDataAsync(userId, dataSource.GoogleSheetsId, dataRange);
 
                 return Results.Ok(new { data });
             }

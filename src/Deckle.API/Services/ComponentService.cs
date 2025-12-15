@@ -29,42 +29,7 @@ public class ComponentService
             .OrderBy(c => c.CreatedAt)
             .ToListAsync();
 
-        return components.Select(c =>
-        {
-            if (c is Card card)
-            {
-                return new ComponentDto
-                {
-                    Id = card.Id,
-                    ProjectId = card.ProjectId,
-                    Name = card.Name,
-                    Type = "Card",
-                    CreatedAt = card.CreatedAt,
-                    UpdatedAt = card.UpdatedAt,
-                    CardSize = card.Size.ToString(),
-                    FrontDesign = card.FrontDesign,
-                    BackDesign = card.BackDesign
-                };
-            }
-            else if (c is Dice dice)
-            {
-                return new ComponentDto
-                {
-                    Id = dice.Id,
-                    ProjectId = dice.ProjectId,
-                    Name = dice.Name,
-                    Type = "Dice",
-                    CreatedAt = dice.CreatedAt,
-                    UpdatedAt = dice.UpdatedAt,
-                    DiceType = dice.Type.ToString(),
-                    DiceStyle = dice.Style.ToString(),
-                    DiceBaseColor = dice.BaseColor.ToString(),
-                    DiceNumber = dice.Number
-                };
-            }
-
-            throw new InvalidOperationException($"Unknown component type: {c.GetType().Name}");
-        }).ToList();
+        return components.Select(c => c.ToComponentDto()).ToList();
     }
 
     public async Task<ComponentDto?> GetComponentByIdAsync(Guid userId, Guid componentId)
@@ -79,39 +44,7 @@ public class ComponentService
             return null;
         }
 
-        if (component is Card card)
-        {
-            return new ComponentDto
-            {
-                Id = card.Id,
-                ProjectId = card.ProjectId,
-                Name = card.Name,
-                Type = "Card",
-                CreatedAt = card.CreatedAt,
-                UpdatedAt = card.UpdatedAt,
-                CardSize = card.Size.ToString(),
-                FrontDesign = card.FrontDesign,
-                BackDesign = card.BackDesign
-            };
-        }
-        else if (component is Dice dice)
-        {
-            return new ComponentDto
-            {
-                Id = dice.Id,
-                ProjectId = dice.ProjectId,
-                Name = dice.Name,
-                Type = "Dice",
-                CreatedAt = dice.CreatedAt,
-                UpdatedAt = dice.UpdatedAt,
-                DiceType = dice.Type.ToString(),
-                DiceStyle = dice.Style.ToString(),
-                DiceBaseColor = dice.BaseColor.ToString(),
-                DiceNumber = dice.Number
-            };
-        }
-
-        return null;
+        return component.ToComponentDto();
     }
 
     public async Task<CardDto> CreateCardAsync(Guid userId, Guid projectId, string name, CardSize size)
@@ -137,17 +70,7 @@ public class ComponentService
         _context.Cards.Add(card);
         await _context.SaveChangesAsync();
 
-        return new CardDto
-        {
-            Id = card.Id,
-            ProjectId = card.ProjectId,
-            Name = card.Name,
-            Size = card.Size.ToString(),
-            FrontDesign = card.FrontDesign,
-            BackDesign = card.BackDesign,
-            CreatedAt = card.CreatedAt,
-            UpdatedAt = card.UpdatedAt
-        };
+        return new CardDto(card);
     }
 
     public async Task<DiceDto> CreateDiceAsync(Guid userId, Guid projectId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
@@ -176,18 +99,7 @@ public class ComponentService
         _context.Dices.Add(dice);
         await _context.SaveChangesAsync();
 
-        return new DiceDto
-        {
-            Id = dice.Id,
-            ProjectId = dice.ProjectId,
-            Name = dice.Name,
-            Type = dice.Type.ToString(),
-            Style = dice.Style.ToString(),
-            BaseColor = dice.BaseColor.ToString(),
-            Number = dice.Number,
-            CreatedAt = dice.CreatedAt,
-            UpdatedAt = dice.UpdatedAt
-        };
+        return new DiceDto(dice);
     }
 
     public async Task<CardDto?> UpdateCardAsync(Guid userId, Guid componentId, string name, CardSize size)
@@ -208,17 +120,7 @@ public class ComponentService
 
         await _context.SaveChangesAsync();
 
-        return new CardDto
-        {
-            Id = card.Id,
-            ProjectId = card.ProjectId,
-            Name = card.Name,
-            Size = card.Size.ToString(),
-            FrontDesign = card.FrontDesign,
-            BackDesign = card.BackDesign,
-            CreatedAt = card.CreatedAt,
-            UpdatedAt = card.UpdatedAt
-        };
+        return new CardDto(card);
     }
 
     public async Task<DiceDto?> UpdateDiceAsync(Guid userId, Guid componentId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
@@ -242,18 +144,7 @@ public class ComponentService
 
         await _context.SaveChangesAsync();
 
-        return new DiceDto
-        {
-            Id = dice.Id,
-            ProjectId = dice.ProjectId,
-            Name = dice.Name,
-            Type = dice.Type.ToString(),
-            Style = dice.Style.ToString(),
-            BaseColor = dice.BaseColor.ToString(),
-            Number = dice.Number,
-            CreatedAt = dice.CreatedAt,
-            UpdatedAt = dice.UpdatedAt
-        };
+        return new DiceDto(dice);
     }
 
     public async Task<bool> DeleteComponentAsync(Guid userId, Guid componentId)

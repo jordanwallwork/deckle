@@ -1,5 +1,13 @@
 // Component entity types
 
+export interface Dimensions {
+  widthMm: number;
+  heightMm: number;
+  dpi: number;
+  widthPx: number;
+  heightPx: number;
+}
+
 export interface Component {
   id: string;
   projectId: string;
@@ -9,7 +17,11 @@ export interface Component {
   updatedAt: string;
 }
 
-export interface CardComponent extends Component {
+export interface ComponentWithDimensions extends Component {
+  dimensions: Dimensions;
+}
+
+export interface CardComponent extends ComponentWithDimensions {
   type: 'Card';
   cardSize: string;
   frontDesign?: string | null;

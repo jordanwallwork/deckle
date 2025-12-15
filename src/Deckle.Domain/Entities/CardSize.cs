@@ -35,4 +35,15 @@ public static class CardSizeExtensions
     public static string GetName(this CardSize size) => CardSizeData[size].Name;
     public static decimal GetWidthMm(this CardSize size) => CardSizeData[size].WidthMm;
     public static decimal GetHeightMm(this CardSize size) => CardSizeData[size].HeightMm;
+
+    public static Dimensions GetDimensions(this CardSize size, bool horizontal)
+    {
+        var width = size.GetWidthMm();
+        var height = size.GetHeightMm();
+        return new()
+        {
+            WidthMm = horizontal ? height : width,
+            HeightMm = horizontal ? width : height,
+        };
+    }
 }

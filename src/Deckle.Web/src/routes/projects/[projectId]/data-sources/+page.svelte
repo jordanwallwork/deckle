@@ -3,8 +3,18 @@
   import { config } from "$lib/config";
   import { onMount } from "svelte";
   import { Card, Dialog, Button, EmptyState } from "$lib/components";
+  import { getBreadcrumbs } from "$lib/stores/breadcrumb";
+  import { buildDataSourcesBreadcrumbs } from "$lib/utils/breadcrumbs";
 
   let { data }: { data: PageData } = $props();
+
+  // Update breadcrumbs for this page
+  const breadcrumbs = getBreadcrumbs();
+  $effect(() => {
+    breadcrumbs.set(
+      buildDataSourcesBreadcrumbs(data.project.id, data.project.name)
+    );
+  });
 
   interface DataSource {
     id: string;
@@ -268,11 +278,7 @@
     >
       Cancel
     </Button>
-    <Button
-      variant="primary"
-      onclick={addDataSource}
-      disabled={addingSource}
-    >
+    <Button variant="primary" onclick={addDataSource} disabled={addingSource}>
       {addingSource ? "Adding..." : "Add Data Source"}
     </Button>
   {/snippet}
@@ -281,7 +287,6 @@
 <style>
   .tab-content {
     min-height: 400px;
-    padding: 2rem;
   }
 
   .tab-actions {

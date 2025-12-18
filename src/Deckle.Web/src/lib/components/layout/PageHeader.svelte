@@ -2,46 +2,34 @@
   import type { Snippet } from "svelte";
 
   interface Props {
-    /** Snippet for header content (title, subtitle, etc.) */
-    header: Snippet;
     /** Optional snippet for header actions (e.g., buttons) */
     headerActions?: Snippet;
     /** Main content */
     children: Snippet;
   }
 
-  let { header, headerActions, children }: Props = $props();
+  let { headerActions, children }: Props = $props();
 </script>
 
-<div class="page">
-  <div class="page-header">
-    <div class="header-content">
-      {@render header()}
-      {#if headerActions}
-        <div class="header-actions">
-          {@render headerActions()}
-        </div>
-      {/if}
-    </div>
-  </div>
-
-  <div class="page-content">
+<div class="page-header">
+  <div class="header-content">
     {@render children()}
+    {#if headerActions}
+      <div class="header-actions">
+        {@render headerActions()}
+      </div>
+    {/if}
   </div>
 </div>
 
 <style>
-  .page {
-    min-height: 100%;
-  }
-
   .page-header {
     background: linear-gradient(
       135deg,
       var(--color-teal-grey) 0%,
       var(--color-muted-teal) 100%
     );
-    padding: 2rem;
+    padding: 1rem 2rem;
     border-bottom: 1px solid var(--color-border);
   }
 
@@ -55,6 +43,20 @@
 
   .header-actions {
     flex-shrink: 0;
+  }
+
+  :global(.header-button) {
+    background-color: white !important;
+    color: var(--color-sage) !important;
+  }
+
+  :global(.header-button:hover) {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+  }
+
+  :global(.header-button svg) {
+    width: 18px;
+    height: 18px;
   }
 
   @media (max-width: 768px) {

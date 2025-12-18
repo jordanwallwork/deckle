@@ -1,17 +1,16 @@
 <script lang="ts">
-  import type { PageData } from './$types';
-  import PageLayout from '$lib/components/PageLayout.svelte';
+  import type { PageData } from "./$types";
+  import PageLayout from "$lib/components/layout/PageLayout.svelte";
+  import PageHeader from "$lib/components/layout/PageHeader.svelte";
 
   let { data }: { data: PageData } = $props();
 </script>
 
 <PageLayout>
-  {#snippet header()}
-    <div class="header-text">
-      <h1>Account Settings</h1>
-      <p class="subtitle">View and manage your account information</p>
-    </div>
-  {/snippet}
+  <PageHeader>
+    <h1>Account Settings</h1>
+    <p class="subtitle">View and manage your account information</p>
+  </PageHeader>
 
   <div class="settings-content">
     <div class="settings-section">
@@ -20,10 +19,14 @@
       <div class="profile-card">
         <div class="profile-avatar-section">
           {#if data.user.picture}
-            <img src={data.user.picture} alt={data.user.name || 'User'} class="profile-avatar" />
+            <img
+              src={data.user.picture}
+              alt={data.user.name || "User"}
+              class="profile-avatar"
+            />
           {:else}
             <div class="profile-avatar-placeholder">
-              {data.user.name?.charAt(0).toUpperCase() || 'U'}
+              {data.user.name?.charAt(0).toUpperCase() || "U"}
             </div>
           {/if}
         </div>
@@ -31,17 +34,17 @@
         <div class="profile-fields">
           <div class="field-group">
             <label class="field-label">User ID</label>
-            <div class="field-value">{data.user.id || 'N/A'}</div>
+            <div class="field-value">{data.user.id || "N/A"}</div>
           </div>
 
           <div class="field-group">
             <label class="field-label">Name</label>
-            <div class="field-value">{data.user.name || 'N/A'}</div>
+            <div class="field-value">{data.user.name || "N/A"}</div>
           </div>
 
           <div class="field-group">
             <label class="field-label">Email</label>
-            <div class="field-value">{data.user.email || 'N/A'}</div>
+            <div class="field-value">{data.user.email || "N/A"}</div>
           </div>
         </div>
       </div>

@@ -185,31 +185,29 @@
   />
 </svelte:head>
 
-<div class="tab-content">
-  <div class="tab-actions">
-    <Button variant="primary" size="sm" onclick={openModal}>
-      + Add Component
-    </Button>
-  </div>
-
-  {#if data.components && data.components.length > 0}
-    <div class="components-list">
-      {#each data.components as component}
-        <ComponentCard
-          {component}
-          onEdit={handleEdit}
-          onDelete={handleDeleteClick}
-        />
-      {/each}
-    </div>
-  {:else}
-    <EmptyState
-      title="No components yet"
-      subtitle="Add components to build your game's card decks"
-      border={false}
-    />
-  {/if}
+<div class="actions">
+  <Button variant="primary" size="sm" onclick={openModal}>
+    + Add Component
+  </Button>
 </div>
+
+{#if data.components && data.components.length > 0}
+  <div class="components-list">
+    {#each data.components as component}
+      <ComponentCard
+        {component}
+        onEdit={handleEdit}
+        onDelete={handleDeleteClick}
+      />
+    {/each}
+  </div>
+{:else}
+  <EmptyState
+    title="No components yet"
+    subtitle="Add components to build your game's card decks"
+    border={false}
+  />
+{/if}
 
 <Dialog
   bind:show={showModal}
@@ -271,12 +269,7 @@
 />
 
 <style>
-  .tab-content {
-    min-height: 400px;
-    padding: 2rem;
-  }
-
-  .tab-actions {
+  .actions {
     display: flex;
     justify-content: flex-end;
     margin-bottom: 1.5rem;

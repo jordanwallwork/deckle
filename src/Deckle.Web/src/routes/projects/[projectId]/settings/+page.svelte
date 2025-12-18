@@ -11,7 +11,9 @@
   // Update breadcrumbs for this page
   const breadcrumbs = getBreadcrumbs();
   $effect(() => {
-    breadcrumbs.set(buildSettingsBreadcrumbs(data.project.id, data.project.name));
+    breadcrumbs.set(
+      buildSettingsBreadcrumbs(data.project.id, data.project.name)
+    );
   });
 
   // Project details editing
@@ -28,7 +30,9 @@
   let deleteErrorMessage = $state("");
 
   const isOwner = $derived(data.project.role === "Owner");
-  const canEditProject = $derived(data.project.role === "Owner" || data.project.role === "Admin");
+  const canEditProject = $derived(
+    data.project.role === "Owner" || data.project.role === "Admin"
+  );
 
   function startEditingProject() {
     isEditingProject = true;
@@ -107,7 +111,9 @@
     }
   }
 
-  function getRoleBadgeVariant(role: string): "default" | "success" | "warning" | "danger" {
+  function getRoleBadgeVariant(
+    role: string
+  ): "default" | "success" | "warning" | "danger" {
     switch (role) {
       case "Owner":
         return "danger";
@@ -125,7 +131,8 @@
   <title>Settings · {data.project.name} · Deckle</title>
   <meta
     name="description"
-    content="Manage settings for {data.project.name}. Update project details, manage users, and configure project options."
+    content="Manage settings for {data.project
+      .name}. Update project details, manage users, and configure project options."
   />
 </svelte:head>
 
@@ -185,7 +192,9 @@
           </div>
           <div class="info-row">
             <span class="info-label">Description:</span>
-            <span class="info-value">{data.project.description || "No description"}</span>
+            <span class="info-value"
+              >{data.project.description || "No description"}</span
+            >
           </div>
         </div>
 
@@ -209,7 +218,11 @@
           <div class="user-item">
             <div class="user-info">
               {#if user.pictureUrl}
-                <img src={user.pictureUrl} alt={user.name || user.email} class="user-avatar" />
+                <img
+                  src={user.pictureUrl}
+                  alt={user.name || user.email}
+                  class="user-avatar"
+                />
               {:else}
                 <div class="user-avatar-placeholder">
                   {(user.name || user.email).charAt(0).toUpperCase()}
@@ -237,7 +250,10 @@
         <div class="danger-zone-content">
           <div>
             <h3>Delete Project</h3>
-            <p>Once you delete a project, there is no going back. Please be certain.</p>
+            <p>
+              Once you delete a project, there is no going back. Please be
+              certain.
+            </p>
           </div>
           <Button variant="danger" onclick={openDeleteDialog}>
             Delete Project
@@ -286,7 +302,8 @@
     <Button
       variant="danger"
       onclick={confirmDeleteProject}
-      disabled={isDeletingProject || deleteConfirmationName !== data.project.name}
+      disabled={isDeletingProject ||
+        deleteConfirmationName !== data.project.name}
     >
       {isDeletingProject ? "Deleting..." : "Delete Project"}
     </Button>
@@ -295,7 +312,6 @@
 
 <style>
   .tab-content {
-    padding: 2rem;
     max-width: 900px;
   }
 

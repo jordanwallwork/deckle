@@ -22,11 +22,11 @@
   </main>
 {:else}
   <!-- Dashboard layout (topbar + content) -->
-  {#if data.user}
-    <TopBar user={data.user} />
-  {/if}
 
-  <div class="dashboard-layout" class:with-topbar={data.user}>
+  <div class="dashboard-layout">
+    {#if data.user}
+      <TopBar user={data.user} />
+    {/if}
     <main class="main-content">
       {@render children()}
     </main>
@@ -39,17 +39,14 @@
   }
 
   .dashboard-layout {
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
   }
 
-  .dashboard-layout.with-topbar {
-    padding-top: 60px;
-  }
-
   .main-content {
     flex: 1;
+    padding-top: 60px;
     background-color: #f8f9fa;
     display: flex;
     flex-direction: column;

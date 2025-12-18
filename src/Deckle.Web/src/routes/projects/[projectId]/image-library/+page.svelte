@@ -25,10 +25,6 @@
 </div>
 
 <style>
-  .tab-content {
-    padding: 2rem;
-  }
-
   .tab-actions {
     display: flex;
     justify-content: flex-end;

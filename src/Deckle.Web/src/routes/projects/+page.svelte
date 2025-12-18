@@ -1,9 +1,10 @@
 <script lang="ts">
   import { projectsApi, ApiError } from "$lib/api";
   import type { PageData } from "./$types";
-  import { Button, EmptyState, PageLayout, Dialog } from "$lib/components";
+  import { Button, EmptyState, Dialog } from "$lib/components";
   import { FormField, Input, TextArea } from "$lib/components/forms";
   import ProjectCard from "./_components/ProjectCard.svelte";
+  import PageHeader from "$lib/components/layout/PageHeader.svelte";
 
   let { data }: { data: PageData } = $props();
 
@@ -56,13 +57,11 @@
   />
 </svelte:head>
 
-<PageLayout>
-  {#snippet header()}
-    <div class="header-text">
-      <h1>Projects</h1>
-      <p class="subtitle">Manage your game design projects</p>
-    </div>
-  {/snippet}
+<PageHeader>
+  <div>
+    <h1>Projects</h1>
+    <p class="subtitle">Manage your game design projects</p>
+  </div>
 
   {#snippet headerActions()}
     <Button
@@ -82,28 +81,30 @@
       New Project
     </Button>
   {/snippet}
+</PageHeader>
 
-  {#if data.projects.length === 0}
-    <EmptyState
-      title="No projects yet"
-      subtitle="Create your first project to get started"
-      actionText="Create Project"
-      actionOnClick={openCreateDialog}
-    >
-      {#snippet icon()}
-        <svg viewBox="0 0 20 20" fill="currentColor">
-          <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-        </svg>
-      {/snippet}
-    </EmptyState>
-  {:else}
-    <div class="projects-grid">
-      {#each data.projects as project}
-        <ProjectCard {project} />
-      {/each}
-    </div>
-  {/if}
-</PageLayout>
+{#if data.projects.length === 0}
+  <EmptyState
+    title="No projects yet"
+    subtitle="Create your first project to get started"
+    actionText="Create Project"
+    actionOnClick={openCreateDialog}
+  >
+    {#snippet icon()}
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path
+          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+        />
+      </svg>
+    {/snippet}
+  </EmptyState>
+{:else}
+  <div class="projects-grid">
+    {#each data.projects as project}
+      <ProjectCard {project} />
+    {/each}
+  </div>
+{/if}
 
 <Dialog
   bind:show={showCreateDialog}
@@ -136,9 +137,7 @@
   </form>
 
   {#snippet actions()}
-    <Button variant="secondary" onclick={closeDialog}>
-      Cancel
-    </Button>
+    <Button variant="secondary" onclick={closeDialog}>Cancel</Button>
     <Button
       variant="primary"
       disabled={isCreating || !projectName.trim()}
@@ -150,30 +149,9 @@
 </Dialog>
 
 <style>
-  .header-text h1 {
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: white;
-    margin-bottom: 0.25rem;
-  }
-
   .subtitle {
     font-size: 0.9375rem;
     color: rgba(255, 255, 255, 0.9);
-  }
-
-  :global(.header-button) {
-    background-color: white !important;
-    color: var(--color-sage) !important;
-  }
-
-  :global(.header-button:hover) {
-    background-color: rgba(255, 255, 255, 0.95) !important;
-  }
-
-  :global(.header-button svg) {
-    width: 18px;
-    height: 18px;
   }
 
   .projects-grid {

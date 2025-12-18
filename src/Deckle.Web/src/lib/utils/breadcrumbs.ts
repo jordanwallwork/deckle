@@ -58,20 +58,26 @@ export function buildCardEditorBreadcrumbs(
 	return extend(buildComponentsBreadcrumbs(projectId, projectName), breadcrumbs);
 }
 
+export function buildDataSourcesBreadcrumbs(
+	projectId: string,
+	projectName: string
+): BreadcrumbItem[] {
+	return extend(buildProjectBreadcrumbs(projectId, projectName), [
+		{ label: 'Data Sources', href: `/projects/${projectId}/data-sources`, isActive: true }
+	]);
+}
+
 export function buildDataSourceBreadcrumbs(
 	projectId: string,
 	projectName: string,
 	dataSourceId: string,
 	dataSourceName: string
 ): BreadcrumbItem[] {
-	return [
-		{ label: 'Projects', href: '/projects' },
-		{ label: projectName, href: `/projects/${projectId}/data-sources` },
-		{ label: 'Data Sources', href: `/projects/${projectId}/data-sources` },
+	return extend(buildProjectBreadcrumbs(projectId, projectName), [
 		{
 			label: dataSourceName,
 			href: `/projects/${projectId}/data-sources/${dataSourceId}`,
 			isActive: true
 		}
-	];
+	]);
 }

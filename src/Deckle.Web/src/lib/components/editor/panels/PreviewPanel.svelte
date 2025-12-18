@@ -1,26 +1,29 @@
 <script lang="ts">
   import ComponentViewer from "$lib/components/editor/ComponentViewer.svelte";
-  import type { PageData } from "../$types";
+  import Panel from "$lib/components/editor/Panel.svelte";
+  import ZoomControls from "$lib/components/editor/ZoomControls.svelte";
+  import type { PageData } from "../../../../routes/projects/[projectId]/components/[componentId]/[part]/$types";
 
-  let { data, partLabel }: { data: PageData; partLabel: string } = $props();
+  let { data }: { data: PageData } = $props();
   let dim = data.component.dimensions;
+
+  let zoom = $state(100);
 </script>
 
-<ComponentViewer dimensions={dim}>
-  <div
-    class="card"
-    style:width={dim.widthPx + "px"}
-    style:height={dim.heightPx + "px"}
-  >
-    Card {partLabel}
-  </div>
-  <!-- <p class="todo-message">TODO: Implement the component editor interface</p>
-  <div class="component-info">
-    <p><strong>Component:</strong> {data.component.name}</p>
-    <p><strong>Part:</strong> {partLabel}</p>
-    <pre>{JSON.stringify(data.component, null, 2)}</pre>
-  </div> -->
-</ComponentViewer>
+<Panel title="Preview">
+  {#snippet toolbar()}
+    <ZoomControls bind:zoom />
+  {/snippet}
+  <ComponentViewer dimensions={dim} {zoom}>
+    <div
+      class="card"
+      style:width={dim.widthPx + "px"}
+      style:height={dim.heightPx + "px"}
+    >
+      Component
+    </div>
+  </ComponentViewer>
+</Panel>
 
 <style>
   .editor-container {

@@ -2,8 +2,11 @@
   import type { Dimensions } from "$lib/types";
   import type { Snippet } from "svelte";
 
-  let { dimensions, children }: { dimensions: Dimensions; children: Snippet } =
-    $props();
+  let {
+    dimensions,
+    zoom = 100,
+    children,
+  }: { dimensions: Dimensions; zoom?: number; children: Snippet } = $props();
 
   let containerWidth = $state(0);
   let containerHeight = $state(0);
@@ -19,7 +22,10 @@
     const scaleY = availableHeight / dimensions.heightPx;
 
     // Use the smaller scale to ensure it fits both dimensions
-    return Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+    const fitScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+
+    // Apply zoom percentage
+    return fitScale * (zoom / 100);
   });
 </script>
 

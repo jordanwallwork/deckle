@@ -1,0 +1,198 @@
+// ============================================================================
+// Base Types and Enums
+// ============================================================================
+
+export type ElementType = 'container' | 'text' | 'image';
+
+export type Position = 'absolute' | 'relative';
+export type Display = 'flex' | 'block' | 'inline';
+export type FlexDirection = 'row' | 'column' | 'row-reverse' | 'column-reverse';
+export type FlexWrap = 'nowrap' | 'wrap' | 'wrap-reverse';
+export type JustifyContent = 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'space-evenly';
+export type AlignItems = 'flex-start' | 'flex-end' | 'center' | 'stretch' | 'baseline';
+export type AlignContent = 'flex-start' | 'flex-end' | 'center' | 'stretch' | 'space-between' | 'space-around';
+
+export type TextAlign = 'left' | 'center' | 'right' | 'justify';
+export type TextDecoration = 'none' | 'underline' | 'overline' | 'line-through';
+
+export type BackgroundSize = 'cover' | 'contain' | 'auto' | string; // string for custom like "100px 200px"
+export type BackgroundRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat' | 'space' | 'round';
+export type BackgroundPosition = 'center' | 'top' | 'bottom' | 'left' | 'right' | string; // string for custom like "10px 20px"
+
+export type BorderStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
+
+export type ImageFit = 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
+
+// ============================================================================
+// Style Sub-interfaces
+// ============================================================================
+
+export interface Spacing {
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+}
+
+export interface Border {
+  width?: number;
+  style?: BorderStyle;
+  color?: string;
+  radius?: number | {
+    topLeft?: number;
+    topRight?: number;
+    bottomRight?: number;
+    bottomLeft?: number;
+  };
+}
+
+export interface Shadow {
+  offsetX: number;
+  offsetY: number;
+  blur: number;
+  spread?: number;
+  color: string;
+  inset?: boolean;
+}
+
+export interface Background {
+  color?: string;
+  image?: {
+    imageId: string;
+    size?: BackgroundSize;
+    repeat?: BackgroundRepeat;
+    position?: BackgroundPosition;
+  };
+}
+
+export interface FlexConfig {
+  direction?: FlexDirection;
+  wrap?: FlexWrap;
+  justifyContent?: JustifyContent;
+  alignItems?: AlignItems;
+  alignContent?: AlignContent;
+  gap?: number;
+  rowGap?: number;
+  columnGap?: number;
+}
+
+export interface Dimensions {
+  width?: number | string; // number for px, string for % or other units
+  height?: number | string;
+  minWidth?: number | string;
+  maxWidth?: number | string;
+  minHeight?: number | string;
+  maxHeight?: number | string;
+}
+
+// ============================================================================
+// Base Element Interface
+// ============================================================================
+
+export interface BaseElement {
+  id: string;
+  type: ElementType;
+  position?: Position;
+  x?: number; // for absolute positioning
+  y?: number; // for absolute positioning
+  zIndex?: number;
+  opacity?: number;
+  visible?: boolean;
+}
+
+// ============================================================================
+// Container Element
+// ============================================================================
+
+export interface ContainerElement extends BaseElement {
+  type: 'container';
+  display?: 'flex' | 'block';
+  flexConfig?: FlexConfig; // only used when display is 'flex'
+  children: TemplateElement[];
+  padding?: Spacing;
+  margin?: Spacing;
+  border?: Border;
+  background?: Background;
+  shadow?: Shadow | Shadow[]; // support multiple shadows
+  dimensions?: Dimensions;
+  overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
+}
+
+// ============================================================================
+// Text Element
+// ============================================================================
+
+export interface TextElement extends BaseElement {
+  type: 'text';
+  content: string;
+  display?: 'block' | 'inline';
+
+  // Typography
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: number | 'normal' | 'bold' | 'lighter' | 'bolder';
+  fontStyle?: 'normal' | 'italic' | 'oblique';
+  color?: string;
+  textDecoration?: TextDecoration;
+  textAlign?: TextAlign;
+  lineHeight?: number | string;
+  letterSpacing?: number;
+
+  // Spacing (block mode)
+  padding?: Spacing;
+  margin?: Spacing;
+
+  // Background
+  backgroundColor?: string;
+
+  // Dimensions (block mode only)
+  dimensions?: Dimensions;
+
+  // Other
+  wordWrap?: 'normal' | 'break-word' | 'break-all';
+  textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+}
+
+// ============================================================================
+// Image Element
+// ============================================================================
+
+export interface ImageElement extends BaseElement {
+  type: 'image';
+  imageId: string;
+
+  // Sizing
+  dimensions?: Dimensions;
+  objectFit?: ImageFit;
+  objectPosition?: string; // e.g., "center", "50% 50%"
+
+  // Optional styling
+  border?: Border;
+  shadow?: Shadow | Shadow[];
+  borderRadius?: number;
+}
+
+// ============================================================================
+// Union Type for All Elements
+// ============================================================================
+
+export type TemplateElement = ContainerElement | TextElement | ImageElement;
+
+// ============================================================================
+// Root Template Interface
+// ============================================================================
+
+export interface Template {
+  id: string;
+  name: string;
+  description?: string;
+  width: number;
+  height: number;
+  root: ContainerElement; // Root is always a container
+  metadata?: {
+    created: Date;
+    modified: Date;
+    version: string;
+    tags?: string[];
+  };
+}

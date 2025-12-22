@@ -1,0 +1,293 @@
+<script lang="ts">
+  import type { TemplateElement, ContainerElement, TextElement, ImageElement, Shadow } from './types';
+  import TemplateRenderer from './TemplateRenderer.svelte';
+  import { templateStore } from '$lib/stores/templateElements';
+
+  let { element }: { element: TemplateElement } = $props();
+
+  const isHovered = $derived($templateStore.hoveredElementId === element.id);
+  const isSelected = $derived($templateStore.selectedElementId === element.id);
+
+  function handleMouseEnter() {
+    templateStore.setHoveredElement(element.id);
+  }
+
+  function handleMouseLeave() {
+    templateStore.setHoveredElement(null);
+  }
+
+  function handleClick(e: MouseEvent) {
+    e.stopPropagation();
+    templateStore.selectElement(element.id);
+  }
+
+  // Helper to convert spacing to CSS string
+  function spacingToCss(spacing: { top?: number; right?: number; bottom?: number; left?: number } | undefined): string {
+    if (!spacing) return '0';
+    const { top = 0, right = 0, bottom = 0, left = 0 } = spacing;
+    return `${top}px ${right}px ${bottom}px ${left}px`;
+  }
+
+  // Helper to convert dimensions to CSS
+  function dimensionValue(value: number | string | undefined): string {
+    if (value === undefined) return 'auto';
+    if (typeof value === 'number') return `${value}px`;
+    return value;
+  }
+
+  // Helper to build style object
+  function buildStyle(element: TemplateElement): string {
+    const styles: string[] = [];
+
+    // Position
+    if (element.position === 'absolute') {
+      styles.push('position: absolute');
+      if (element.x !== undefined) styles.push(`left: ${element.x}px`);
+      if (element.y !== undefined) styles.push(`top: ${element.y}px`);
+    } else {
+      styles.push('position: relative');
+    }
+
+    // Z-index
+    if (element.zIndex !== undefined) {
+      styles.push(`z-index: ${element.zIndex}`);
+    }
+
+    // Opacity
+    if (element.opacity !== undefined) {
+      styles.push(`opacity: ${element.opacity}`);
+    }
+
+    // Visibility
+    if (element.visible === false) {
+      styles.push('visibility: hidden');
+    }
+
+    // Type-specific styles
+    if (element.type === 'container') {
+      const container = element as ContainerElement;
+
+      // Display
+      styles.push(`display: ${container.display || 'flex'}`);
+
+      // Flex config
+      if (container.display === 'flex' && container.flexConfig) {
+        const fc = container.flexConfig;
+        if (fc.direction) styles.push(`flex-direction: ${fc.direction}`);
+        if (fc.wrap) styles.push(`flex-wrap: ${fc.wrap}`);
+        if (fc.justifyContent) styles.push(`justify-content: ${fc.justifyContent}`);
+        if (fc.alignItems) styles.push(`align-items: ${fc.alignItems}`);
+        if (fc.alignContent) styles.push(`align-content: ${fc.alignContent}`);
+        if (fc.gap !== undefined) styles.push(`gap: ${fc.gap}px`);
+        if (fc.rowGap !== undefined) styles.push(`row-gap: ${fc.rowGap}px`);
+        if (fc.columnGap !== undefined) styles.push(`column-gap: ${fc.columnGap}px`);
+      }
+
+      // Padding and margin
+      if (container.padding) styles.push(`padding: ${spacingToCss(container.padding)}`);
+      if (container.margin) styles.push(`margin: ${spacingToCss(container.margin)}`);
+
+      // Border
+      if (container.border) {
+        const b = container.border;
+        if (b.width) styles.push(`border-width: ${b.width}px`);
+        if (b.style) styles.push(`border-style: ${b.style}`);
+        if (b.color) styles.push(`border-color: ${b.color}`);
+        if (typeof b.radius === 'number') {
+          styles.push(`border-radius: ${b.radius}px`);
+        } else if (b.radius) {
+          const r = b.radius;
+          styles.push(`border-radius: ${r.topLeft || 0}px ${r.topRight || 0}px ${r.bottomRight || 0}px ${r.bottomLeft || 0}px`);
+        }
+      }
+
+      // Background
+      if (container.background) {
+        const bg = container.background;
+        if (bg.color) styles.push(`background-color: ${bg.color}`);
+        if (bg.image) {
+          // TODO: Handle background image when image management is implemented
+          styles.push(`background-image: url(${bg.image.imageId})`);
+          if (bg.image.size) styles.push(`background-size: ${bg.image.size}`);
+          if (bg.image.repeat) styles.push(`background-repeat: ${bg.image.repeat}`);
+          if (bg.image.position) styles.push(`background-position: ${bg.image.position}`);
+        }
+      }
+
+      // Shadow
+      if (container.shadow) {
+        const shadows = Array.isArray(container.shadow) ? container.shadow : [container.shadow];
+        const shadowCss = shadows.map((s: Shadow) =>
+          `${s.inset ? 'inset ' : ''}${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.spread || 0}px ${s.color}`
+        ).join(', ');
+        styles.push(`box-shadow: ${shadowCss}`);
+      }
+
+      // Dimensions
+      if (container.dimensions) {
+        const d = container.dimensions;
+        if (d.width !== undefined) styles.push(`width: ${dimensionValue(d.width)}`);
+        if (d.height !== undefined) styles.push(`height: ${dimensionValue(d.height)}`);
+        if (d.minWidth !== undefined) styles.push(`min-width: ${dimensionValue(d.minWidth)}`);
+        if (d.maxWidth !== undefined) styles.push(`max-width: ${dimensionValue(d.maxWidth)}`);
+        if (d.minHeight !== undefined) styles.push(`min-height: ${dimensionValue(d.minHeight)}`);
+        if (d.maxHeight !== undefined) styles.push(`max-height: ${dimensionValue(d.maxHeight)}`);
+      }
+
+      // Overflow
+      if (container.overflow) styles.push(`overflow: ${container.overflow}`);
+    }
+
+    if (element.type === 'text') {
+      const text = element as TextElement;
+
+      // Display
+      styles.push(`display: ${text.display || 'block'}`);
+
+      // Typography
+      if (text.fontSize) styles.push(`font-size: ${text.fontSize}px`);
+      if (text.fontFamily) styles.push(`font-family: ${text.fontFamily}`);
+      if (text.fontWeight) styles.push(`font-weight: ${text.fontWeight}`);
+      if (text.fontStyle) styles.push(`font-style: ${text.fontStyle}`);
+      if (text.color) styles.push(`color: ${text.color}`);
+      if (text.textDecoration) styles.push(`text-decoration: ${text.textDecoration}`);
+      if (text.textAlign) styles.push(`text-align: ${text.textAlign}`);
+      if (text.lineHeight) styles.push(`line-height: ${text.lineHeight}`);
+      if (text.letterSpacing) styles.push(`letter-spacing: ${text.letterSpacing}px`);
+      if (text.wordWrap) styles.push(`word-wrap: ${text.wordWrap}`);
+      if (text.textTransform) styles.push(`text-transform: ${text.textTransform}`);
+
+      // Spacing (block mode)
+      if (text.padding) styles.push(`padding: ${spacingToCss(text.padding)}`);
+      if (text.margin) styles.push(`margin: ${spacingToCss(text.margin)}`);
+
+      // Background
+      if (text.backgroundColor) styles.push(`background-color: ${text.backgroundColor}`);
+
+      // Dimensions (block mode)
+      if (text.dimensions) {
+        const d = text.dimensions;
+        if (d.width !== undefined) styles.push(`width: ${dimensionValue(d.width)}`);
+        if (d.height !== undefined) styles.push(`height: ${dimensionValue(d.height)}`);
+        if (d.minWidth !== undefined) styles.push(`min-width: ${dimensionValue(d.minWidth)}`);
+        if (d.maxWidth !== undefined) styles.push(`max-width: ${dimensionValue(d.maxWidth)}`);
+        if (d.minHeight !== undefined) styles.push(`min-height: ${dimensionValue(d.minHeight)}`);
+        if (d.maxHeight !== undefined) styles.push(`max-height: ${dimensionValue(d.maxHeight)}`);
+      }
+    }
+
+    if (element.type === 'image') {
+      const image = element as ImageElement;
+
+      // Dimensions
+      if (image.dimensions) {
+        const d = image.dimensions;
+        if (d.width !== undefined) styles.push(`width: ${dimensionValue(d.width)}`);
+        if (d.height !== undefined) styles.push(`height: ${dimensionValue(d.height)}`);
+        if (d.minWidth !== undefined) styles.push(`min-width: ${dimensionValue(d.minWidth)}`);
+        if (d.maxWidth !== undefined) styles.push(`max-width: ${dimensionValue(d.maxWidth)}`);
+        if (d.minHeight !== undefined) styles.push(`min-height: ${dimensionValue(d.minHeight)}`);
+        if (d.maxHeight !== undefined) styles.push(`max-height: ${dimensionValue(d.maxHeight)}`);
+      }
+
+      // Object fit and position
+      if (image.objectFit) styles.push(`object-fit: ${image.objectFit}`);
+      if (image.objectPosition) styles.push(`object-position: ${image.objectPosition}`);
+
+      // Border
+      if (image.border) {
+        const b = image.border;
+        if (b.width) styles.push(`border-width: ${b.width}px`);
+        if (b.style) styles.push(`border-style: ${b.style}`);
+        if (b.color) styles.push(`border-color: ${b.color}`);
+        if (typeof b.radius === 'number') {
+          styles.push(`border-radius: ${b.radius}px`);
+        } else if (b.radius) {
+          const r = b.radius;
+          styles.push(`border-radius: ${r.topLeft || 0}px ${r.topRight || 0}px ${r.bottomRight || 0}px ${r.bottomLeft || 0}px`);
+        }
+      }
+
+      // Border radius (simplified)
+      if (image.borderRadius) styles.push(`border-radius: ${image.borderRadius}px`);
+
+      // Shadow
+      if (image.shadow) {
+        const shadows = Array.isArray(image.shadow) ? image.shadow : [image.shadow];
+        const shadowCss = shadows.map((s: Shadow) =>
+          `${s.inset ? 'inset ' : ''}${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.spread || 0}px ${s.color}`
+        ).join(', ');
+        styles.push(`box-shadow: ${shadowCss}`);
+      }
+    }
+
+    return styles.join('; ');
+  }
+</script>
+
+{#if element.type === 'container'}
+  <div
+    style={buildStyle(element)}
+    data-element-id={element.id}
+    class="editable-element"
+    class:hovered={isHovered}
+    class:selected={isSelected}
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
+    onclick={handleClick}
+    role="button"
+    tabindex="0"
+  >
+    {#each (element as ContainerElement).children as child (child.id)}
+      <TemplateRenderer element={child} />
+    {/each}
+  </div>
+{:else if element.type === 'text'}
+  <div
+    style={buildStyle(element)}
+    data-element-id={element.id}
+    class="editable-element"
+    class:hovered={isHovered}
+    class:selected={isSelected}
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
+    onclick={handleClick}
+    role="button"
+    tabindex="0"
+  >
+    {(element as TextElement).content}
+  </div>
+{:else if element.type === 'image'}
+  <img
+    src={(element as ImageElement).imageId}
+    alt=""
+    style={buildStyle(element)}
+    data-element-id={element.id}
+    class="editable-element"
+    class:hovered={isHovered}
+    class:selected={isSelected}
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
+    onclick={handleClick}
+    role="button"
+    tabindex="0"
+  />
+{/if}
+
+<style>
+  .editable-element {
+    cursor: pointer;
+    transition: outline 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .editable-element.hovered {
+    outline: 1px dashed #0066cc;
+    outline-offset: 2px;
+  }
+
+  .editable-element.selected {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+  }
+</style>

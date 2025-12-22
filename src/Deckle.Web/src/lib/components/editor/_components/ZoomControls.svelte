@@ -1,0 +1,114 @@
+<script lang="ts">
+  let { zoom = $bindable(100) }: { zoom?: number } = $props();
+
+  function zoomIn() {
+    zoom += 10;
+  }
+
+  function zoomOut() {
+    zoom -= 10;
+  }
+
+  function resetZoom() {
+    zoom = 100;
+  }
+</script>
+
+<div class="zoom-controls">
+  <div class="zoom-group">
+    <button class="zoom-btn zoom-btn-left" onclick={zoomOut} title="Zoom out"> - </button>
+    <div class="zoom-input-wrapper">
+      <input
+        type="number"
+        class="zoom-input"
+        bind:value={zoom}
+        min="10"
+        max="1000"
+        step="1"
+      />
+      <span class="zoom-percent">%</span>
+    </div>
+    <button class="zoom-btn zoom-btn-right" onclick={zoomIn} title="Zoom in"> + </button>
+  </div>
+  <button class="zoom-btn" onclick={resetZoom} title="Reset zoom">
+    Reset
+  </button>
+</div>
+
+<style>
+  .zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .zoom-group {
+    display: flex;
+    align-items: center;
+  }
+
+  .zoom-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .zoom-btn:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+
+  .zoom-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Button group styling - join buttons to input */
+  .zoom-group .zoom-btn-left {
+    border-radius: 4px 0 0 4px;
+    border-right: none;
+  }
+
+  .zoom-group .zoom-btn-right {
+    border-radius: 0 4px 4px 0;
+    border-left: none;
+  }
+
+  .zoom-input-wrapper {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+
+  .zoom-input {
+    padding: 0.25rem 1.5rem 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0;
+    background: white;
+    width: 3.5rem;
+    text-align: right;
+  }
+
+  .zoom-input::-webkit-inner-spin-button,
+  .zoom-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .zoom-input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  .zoom-percent {
+    position: absolute;
+    right: 0.5rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+    pointer-events: none;
+  }
+</style>

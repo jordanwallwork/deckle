@@ -1,6 +1,7 @@
 <script lang="ts">
   import Panel from "./_components/Panel.svelte";
   import TreeNode from "./_components/TreeNode.svelte";
+  import DropTarget from "./_components/DropTarget.svelte";
   import AddElementPopover from "./_components/AddElementPopover.svelte";
   import { templateStore } from "$lib/stores/templateElements";
 
@@ -87,6 +88,9 @@
         <div class="empty-state">
           <p>No elements yet</p>
           <p class="hint">Click "Add" to create your first element</p>
+          <div class="empty-drop-zone">
+            <DropTarget parentId="root" insertIndex={0} depth={0} />
+          </div>
         </div>
       {:else}
         <TreeNode
@@ -156,5 +160,10 @@
   .empty-state .hint {
     font-size: 0.75rem;
     margin-top: 0.5rem;
+  }
+
+  .empty-drop-zone {
+    margin-top: 1rem;
+    padding: 1rem 0;
   }
 </style>

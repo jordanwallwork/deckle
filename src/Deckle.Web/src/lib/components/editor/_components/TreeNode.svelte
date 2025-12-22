@@ -2,6 +2,7 @@
   import { slide } from 'svelte/transition';
   import { templateStore } from '$lib/stores/templateElements';
   import type { TemplateElement, ElementType } from '../types';
+  import DropTarget from './DropTarget.svelte';
 
   let {
     element,
@@ -195,7 +196,12 @@
 
     {#if hasChildren && expanded && element.type === 'container'}
       <div class="node-children" transition:slide={{ duration: 200 }}>
-        {#each element.children as child (child.id)}
+        {#each element.children as child, index (child.id)}
+          <DropTarget
+            parentId={isRoot ? 'root' : element.id}
+            insertIndex={index}
+            depth={depth + 1}
+          />
           <svelte:self
             element={child}
             depth={depth + 1}
@@ -203,6 +209,11 @@
             onAddClick={onAddClick}
           />
         {/each}
+        <DropTarget
+          parentId={isRoot ? 'root' : element.id}
+          insertIndex={element.children.length}
+          depth={depth + 1}
+        />
       </div>
     {/if}
   </div>

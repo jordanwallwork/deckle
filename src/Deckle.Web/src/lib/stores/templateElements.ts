@@ -189,7 +189,7 @@ function createTemplateStore() {
 		},
 
 		// Move an element to a new parent
-		moveElement: (elementId: string, newParentId: string | null) => {
+		moveElement: (elementId: string, newParentId: string | null, insertIndex?: number) => {
 			update((store) => {
 				// Find the element
 				const element = findElementById(store.root, elementId);
@@ -228,7 +228,7 @@ function createTemplateStore() {
 					if (movedElement.y === undefined) movedElement.y = 0;
 					store.root = {
 						...store.root,
-						children: [...store.root.children, movedElement]
+						children: insertAtIndex(store.root.children, movedElement, insertIndex)
 					};
 				} else {
 					// Moving to a container - use relative positioning
@@ -237,7 +237,7 @@ function createTemplateStore() {
 						delete movedElement.x;
 						delete movedElement.y;
 					}
-					store.root = addElementToContainer(store.root, newParentId, movedElement);
+					store.root = addElementToContainer(store.root, newParentId, movedElement, insertIndex);
 				}
 
 				return store;
@@ -265,17 +265,30 @@ function findElementById(
 	return null;
 }
 
+// Helper function to insert element at specific index (or end if undefined)
+function insertAtIndex(
+	children: TemplateElement[],
+	element: TemplateElement,
+	index?: number
+): TemplateElement[] {
+	if (index === undefined || index < 0 || index >= children.length) {
+		return [...children, element];
+	}
+	return [...children.slice(0, index), element, ...children.slice(index)];
+}
+
 // Helper function to add element immutably (creates new references for the entire path)
 function addElementToContainer(
 	container: ContainerElement,
 	parentId: string,
-	element: TemplateElement
+	element: TemplateElement,
+	insertIndex?: number
 ): ContainerElement {
 	if (container.id === parentId) {
 		// Found the parent - add element here
 		return {
 			...container,
-			children: [...container.children, element]
+			children: insertAtIndex(container.children, element, insertIndex)
 		};
 	}
 
@@ -284,7 +297,7 @@ function addElementToContainer(
 		if (child.type === 'container') {
 			const found = findElementById(child, parentId);
 			if (found) {
-				return addElementToContainer(child, parentId, element);
+				return addElementToContainer(child, parentId, element, insertIndex);
 			}
 		}
 		return child;

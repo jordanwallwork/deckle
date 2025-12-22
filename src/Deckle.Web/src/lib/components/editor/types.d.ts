@@ -92,6 +92,7 @@ export interface Dimensions {
 export interface BaseElement {
   id: string;
   type: ElementType;
+  label?: string; // User-defined label for the element, displayed in structure tree
   position?: Position;
   x?: number; // for absolute positioning
   y?: number; // for absolute positioning

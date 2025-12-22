@@ -20,6 +20,8 @@
 
   let expanded = $state(true);
   let isDragOver = $state(false);
+  let isEditingLabel = $state(false);
+  let editLabelValue = $state('');
 
   const hasChildren = $derived(element.type === 'container' && element.children.length > 0);
   const isSelected = $derived(selectedId === element.id);
@@ -68,10 +70,52 @@
   }
 
   function getElementLabel(el: TemplateElement): string {
+    // Use custom label if available
+    if (el.label) {
+      return el.label;
+    }
+
+    // Otherwise use default label
     if (el.type === 'text') {
       return el.content.substring(0, 20) + (el.content.length > 20 ? '...' : '');
     }
     return el.type.charAt(0).toUpperCase() + el.type.slice(1);
+  }
+
+  function handleLabelDoubleClick(e: MouseEvent) {
+    e.stopPropagation();
+    if (!isRoot) {
+      editLabelValue = element.label || getElementLabel(element);
+      isEditingLabel = true;
+    }
+  }
+
+  function handleLabelBlur() {
+    saveLabelEdit();
+  }
+
+  function handleLabelKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      saveLabelEdit();
+    } else if (e.key === 'Escape') {
+      isEditingLabel = false;
+    }
+  }
+
+  function saveLabelEdit() {
+    if (isEditingLabel) {
+      const trimmedValue = editLabelValue.trim();
+      templateStore.updateElement(element.id, {
+        label: trimmedValue || undefined
+      });
+      isEditingLabel = false;
+    }
+  }
+
+  // Auto-focus action for input
+  function focusOnMount(element: HTMLInputElement) {
+    element.focus();
+    element.select();
   }
 
   // Drag and drop handlers
@@ -165,7 +209,24 @@
           <path d={getElementIcon(element.type)} stroke="currentColor" stroke-width="1.5" fill="none"/>
         </svg>
 
-        <span class="node-label">{getElementLabel(element)}</span>
+        {#if isEditingLabel}
+          <input
+            type="text"
+            class="label-input"
+            bind:value={editLabelValue}
+            onblur={handleLabelBlur}
+            onkeydown={handleLabelKeyDown}
+            onclick={(e) => e.stopPropagation()}
+            use:focusOnMount
+          />
+        {:else}
+          <span
+            class="node-label"
+            ondblclick={handleLabelDoubleClick}
+          >
+            {getElementLabel(element)}
+          </span>
+        {/if}
 
         <div class="node-actions">
           {#if element.type === 'container'}
@@ -329,6 +390,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    user-select: none;
+  }
+
+  .label-input {
+    flex: 1;
+    font-size: 0.813rem;
+    color: #1a1a1a;
+    padding: 0.125rem 0.25rem;
+    border: 1px solid #0066cc;
+    border-radius: 3px;
+    background: white;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .label-input:focus {
+    border-color: #0066cc;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
   }
 
   .root-label {

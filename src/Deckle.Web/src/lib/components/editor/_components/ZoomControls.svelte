@@ -1,16 +1,56 @@
 <script lang="ts">
-  let { zoom = $bindable(100) }: { zoom?: number } = $props();
+  import type { PanzoomObject } from "@panzoom/panzoom";
+
+  let { panzoomInstance }: { panzoomInstance: PanzoomObject | null } = $props();
+
+  let currentZoom = $state(100);
+
+  // Update zoom display when panzoom instance changes
+  $effect(() => {
+    if (panzoomInstance) {
+      const scale = panzoomInstance.getScale();
+      currentZoom = Math.round(scale * 100);
+    }
+  });
+
+  function updateZoomDisplay() {
+    if (panzoomInstance) {
+      // Use setTimeout to allow panzoom to update before reading the scale
+      setTimeout(() => {
+        const scale = panzoomInstance.getScale();
+        currentZoom = Math.round(scale * 100);
+      }, 50);
+    }
+  }
 
   function zoomIn() {
-    zoom += 10;
+    if (panzoomInstance) {
+      panzoomInstance.zoomIn();
+      updateZoomDisplay();
+    }
   }
 
   function zoomOut() {
-    zoom -= 10;
+    if (panzoomInstance) {
+      panzoomInstance.zoomOut();
+      updateZoomDisplay();
+    }
   }
 
   function resetZoom() {
-    zoom = 100;
+    if (panzoomInstance) {
+      panzoomInstance.reset();
+      updateZoomDisplay();
+    }
+  }
+
+  function handleZoomInput(e: Event) {
+    const value = parseInt((e.target as HTMLInputElement).value);
+    if (panzoomInstance && !isNaN(value)) {
+      const scale = value / 100;
+      panzoomInstance.zoom(scale, { animate: true });
+      updateZoomDisplay();
+    }
   }
 </script>
 
@@ -21,9 +61,10 @@
       <input
         type="number"
         class="zoom-input"
-        bind:value={zoom}
+        value={currentZoom}
+        oninput={handleZoomInput}
         min="10"
-        max="1000"
+        max="500"
         step="1"
       />
       <span class="zoom-percent">%</span>

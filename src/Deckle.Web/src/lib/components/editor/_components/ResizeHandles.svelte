@@ -56,6 +56,10 @@
     previewX = startLeft;
     previewY = startTop;
 
+    // Save to history once at the start of the drag operation
+    // This ensures undo reverts to the initial size, not each pixel change
+    templateStore.saveToHistory();
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   }
@@ -116,9 +120,8 @@
     previewY = newY;
 
     // Update the element's dimensions in real-time
-    // Note: This currently creates multiple history entries, but provides
-    // real-time visual feedback. A future optimization would be to update
-    // only the visual representation during drag and save once on mouseup.
+    // Use updateElementWithoutHistory to avoid creating a history entry for each pixel change
+    // History is saved once at the start of the drag operation
     const updates: any = {
       dimensions: {
         ...(element.type === 'container' || element.type === 'text' || element.type === 'image' ? (element as any).dimensions : {}),
@@ -135,8 +138,8 @@
       updates.y = newY;
     }
 
-    // Update immediately for real-time feedback
-    templateStore.updateElement(element.id, updates);
+    // Update immediately for real-time feedback without saving to history
+    templateStore.updateElementWithoutHistory(element.id, updates);
   }
 
   function handleMouseUp() {

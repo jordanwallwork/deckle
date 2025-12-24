@@ -1,40 +1,66 @@
 <script lang="ts">
   import type { Dimensions } from "$lib/types";
   import type { Snippet } from "svelte";
+  import type { PanzoomObject } from "@panzoom/panzoom";
+  import { onMount } from "svelte";
 
   let {
     dimensions,
-    zoom = 100,
     children,
-  }: { dimensions: Dimensions; zoom?: number; children: Snippet } = $props();
+    onPanzoomReady,
+  }: {
+    dimensions: Dimensions;
+    children: Snippet;
+    onPanzoomReady?: (instance: PanzoomObject) => void;
+  } = $props();
 
-  let containerWidth = $state(0);
-  let containerHeight = $state(0);
+  let viewerElement: HTMLDivElement;
+  let contentElement: HTMLDivElement;
+  let panzoomInstance: PanzoomObject | null = null;
 
-  const scale = $derived(() => {
-    if (!containerWidth || !containerHeight) return 1;
+  onMount(async () => {
+    if (contentElement && viewerElement) {
+      // Dynamic import to avoid SSR issues - panzoom is browser-only
+      const { default: Panzoom } = await import("@panzoom/panzoom");
 
-    const padding = 20; // padding in pixels
-    const availableWidth = containerWidth - padding * 2;
-    const availableHeight = containerHeight - padding * 2;
+      // Calculate the scale needed to fit the component in the viewer
+      const padding = 40; // padding in pixels
+      const viewerWidth = viewerElement.clientWidth - padding * 2;
+      const viewerHeight = viewerElement.clientHeight - padding * 2;
 
-    const scaleX = availableWidth / dimensions.widthPx;
-    const scaleY = availableHeight / dimensions.heightPx;
+      const scaleX = viewerWidth / dimensions.widthPx;
+      const scaleY = viewerHeight / dimensions.heightPx;
 
-    // Use the smaller scale to ensure it fits both dimensions
-    const fitScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+      // Use the smaller scale to ensure it fits both dimensions
+      // Don't scale up beyond 100%
+      const fitScale = Math.min(scaleX, scaleY, 1);
 
-    // Apply zoom percentage
-    return fitScale * (zoom / 100);
+      panzoomInstance = Panzoom(contentElement, {
+        maxScale: 5,
+        minScale: 0.1,
+        startScale: fitScale,
+        step: 0.1,
+        cursor: "grab",
+        // Exclude resize handles and other interactive elements from triggering pan
+        excludeClass: "resize-handle",
+      });
+
+      // Notify parent component that panzoom is ready
+      if (onPanzoomReady && panzoomInstance) {
+        onPanzoomReady(panzoomInstance);
+      }
+    }
+
+    return () => {
+      if (panzoomInstance) {
+        panzoomInstance.destroy();
+      }
+    };
   });
 </script>
 
-<div
-  class="component-viewer"
-  bind:clientWidth={containerWidth}
-  bind:clientHeight={containerHeight}
->
-  <div class="scaler" style:transform="scale({scale()})">
+<div class="component-viewer" bind:this={viewerElement}>
+  <div class="panzoom-content" bind:this={contentElement}>
     {@render children()}
   </div>
 </div>
@@ -44,13 +70,13 @@
     background: repeating-conic-gradient(#e5e5e5 0 25%, #fff 0 50%) 50% / 8px
       8px;
     height: 100%;
+    overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
   }
 
-  .scaler {
-    transform-origin: center center;
-    display: block;
+  .panzoom-content {
+    /* Panzoom will handle transforms */
   }
 </style>

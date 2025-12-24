@@ -5,12 +5,17 @@
   import ZoomControls from "$lib/components/editor/_components/ZoomControls.svelte";
   import type { ComponentWithDimensions } from "$lib/types";
   import EditableComponent from "./EditableComponent.svelte";
+  import type { PanzoomObject } from "@panzoom/panzoom";
 
   let { component }: { component: ComponentWithDimensions } = $props();
   let dimensions = component.dimensions;
 
-  let zoom = $state(100);
   let showBleedSafeArea = $state(false);
+  let panzoomInstance = $state<PanzoomObject | null>(null);
+
+  function handlePanzoomReady(instance: PanzoomObject) {
+    panzoomInstance = instance;
+  }
 </script>
 
 <Panel title="Preview">
@@ -24,9 +29,9 @@
     >
       {showBleedSafeArea ? 'Hide' : 'Show'} Bleed/Safe Area
     </button>
-    <ZoomControls bind:zoom />
+    <ZoomControls {panzoomInstance} />
   {/snippet}
-  <ComponentViewer {dimensions} {zoom}>
+  <ComponentViewer {dimensions} onPanzoomReady={handlePanzoomReady}>
     <EditableComponent {dimensions} {showBleedSafeArea} />
   </ComponentViewer>
 </Panel>

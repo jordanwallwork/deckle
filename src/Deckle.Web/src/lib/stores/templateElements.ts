@@ -114,6 +114,22 @@ function createTemplateStore() {
 			});
 		},
 
+		// Update an element without saving to history (useful for batched operations like drag)
+		updateElementWithoutHistory: (elementId: string, updates: Partial<TemplateElement>) => {
+			update((store) => {
+				store.root = updateElementInContainer(store.root, elementId, updates);
+				return store;
+			});
+		},
+
+		// Save current state to history (useful for manual history management)
+		saveToHistory: () => {
+			update((store) => {
+				saveHistory(store);
+				return store;
+			});
+		},
+
 		// Select an element
 		selectElement: (elementId: string | null) => {
 			update((store) => {

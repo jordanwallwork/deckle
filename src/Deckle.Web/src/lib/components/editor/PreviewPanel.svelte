@@ -54,6 +54,9 @@
       // Save the design via API
       await componentsApi.saveCardDesign(projectId, component.id, part.toLowerCase(), design);
 
+      // Mark changes as saved
+      templateStore.markAsSaved();
+
       saveSuccess = true;
       setTimeout(() => {
         saveSuccess = false;
@@ -69,6 +72,17 @@
 
 <Panel title="Preview">
   {#snippet toolbar()}
+    <button
+      onclick={handleSave}
+      class="save-button"
+      class:saving={isSaving}
+      class:success={saveSuccess}
+      class:unsaved={$templateStore.hasUnsavedChanges}
+      disabled={isSaving}
+      title="Save Design"
+    >
+      {isSaving ? "Saving..." : saveSuccess ? "Saved!" : "Save"}
+    </button>
     <UndoRedoControls />
     <button
       onclick={() => (showBleedSafeArea = !showBleedSafeArea)}
@@ -78,16 +92,6 @@
         : "Show Bleed/Safe Area"}
     >
       {showBleedSafeArea ? "Hide" : "Show"} Bleed/Safe Area
-    </button>
-    <button
-      onclick={handleSave}
-      class="save-button"
-      class:saving={isSaving}
-      class:success={saveSuccess}
-      disabled={isSaving}
-      title="Save Design"
-    >
-      {isSaving ? "Saving..." : saveSuccess ? "Saved!" : "Save"}
     </button>
     <ZoomControls {panzoomInstance} {panzoomElement} />
   {/snippet}
@@ -134,6 +138,17 @@
   .save-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .save-button.unsaved {
+    background: #f59e0b;
+    color: white;
+    border-color: #f59e0b;
+  }
+
+  .save-button.unsaved:hover:not(:disabled) {
+    background: #d97706;
+    border-color: #d97706;
   }
 
   .save-button.saving {

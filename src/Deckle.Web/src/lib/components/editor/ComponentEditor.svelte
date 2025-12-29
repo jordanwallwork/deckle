@@ -7,6 +7,7 @@
   import StructureTreePanel from "./StructureTreePanel.svelte";
   import { templateStore } from "$lib/stores/templateElements";
   import type { CardComponent, DiceComponent } from "$lib/types";
+  import { beforeNavigate } from "$app/navigation";
 
   let { data }: { data: PageData } = $props();
 
@@ -34,7 +35,8 @@
           selectedElementId: 'root',
           hoveredElementId: null,
           canUndo: false,
-          canRedo: false
+          canRedo: false,
+          hasUnsavedChanges: false
         });
       } catch (error) {
         console.error('Failed to parse saved design:', error);
@@ -65,9 +67,38 @@
       templateStore.redo();
     }
   }
+
+  // Handle browser navigation (close tab, refresh, etc.)
+  function handleBeforeUnload(event: BeforeUnloadEvent) {
+    let hasUnsavedChanges = false;
+    templateStore.subscribe((store) => {
+      hasUnsavedChanges = store.hasUnsavedChanges;
+    })();
+
+    if (hasUnsavedChanges) {
+      event.preventDefault();
+      // Modern browsers require returnValue to be set
+      event.returnValue = '';
+      return '';
+    }
+  }
+
+  // Handle SvelteKit navigation
+  beforeNavigate(({ cancel }) => {
+    let hasUnsavedChanges = false;
+    templateStore.subscribe((store) => {
+      hasUnsavedChanges = store.hasUnsavedChanges;
+    })();
+
+    if (hasUnsavedChanges) {
+      if (!confirm('You have unsaved changes. Do you want to leave without saving?')) {
+        cancel();
+      }
+    }
+  });
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onbeforeunload={handleBeforeUnload} />
 
 <ResizablePanelContainer orientation="vertical" initialSplit={80}>
   {#snippet leftOrTop()}

@@ -7,6 +7,7 @@ export interface TemplateStore {
 	hoveredElementId: string | null;
 	canUndo: boolean;
 	canRedo: boolean;
+	hasUnsavedChanges: boolean;
 }
 
 interface HistoryState {
@@ -38,7 +39,8 @@ function createTemplateStore() {
 		selectedElementId: null,
 		hoveredElementId: null,
 		canUndo: false,
-		canRedo: false
+		canRedo: false,
+		hasUnsavedChanges: false
 	});
 
 	// History stacks for undo/redo
@@ -57,6 +59,7 @@ function createTemplateStore() {
 		future = []; // Clear future when new change is made
 		store.canUndo = past.length > 0;
 		store.canRedo = false;
+		store.hasUnsavedChanges = true; // Mark as having unsaved changes
 	}
 
 	return {
@@ -162,7 +165,8 @@ function createTemplateStore() {
 				selectedElementId: null,
 				hoveredElementId: null,
 				canUndo: false,
-				canRedo: false
+				canRedo: false,
+				hasUnsavedChanges: false
 			});
 			past = [];
 			future = [];
@@ -182,6 +186,7 @@ function createTemplateStore() {
 				store.selectedElementId = previousState.selectedElementId;
 				store.canUndo = past.length > 0;
 				store.canRedo = true;
+				store.hasUnsavedChanges = true; // Mark as having unsaved changes
 				return store;
 			});
 		},
@@ -200,6 +205,7 @@ function createTemplateStore() {
 				store.selectedElementId = nextState.selectedElementId;
 				store.canUndo = true;
 				store.canRedo = future.length > 0;
+				store.hasUnsavedChanges = true; // Mark as having unsaved changes
 				return store;
 			});
 		},
@@ -290,6 +296,14 @@ function createTemplateStore() {
 				// Select the duplicated element
 				store.selectedElementId = duplicatedElement.id;
 
+				return store;
+			});
+		},
+
+		// Mark changes as saved
+		markAsSaved: () => {
+			update((store) => {
+				store.hasUnsavedChanges = false;
 				return store;
 			});
 		}

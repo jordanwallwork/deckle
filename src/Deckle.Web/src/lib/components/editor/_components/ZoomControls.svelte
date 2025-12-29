@@ -1,30 +1,40 @@
 <script lang="ts">
   import type { PanzoomObject } from "@panzoom/panzoom";
 
-  let { panzoomInstance }: { panzoomInstance: PanzoomObject | null } = $props();
+  let {
+    panzoomInstance,
+    panzoomElement,
+  }: {
+    panzoomInstance: PanzoomObject | null;
+    panzoomElement: HTMLDivElement | null;
+  } = $props();
 
   let currentZoom = $state(100);
 
   // Update zoom display when panzoom instance changes or zoom occurs
   $effect(() => {
-    if (panzoomInstance) {
+    if (panzoomInstance && panzoomElement) {
       // Set initial zoom
       const scale = panzoomInstance.getScale();
       currentZoom = Math.round(scale * 100);
 
       // Listen for zoom changes (from wheel, pinch, or programmatic changes)
-      const handleZoomChange = () => {
-        const scale = panzoomInstance!.getScale();
+      const handleZoomChange = (event: CustomEvent) => {
+        // Panzoom events are CustomEvents with detail: { x, y, scale }
+        const scale = event.detail.scale;
         currentZoom = Math.round(scale * 100);
       };
 
-      // Get the element that panzoom is attached to
-      const element = panzoomInstance.getElement();
-      element.addEventListener('panzoomchange', handleZoomChange);
+      // Listen to panzoom events to catch all zoom changes
+      // panzoomzoom fires when zoom changes
+      // panzoomchange fires for all transform changes (pan/zoom)
+      panzoomElement.addEventListener('panzoomzoom', handleZoomChange);
+      panzoomElement.addEventListener('panzoomchange', handleZoomChange);
 
-      // Cleanup listener when effect re-runs or component unmounts
+      // Cleanup listeners when effect re-runs or component unmounts
       return () => {
-        element.removeEventListener('panzoomchange', handleZoomChange);
+        panzoomElement.removeEventListener('panzoomzoom', handleZoomChange);
+        panzoomElement.removeEventListener('panzoomchange', handleZoomChange);
       };
     }
   });

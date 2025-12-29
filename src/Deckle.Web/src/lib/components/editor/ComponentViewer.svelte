@@ -11,7 +11,7 @@
   }: {
     dimensions: Dimensions;
     children: Snippet;
-    onPanzoomReady?: (instance: PanzoomObject) => void;
+    onPanzoomReady?: (instance: PanzoomObject, element: HTMLDivElement) => void;
   } = $props();
 
   let viewerElement: HTMLDivElement;
@@ -50,7 +50,7 @@
 
       // Notify parent component that panzoom is ready
       if (onPanzoomReady && panzoomInstance) {
-        onPanzoomReady(panzoomInstance);
+        onPanzoomReady(panzoomInstance, contentElement);
       }
     }
 

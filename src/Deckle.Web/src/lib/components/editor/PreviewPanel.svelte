@@ -16,9 +16,11 @@
 
   let showBleedSafeArea = $state(true);
   let panzoomInstance = $state<PanzoomObject | null>(null);
+  let panzoomElement = $state<HTMLDivElement | null>(null);
 
-  function handlePanzoomReady(instance: PanzoomObject) {
+  function handlePanzoomReady(instance: PanzoomObject, element: HTMLDivElement) {
     panzoomInstance = instance;
+    panzoomElement = element;
   }
 </script>
 
@@ -33,7 +35,7 @@
     >
       {showBleedSafeArea ? 'Hide' : 'Show'} Bleed/Safe Area
     </button>
-    <ZoomControls {panzoomInstance} />
+    <ZoomControls {panzoomInstance} {panzoomElement} />
   {/snippet}
   <ComponentViewer {dimensions} onPanzoomReady={handlePanzoomReady}>
     <EditableComponentView {dimensions} {shape} {showBleedSafeArea} />

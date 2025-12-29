@@ -23,10 +23,6 @@
           const basePx = mmToPx(rectShape.borderRadiusMm, dimensions.dpi);
           const bleedPx = dimensions.bleedPx;
 
-          console.log("rect:", rectShape);
-          console.log("basePx:", basePx);
-          console.log("dimensions", dimensions);
-
           return {
             component: basePx + bleedPx, // Outer area (includes bleed)
             bleed: basePx, // Trim area (red border)

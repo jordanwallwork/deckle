@@ -5,11 +5,27 @@
 
   let currentZoom = $state(100);
 
-  // Update zoom display when panzoom instance changes
+  // Update zoom display when panzoom instance changes or zoom occurs
   $effect(() => {
     if (panzoomInstance) {
+      // Set initial zoom
       const scale = panzoomInstance.getScale();
       currentZoom = Math.round(scale * 100);
+
+      // Listen for zoom changes (from wheel, pinch, or programmatic changes)
+      const handleZoomChange = () => {
+        const scale = panzoomInstance!.getScale();
+        currentZoom = Math.round(scale * 100);
+      };
+
+      // Get the element that panzoom is attached to
+      const element = panzoomInstance.getElement();
+      element.addEventListener('panzoomchange', handleZoomChange);
+
+      // Cleanup listener when effect re-runs or component unmounts
+      return () => {
+        element.removeEventListener('panzoomchange', handleZoomChange);
+      };
     }
   });
 

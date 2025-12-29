@@ -45,6 +45,9 @@
         excludeClass: "resize-handle",
       });
 
+      // Enable mouse wheel zooming
+      viewerElement.addEventListener('wheel', panzoomInstance.zoomWithWheel);
+
       // Notify parent component that panzoom is ready
       if (onPanzoomReady && panzoomInstance) {
         onPanzoomReady(panzoomInstance);
@@ -53,6 +56,7 @@
 
     return () => {
       if (panzoomInstance) {
+        viewerElement.removeEventListener('wheel', panzoomInstance.zoomWithWheel);
         panzoomInstance.destroy();
       }
     };

@@ -1,8 +1,13 @@
 <script lang="ts">
   import { templateStore } from '$lib/stores/templateElements';
   import type { TemplateElement } from '../types';
+  import { getContext } from 'svelte';
 
   let { element }: { element: TemplateElement } = $props();
+
+  // Get zoom scale from context (provided by ComponentViewer)
+  const zoomContext = getContext<{ getScale: () => number }>('zoomScale');
+  const getZoomScale = () => zoomContext?.getScale() ?? 1;
 
   // Track if we're currently resizing
   let isResizing = $state(false);
@@ -67,8 +72,12 @@
   function handleMouseMove(e: MouseEvent) {
     if (!isResizing || !resizeHandle) return;
 
-    const deltaX = e.clientX - startX;
-    const deltaY = e.clientY - startY;
+    // Get current zoom scale and adjust deltas accordingly
+    // When zoomed in (scale > 1), mouse moves more pixels on screen than in element space
+    // When zoomed out (scale < 1), mouse moves fewer pixels on screen than in element space
+    const scale = getZoomScale();
+    const deltaX = (e.clientX - startX) / scale;
+    const deltaY = (e.clientY - startY) / scale;
 
     let newWidth = startWidth;
     let newHeight = startHeight;

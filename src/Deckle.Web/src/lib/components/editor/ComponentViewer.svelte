@@ -2,7 +2,7 @@
   import type { Dimensions } from "$lib/types";
   import type { Snippet } from "svelte";
   import type { PanzoomObject } from "@panzoom/panzoom";
-  import { onMount } from "svelte";
+  import { onMount, setContext } from "svelte";
 
   let {
     dimensions,
@@ -17,6 +17,21 @@
   let viewerElement: HTMLDivElement;
   let contentElement: HTMLDivElement;
   let panzoomInstance: PanzoomObject | null = null;
+
+  // Create a reactive state for the current zoom scale
+  let currentScale = $state(1);
+
+  // Provide zoom scale via context so ResizeHandles can access it
+  setContext('zoomScale', {
+    getScale: () => currentScale
+  });
+
+  // Function to update scale (defined outside onMount for cleanup access)
+  const updateScale = () => {
+    if (panzoomInstance) {
+      currentScale = panzoomInstance.getScale();
+    }
+  };
 
   onMount(async () => {
     if (contentElement && viewerElement) {
@@ -45,6 +60,13 @@
         excludeClass: "resize-handle",
       });
 
+      // Set initial scale
+      currentScale = fitScale;
+
+      // Listen for zoom changes to update the context
+      contentElement.addEventListener('panzoomzoom', updateScale);
+      contentElement.addEventListener('panzoomchange', updateScale);
+
       // Enable mouse wheel zooming
       viewerElement.addEventListener('wheel', panzoomInstance.zoomWithWheel);
 
@@ -55,8 +77,10 @@
     }
 
     return () => {
-      if (panzoomInstance) {
+      if (panzoomInstance && contentElement) {
         viewerElement.removeEventListener('wheel', panzoomInstance.zoomWithWheel);
+        contentElement.removeEventListener('panzoomzoom', updateScale);
+        contentElement.removeEventListener('panzoomchange', updateScale);
         panzoomInstance.destroy();
       }
     };

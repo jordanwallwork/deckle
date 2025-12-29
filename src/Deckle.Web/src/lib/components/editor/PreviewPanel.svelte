@@ -3,7 +3,11 @@
   import Panel from "$lib/components/editor/_components/Panel.svelte";
   import UndoRedoControls from "$lib/components/editor/_components/UndoRedoControls.svelte";
   import ZoomControls from "$lib/components/editor/_components/ZoomControls.svelte";
-  import type { EditableComponent, ComponentShape, CardComponent } from "$lib/types";
+  import type {
+    EditableComponent,
+    ComponentShape,
+    CardComponent,
+  } from "$lib/types";
   import EditableComponentView from "./EditableComponent.svelte";
   import type { PanzoomObject } from "@panzoom/panzoom";
 
@@ -11,14 +15,17 @@
   let dimensions = component.dimensions;
   // Extract shape if this is a CardComponent
   let shape = $derived<ComponentShape | undefined>(
-    'shape' in component ? (component as CardComponent).shape : undefined
+    "shape" in component ? (component as CardComponent).shape : undefined
   );
 
   let showBleedSafeArea = $state(true);
   let panzoomInstance = $state<PanzoomObject | null>(null);
   let panzoomElement = $state<HTMLDivElement | null>(null);
 
-  function handlePanzoomReady(instance: PanzoomObject, element: HTMLDivElement) {
+  function handlePanzoomReady(
+    instance: PanzoomObject,
+    element: HTMLDivElement
+  ) {
     panzoomInstance = instance;
     panzoomElement = element;
   }
@@ -28,12 +35,13 @@
   {#snippet toolbar()}
     <UndoRedoControls />
     <button
-      onclick={() => showBleedSafeArea = !showBleedSafeArea}
+      onclick={() => (showBleedSafeArea = !showBleedSafeArea)}
       class="bleed-safe-area-toggle"
-      class:active={showBleedSafeArea}
-      title={showBleedSafeArea ? 'Hide Bleed/Safe Area' : 'Show Bleed/Safe Area'}
+      title={showBleedSafeArea
+        ? "Hide Bleed/Safe Area"
+        : "Show Bleed/Safe Area"}
     >
-      {showBleedSafeArea ? 'Hide' : 'Show'} Bleed/Safe Area
+      {showBleedSafeArea ? "Hide" : "Show"} Bleed/Safe Area
     </button>
     <ZoomControls {panzoomInstance} {panzoomElement} />
   {/snippet}
@@ -57,16 +65,5 @@
   .bleed-safe-area-toggle:hover {
     background: #f3f4f6;
     border-color: #9ca3af;
-  }
-
-  .bleed-safe-area-toggle.active {
-    background: #3b82f6;
-    color: white;
-    border-color: #2563eb;
-  }
-
-  .bleed-safe-area-toggle.active:hover {
-    background: #2563eb;
-    border-color: #1d4ed8;
   }
 </style>

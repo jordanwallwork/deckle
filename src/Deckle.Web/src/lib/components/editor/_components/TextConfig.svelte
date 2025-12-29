@@ -233,6 +233,38 @@
       </div>
     </div>
   </div>
+
+  <div class="field">
+    <label for="width">Width</label>
+    <input
+      type="text"
+      id="width"
+      placeholder="auto, 100px, 50%"
+      value={element.dimensions?.width ?? ''}
+      oninput={(e) => updateElement({
+        dimensions: {
+          ...element.dimensions,
+          width: e.currentTarget.value || undefined
+        }
+      })}
+    />
+  </div>
+
+  <div class="field">
+    <label for="height">Height</label>
+    <input
+      type="text"
+      id="height"
+      placeholder="auto, 100px, 50%"
+      value={element.dimensions?.height ?? ''}
+      oninput={(e) => updateElement({
+        dimensions: {
+          ...element.dimensions,
+          height: e.currentTarget.value || undefined
+        }
+      })}
+    />
+  </div>
 </div>
 
 <style>

@@ -258,6 +258,40 @@ function createTemplateStore() {
 
 				return store;
 			});
+		},
+
+		// Duplicate an element
+		duplicateElement: (elementId: string) => {
+			update((store) => {
+				// Find the element and its parent
+				const element = findElementById(store.root, elementId);
+				if (!element) return store;
+
+				// Find parent and insertion index
+				const parentInfo = findParentAndIndex(store.root, elementId);
+				if (!parentInfo) return store;
+
+				saveHistory(store);
+
+				// Create a deep copy with new IDs
+				const duplicatedElement = duplicateElementWithNewIds(element);
+
+				// Insert after the original element
+				const insertIndex = parentInfo.index + 1;
+				if (parentInfo.parentId === 'root') {
+					store.root = {
+						...store.root,
+						children: insertAtIndex(store.root.children, duplicatedElement, insertIndex)
+					};
+				} else {
+					store.root = addElementToContainer(store.root, parentInfo.parentId, duplicatedElement, insertIndex);
+				}
+
+				// Select the duplicated element
+				store.selectedElementId = duplicatedElement.id;
+
+				return store;
+			});
 		}
 	};
 }
@@ -390,6 +424,56 @@ function updateElementInContainer(
 		...container,
 		children: newChildren
 	};
+}
+
+// Helper function to find parent and index of an element
+function findParentAndIndex(
+	container: ContainerElement,
+	targetId: string,
+	parentId: string = 'root'
+): { parentId: string; index: number } | null {
+	// Check if target is in direct children
+	const index = container.children.findIndex((child: TemplateElement) => child.id === targetId);
+	if (index !== -1) {
+		return { parentId, index };
+	}
+
+	// Recursively search in nested containers
+	for (const child of container.children) {
+		if (child.type === 'container') {
+			const found = findParentAndIndex(child, targetId, child.id);
+			if (found) return found;
+		}
+	}
+
+	return null;
+}
+
+// Helper function to duplicate an element with new IDs
+function duplicateElementWithNewIds(element: TemplateElement): TemplateElement {
+	const newId = crypto.randomUUID();
+	const duplicated = structuredClone(element);
+	duplicated.id = newId;
+
+	// If element has a custom label, add "Copy" suffix
+	if (duplicated.label) {
+		duplicated.label = `${duplicated.label} Copy`;
+	}
+
+	// Offset position slightly for absolute positioned elements
+	if (duplicated.position === 'absolute') {
+		if (duplicated.x !== undefined) duplicated.x += 20;
+		if (duplicated.y !== undefined) duplicated.y += 20;
+	}
+
+	// Recursively update IDs of children
+	if (duplicated.type === 'container' && duplicated.children) {
+		duplicated.children = duplicated.children.map((child: TemplateElement) =>
+			duplicateElementWithNewIds(child)
+		);
+	}
+
+	return duplicated;
 }
 
 export const templateStore = createTemplateStore();

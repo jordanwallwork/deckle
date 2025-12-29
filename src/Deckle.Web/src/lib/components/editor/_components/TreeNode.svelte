@@ -3,6 +3,7 @@
   import { templateStore } from '$lib/stores/templateElements';
   import type { TemplateElement, ElementType } from '../types';
   import DropTarget from './DropTarget.svelte';
+  import ContextMenu, { type MenuItem } from './ContextMenu.svelte';
 
   let {
     element,
@@ -24,6 +25,9 @@
   let isDragOver = $state(false);
   let isEditingLabel = $state(false);
   let editLabelValue = $state('');
+  let showContextMenu = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
 
   const hasChildren = $derived(element.type === 'container' && element.children.length > 0);
   const isSelected = $derived(selectedId === element.id);
@@ -160,6 +164,108 @@
     const targetParentId = isRoot ? 'root' : element.id;
     templateStore.moveElement(draggedId, targetParentId);
   }
+
+  // Context menu handlers
+  function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Don't show context menu for root element (it can only add children, not be duplicated/deleted)
+    if (isRoot) {
+      return;
+    }
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+    showContextMenu = true;
+  }
+
+  function handleDuplicate() {
+    templateStore.duplicateElement(element.id);
+  }
+
+  function createElementOfType(type: ElementType) {
+    let newElement: TemplateElement;
+
+    if (type === 'container') {
+      newElement = {
+        id: crypto.randomUUID(),
+        type: 'container',
+        visible: true,
+        opacity: 1,
+        display: 'flex',
+        flexConfig: {
+          direction: 'column',
+          wrap: 'nowrap',
+          justifyContent: 'flex-start',
+          alignItems: 'flex-start'
+        },
+        children: []
+      };
+    } else if (type === 'text') {
+      newElement = {
+        id: crypto.randomUUID(),
+        type: 'text',
+        visible: true,
+        opacity: 1,
+        content: 'New Text',
+        fontSize: 16,
+        color: '#000000'
+      };
+    } else {
+      // image
+      newElement = {
+        id: crypto.randomUUID(),
+        type: 'image',
+        visible: true,
+        opacity: 1,
+        imageId: '',
+        dimensions: { width: 100, height: 100 }
+      };
+    }
+
+    templateStore.addElement(newElement, element.id);
+  }
+
+  function getContextMenuItems(): MenuItem[] {
+    const items: MenuItem[] = [];
+
+    // Duplicate action (available for all non-root elements)
+    items.push({
+      label: 'Duplicate',
+      action: handleDuplicate
+    });
+
+    // Add submenu for container elements
+    if (element.type === 'container') {
+      items.push({
+        label: 'Add...',
+        submenu: [
+          {
+            label: 'Container',
+            action: () => createElementOfType('container')
+          },
+          {
+            label: 'Text',
+            action: () => createElementOfType('text')
+          },
+          {
+            label: 'Image',
+            action: () => createElementOfType('image')
+          }
+        ]
+      });
+    }
+
+    // Delete action (with divider before it)
+    items.push({ divider: true });
+    items.push({
+      label: 'Delete',
+      action: () => handleDelete(new MouseEvent('click'))
+    });
+
+    return items;
+  }
 </script>
 
 <div
@@ -181,6 +287,7 @@
       onclick={handleSelect}
       onmouseenter={handleMouseEnter}
       onmouseleave={handleMouseLeave}
+      oncontextmenu={handleContextMenu}
     >
       {#if hasChildren}
         <button
@@ -279,6 +386,15 @@
       </div>
     {/if}
 </div>
+
+{#if showContextMenu}
+  <ContextMenu
+    x={contextMenuX}
+    y={contextMenuY}
+    items={getContextMenuItems()}
+    onClose={() => showContextMenu = false}
+  />
+{/if}
 
 <style>
   .tree-node {

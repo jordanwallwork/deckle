@@ -65,34 +65,114 @@
 
   <div class="field">
     <label for="width">Width</label>
-    <input
-      type="text"
-      id="width"
-      placeholder="auto, 100px, 50%"
-      value={element.dimensions?.width ?? ''}
-      oninput={(e) => updateElement({
-        dimensions: {
-          ...element.dimensions,
-          width: e.currentTarget.value || undefined
-        }
-      })}
-    />
+    <div class="dimension-input">
+      <input
+        type="number"
+        id="width"
+        placeholder="auto"
+        value={(() => {
+          const width = String(element.dimensions?.width ?? '');
+          if (!width) return '';
+          const match = width.match(/^(\d+\.?\d*)/);
+          return match ? match[1] : '';
+        })()}
+        oninput={(e) => {
+          const value = e.currentTarget.value;
+          const unit = (() => {
+            const width = String(element.dimensions?.width ?? '');
+            if (width.includes('%')) return '%';
+            return 'px';
+          })();
+          updateElement({
+            dimensions: {
+              ...element.dimensions,
+              width: value ? `${value}${unit}` : undefined
+            }
+          });
+        }}
+      />
+      <select
+        class="unit-select"
+        class:disabled-unit={!element.dimensions?.width}
+        value={(() => {
+          const width = String(element.dimensions?.width ?? '');
+          if (width.includes('%')) return '%';
+          return 'px';
+        })()}
+        onchange={(e) => {
+          const width = String(element.dimensions?.width ?? '');
+          const match = width.match(/^(\d+\.?\d*)/);
+          const value = match ? match[1] : '';
+          if (value) {
+            updateElement({
+              dimensions: {
+                ...element.dimensions,
+                width: `${value}${e.currentTarget.value}`
+              }
+            });
+          }
+        }}
+      >
+        <option value="px">px</option>
+        <option value="%">%</option>
+      </select>
+    </div>
   </div>
 
   <div class="field">
     <label for="height">Height</label>
-    <input
-      type="text"
-      id="height"
-      placeholder="auto, 100px, 50%"
-      value={element.dimensions?.height ?? ''}
-      oninput={(e) => updateElement({
-        dimensions: {
-          ...element.dimensions,
-          height: e.currentTarget.value || undefined
-        }
-      })}
-    />
+    <div class="dimension-input">
+      <input
+        type="number"
+        id="height"
+        placeholder="auto"
+        value={(() => {
+          const height = String(element.dimensions?.height ?? '');
+          if (!height) return '';
+          const match = height.match(/^(\d+\.?\d*)/);
+          return match ? match[1] : '';
+        })()}
+        oninput={(e) => {
+          const value = e.currentTarget.value;
+          const unit = (() => {
+            const height = String(element.dimensions?.height ?? '');
+            if (height.includes('%')) return '%';
+            return 'px';
+          })();
+          updateElement({
+            dimensions: {
+              ...element.dimensions,
+              height: value ? `${value}${unit}` : undefined
+            }
+          });
+        }}
+      />
+      <select
+        class="unit-select"
+        class:disabled-unit={!element.dimensions?.height}
+        value={(() => {
+          const height = String(element.dimensions?.height ?? '');
+          if (height.includes('%')) return '%';
+          return 'px';
+        })()}
+        onchange={(e) => {
+          const height = String(element.dimensions?.height ?? '');
+          const match = height.match(/^(\d+\.?\d*)/);
+          const value = match ? match[1] : '';
+          if (value) {
+            updateElement({
+              dimensions: {
+                ...element.dimensions,
+                height: `${value}${e.currentTarget.value}`
+              }
+            });
+          }
+        }}
+      >
+        <option value="px">px</option>
+        <option value="%">%</option>
+      </select>
+    </div>
   </div>
 
   <div class="field">
@@ -306,5 +386,36 @@
   .padding-input .unit {
     font-size: 0.75rem;
     color: #666;
+  }
+
+  .dimension-input {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .dimension-input input[type="number"] {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dimension-input .unit-select {
+    width: 60px;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.813rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+  }
+
+  .dimension-input .unit-select.disabled-unit {
+    opacity: 0.4;
+    color: #999;
+  }
+
+  .dimension-input .unit-select:focus {
+    outline: none;
+    border-color: #0066cc;
   }
 </style>

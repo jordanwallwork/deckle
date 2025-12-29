@@ -38,6 +38,16 @@
             justifyContent: 'flex-start',
             alignItems: 'flex-start'
           },
+          dimensions: {
+            width: '100%',
+            height: 100
+          },
+          padding: {
+            top: 10,
+            right: 10,
+            bottom: 10,
+            left: 10
+          },
           children: []
         } as ContainerElement;
         break;

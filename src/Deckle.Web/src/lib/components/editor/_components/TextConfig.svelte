@@ -166,19 +166,72 @@
   </div>
 
   <div class="field">
-    <label for="padding">Padding (px)</label>
-    <input
-      type="number"
-      id="padding"
-      placeholder="All sides"
-      value={element.padding?.top ?? ''}
-      oninput={(e) => {
-        const val = parseInt(e.currentTarget.value) || 0;
-        updateElement({
-          padding: { top: val, right: val, bottom: val, left: val }
-        });
-      }}
-    />
+    <label class="section-label">Padding:</label>
+    <div class="padding-grid">
+      <div class="padding-input">
+        <label for="padding-top">Top</label>
+        <input
+          type="number"
+          id="padding-top"
+          value={element.padding?.top ?? ''}
+          oninput={(e) => updateElement({
+            padding: {
+              ...element.padding,
+              top: parseInt(e.currentTarget.value) || 0
+            }
+          })}
+        />
+        <span class="unit">px</span>
+      </div>
+
+      <div class="padding-input">
+        <label for="padding-right">Right</label>
+        <input
+          type="number"
+          id="padding-right"
+          value={element.padding?.right ?? ''}
+          oninput={(e) => updateElement({
+            padding: {
+              ...element.padding,
+              right: parseInt(e.currentTarget.value) || 0
+            }
+          })}
+        />
+        <span class="unit">px</span>
+      </div>
+
+      <div class="padding-input">
+        <label for="padding-bottom">Bottom</label>
+        <input
+          type="number"
+          id="padding-bottom"
+          value={element.padding?.bottom ?? ''}
+          oninput={(e) => updateElement({
+            padding: {
+              ...element.padding,
+              bottom: parseInt(e.currentTarget.value) || 0
+            }
+          })}
+        />
+        <span class="unit">px</span>
+      </div>
+
+      <div class="padding-input">
+        <label for="padding-left">Left</label>
+        <input
+          type="number"
+          id="padding-left"
+          value={element.padding?.left ?? ''}
+          oninput={(e) => updateElement({
+            padding: {
+              ...element.padding,
+              left: parseInt(e.currentTarget.value) || 0
+            }
+          })}
+        />
+        <span class="unit">px</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -263,5 +316,43 @@
 
   .color-input input[type="text"] {
     flex: 1;
+  }
+
+  .section-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #666;
+    margin-bottom: 0.5rem;
+  }
+
+  .padding-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .padding-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .padding-input label {
+    font-size: 0.75rem;
+    color: #666;
+    margin: 0;
+    min-width: 40px;
+  }
+
+  .padding-input input[type="number"] {
+    flex: 1;
+    min-width: 0;
+    padding: 0.375rem 0.5rem;
+  }
+
+  .padding-input .unit {
+    font-size: 0.75rem;
+    color: #666;
   }
 </style>

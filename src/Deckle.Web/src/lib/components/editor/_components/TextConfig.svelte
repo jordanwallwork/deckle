@@ -1,6 +1,11 @@
 <script lang="ts">
   import type { TextElement } from '../types';
   import { templateStore } from '$lib/stores/templateElements';
+  import VisibilityCheckbox from './VisibilityCheckbox.svelte';
+  import PositionControls from './PositionControls.svelte';
+  import DimensionInput from './DimensionInput.svelte';
+  import ColorPicker from './ColorPicker.svelte';
+  import PaddingControls from './PaddingControls.svelte';
 
   let { element }: { element: TextElement } = $props();
 
@@ -12,44 +17,17 @@
 <div class="config-section">
   <h3 class="section-title">Text Settings</h3>
 
-  <div class="field checkbox-field">
-    <label>
-      <input
-        type="checkbox"
-        checked={element.visible !== false}
-        onchange={(e) => updateElement({ visible: e.currentTarget.checked })}
-      />
-      <span>Visible</span>
-    </label>
-  </div>
+  <VisibilityCheckbox
+    visible={element.visible}
+    onchange={(visible) => updateElement({ visible })}
+  />
 
   {#if element.position === 'absolute'}
-    <div class="field">
-      <label class="section-label">Position:</label>
-      <div class="padding-grid">
-        <div class="padding-input">
-          <label for="position-x">Left</label>
-          <input
-            type="number"
-            id="position-x"
-            value={element.x ?? 0}
-            oninput={(e) => updateElement({ x: parseInt(e.currentTarget.value) || 0 })}
-          />
-          <span class="unit">px</span>
-        </div>
-
-        <div class="padding-input">
-          <label for="position-y">Top</label>
-          <input
-            type="number"
-            id="position-y"
-            value={element.y ?? 0}
-            oninput={(e) => updateElement({ y: parseInt(e.currentTarget.value) || 0 })}
-          />
-          <span class="unit">px</span>
-        </div>
-      </div>
-    </div>
+    <PositionControls
+      x={element.x}
+      y={element.y}
+      onchange={(updates) => updateElement(updates)}
+    />
   {/if}
 
   <div class="field">
@@ -107,39 +85,19 @@
     </select>
   </div>
 
-  <div class="field">
-    <label for="color">Text Color</label>
-    <div class="color-input">
-      <input
-        type="color"
-        id="color"
-        value={element.color || '#000000'}
-        oninput={(e) => updateElement({ color: e.currentTarget.value })}
-      />
-      <input
-        type="text"
-        value={element.color || '#000000'}
-        oninput={(e) => updateElement({ color: e.currentTarget.value })}
-      />
-    </div>
-  </div>
+  <ColorPicker
+    label="Text Color"
+    id="color"
+    value={element.color || '#000000'}
+    onchange={(color) => updateElement({ color })}
+  />
 
-  <div class="field">
-    <label for="bg-color">Background Color</label>
-    <div class="color-input">
-      <input
-        type="color"
-        id="bg-color"
-        value={element.backgroundColor || '#ffffff'}
-        oninput={(e) => updateElement({ backgroundColor: e.currentTarget.value })}
-      />
-      <input
-        type="text"
-        value={element.backgroundColor || '#ffffff'}
-        oninput={(e) => updateElement({ backgroundColor: e.currentTarget.value })}
-      />
-    </div>
-  </div>
+  <ColorPicker
+    label="Background Color"
+    id="bg-color"
+    value={element.backgroundColor || '#ffffff'}
+    onchange={(backgroundColor) => updateElement({ backgroundColor })}
+  />
 
   <div class="field">
     <label for="line-height">Line Height</label>
@@ -194,186 +152,34 @@
     </select>
   </div>
 
-  <div class="field">
-    <label class="section-label">Padding:</label>
-    <div class="padding-grid">
-      <div class="padding-input">
-        <label for="padding-top">Top</label>
-        <input
-          type="number"
-          id="padding-top"
-          value={element.padding?.top ?? ''}
-          oninput={(e) => updateElement({
-            padding: {
-              ...element.padding,
-              top: parseInt(e.currentTarget.value) || 0
-            }
-          })}
-        />
-        <span class="unit">px</span>
-      </div>
+  <PaddingControls
+    padding={element.padding}
+    onchange={(padding) => updateElement({ padding })}
+  />
 
-      <div class="padding-input">
-        <label for="padding-right">Right</label>
-        <input
-          type="number"
-          id="padding-right"
-          value={element.padding?.right ?? ''}
-          oninput={(e) => updateElement({
-            padding: {
-              ...element.padding,
-              right: parseInt(e.currentTarget.value) || 0
-            }
-          })}
-        />
-        <span class="unit">px</span>
-      </div>
+  <DimensionInput
+    label="Width"
+    id="width"
+    value={element.dimensions?.width?.toString()}
+    onchange={(width) => updateElement({
+      dimensions: {
+        ...element.dimensions,
+        width
+      }
+    })}
+  />
 
-      <div class="padding-input">
-        <label for="padding-bottom">Bottom</label>
-        <input
-          type="number"
-          id="padding-bottom"
-          value={element.padding?.bottom ?? ''}
-          oninput={(e) => updateElement({
-            padding: {
-              ...element.padding,
-              bottom: parseInt(e.currentTarget.value) || 0
-            }
-          })}
-        />
-        <span class="unit">px</span>
-      </div>
-
-      <div class="padding-input">
-        <label for="padding-left">Left</label>
-        <input
-          type="number"
-          id="padding-left"
-          value={element.padding?.left ?? ''}
-          oninput={(e) => updateElement({
-            padding: {
-              ...element.padding,
-              left: parseInt(e.currentTarget.value) || 0
-            }
-          })}
-        />
-        <span class="unit">px</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="field">
-    <label for="width">Width</label>
-    <div class="dimension-input">
-      <input
-        type="number"
-        id="width"
-        placeholder="auto"
-        value={(() => {
-          const width = String(element.dimensions?.width ?? '');
-          if (!width) return '';
-          const match = width.match(/^(\d+\.?\d*)/);
-          return match ? match[1] : '';
-        })()}
-        oninput={(e) => {
-          const value = e.currentTarget.value;
-          const unit = (() => {
-            const width = String(element.dimensions?.width ?? '');
-            if (width.includes('%')) return '%';
-            return 'px';
-          })();
-          updateElement({
-            dimensions: {
-              ...element.dimensions,
-              width: value ? `${value}${unit}` : undefined
-            }
-          });
-        }}
-      />
-      <select
-        class="unit-select"
-        class:disabled-unit={!element.dimensions?.width}
-        value={(() => {
-          const width = String(element.dimensions?.width ?? '');
-          if (width.includes('%')) return '%';
-          return 'px';
-        })()}
-        onchange={(e) => {
-          const width = String(element.dimensions?.width ?? '');
-          const match = width.match(/^(\d+\.?\d*)/);
-          const value = match ? match[1] : '';
-          if (value) {
-            updateElement({
-              dimensions: {
-                ...element.dimensions,
-                width: `${value}${e.currentTarget.value}`
-              }
-            });
-          }
-        }}
-      >
-        <option value="px">px</option>
-        <option value="%">%</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="field">
-    <label for="height">Height</label>
-    <div class="dimension-input">
-      <input
-        type="number"
-        id="height"
-        placeholder="auto"
-        value={(() => {
-          const height = String(element.dimensions?.height ?? '');
-          if (!height) return '';
-          const match = height.match(/^(\d+\.?\d*)/);
-          return match ? match[1] : '';
-        })()}
-        oninput={(e) => {
-          const value = e.currentTarget.value;
-          const unit = (() => {
-            const height = String(element.dimensions?.height ?? '');
-            if (height.includes('%')) return '%';
-            return 'px';
-          })();
-          updateElement({
-            dimensions: {
-              ...element.dimensions,
-              height: value ? `${value}${unit}` : undefined
-            }
-          });
-        }}
-      />
-      <select
-        class="unit-select"
-        class:disabled-unit={!element.dimensions?.height}
-        value={(() => {
-          const height = String(element.dimensions?.height ?? '');
-          if (height.includes('%')) return '%';
-          return 'px';
-        })()}
-        onchange={(e) => {
-          const height = String(element.dimensions?.height ?? '');
-          const match = height.match(/^(\d+\.?\d*)/);
-          const value = match ? match[1] : '';
-          if (value) {
-            updateElement({
-              dimensions: {
-                ...element.dimensions,
-                height: `${value}${e.currentTarget.value}`
-              }
-            });
-          }
-        }}
-      >
-        <option value="px">px</option>
-        <option value="%">%</option>
-      </select>
-    </div>
-  </div>
+  <DimensionInput
+    label="Height"
+    id="height"
+    value={element.dimensions?.height?.toString()}
+    onchange={(height) => updateElement({
+      dimensions: {
+        ...element.dimensions,
+        height
+      }
+    })}
+  />
 </div>
 
 <style>
@@ -400,23 +206,6 @@
     margin-bottom: 0.25rem;
   }
 
-  .checkbox-field label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-  }
-
-  .checkbox-field input[type="checkbox"] {
-    width: auto;
-    cursor: pointer;
-  }
-
-  .checkbox-field span {
-    font-size: 0.813rem;
-    color: #333;
-  }
-
   .field input[type="text"],
   .field input[type="number"],
   .field select,
@@ -438,92 +227,6 @@
   .field input[type="number"]:focus,
   .field select:focus,
   .field textarea:focus {
-    outline: none;
-    border-color: #0066cc;
-  }
-
-  .color-input {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .color-input input[type="color"] {
-    width: 50px;
-    height: 36px;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .color-input input[type="text"] {
-    flex: 1;
-  }
-
-  .section-label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #666;
-    margin-bottom: 0.5rem;
-  }
-
-  .padding-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-  }
-
-  .padding-input {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .padding-input label {
-    font-size: 0.75rem;
-    color: #666;
-    margin: 0;
-    min-width: 40px;
-  }
-
-  .padding-input input[type="number"] {
-    flex: 1;
-    min-width: 0;
-    padding: 0.375rem 0.5rem;
-  }
-
-  .padding-input .unit {
-    font-size: 0.75rem;
-    color: #666;
-  }
-
-  .dimension-input {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-  }
-
-  .dimension-input input[type="number"] {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .dimension-input .unit-select {
-    width: 60px;
-    padding: 0.375rem 0.5rem;
-    font-size: 0.813rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
-    cursor: pointer;
-  }
-
-  .dimension-input .unit-select.disabled-unit {
-    opacity: 0.4;
-    color: #999;
-  }
-
-  .dimension-input .unit-select:focus {
     outline: none;
     border-color: #0066cc;
   }

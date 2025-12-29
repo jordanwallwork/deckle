@@ -14,7 +14,7 @@
     'shape' in component ? (component as CardComponent).shape : undefined
   );
 
-  let showBleedSafeArea = $state(false);
+  let showBleedSafeArea = $state(true);
   let panzoomInstance = $state<PanzoomObject | null>(null);
 
   function handlePanzoomReady(instance: PanzoomObject) {

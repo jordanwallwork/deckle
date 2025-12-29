@@ -14,6 +14,11 @@
 
   const sidebarWidth = 20;
 
+  // Select root by default when the editor loads
+  $effect(() => {
+    templateStore.selectElement('root');
+  });
+
   // Keyboard shortcuts for undo/redo
   function handleKeydown(event: KeyboardEvent) {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -38,7 +43,7 @@
   {#snippet leftOrTop()}
     <ResizablePanelContainer initialSplit={sidebarWidth}>
       {#snippet leftOrTop()}
-        <StructureTreePanel />
+        <StructureTreePanel component={data.component} part={partLabel} />
       {/snippet}
       {#snippet rightOrBottom()}
         <ResizablePanelContainer
@@ -48,7 +53,7 @@
             <PreviewPanel component={data.component} />
           {/snippet}
           {#snippet rightOrBottom()}
-            <ElementConfigPanel />
+            <ElementConfigPanel component={data.component} part={partLabel} />
           {/snippet}
         </ResizablePanelContainer>
       {/snippet}

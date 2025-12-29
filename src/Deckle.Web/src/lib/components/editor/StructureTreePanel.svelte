@@ -4,6 +4,9 @@
   import DropTarget from "./_components/DropTarget.svelte";
   import AddElementPopover from "./_components/AddElementPopover.svelte";
   import { templateStore } from "$lib/stores/templateElements";
+  import type { EditableComponent } from "$lib/types";
+
+  let { component, part }: { component: EditableComponent; part?: string } = $props();
 
   let showAddPopover = $state(false);
   let popoverParentId = $state<string | null>(null);
@@ -84,23 +87,14 @@
       ondragleave={handleRootDragLeave}
       ondrop={handleRootDrop}
     >
-      {#if $templateStore.root.children.length === 0}
-        <div class="empty-state">
-          <p>No elements yet</p>
-          <p class="hint">Click "Add" to create your first element</p>
-          <div class="empty-drop-zone">
-            <DropTarget parentId="root" insertIndex={0} depth={0} />
-          </div>
-        </div>
-      {:else}
-        <TreeNode
-          element={$templateStore.root}
-          isRoot={true}
-          depth={0}
-          selectedId={$templateStore.selectedElementId}
-          onAddClick={handleAddClick}
-        />
-      {/if}
+      <TreeNode
+        element={$templateStore.root}
+        isRoot={true}
+        rootLabel={part ? `${component.name} - ${part}` : component.name}
+        depth={0}
+        selectedId={$templateStore.selectedElementId}
+        onAddClick={handleAddClick}
+      />
     </div>
   {/snippet}
 </Panel>
@@ -145,25 +139,5 @@
     background: #d4edda;
     outline: 2px dashed #28a745;
     outline-offset: -4px;
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 2rem 1rem;
-    color: #999;
-  }
-
-  .empty-state p {
-    margin: 0;
-  }
-
-  .empty-state .hint {
-    font-size: 0.75rem;
-    margin-top: 0.5rem;
-  }
-
-  .empty-drop-zone {
-    margin-top: 1rem;
-    padding: 1rem 0;
   }
 </style>

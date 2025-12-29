@@ -7,12 +7,14 @@
   let {
     element,
     isRoot = false,
+    rootLabel,
     depth = 0,
     selectedId,
     onAddClick
   }: {
     element: TemplateElement;
     isRoot?: boolean;
+    rootLabel?: string;
     depth?: number;
     selectedId: string | null;
     onAddClick: (event: MouseEvent, parentId: string | null) => void;
@@ -35,9 +37,7 @@
   }
 
   function handleSelect() {
-    if (!isRoot) {
-      templateStore.selectElement(element.id);
-    }
+    templateStore.selectElement(element.id);
   }
 
   function handleMouseEnter() {
@@ -162,14 +162,13 @@
   }
 </script>
 
-{#if !isRoot || hasChildren}
-  <div
-    class="tree-node"
-    style="--depth: {depth}"
-    ondragover={handleDragOver}
-    ondragleave={handleDragLeave}
-    ondrop={handleDrop}
-  >
+<div
+  class="tree-node"
+  style="--depth: {depth}"
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
+>
     <div
       class="node-content"
       class:selected={isSelected}
@@ -253,7 +252,7 @@
           </button>
         </div>
       {:else}
-        <span class="node-label root-label">Root Container</span>
+        <span class="node-label root-label">{rootLabel || 'Root Container'}</span>
       {/if}
     </div>
 
@@ -279,8 +278,7 @@
         />
       </div>
     {/if}
-  </div>
-{/if}
+</div>
 
 <style>
   .tree-node {
@@ -331,7 +329,7 @@
   }
 
   .node-content.root {
-    cursor: default;
+    cursor: pointer;
     font-weight: 600;
     background: #fafafa;
   }

@@ -3,19 +3,27 @@
   import ContainerConfig from "./_components/ContainerConfig.svelte";
   import TextConfig from "./_components/TextConfig.svelte";
   import ImageConfig from "./_components/ImageConfig.svelte";
+  import ComponentConfig from "./_components/ComponentConfig.svelte";
   import { templateStore } from "$lib/stores/templateElements";
   import type { ContainerElement, TextElement, ImageElement } from "./types";
+  import type { EditableComponent } from "$lib/types";
+
+  let { component, part }: { component: EditableComponent; part?: string } = $props();
 
   const selectedElement = $derived(
     $templateStore.selectedElementId
       ? templateStore.getElement($templateStore.selectedElementId)
       : null
   );
+
+  const isRootSelected = $derived($templateStore.selectedElementId === 'root');
 </script>
 
 <Panel title="Config">
   {#snippet children()}
-    {#if selectedElement}
+    {#if isRootSelected}
+      <ComponentConfig {component} {part} />
+    {:else if selectedElement}
       {#if selectedElement.type === 'container'}
         <ContainerConfig element={selectedElement as ContainerElement} />
       {:else if selectedElement.type === 'text'}

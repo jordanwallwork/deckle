@@ -31,7 +31,9 @@ function createTemplateStore() {
 		},
 		children: [],
 		visible: true,
-		opacity: 1
+		opacity: 1,
+		bleedAreaColor: '#ff0000', // Default red for bleed area
+		safeAreaColor: '#00ff00' // Default green for safe area
 	};
 
 	const { subscribe, update, set } = writable<TemplateStore>({

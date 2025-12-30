@@ -133,6 +133,8 @@ export interface ContainerElement extends BaseElement {
   shadow?: Shadow | Shadow[]; // support multiple shadows
   dimensions?: Dimensions;
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
+  bleedAreaColor?: string; // Color for bleed area marking
+  safeAreaColor?: string; // Color for safe area marking
 }
 
 // ============================================================================

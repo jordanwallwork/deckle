@@ -32,12 +32,19 @@
         })()
   );
 
-  // Build the component style string from root element background
-  const componentStyle = $derived(
-    $templateStore.root.background?.color
-      ? `background-color: ${$templateStore.root.background.color}`
-      : ''
-  );
+  // Build the component style string from root element background and bleed/safe area colors
+  const componentStyle = $derived.by(() => {
+    const styles = [];
+    if ($templateStore.root.background?.color) {
+      styles.push(`background-color: ${$templateStore.root.background.color}`);
+    }
+    // Add CSS custom properties for bleed/safe area colors
+    const bleedColor = $templateStore.root.bleedAreaColor || '#ff0000';
+    const safeColor = $templateStore.root.safeAreaColor || '#00ff00';
+    styles.push(`--bleed-area-color: ${bleedColor}`);
+    styles.push(`--safe-area-color: ${safeColor}`);
+    return styles.join('; ');
+  });
 
   // Handle click on the root component
   function handleRootClick() {
@@ -75,7 +82,7 @@
     left: calc(var(--bleed-px) * 2);
     width: calc(var(--width-px) - var(--bleed-px) * 2);
     height: calc(var(--height-px) - var(--bleed-px) * 2);
-    border: 1px dotted green;
+    border: 1px dotted var(--safe-area-color, #00ff00);
     border-radius: var(--border-radius-safe);
     pointer-events: none;
     z-index: 1;
@@ -88,7 +95,7 @@
     left: var(--bleed-px);
     width: var(--width-px);
     height: var(--height-px);
-    border: 1px solid red;
+    border: 1px solid var(--bleed-area-color, #ff0000);
     border-radius: var(--border-radius-bleed);
     pointer-events: none;
     z-index: 1;

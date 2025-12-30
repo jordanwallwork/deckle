@@ -40,6 +40,26 @@
       })}
   />
 
+  <h4 class="subsection-title">Bleed/Safe Area Colors</h4>
+  <ColorPicker
+    label="Bleed Area Color"
+    id="bleed-area-color"
+    value={rootElement.bleedAreaColor || "#ff0000"}
+    onchange={(color) =>
+      templateStore.updateElement("root", {
+        bleedAreaColor: color,
+      })}
+  />
+  <ColorPicker
+    label="Safe Area Color"
+    id="safe-area-color"
+    value={rootElement.safeAreaColor || "#00ff00"}
+    onchange={(color) =>
+      templateStore.updateElement("root", {
+        safeAreaColor: color,
+      })}
+  />
+
   <div class="info-group">
     <div class="info-item">
       <span class="info-label">Type</span>

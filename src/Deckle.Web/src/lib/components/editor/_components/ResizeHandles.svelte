@@ -13,6 +13,12 @@
   const panzoomContext = getContext<{ getInstance: () => any }>('panzoom');
   const getPanzoom = () => panzoomContext?.getInstance();
 
+  // Get grid snap context
+  const gridSnapContext = getContext<{
+    isEnabled: () => boolean;
+    getSize: () => number;
+  }>('gridSnap');
+
   // Track if we're currently resizing
   let isResizing = $state(false);
   let resizeHandle = $state<string | null>(null);
@@ -22,6 +28,7 @@
   let startHeight = $state(0);
   let startLeft = $state(0);
   let startTop = $state(0);
+  let shiftPressed = $state(false);
 
   // Current resize preview dimensions (updated during drag)
   let previewWidth = $state(0);
@@ -35,6 +42,15 @@
   // Track which dimensions need to be converted from percentage to pixels
   let convertWidthToPx = $state(false);
   let convertHeightToPx = $state(false);
+
+  // Helper function to snap a value to grid
+  function snapToGrid(value: number): number {
+    if (!gridSnapContext || !gridSnapContext.isEnabled() || shiftPressed) {
+      return Math.round(value);
+    }
+    const gridSize = gridSnapContext.getSize();
+    return Math.round(value / gridSize) * gridSize;
+  }
 
   // Get current dimensions
   function getCurrentDimensions() {
@@ -134,6 +150,9 @@
   function handleMouseMove(e: MouseEvent) {
     if (!isResizing || !resizeHandle) return;
 
+    // Track shift key state
+    shiftPressed = e.shiftKey;
+
     // Get current zoom scale and adjust deltas accordingly
     // When zoomed in (scale > 1), mouse moves more pixels on screen than in element space
     // When zoomed out (scale < 1), mouse moves fewer pixels on screen than in element space
@@ -147,40 +166,41 @@
     let newY = startTop;
 
     // Calculate new dimensions based on which handle is being dragged
+    // Apply grid snapping to dimensions and positions
     switch (resizeHandle) {
       case 'nw':
-        newWidth = Math.round(Math.max(20, startWidth - deltaX));
-        newHeight = Math.round(Math.max(20, startHeight - deltaY));
-        newX = Math.round(startLeft + (startWidth - newWidth));
-        newY = Math.round(startTop + (startHeight - newHeight));
+        newWidth = snapToGrid(Math.max(20, startWidth - deltaX));
+        newHeight = snapToGrid(Math.max(20, startHeight - deltaY));
+        newX = snapToGrid(startLeft + (startWidth - newWidth));
+        newY = snapToGrid(startTop + (startHeight - newHeight));
         break;
       case 'n':
-        newHeight = Math.round(Math.max(20, startHeight - deltaY));
-        newY = Math.round(startTop + (startHeight - newHeight));
+        newHeight = snapToGrid(Math.max(20, startHeight - deltaY));
+        newY = snapToGrid(startTop + (startHeight - newHeight));
         break;
       case 'ne':
-        newWidth = Math.round(Math.max(20, startWidth + deltaX));
-        newHeight = Math.round(Math.max(20, startHeight - deltaY));
-        newY = Math.round(startTop + (startHeight - newHeight));
+        newWidth = snapToGrid(Math.max(20, startWidth + deltaX));
+        newHeight = snapToGrid(Math.max(20, startHeight - deltaY));
+        newY = snapToGrid(startTop + (startHeight - newHeight));
         break;
       case 'e':
-        newWidth = Math.round(Math.max(20, startWidth + deltaX));
+        newWidth = snapToGrid(Math.max(20, startWidth + deltaX));
         break;
       case 'se':
-        newWidth = Math.round(Math.max(20, startWidth + deltaX));
-        newHeight = Math.round(Math.max(20, startHeight + deltaY));
+        newWidth = snapToGrid(Math.max(20, startWidth + deltaX));
+        newHeight = snapToGrid(Math.max(20, startHeight + deltaY));
         break;
       case 's':
-        newHeight = Math.round(Math.max(20, startHeight + deltaY));
+        newHeight = snapToGrid(Math.max(20, startHeight + deltaY));
         break;
       case 'sw':
-        newWidth = Math.round(Math.max(20, startWidth - deltaX));
-        newHeight = Math.round(Math.max(20, startHeight + deltaY));
-        newX = Math.round(startLeft + (startWidth - newWidth));
+        newWidth = snapToGrid(Math.max(20, startWidth - deltaX));
+        newHeight = snapToGrid(Math.max(20, startHeight + deltaY));
+        newX = snapToGrid(startLeft + (startWidth - newWidth));
         break;
       case 'w':
-        newWidth = Math.round(Math.max(20, startWidth - deltaX));
-        newX = Math.round(startLeft + (startWidth - newWidth));
+        newWidth = snapToGrid(Math.max(20, startWidth - deltaX));
+        newX = snapToGrid(startLeft + (startWidth - newWidth));
         break;
     }
 

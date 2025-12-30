@@ -6,10 +6,14 @@
 
   let {
     dimensions,
+    gridEnabled,
+    gridSize,
     children,
     onPanzoomReady,
   }: {
     dimensions: Dimensions;
+    gridEnabled: boolean;
+    gridSize: number;
     children: Snippet;
     onPanzoomReady?: (instance: PanzoomObject, element: HTMLDivElement) => void;
   } = $props();
@@ -28,6 +32,13 @@
 
   setContext('panzoom', {
     getInstance: () => panzoomInstance
+  });
+
+  // Provide grid snap configuration via context
+  // Use getters to ensure reactivity - they read the latest prop values
+  setContext('gridSnap', {
+    isEnabled: () => gridEnabled,
+    getSize: () => gridSize
   });
 
   // Function to update scale (defined outside onMount for cleanup access)

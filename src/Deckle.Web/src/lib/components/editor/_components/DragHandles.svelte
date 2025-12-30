@@ -11,6 +11,7 @@
 	let startY = 0;
 	let initialX = 0;
 	let initialY = 0;
+	let shiftPressed = $state(false);
 
 	// Get zoom scale from context (provided by ComponentViewer)
 	const zoomContext = getContext<{ getScale: () => number }>('zoomScale');
@@ -19,6 +20,21 @@
 	// Get panzoom instance from context to disable/enable panning
 	const panzoomContext = getContext<{ getInstance: () => any }>('panzoom');
 	const getPanzoom = () => panzoomContext?.getInstance();
+
+	// Get grid snap context
+	const gridSnapContext = getContext<{
+		isEnabled: () => boolean;
+		getSize: () => number;
+	}>('gridSnap');
+
+	// Helper function to snap a value to grid
+	function snapToGrid(value: number): number {
+		if (!gridSnapContext || !gridSnapContext.isEnabled() || shiftPressed) {
+			return Math.round(value);
+		}
+		const gridSize = gridSnapContext.getSize();
+		return Math.round(value / gridSize) * gridSize;
+	}
 
 	function handleMouseDown(e: MouseEvent) {
 		e.preventDefault();
@@ -47,20 +63,23 @@
 	function handleMouseMove(e: MouseEvent) {
 		if (!isDragging) return;
 
+		// Track shift key state
+		shiftPressed = e.shiftKey;
+
 		const scale = getZoomScale();
 
 		// Calculate delta accounting for zoom level
 		const deltaX = (e.clientX - startX) / scale;
 		const deltaY = (e.clientY - startY) / scale;
 
-		// Update position
-		const newX = initialX + deltaX;
-		const newY = initialY + deltaY;
+		// Update position with grid snapping
+		const newX = snapToGrid(initialX + deltaX);
+		const newY = snapToGrid(initialY + deltaY);
 
 		// Update element without adding to history (for smooth dragging)
 		templateStore.updateElementWithoutHistory(element.id, {
-			x: Math.round(newX),
-			y: Math.round(newY)
+			x: newX,
+			y: newY
 		});
 	}
 

@@ -26,6 +26,12 @@
   let isSaving = $state(false);
   let saveSuccess = $state(false);
 
+  // Grid snap controls - owned by PreviewPanel and passed to ComponentViewer
+  // Calculate sensible default: 1/50th of smallest dimension, rounded to nearest 5
+  const defaultGridSize = Math.max(5, Math.round(Math.min(dimensions.widthPx, dimensions.heightPx) / 50 / 5) * 5);
+  let gridEnabled = $state(true);
+  let gridSize = $state(defaultGridSize);
+
   function handlePanzoomReady(
     instance: PanzoomObject,
     element: HTMLDivElement
@@ -93,9 +99,31 @@
     >
       {showBleedSafeArea ? "Hide" : "Show"} Bleed/Safe Area
     </button>
+    <div class="grid-controls">
+      <button
+        onclick={() => gridEnabled = !gridEnabled}
+        class="grid-toggle"
+        class:active={gridEnabled}
+        title={gridEnabled ? "Disable Grid Snapping (Shift to temporarily disable)" : "Enable Grid Snapping"}
+      >
+        Grid: {gridEnabled ? "On" : "Off"}
+      </button>
+      <label class="grid-size-label">
+        <span>Size:</span>
+        <input
+          type="number"
+          min="1"
+          max="100"
+          step="1"
+          bind:value={gridSize}
+          class="grid-size-input"
+          title="Grid size in pixels"
+        />
+      </label>
+    </div>
     <ZoomControls {panzoomInstance} {panzoomElement} />
   {/snippet}
-  <ComponentViewer {dimensions} onPanzoomReady={handlePanzoomReady}>
+  <ComponentViewer {dimensions} {gridEnabled} {gridSize} onPanzoomReady={handlePanzoomReady}>
     <EditableComponentView {dimensions} {shape} {showBleedSafeArea} />
   </ComponentViewer>
 </Panel>
@@ -160,5 +188,56 @@
     background: #10b981;
     color: white;
     border-color: #10b981;
+  }
+
+  .grid-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .grid-toggle {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .grid-toggle:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+
+  .grid-toggle.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+  }
+
+  .grid-size-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+
+  .grid-size-input {
+    width: 50px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  .grid-size-input:focus {
+    outline: none;
+    border-color: #3b82f6;
   }
 </style>

@@ -1,10 +1,13 @@
 <script lang="ts">
   import type { PageData } from "./$types";
+  import type { DataSource as DataSourceType, DataSourceSyncStatus } from "$lib/types";
   import { config } from "$lib/config";
   import { onMount } from "svelte";
   import { Card, Dialog, Button, EmptyState } from "$lib/components";
   import { buildDataSourcesBreadcrumbs } from "$lib/utils/breadcrumbs";
   import { setBreadcrumbs } from "$lib/stores/breadcrumb";
+  import { dataSourcesApi } from "$lib/api";
+  import csvToJson from "convert-csv-to-json";
 
   let { data }: { data: PageData } = $props();
 
@@ -13,18 +16,7 @@
     setBreadcrumbs(buildDataSourcesBreadcrumbs(data.project));
   });
 
-  interface DataSource {
-    id: string;
-    projectId: string;
-    name: string;
-    type: string;
-    googleSheetsId?: string;
-    googleSheetsUrl?: string;
-    createdAt: string;
-    updatedAt: string;
-  }
-
-  let dataSources = $state<DataSource[]>([]);
+  let dataSources = $state<DataSourceType[]>([]);
   let loading = $state(true);
   let showAddModal = $state(false);
   let newSourceUrl = $state("");
@@ -32,6 +24,10 @@
   let newSourceGid = $state<number | undefined>(undefined);
   let addingSource = $state(false);
   let errorMessage = $state("");
+
+  // Track sync status per data source
+  let syncStatuses = $state<Record<string, DataSourceSyncStatus>>({});
+  let syncErrors = $state<Record<string, string>>({});
 
   onMount(async () => {
     await loadDataSources();
@@ -119,12 +115,89 @@
     }
   }
 
+  async function syncDataSource(source: DataSourceType) {
+    if (!source.csvExportUrl) {
+      syncErrors[source.id] = "No CSV export URL available";
+      return;
+    }
+
+    try {
+      // Set syncing status
+      syncStatuses[source.id] = "syncing";
+      syncErrors[source.id] = "";
+
+      // Fetch the CSV data from the public URL
+      const response = await fetch(source.csvExportUrl);
+      if (!response.ok) {
+        throw new Error("Failed to fetch CSV data");
+      }
+
+      const csvText = await response.text();
+
+      // Parse CSV to extract headers and count rows
+      const lines = csvText.split('\n');
+
+      // Extract headers (first line)
+      const headers = lines[0]
+        .split(',')
+        .map(h => h.trim().replace(/^"|"$/g, '')) // Remove quotes if present
+        .filter(h => h.length > 0);
+
+      // Count non-empty data rows (skip header)
+      const dataRows = lines.slice(1).filter(line => {
+        // A row is non-empty if it has at least one non-empty cell
+        const cells = line.split(',').map(c => c.trim());
+        return cells.some(cell => cell.length > 0);
+      });
+
+      const rowCount = dataRows.length;
+
+      // Send metadata to the backend
+      const updatedSource = await dataSourcesApi.sync(source.id, {
+        headers,
+        rowCount
+      });
+
+      // Update the data source in the list
+      dataSources = dataSources.map(ds =>
+        ds.id === source.id ? updatedSource : ds
+      );
+
+      // Set idle status
+      syncStatuses[source.id] = "idle";
+    } catch (error) {
+      console.error("Failed to sync data source:", error);
+      syncStatuses[source.id] = "error";
+      syncErrors[source.id] = error instanceof Error ? error.message : "Failed to sync data source";
+    }
+  }
+
   function openAddModal() {
     showAddModal = true;
     errorMessage = "";
     newSourceUrl = "";
     newSourceName = "";
     newSourceGid = undefined;
+  }
+
+  function formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   }
 </script>
 
@@ -160,6 +233,7 @@
             <div class="source-info">
               <h3>{source.name}</h3>
               <p class="source-type">{source.type}</p>
+              <p class="source-updated">Last updated {formatDate(source.updatedAt)}</p>
               {#if source.googleSheetsUrl}
                 <a
                   href={source.googleSheetsUrl}
@@ -170,8 +244,28 @@
                   Open in Google Sheets →
                 </a>
               {/if}
+              {#if source.headers && source.rowCount !== undefined}
+                <p class="source-metadata">
+                  {source.headers.length} columns, {source.rowCount} rows
+                </p>
+              {/if}
+              {#if syncStatuses[source.id] === "syncing"}
+                <p class="sync-status syncing">Syncing...</p>
+              {:else if syncStatuses[source.id] === "error"}
+                <p class="sync-status error">
+                  Sync failed: {syncErrors[source.id]}
+                </p>
+              {/if}
             </div>
             <div class="source-actions">
+              <Button
+                variant="secondary"
+                size="sm"
+                onclick={() => syncDataSource(source)}
+                disabled={syncStatuses[source.id] === "syncing"}
+              >
+                {syncStatuses[source.id] === "syncing" ? "Syncing..." : "Sync"}
+              </Button>
               <a
                 href={`/projects/${data.project.id}/data-sources/${source.id}`}
                 style="text-decoration: none;"
@@ -285,7 +379,14 @@
   .source-type {
     font-size: 0.875rem;
     color: var(--color-muted-teal);
+    margin: 0 0 0.25rem 0;
+  }
+
+  .source-updated {
+    font-size: 0.75rem;
+    color: var(--color-muted-teal);
     margin: 0 0 0.5rem 0;
+    opacity: 0.8;
   }
 
   .source-link {
@@ -297,6 +398,26 @@
 
   .source-link:hover {
     color: var(--color-sage);
+  }
+
+  .source-metadata {
+    font-size: 0.875rem;
+    color: var(--color-sage);
+    margin: 0.5rem 0 0 0;
+    font-weight: 500;
+  }
+
+  .sync-status {
+    font-size: 0.875rem;
+    margin: 0.5rem 0 0 0;
+  }
+
+  .sync-status.syncing {
+    color: var(--color-muted-teal);
+  }
+
+  .sync-status.error {
+    color: #c00;
   }
 
   .source-actions {

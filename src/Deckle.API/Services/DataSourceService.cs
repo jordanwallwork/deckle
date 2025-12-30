@@ -39,6 +39,8 @@ public class DataSourceService
                 GoogleSheetsUrl = ds.GoogleSheetsUrl,
                 SheetGid = ds.SheetGid,
                 CsvExportUrl = ds.CsvExportUrl,
+                Headers = ds.Headers,
+                RowCount = ds.RowCount,
                 CreatedAt = ds.CreatedAt,
                 UpdatedAt = ds.UpdatedAt
             })
@@ -76,6 +78,8 @@ public class DataSourceService
             GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
             SheetGid = dataSource.SheetGid,
             CsvExportUrl = dataSource.CsvExportUrl,
+            Headers = dataSource.Headers,
+            RowCount = dataSource.RowCount,
             CreatedAt = dataSource.CreatedAt,
             UpdatedAt = dataSource.UpdatedAt
         };
@@ -150,6 +154,51 @@ public class DataSourceService
             GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
             SheetGid = dataSource.SheetGid,
             CsvExportUrl = dataSource.CsvExportUrl,
+            Headers = dataSource.Headers,
+            RowCount = dataSource.RowCount,
+            CreatedAt = dataSource.CreatedAt,
+            UpdatedAt = dataSource.UpdatedAt
+        };
+    }
+
+    public async Task<DataSourceDto> SyncDataSourceMetadataAsync(Guid userId, Guid dataSourceId, List<string> headers, int rowCount)
+    {
+        var dataSource = await _dbContext.DataSources
+            .Include(ds => ds.Project)
+                .ThenInclude(p => p.UserProjects)
+            .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
+
+        if (dataSource == null)
+        {
+            throw new KeyNotFoundException($"Data source with ID {dataSourceId} not found");
+        }
+
+        // Verify user has access to the project
+        var hasAccess = dataSource.Project.UserProjects.Any(up => up.UserId == userId);
+        if (!hasAccess)
+        {
+            throw new UnauthorizedAccessException("User does not have access to this data source");
+        }
+
+        // Update metadata
+        dataSource.Headers = headers;
+        dataSource.RowCount = rowCount;
+        dataSource.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return new DataSourceDto
+        {
+            Id = dataSource.Id,
+            ProjectId = dataSource.ProjectId,
+            Name = dataSource.Name,
+            Type = dataSource.Type.ToString(),
+            GoogleSheetsId = dataSource.GoogleSheetsId,
+            GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
+            SheetGid = dataSource.SheetGid,
+            CsvExportUrl = dataSource.CsvExportUrl,
+            Headers = dataSource.Headers,
+            RowCount = dataSource.RowCount,
             CreatedAt = dataSource.CreatedAt,
             UpdatedAt = dataSource.UpdatedAt
         };

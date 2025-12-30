@@ -127,6 +127,22 @@ public class AppDbContext : DbContext
             entity.Property(ds => ds.CsvExportUrl)
                 .HasMaxLength(1000);
 
+            entity.Property(ds => ds.Headers)
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null)
+                )
+                .Metadata.SetValueComparer(
+                    new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>?>(
+                        (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
+                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c == null ? null : c.ToList()
+                    )
+                );
+
+            entity.Property(ds => ds.RowCount);
+
             entity.Property(ds => ds.CreatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");

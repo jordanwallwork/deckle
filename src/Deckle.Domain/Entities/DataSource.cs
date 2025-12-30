@@ -20,6 +20,10 @@ public class DataSource
 
     public string? CsvExportUrl { get; set; }
 
+    public List<string>? Headers { get; set; }
+
+    public int? RowCount { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

@@ -104,6 +104,27 @@ public static class DataSourceEndpoints
         })
         .WithName("DeleteDataSource");
 
+        // Endpoint to sync data source metadata (headers and row count)
+        group.MapPost("{id:guid}/sync", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService, SyncDataSourceMetadataRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+
+            try
+            {
+                var dataSource = await dataSourceService.SyncDataSourceMetadataAsync(userId, id, request.Headers, request.RowCount);
+                return Results.Ok(dataSource);
+            }
+            catch (KeyNotFoundException)
+            {
+                return Results.NotFound();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
+        })
+        .WithName("SyncDataSourceMetadata");
+
         // Endpoint to get basic data source info (metadata)
         group.MapGet("{id:guid}/metadata", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
         {

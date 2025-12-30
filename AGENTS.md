@@ -69,24 +69,56 @@ When creating a new .NET project:
 
 When making changes to the database schema (entity models in `Deckle.Domain`):
 
+**CRITICAL: Complete ALL Changes Before Generating Migration**
+
+Before generating a migration, ensure you have completed ALL of the following steps:
+
+1. **Update Entity Classes**: Add/modify all properties in the entity class (e.g., `Deckle.Domain/Entities/DataSource.cs`)
+2. **Update DbContext Configuration**: Add/modify ALL corresponding configurations in `AppDbContext.OnModelCreating()`, including:
+   - Column types (e.g., `.HasColumnType("jsonb")`)
+   - Conversions (e.g., `.HasConversion(...)`)
+   - Value comparers for collections (e.g., `.Metadata.SetValueComparer(...)`)
+   - Constraints, indexes, relationships, etc.
+3. **Build the Domain Project**: Ensure the project compiles successfully
+   ```bash
+   cd src/Deckle.Domain && dotnet build
+   ```
+4. **Verify Changes Are Complete**: Double-check that you haven't forgotten any property configurations
+
+**Why This Matters**: If you generate a migration before completing DbContext configurations, EF Core won't detect the changes and will create an **empty migration**. If this happens, you must remove the empty migration and generate a new one after completing all configurations.
+
+**Generating the Migration**:
+
 1. **Generate Migration**: Use Entity Framework Core tools to create a migration
    ```bash
    dotnet ef migrations add <MigrationName> --project src/Deckle.Domain --startup-project src/Deckle.API
    ```
 
-2. **If API is Running**: Use the `--no-build` flag to avoid file locking issues
+2. **If API is Running**: Do NOT use `--no-build` unless absolutely necessary. It's better to stop the API and run a full build to ensure EF Core detects all changes. If you must use `--no-build`:
    ```bash
-   dotnet ef migrations add <MigrationName> --project src/Deckle.Domain --startup-project src/Deckle.API --no-build
+   # First, build the Domain project manually
+   cd src/Deckle.Domain && dotnet build
+
+   # Then generate migration with --no-build
+   cd ..
+   dotnet ef migrations add <MigrationName> --project Deckle.Domain --startup-project Deckle.API --no-build
    ```
 
 3. **Migration Naming**: Use descriptive PascalCase names (e.g., `AddProjectEntities`, `UpdateUserTable`)
 
-4. **Review Migration**: Always review the generated migration file before committing
+4. **Review Migration**: ALWAYS review the generated migration file before committing
+   - **Check if migration is empty** - If `Up()` and `Down()` methods are empty, you forgot to complete the DbContext configuration. Remove the migration and start over.
    - Verify the `Up()` method creates the correct schema changes
    - Ensure the `Down()` method properly reverses the changes
    - Check for any data loss or breaking changes
 
-5. **Apply Migration**: The migration will be applied automatically on application startup, or manually with:
+5. **If Migration is Empty**: Remove it and fix the issue
+   ```bash
+   dotnet ef migrations remove --project src/Deckle.Domain --startup-project src/Deckle.API --force
+   ```
+   Then complete steps 1-3 above before generating a new migration.
+
+6. **Apply Migration**: The migration will be applied automatically on application startup, or manually with:
    ```bash
    dotnet ef database update --project src/Deckle.Domain --startup-project src/Deckle.API
    ```

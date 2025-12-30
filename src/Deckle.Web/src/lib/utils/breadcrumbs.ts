@@ -1,4 +1,4 @@
-import type { Component, Project } from '$lib/types';
+import type { Component, Project, GameComponent, CardComponent } from '$lib/types';
 import type { BreadcrumbItem } from '$lib/types/breadcrumb';
 
 type ProjectIdName = Project | { id: string, name: string};
@@ -36,7 +36,7 @@ export function buildSettingsBreadcrumbs(
 
 export function buildEditorBreadcrumbs(
 	project: ProjectIdName,
-	component: ComponentIdName,
+	component: GameComponent,
 	part?: string
 ): BreadcrumbItem[] {
 	const breadcrumbs: BreadcrumbItem[] = [
@@ -48,11 +48,29 @@ export function buildEditorBreadcrumbs(
 	];
 
 	if (part) {
-		breadcrumbs.push({
+		const partItem: BreadcrumbItem = {
 			label: part,
-			href: `/projects/${project.name}/components/${component.id}/${part.toLowerCase()}`,
+			href: `/projects/${project.id}/components/${component.id}/${part.toLowerCase()}`,
 			isActive: true
-		});
+		};
+
+		// Add part options for components with multiple parts (Cards)
+		if (component.type === 'Card') {
+			partItem.partOptions = [
+				{
+					label: 'Front',
+					value: 'front',
+					href: `/projects/${project.id}/components/${component.id}/front`
+				},
+				{
+					label: 'Back',
+					value: 'back',
+					href: `/projects/${project.id}/components/${component.id}/back`
+				}
+			];
+		}
+
+		breadcrumbs.push(partItem);
 	}
 
 	return extend(buildComponentsBreadcrumbs(project), breadcrumbs);

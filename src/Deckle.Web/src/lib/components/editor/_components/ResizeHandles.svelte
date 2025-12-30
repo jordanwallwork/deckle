@@ -9,6 +9,9 @@
   const zoomContext = getContext<{ getScale: () => number }>('zoomScale');
   const getZoomScale = () => zoomContext?.getScale() ?? 1;
 
+  // Calculate inverse scale for handle sizing (so handles stay constant size on screen)
+  let inverseScale = $derived(1 / getZoomScale());
+
   // Get panzoom instance from context to disable/enable panning
   const panzoomContext = getContext<{ getInstance: () => any }>('panzoom');
   const getPanzoom = () => panzoomContext?.getInstance();
@@ -272,7 +275,7 @@
   });
 </script>
 
-<div bind:this={resizeHandlesEl} class="resize-handles panzoom-exclude">
+<div bind:this={resizeHandlesEl} class="resize-handles panzoom-exclude" style="--inverse-scale: {inverseScale}">
   <!-- Corner handles -->
   <div
     class="resize-handle panzoom-exclude nw"
@@ -329,17 +332,17 @@
 <style>
   .resize-handles {
     position: absolute;
-    inset: -4px;
+    inset: calc(-4px * var(--inverse-scale));
     pointer-events: none;
   }
 
   .resize-handle {
     position: absolute;
-    width: 8px;
-    height: 8px;
+    width: calc(8px * var(--inverse-scale));
+    height: calc(8px * var(--inverse-scale));
     background: #0066cc;
-    border: 1px solid white;
-    border-radius: 2px;
+    border: calc(1px * var(--inverse-scale)) solid white;
+    border-radius: calc(2px * var(--inverse-scale));
     pointer-events: auto;
     z-index: 10;
     touch-action: none;
@@ -348,53 +351,53 @@
 
   /* Corner handles */
   .resize-handle.nw {
-    top: -4px;
-    left: -4px;
+    top: calc(-4px * var(--inverse-scale));
+    left: calc(-4px * var(--inverse-scale));
     cursor: nw-resize;
   }
 
   .resize-handle.ne {
-    top: -4px;
-    right: -4px;
+    top: calc(-4px * var(--inverse-scale));
+    right: calc(-4px * var(--inverse-scale));
     cursor: ne-resize;
   }
 
   .resize-handle.se {
-    bottom: -4px;
-    right: -4px;
+    bottom: calc(-4px * var(--inverse-scale));
+    right: calc(-4px * var(--inverse-scale));
     cursor: se-resize;
   }
 
   .resize-handle.sw {
-    bottom: -4px;
-    left: -4px;
+    bottom: calc(-4px * var(--inverse-scale));
+    left: calc(-4px * var(--inverse-scale));
     cursor: sw-resize;
   }
 
   /* Edge handles */
   .resize-handle.n {
-    top: -4px;
+    top: calc(-4px * var(--inverse-scale));
     left: 50%;
     transform: translateX(-50%);
     cursor: n-resize;
   }
 
   .resize-handle.e {
-    right: -4px;
+    right: calc(-4px * var(--inverse-scale));
     top: 50%;
     transform: translateY(-50%);
     cursor: e-resize;
   }
 
   .resize-handle.s {
-    bottom: -4px;
+    bottom: calc(-4px * var(--inverse-scale));
     left: 50%;
     transform: translateX(-50%);
     cursor: s-resize;
   }
 
   .resize-handle.w {
-    left: -4px;
+    left: calc(-4px * var(--inverse-scale));
     top: 50%;
     transform: translateY(-50%);
     cursor: w-resize;

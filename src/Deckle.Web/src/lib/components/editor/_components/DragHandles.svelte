@@ -17,6 +17,9 @@
 	const zoomContext = getContext<{ getScale: () => number }>('zoomScale');
 	const getZoomScale = () => zoomContext?.getScale() ?? 1;
 
+	// Calculate inverse scale for handle sizing (so handles stay constant size on screen)
+	let inverseScale = $derived(1 / getZoomScale());
+
 	// Get panzoom instance from context to disable/enable panning
 	const panzoomContext = getContext<{ getInstance: () => any }>('panzoom');
 	const getPanzoom = () => panzoomContext?.getInstance();
@@ -112,6 +115,7 @@
 	class:dragging={isDragging}
 	onmouseenter={() => (isHoveringEdge = true)}
 	onmouseleave={() => (isHoveringEdge = false)}
+	style="--inverse-scale: {inverseScale}"
 >
 	<!-- Top edge -->
 	<div
@@ -168,6 +172,7 @@
 		transition: opacity 0.15s ease;
 		touch-action: none;
 		user-select: none;
+		transform-origin: center;
 	}
 
 	.drag-handle.visible {
@@ -180,37 +185,37 @@
 
 	/* Top edge */
 	.drag-handle-top {
-		top: -3px;
+		top: calc(-3px * var(--inverse-scale));
 		left: 0;
 		right: 0;
-		height: 6px;
+		height: calc(6px * var(--inverse-scale));
 		cursor: move;
 	}
 
 	/* Right edge */
 	.drag-handle-right {
 		top: 0;
-		right: -3px;
+		right: calc(-3px * var(--inverse-scale));
 		bottom: 0;
-		width: 6px;
+		width: calc(6px * var(--inverse-scale));
 		cursor: move;
 	}
 
 	/* Bottom edge */
 	.drag-handle-bottom {
-		bottom: -3px;
+		bottom: calc(-3px * var(--inverse-scale));
 		left: 0;
 		right: 0;
-		height: 6px;
+		height: calc(6px * var(--inverse-scale));
 		cursor: move;
 	}
 
 	/* Left edge */
 	.drag-handle-left {
 		top: 0;
-		left: -3px;
+		left: calc(-3px * var(--inverse-scale));
 		bottom: 0;
-		width: 6px;
+		width: calc(6px * var(--inverse-scale));
 		cursor: move;
 	}
 </style>

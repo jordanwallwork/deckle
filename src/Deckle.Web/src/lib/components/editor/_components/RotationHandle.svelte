@@ -14,6 +14,9 @@
 	const zoomContext = getContext<{ getScale: () => number }>('zoomScale');
 	const getZoomScale = () => zoomContext?.getScale() ?? 1;
 
+	// Calculate inverse scale for handle sizing (so handles stay constant size on screen)
+	let inverseScale = $derived(1 / getZoomScale());
+
 	// Get panzoom instance from context to disable/enable panning
 	const panzoomContext = getContext<{ getInstance: () => any }>('panzoom');
 	const getPanzoom = () => panzoomContext?.getInstance();
@@ -109,6 +112,7 @@
 	role="button"
 	tabindex="-1"
 	title="Drag to rotate"
+	style="--inverse-scale: {inverseScale}"
 >
 	<svg width="20" height="20" viewBox="0 0 20 20" class="rotation-icon">
 		<circle cx="10" cy="10" r="8" fill="white" stroke="#0066cc" stroke-width="2" />
@@ -125,9 +129,9 @@
 <style>
 	.rotation-handle {
 		position: absolute;
-		top: -40px;
+		top: calc(-40px * var(--inverse-scale));
 		left: 50%;
-		transform: translateX(-50%);
+		transform: translateX(-50%) scale(var(--inverse-scale));
 		width: 20px;
 		height: 20px;
 		cursor: grab;
@@ -138,12 +142,12 @@
 	}
 
 	.rotation-handle:hover {
-		transform: translateX(-50%) scale(1.2);
+		transform: translateX(-50%) scale(calc(var(--inverse-scale) * 1.2));
 	}
 
 	.rotation-handle.rotating {
 		cursor: grabbing;
-		transform: translateX(-50%) scale(1.2);
+		transform: translateX(-50%) scale(calc(var(--inverse-scale) * 1.2));
 	}
 
 	.rotation-icon {

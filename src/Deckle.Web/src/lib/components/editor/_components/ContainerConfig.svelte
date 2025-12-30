@@ -5,6 +5,7 @@
   import FieldWrapper from "./FieldWrapper.svelte";
   import SelectField from "./SelectField.svelte";
   import VisibilityCheckbox from "./VisibilityCheckbox.svelte";
+  import LockCheckbox from "./LockCheckbox.svelte";
   import PositionControls from "./PositionControls.svelte";
   import DimensionInput from "./DimensionInput.svelte";
   import ColorPicker from "./ColorPicker.svelte";
@@ -208,6 +209,11 @@
   <VisibilityCheckbox
     visible={element.visible}
     onchange={(visible) => updateElement({ visible })}
+  />
+
+  <LockCheckbox
+    locked={element.locked}
+    onchange={(locked) => updateElement({ locked })}
   />
 
   {#if element.position === "absolute"}

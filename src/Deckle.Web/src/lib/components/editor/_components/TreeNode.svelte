@@ -34,6 +34,7 @@
   const isSelected = $derived(selectedId === element.id);
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
   const isInvisible = $derived(element.visible === false);
+  const isLocked = $derived(element.locked === true);
 
   function toggleExpanded() {
     if (hasChildren) {
@@ -318,6 +319,13 @@
           <path d={getElementIcon(element.type)} stroke="currentColor" stroke-width="1.5" fill="none"/>
         </svg>
 
+        {#if isLocked}
+          <svg class="lock-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-label="Locked">
+            <rect x="3" y="5" width="6" height="5" rx="1" stroke="currentColor" stroke-width="1" fill="none"/>
+            <path d="M4 5V3.5C4 2.67 4.67 2 5.5 2h1C7.33 2 8 2.67 8 3.5V5" stroke="currentColor" stroke-width="1" fill="none"/>
+          </svg>
+        {/if}
+
         {#if isEditingLabel}
           <input
             type="text"
@@ -502,6 +510,12 @@
   .node-icon {
     flex-shrink: 0;
     color: #666;
+  }
+
+  .lock-icon {
+    flex-shrink: 0;
+    color: #999;
+    margin-left: 0.25rem;
   }
 
   .node-label {

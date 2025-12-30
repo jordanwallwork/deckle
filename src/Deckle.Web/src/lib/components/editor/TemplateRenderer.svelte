@@ -12,7 +12,10 @@
   const isSelected = $derived($templateStore.selectedElementId === element.id);
 
   function handleMouseEnter() {
-    templateStore.setHoveredElement(element.id);
+    // Don't hover locked elements in preview
+    if (!element.locked) {
+      templateStore.setHoveredElement(element.id);
+    }
   }
 
   function handleMouseLeave() {
@@ -20,6 +23,10 @@
   }
 
   function handleClick(e: MouseEvent) {
+    // Don't select locked elements in preview - let clicks pass through
+    if (element.locked) {
+      return;
+    }
     e.stopPropagation();
     templateStore.selectElement(element.id);
   }
@@ -281,7 +288,7 @@
     {#each (element as ContainerElement).children as child (child.id)}
       <TemplateRenderer element={child} />
     {/each}
-    {#if isSelected}
+    {#if isSelected && !element.locked}
       <ResizeHandles element={element} />
       <RotationHandle element={element} />
       {#if element.position === 'absolute'}
@@ -303,7 +310,7 @@
     tabindex="0"
   >
     {(element as TextElement).content}
-    {#if isSelected}
+    {#if isSelected && !element.locked}
       <ResizeHandles element={element} />
       <RotationHandle element={element} />
       {#if element.position === 'absolute'}
@@ -329,7 +336,7 @@
       role="button"
       tabindex="0"
     />
-    {#if isSelected}
+    {#if isSelected && !element.locked}
       <ResizeHandles element={element} />
       <RotationHandle element={element} />
       {#if element.position === 'absolute'}

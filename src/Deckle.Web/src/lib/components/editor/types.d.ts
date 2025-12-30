@@ -114,6 +114,7 @@ export interface BaseElement {
   zIndex?: number;
   opacity?: number;
   visible?: boolean;
+  locked?: boolean; // When true, element cannot be selected or edited in preview, but can be edited in structure tree
   rotation?: number; // rotation in degrees
 }
 

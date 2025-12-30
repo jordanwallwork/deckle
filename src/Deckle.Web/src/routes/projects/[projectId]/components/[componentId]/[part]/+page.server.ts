@@ -22,11 +22,21 @@ export const load: PageServerLoad = async ({ params, fetch, parent }) => {
 			}
 		}
 
+		// Load all data sources for the project
+		let dataSources = [];
+		try {
+			dataSources = await dataSourcesApi.listByProject(params.projectId, fetch);
+		} catch (err) {
+			console.error('Failed to load data sources:', err);
+			// Continue without data sources list if it fails to load
+		}
+
 		return {
 			component,
 			project: parentData.project,
 			part: params.part,
-			dataSource
+			dataSource,
+			dataSources
 		};
 	} catch (err) {
 		console.error('Failed to load component:', err);

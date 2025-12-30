@@ -3,10 +3,12 @@
 
   let {
     title,
+    subtitle,
     toolbar,
     children,
   }: {
     title: string;
+    subtitle?: Snippet;
     toolbar?: Snippet;
     children?: Snippet;
   } = $props();
@@ -14,7 +16,14 @@
 
 <div class="panel">
   <header class="panel-header">
-    <h3 class="panel-title">{title}</h3>
+    <div class="panel-header-left">
+      <h3 class="panel-title">{title}</h3>
+      {#if subtitle}
+        <div class="panel-subtitle">
+          {@render subtitle()}
+        </div>
+      {/if}
+    </div>
     {#if toolbar}
       <div class="panel-toolbar">
         {@render toolbar()}
@@ -46,11 +55,23 @@
     min-height: 2.5rem;
   }
 
+  .panel-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
   .panel-title {
     margin: 0;
     font-size: 0.875rem;
     font-weight: 600;
     color: #1a1a1a;
+  }
+
+  .panel-subtitle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .panel-toolbar {

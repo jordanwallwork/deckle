@@ -123,6 +123,7 @@
   {#snippet rightOrBottom()}
     <DataSourcePanel
       dataSource={data.dataSource}
+      dataSources={data.dataSources}
       projectId={data.project.id}
       componentId={data.component.id}
     />

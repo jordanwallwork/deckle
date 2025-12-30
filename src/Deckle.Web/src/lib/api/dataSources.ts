@@ -46,4 +46,10 @@ export const dataSourcesApi = {
    */
   delete: (id: string, fetchFn?: typeof fetch) =>
     api.delete<void>(`/data-sources/${id}`, undefined, fetchFn),
+
+  /**
+   * Get data from a data source (CSV as 2D array)
+   */
+  getData: (id: string, fetchFn?: typeof fetch) =>
+    api.get<{ data: string[][] }>(`/data-sources/${id}/data`, undefined, fetchFn),
 };

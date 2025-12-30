@@ -34,6 +34,7 @@
   const isSelected = $derived(selectedId === element.id);
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
   const isInvisible = $derived(element.visible === false);
+  const isLocked = $derived(element.locked === true);
 
   function toggleExpanded() {
     if (hasChildren) {
@@ -228,6 +229,14 @@
     templateStore.addElement(newElement, element.id);
   }
 
+  function handleToggleVisibility() {
+    templateStore.updateElement(element.id, { visible: !element.visible });
+  }
+
+  function handleToggleLock() {
+    templateStore.updateElement(element.id, { locked: !element.locked });
+  }
+
   function getContextMenuItems(): MenuItem[] {
     const items: MenuItem[] = [];
 
@@ -257,6 +266,19 @@
         ]
       });
     }
+
+    // Visibility toggle
+    items.push({ divider: true });
+    items.push({
+      label: element.visible === false ? 'Show' : 'Hide',
+      action: handleToggleVisibility
+    });
+
+    // Lock toggle
+    items.push({
+      label: element.locked === true ? 'Unlock' : 'Lock',
+      action: handleToggleLock
+    });
 
     // Delete action (with divider before it)
     items.push({ divider: true });
@@ -317,6 +339,13 @@
         <svg class="node-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d={getElementIcon(element.type)} stroke="currentColor" stroke-width="1.5" fill="none"/>
         </svg>
+
+        {#if isLocked}
+          <svg class="lock-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-label="Locked">
+            <rect x="3" y="5" width="6" height="5" rx="1" stroke="currentColor" stroke-width="1" fill="none"/>
+            <path d="M4 5V3.5C4 2.67 4.67 2 5.5 2h1C7.33 2 8 2.67 8 3.5V5" stroke="currentColor" stroke-width="1" fill="none"/>
+          </svg>
+        {/if}
 
         {#if isEditingLabel}
           <input
@@ -502,6 +531,12 @@
   .node-icon {
     flex-shrink: 0;
     color: #666;
+  }
+
+  .lock-icon {
+    flex-shrink: 0;
+    color: #999;
+    margin-left: 0.25rem;
   }
 
   .node-label {

@@ -12,7 +12,10 @@
   const isSelected = $derived($templateStore.selectedElementId === element.id);
 
   function handleMouseEnter() {
-    templateStore.setHoveredElement(element.id);
+    // Don't hover locked elements in preview
+    if (!element.locked) {
+      templateStore.setHoveredElement(element.id);
+    }
   }
 
   function handleMouseLeave() {
@@ -20,6 +23,10 @@
   }
 
   function handleClick(e: MouseEvent) {
+    // Don't select locked elements in preview - let clicks pass through
+    if (element.locked) {
+      return;
+    }
     e.stopPropagation();
     templateStore.selectElement(element.id);
   }
@@ -270,6 +277,7 @@
     style={buildStyle(element)}
     data-element-id={element.id}
     class="editable-element"
+    class:locked={element.locked}
     class:hovered={isHovered}
     class:selected={isSelected}
     onmouseenter={handleMouseEnter}
@@ -281,7 +289,7 @@
     {#each (element as ContainerElement).children as child (child.id)}
       <TemplateRenderer element={child} />
     {/each}
-    {#if isSelected}
+    {#if isSelected && !element.locked}
       <ResizeHandles element={element} />
       <RotationHandle element={element} />
       {#if element.position === 'absolute'}
@@ -294,6 +302,7 @@
     style={buildStyle(element)}
     data-element-id={element.id}
     class="editable-element"
+    class:locked={element.locked}
     class:hovered={isHovered}
     class:selected={isSelected}
     onmouseenter={handleMouseEnter}
@@ -303,7 +312,7 @@
     tabindex="0"
   >
     {(element as TextElement).content}
-    {#if isSelected}
+    {#if isSelected && !element.locked}
       <ResizeHandles element={element} />
       <RotationHandle element={element} />
       {#if element.position === 'absolute'}
@@ -321,6 +330,7 @@
       alt=""
       style={buildStyle(element)}
       class="editable-element"
+      class:locked={element.locked}
       class:hovered={isHovered}
       class:selected={isSelected}
       onmouseenter={handleMouseEnter}
@@ -329,7 +339,7 @@
       role="button"
       tabindex="0"
     />
-    {#if isSelected}
+    {#if isSelected && !element.locked}
       <ResizeHandles element={element} />
       <RotationHandle element={element} />
       {#if element.position === 'absolute'}
@@ -343,6 +353,10 @@
   .editable-element {
     cursor: pointer;
     transition: outline 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .editable-element.locked {
+    cursor: default;
   }
 
   .editable-element.hovered {

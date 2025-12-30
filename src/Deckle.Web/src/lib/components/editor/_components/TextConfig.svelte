@@ -3,6 +3,7 @@
   import { templateStore } from "$lib/stores/templateElements";
   import ConfigSection from "./ConfigSection.svelte";
   import VisibilityCheckbox from "./VisibilityCheckbox.svelte";
+  import LockCheckbox from "./LockCheckbox.svelte";
   import PositionControls from "./PositionControls.svelte";
   import DimensionInput from "./DimensionInput.svelte";
   import ColorPicker from "./ColorPicker.svelte";
@@ -22,10 +23,17 @@
 </script>
 
 <ConfigSection>
-  <VisibilityCheckbox
-    visible={element.visible}
-    onchange={(visible) => updateElement({ visible })}
-  />
+  <div class="icon-toggle-group">
+    <VisibilityCheckbox
+      visible={element.visible}
+      onchange={(visible) => updateElement({ visible })}
+    />
+
+    <LockCheckbox
+      locked={element.locked}
+      onchange={(locked) => updateElement({ locked })}
+    />
+  </div>
 
   {#if element.position === "absolute"}
     <PositionControls
@@ -206,3 +214,11 @@
     />
   </Fields>
 </ConfigSection>
+
+<style>
+  .icon-toggle-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+</style>

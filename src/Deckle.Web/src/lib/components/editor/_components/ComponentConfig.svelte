@@ -5,6 +5,9 @@
     RectangleShape,
   } from "$lib/types";
   import ConfigSection from "./ConfigSection.svelte";
+  import ColorPicker from "./ColorPicker.svelte";
+  import { templateStore } from "$lib/stores/templateElements";
+  import type { ContainerElement } from "$lib/components/editor/types";
 
   let { component, part }: { component: EditableComponent; part?: string } =
     $props();
@@ -18,26 +21,30 @@
       ? (cardComponent.shape as RectangleShape)
       : null
   );
+
+  // Get the root element from the template store for styling
+  const rootElement = $derived($templateStore.root as ContainerElement);
 </script>
 
 <ConfigSection>
-  <div class="info-group">
-    <div class="info-item">
-      <span class="info-label">Name</span>
-      <span class="info-value">{component.name}</span>
-    </div>
+  <ColorPicker
+    label="Background Color"
+    id="component-bg-color"
+    value={rootElement.background?.color || "#ffffff"}
+    onchange={(color) =>
+      templateStore.updateElement("root", {
+        background: {
+          ...rootElement.background,
+          color,
+        },
+      })}
+  />
 
+  <div class="info-group">
     <div class="info-item">
       <span class="info-label">Type</span>
       <span class="info-value">{component.type}</span>
     </div>
-
-    {#if part}
-      <div class="info-item">
-        <span class="info-label">Part</span>
-        <span class="info-value">{part}</span>
-      </div>
-    {/if}
 
     {#if cardComponent}
       <div class="info-item">

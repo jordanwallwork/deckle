@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Dimensions, ComponentShape, RectangleShape } from "$lib/types";
   import { templateStore } from "$lib/stores/templateElements";
+  import type { ContainerElement } from "./types";
   import TemplateRenderer from "./TemplateRenderer.svelte";
   import { mmToPx } from "$lib/utils/size.utils";
 
@@ -30,19 +31,29 @@
           };
         })()
   );
+
+  // Build the component style string from root element background
+  const componentStyle = $derived(
+    $templateStore.root.background?.color
+      ? `background-color: ${$templateStore.root.background.color}`
+      : ''
+  );
+
+  // Handle click on the root component
+  function handleRootClick() {
+    // Select the root element when clicking on the component background
+    // Child elements stop propagation, so this only fires when clicking empty space
+    templateStore.selectElement('root');
+  }
 </script>
 
 <div
   class="component"
   class:show-bleed-safe-area={showBleedSafeArea}
-  style:width={dimensions.widthPx + 2 * dimensions.bleedPx + "px"}
-  style:height={dimensions.heightPx + 2 * dimensions.bleedPx + "px"}
-  style:--bleed-px={dimensions.bleedPx + "px"}
-  style:--width-px={dimensions.widthPx + "px"}
-  style:--height-px={dimensions.heightPx + "px"}
-  style:--border-radius-component={borderRadius.component + "px"}
-  style:--border-radius-bleed={borderRadius.bleed + "px"}
-  style:--border-radius-safe={borderRadius.safe + "px"}
+  style="{componentStyle}; width: {dimensions.widthPx + 2 * dimensions.bleedPx}px; height: {dimensions.heightPx + 2 * dimensions.bleedPx}px; --bleed-px: {dimensions.bleedPx}px; --width-px: {dimensions.widthPx}px; --height-px: {dimensions.heightPx}px; --border-radius-component: {borderRadius.component}px; --border-radius-bleed: {borderRadius.bleed}px; --border-radius-safe: {borderRadius.safe}px"
+  onclick={handleRootClick}
+  role="button"
+  tabindex="0"
 >
   {#each $templateStore.root.children as child (child.id)}
     <TemplateRenderer element={child} />
@@ -51,7 +62,7 @@
 
 <style>
   .component {
-    background-color: #fff;
+    background-color: #fff; /* Default fallback */
     overflow: visible;
     position: relative;
     border-radius: var(--border-radius-component);

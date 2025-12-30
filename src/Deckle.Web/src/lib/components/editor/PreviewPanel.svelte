@@ -13,7 +13,12 @@
   import { templateStore } from "$lib/stores/templateElements";
   import { componentsApi } from "$lib/api";
 
-  let { component, projectId, part }: { component: EditableComponent; projectId: string; part: string } = $props();
+  let {
+    component,
+    projectId,
+    part,
+  }: { component: EditableComponent; projectId: string; part: string } =
+    $props();
   let dimensions = component.dimensions;
   // Extract shape if this is a CardComponent
   let shape = $derived<ComponentShape | undefined>(
@@ -28,7 +33,10 @@
 
   // Grid snap controls - owned by PreviewPanel and passed to ComponentViewer
   // Calculate sensible default: 1/50th of smallest dimension, rounded to nearest 5
-  const defaultGridSize = Math.max(5, Math.round(Math.min(dimensions.widthPx, dimensions.heightPx) / 50 / 5) * 5);
+  const defaultGridSize = Math.max(
+    5,
+    Math.round(Math.min(dimensions.widthPx, dimensions.heightPx) / 50 / 5) * 5
+  );
   let gridEnabled = $state(true);
   let gridSize = $state(defaultGridSize);
 
@@ -42,8 +50,8 @@
 
   async function handleSave() {
     // Only allow saving for cards
-    if (component.type !== 'Card') {
-      alert('Only card designs can be saved.');
+    if (component.type !== "Card") {
+      alert("Only card designs can be saved.");
       return;
     }
 
@@ -58,7 +66,12 @@
       })();
 
       // Save the design via API
-      await componentsApi.saveCardDesign(projectId, component.id, part.toLowerCase(), design);
+      await componentsApi.saveCardDesign(
+        projectId,
+        component.id,
+        part.toLowerCase(),
+        design
+      );
 
       // Mark changes as saved
       templateStore.markAsSaved();
@@ -68,8 +81,8 @@
         saveSuccess = false;
       }, 2000);
     } catch (error) {
-      console.error('Failed to save design:', error);
-      alert('Failed to save design. Please try again.');
+      console.error("Failed to save design:", error);
+      alert("Failed to save design. Please try again.");
     } finally {
       isSaving = false;
     }
@@ -101,10 +114,11 @@
     </button>
     <div class="grid-controls">
       <button
-        onclick={() => gridEnabled = !gridEnabled}
+        onclick={() => (gridEnabled = !gridEnabled)}
         class="grid-toggle"
-        class:active={gridEnabled}
-        title={gridEnabled ? "Disable Grid Snapping (Shift to temporarily disable)" : "Enable Grid Snapping"}
+        title={gridEnabled
+          ? "Disable Grid Snapping (Shift to temporarily disable)"
+          : "Enable Grid Snapping"}
       >
         Grid: {gridEnabled ? "On" : "Off"}
       </button>
@@ -123,7 +137,12 @@
     </div>
     <ZoomControls {panzoomInstance} {panzoomElement} />
   {/snippet}
-  <ComponentViewer {dimensions} {gridEnabled} {gridSize} onPanzoomReady={handlePanzoomReady}>
+  <ComponentViewer
+    {dimensions}
+    {gridEnabled}
+    {gridSize}
+    onPanzoomReady={handlePanzoomReady}
+  >
     <EditableComponentView {dimensions} {shape} {showBleedSafeArea} />
   </ComponentViewer>
 </Panel>
@@ -211,12 +230,6 @@
   .grid-toggle:hover {
     background: #f3f4f6;
     border-color: #9ca3af;
-  }
-
-  .grid-toggle.active {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
   }
 
   .grid-size-label {

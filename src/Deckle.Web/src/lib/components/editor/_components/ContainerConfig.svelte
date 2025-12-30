@@ -11,6 +11,7 @@
   import PaddingControls from "./PaddingControls.svelte";
   import BorderConfig from "./BorderConfig.svelte";
   import Fields from "./Fields.svelte";
+  import NumberField from "./NumberField.svelte";
 
   let { element }: { element: ContainerElement } = $props();
 
@@ -216,6 +217,17 @@
       onchange={(updates) => updateElement(updates)}
     />
   {/if}
+
+  <NumberField
+    label="Rotation"
+    id="rotation"
+    value={element.rotation ?? 0}
+    min={-360}
+    max={360}
+    step={1}
+    unit="°"
+    onchange={(rotation) => updateElement({ rotation })}
+  />
 
   <SelectField
     label="Display"

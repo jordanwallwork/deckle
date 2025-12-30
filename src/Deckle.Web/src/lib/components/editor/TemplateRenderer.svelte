@@ -3,6 +3,7 @@
   import TemplateRenderer from './TemplateRenderer.svelte';
   import ResizeHandles from './_components/ResizeHandles.svelte';
   import DragHandles from './_components/DragHandles.svelte';
+  import RotationHandle from './_components/RotationHandle.svelte';
   import { templateStore } from '$lib/stores/templateElements';
 
   let { element }: { element: TemplateElement } = $props();
@@ -102,6 +103,11 @@
     // Opacity
     if (element.opacity !== undefined) {
       styles.push(`opacity: ${element.opacity}`);
+    }
+
+    // Rotation
+    if (element.rotation !== undefined && element.rotation !== 0) {
+      styles.push(`transform: rotate(${element.rotation}deg)`);
     }
 
     // Visibility
@@ -277,6 +283,7 @@
     {/each}
     {#if isSelected}
       <ResizeHandles element={element} />
+      <RotationHandle element={element} />
       {#if element.position === 'absolute'}
         <DragHandles element={element} />
       {/if}
@@ -298,6 +305,7 @@
     {(element as TextElement).content}
     {#if isSelected}
       <ResizeHandles element={element} />
+      <RotationHandle element={element} />
       {#if element.position === 'absolute'}
         <DragHandles element={element} />
       {/if}
@@ -323,6 +331,7 @@
     />
     {#if isSelected}
       <ResizeHandles element={element} />
+      <RotationHandle element={element} />
       {#if element.position === 'absolute'}
         <DragHandles element={element} />
       {/if}

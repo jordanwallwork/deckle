@@ -114,6 +114,7 @@ export interface BaseElement {
   zIndex?: number;
   opacity?: number;
   visible?: boolean;
+  rotation?: number; // rotation in degrees
 }
 
 // ============================================================================

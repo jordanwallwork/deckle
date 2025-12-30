@@ -45,6 +45,8 @@ public static class ComponentExtensions
     }
 }
 
+public record DataSourceInfo(Guid Id, string Name);
+
 public record CardDto : ComponentDto
 {
     public required string Size { get; init; }
@@ -52,6 +54,7 @@ public record CardDto : ComponentDto
     public string? FrontDesign { get; init; }
     public string? BackDesign { get; init; }
     public required ComponentShape Shape { get; init; }
+    public DataSourceInfo? DataSource { get; init; }
 
     public CardDto() : base("Card") { }
 
@@ -63,6 +66,9 @@ public record CardDto : ComponentDto
         FrontDesign = card.FrontDesign;
         BackDesign = card.BackDesign;
         Shape = card.Shape;
+        DataSource = card.DataSource != null
+            ? new DataSourceInfo(card.DataSource.Id, card.DataSource.Name)
+            : null;
     }
 }
 

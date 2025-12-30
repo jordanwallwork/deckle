@@ -6,6 +6,11 @@ public interface IEditableComponent
     ComponentShape Shape { get; set; }
 }
 
+public interface IDataSourceComponent
+{
+    DataSource? DataSource { get; set; }
+}
+
 public abstract class Component
 {
     public Guid Id { get; set; }

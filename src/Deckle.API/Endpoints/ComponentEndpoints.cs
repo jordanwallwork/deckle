@@ -131,8 +131,32 @@ public static class ComponentEndpoints
         })
         .WithName("SaveCardDesign");
 
+        group.MapPut("cards/{id:guid}/datasource", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateCardDataSourceRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+
+            try
+            {
+                var card = await componentService.UpdateCardDataSourceAsync(userId, id, request.DataSourceId);
+
+                if (card == null || card.ProjectId != projectId)
+                {
+                    return Results.NotFound();
+                }
+
+                return Results.Ok(card);
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(ex.Message);
+            }
+        })
+        .WithName("UpdateCardDataSource");
+
         return group;
     }
 }
 
 public record SaveCardDesignRequest(string? Design);
+
+public record UpdateCardDataSourceRequest(Guid? DataSourceId);

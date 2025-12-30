@@ -52,4 +52,10 @@ export const componentsApi = {
    */
   saveCardDesign: (projectId: string, cardId: string, part: string, design: string | null, fetchFn?: typeof fetch) =>
     api.put<GameComponent>(`/projects/${projectId}/components/cards/${cardId}/design/${part}`, { design }, undefined, fetchFn),
+
+  /**
+   * Update card data source
+   */
+  updateCardDataSource: (projectId: string, cardId: string, dataSourceId: string | null, fetchFn?: typeof fetch) =>
+    api.put<GameComponent>(`/projects/${projectId}/components/cards/${cardId}/datasource`, { dataSourceId }, undefined, fetchFn),
 };

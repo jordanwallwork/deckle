@@ -7,6 +7,7 @@
   import ComponentTypeSelector from "./_components/ComponentTypeSelector.svelte";
   import CardConfigForm from "./_components/CardConfigForm.svelte";
   import DiceConfigForm from "./_components/DiceConfigForm.svelte";
+  import LinkDataSourceModal from "./_components/LinkDataSourceModal.svelte";
   import type { GameComponent } from "$lib/types";
   import { setBreadcrumbs } from "$lib/stores/breadcrumb";
   import { buildComponentsBreadcrumbs } from "$lib/utils/breadcrumbs";
@@ -38,6 +39,10 @@
   // Delete confirmation
   let showDeleteConfirm = $state(false);
   let componentToDelete: GameComponent | null = $state(null);
+
+  // Link data source
+  let showLinkDataSourceModal = $state(false);
+  let componentToLink: GameComponent | null = $state(null);
 
   function openModal() {
     showModal = true;
@@ -107,6 +112,33 @@
   function cancelDelete() {
     showDeleteConfirm = false;
     componentToDelete = null;
+  }
+
+  function handleLinkDataSource(component: GameComponent) {
+    componentToLink = component;
+    showLinkDataSourceModal = true;
+  }
+
+  function closeLinkDataSourceModal() {
+    showLinkDataSourceModal = false;
+    componentToLink = null;
+  }
+
+  async function handleConfirmLinkDataSource(dataSourceId: string | null) {
+    if (!componentToLink || componentToLink.type !== "Card") return;
+
+    try {
+      await componentsApi.updateCardDataSource(
+        data.project.id,
+        componentToLink.id,
+        dataSourceId
+      );
+      await invalidateAll();
+      closeLinkDataSourceModal();
+    } catch (err) {
+      console.error("Error updating card data source:", err);
+      // Could add error handling UI here
+    }
   }
 
   async function handleSubmit() {
@@ -195,6 +227,7 @@
         {component}
         onEdit={handleEdit}
         onDelete={handleDeleteClick}
+        onLinkDataSource={handleLinkDataSource}
       />
     {/each}
   </div>
@@ -263,6 +296,14 @@
   confirmVariant="danger"
   onconfirm={confirmDelete}
   oncancel={cancelDelete}
+/>
+
+<LinkDataSourceModal
+  bind:show={showLinkDataSourceModal}
+  dataSources={data.dataSources || []}
+  currentDataSourceId={componentToLink?.type === "Card" ? componentToLink.dataSource?.id : null}
+  onConfirm={handleConfirmLinkDataSource}
+  onClose={closeLinkDataSourceModal}
 />
 
 <style>

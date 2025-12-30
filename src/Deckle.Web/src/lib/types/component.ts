@@ -19,6 +19,11 @@ export interface RectangleShape extends ComponentShape {
   borderRadiusMm: number;
 }
 
+export interface DataSourceInfo {
+  id: string;
+  name: string;
+}
+
 export interface Component {
   id: string;
   projectId: string;
@@ -38,6 +43,7 @@ export interface CardComponent extends EditableComponent {
   frontDesign?: string | null;
   backDesign?: string | null;
   shape: ComponentShape;
+  dataSource?: DataSourceInfo | null;
 }
 
 export interface DiceComponent extends Component {

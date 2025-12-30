@@ -12,10 +12,12 @@
     component,
     onEdit,
     onDelete,
+    onLinkDataSource,
   }: {
     component: GameComponent;
     onEdit?: (component: GameComponent) => void;
     onDelete?: (component: GameComponent) => void;
+    onLinkDataSource?: (component: GameComponent) => void;
   } = $props();
 </script>
 
@@ -105,7 +107,7 @@
       Card • {CARD_SIZES.find((s) => s.value === component.size)?.label ||
         component.size}
     </p>
-    <div class="design-links">
+    <div class="design-links" style:margin-top="0.5rem">
       <a
         href="/projects/{component.projectId}/components/{component.id}/front"
         class="design-link"
@@ -119,6 +121,29 @@
       >
         Edit Back
       </a>
+    </div>
+    <div class="design-links">
+      <span class="design-link">
+        Data Source:
+        {#if component.dataSource}
+          <a
+            href="/projects/{component.projectId}/data-sources/{component
+              .dataSource.id}"
+            class="design-link">{component.dataSource.name}</a
+          >
+        {:else}
+          None
+        {/if}
+        {#if onLinkDataSource}
+          <Button
+            variant="text"
+            size="sm"
+            onclick={() => onLinkDataSource(component)}
+          >
+            ({component.dataSource ? "Change" : "Link"})
+          </Button>
+        {/if}
+      </span>
     </div>
   {:else}
     <p class="component-type">Component</p>
@@ -208,7 +233,6 @@
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
-    margin-top: 0.75rem;
     justify-content: center;
   }
 
@@ -218,11 +242,16 @@
     font-size: 0.875rem;
     color: var(--color-muted-teal);
     text-decoration: none;
-    font-weight: 500;
     transition: color 0.2s ease;
   }
 
-  .design-link:hover {
+  .design-link > a,
+  a.design-link {
+    font-weight: 500;
+  }
+
+  .design-link > a:hover,
+  a.design-link:hover {
     color: var(--color-sage);
     text-decoration: underline;
   }

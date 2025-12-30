@@ -22,6 +22,7 @@ public class ComponentService
         if (!hasAccess) return [];
 
         var components = await _context.Components
+            .Include(c => (c as Card)!.DataSource)
             .Where(c => c.ProjectId == projectId)
             .OrderBy(c => c.CreatedAt)
             .ToListAsync();
@@ -32,6 +33,7 @@ public class ComponentService
     public async Task<ComponentDto?> GetComponentByIdAsync(Guid userId, Guid componentId)
     {
         var component = await _context.Components
+            .Include(c => (c as Card)!.DataSource)
             .Where(c => c.Id == componentId &&
                         c.Project.Users.Any(u => u.Id == userId))
             .FirstOrDefaultAsync();
@@ -185,6 +187,45 @@ public class ComponentService
         else
         {
             throw new ArgumentException($"Invalid part '{part}' for card. Must be 'front' or 'back'.");
+        }
+
+        card.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return new CardDto(card);
+    }
+
+    public async Task<CardDto?> UpdateCardDataSourceAsync(Guid userId, Guid componentId, Guid? dataSourceId)
+    {
+        var card = await _context.Cards
+            .Include(c => c.DataSource)
+            .Where(c => c.Id == componentId &&
+                        c.Project.Users.Any(u => u.Id == userId))
+            .FirstOrDefaultAsync();
+
+        if (card == null)
+        {
+            return null;
+        }
+
+        // If dataSourceId is provided, verify it exists and belongs to the same project
+        if (dataSourceId.HasValue)
+        {
+            var dataSourceExists = await _context.DataSources
+                .AnyAsync(ds => ds.Id == dataSourceId.Value && ds.ProjectId == card.ProjectId);
+
+            if (!dataSourceExists)
+            {
+                throw new ArgumentException("Data source not found or does not belong to this project");
+            }
+
+            // Load the data source to ensure it's available in the response
+            card.DataSource = await _context.DataSources.FindAsync(dataSourceId.Value);
+        }
+        else
+        {
+            // Remove the data source
+            card.DataSource = null;
         }
 
         card.UpdatedAt = DateTime.UtcNow;

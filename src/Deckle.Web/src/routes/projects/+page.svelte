@@ -1,7 +1,7 @@
 <script lang="ts">
   import { projectsApi, ApiError } from "$lib/api";
   import type { PageData } from "./$types";
-  import { Button, EmptyState, Dialog } from "$lib/components";
+  import { Button, EmptyState, Dialog, ErrorDisplay } from "$lib/components";
   import { FormField, Input, TextArea } from "$lib/components/forms";
   import ProjectCard from "./_components/ProjectCard.svelte";
   import PageHeader from "$lib/components/layout/PageHeader.svelte";
@@ -14,6 +14,7 @@
   let projectName = $state("");
   let projectDescription = $state("");
   let isCreating = $state(false);
+  let createError = $state<ApiError | null>(null);
 
   function openCreateDialog() {
     showCreateDialog = true;
@@ -23,6 +24,7 @@
     if (!projectName.trim()) return;
 
     isCreating = true;
+    createError = null;
     try {
       await projectsApi.create({
         name: projectName,
@@ -33,9 +35,9 @@
     } catch (error) {
       console.error("Failed to create project:", error);
       if (error instanceof ApiError) {
-        alert(`Failed to create project: ${error.message}`);
+        createError = error;
       } else {
-        alert("Failed to create project. Please try again.");
+        createError = new ApiError(500, "Failed to create project. Please try again.");
       }
     } finally {
       isCreating = false;
@@ -46,6 +48,7 @@
     showCreateDialog = false;
     projectName = "";
     projectDescription = "";
+    createError = null;
   }
 </script>
 
@@ -134,6 +137,8 @@
         placeholder="A brief description of your game..."
       />
     </FormField>
+
+    <ErrorDisplay error={createError} />
   </form>
 
   {#snippet actions()}

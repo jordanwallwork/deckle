@@ -71,62 +71,6 @@ public class UserService
         return userId;
     }
 
-    public async Task<bool> HasGoogleSheetsAuthAsync(Guid userId)
-    {
-        return await _dbContext.GoogleCredentials
-            .AnyAsync(gc => gc.UserId == userId);
-    }
-
-    public async Task SaveOrUpdateGoogleCredentialAsync(Guid userId, string accessToken, string refreshToken, string tokenType, DateTime expiresAt, string scope)
-    {
-        var credential = await _dbContext.GoogleCredentials
-            .FirstOrDefaultAsync(gc => gc.UserId == userId);
-
-        if (credential == null)
-        {
-            credential = new GoogleCredential
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                TokenType = tokenType,
-                ExpiresAt = expiresAt,
-                Scope = scope,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _dbContext.GoogleCredentials.Add(credential);
-        }
-        else
-        {
-            credential.AccessToken = accessToken;
-            if (!string.IsNullOrEmpty(refreshToken))
-            {
-                credential.RefreshToken = refreshToken;
-            }
-            credential.TokenType = tokenType;
-            credential.ExpiresAt = expiresAt;
-            credential.Scope = scope;
-            credential.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await _dbContext.SaveChangesAsync();
-    }
-
-    public async Task RevokeGoogleCredentialAsync(Guid userId)
-    {
-        var credential = await _dbContext.GoogleCredentials
-            .FirstOrDefaultAsync(gc => gc.UserId == userId);
-
-        if (credential != null)
-        {
-            _dbContext.GoogleCredentials.Remove(credential);
-            await _dbContext.SaveChangesAsync();
-        }
-    }
-
     public static CurrentUserDto? GetCurrentUserFromClaims(ClaimsPrincipal user)
     {
         if (!user.Identity?.IsAuthenticated ?? true)

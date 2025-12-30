@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.0.2" />
-    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.72.0.3966" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.1">

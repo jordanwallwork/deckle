@@ -64,10 +64,6 @@ builder.Services.AddAuthentication(options =>
     {
         var userService = context.HttpContext.RequestServices.GetRequiredService<UserService>();
 
-        // Check if this is a Google Sheets auth flow
-        context.Properties.Items.TryGetValue("loginType", out var loginType);
-        var isGoogleSheetsAuth = loginType == "google-sheets";
-
         // Extract user info from Google's userinfo endpoint response
         // The user info is in context.User (JsonElement), not context.Principal
         var googleId = context.User.GetProperty("sub").GetString();
@@ -138,40 +134,6 @@ builder.Services.AddAuthentication(options =>
                 identity.AddClaim(new Claim("picture", picture));
             }
         }
-
-        // If this is a Google Sheets auth flow, save the tokens
-        if (isGoogleSheetsAuth)
-        {
-            // Extract tokens
-            var accessToken = context.AccessToken;
-            var refreshToken = context.RefreshToken;
-            var tokenType = context.TokenType ?? "Bearer";
-            var expiresAt = context.ExpiresIn.HasValue
-                ? DateTime.UtcNow.AddSeconds(context.ExpiresIn.Value.TotalSeconds)
-                : DateTime.UtcNow.AddHours(1);
-
-            // Get the scope from the properties
-            context.Properties.Items.TryGetValue("scope", out var scope);
-            scope ??= "";
-
-            if (!string.IsNullOrEmpty(accessToken) && !string.IsNullOrEmpty(refreshToken))
-            {
-                await userService.SaveOrUpdateGoogleCredentialAsync(
-                    user.Id,
-                    accessToken,
-                    refreshToken,
-                    tokenType,
-                    expiresAt,
-                    scope
-                );
-            }
-
-            // Preserve the returnUrl for the callback
-            if (context.Properties.Items.TryGetValue("returnUrl", out var returnUrl) && !string.IsNullOrEmpty(returnUrl))
-            {
-                context.Properties.Items["returnUrl"] = returnUrl;
-            }
-        }
     };
 });
 
@@ -213,6 +175,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+// Register HttpClient for GoogleSheetsService
+builder.Services.AddHttpClient();
+
 // Register application services
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<ProjectService>();
@@ -251,7 +216,6 @@ app.MapDefaultEndpoints();
 app.MapAuthEndpoints();
 app.MapProjectEndpoints();
 app.MapDataSourceEndpoints();
-app.MapGoogleSheetsAuthEndpoints();
 app.MapComponentEndpoints();
 
 app.Run();

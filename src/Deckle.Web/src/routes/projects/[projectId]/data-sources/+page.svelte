@@ -29,36 +29,13 @@
   let showAddModal = $state(false);
   let newSourceUrl = $state("");
   let newSourceName = $state("");
+  let newSourceGid = $state<number | undefined>(undefined);
   let addingSource = $state(false);
   let errorMessage = $state("");
-  let isGoogleSheetsAuthorized = $state(false);
-  let checkingAuth = $state(true);
 
   onMount(async () => {
-    await checkGoogleSheetsAuth();
     await loadDataSources();
   });
-
-  async function checkGoogleSheetsAuth() {
-    try {
-      checkingAuth = true;
-      const response = await fetch(
-        `${config.apiUrl}/google-sheets-auth/status`,
-        {
-          credentials: "include",
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        isGoogleSheetsAuthorized = data.authorized;
-      }
-    } catch (error) {
-      console.error("Failed to check Google Sheets authorization:", error);
-    } finally {
-      checkingAuth = false;
-    }
-  }
 
   async function loadDataSources() {
     try {
@@ -100,6 +77,7 @@
           projectId: data.project.id,
           name: newSourceName.trim() || "",
           url: newSourceUrl.trim(),
+          sheetGid: newSourceGid,
         }),
       });
 
@@ -109,6 +87,7 @@
         showAddModal = false;
         newSourceUrl = "";
         newSourceName = "";
+        newSourceGid = undefined;
       } else {
         const error = await response.json();
         errorMessage = error.error || "Failed to add data source";
@@ -141,20 +120,11 @@
   }
 
   function openAddModal() {
-    if (!isGoogleSheetsAuthorized) {
-      authorizeGoogleSheets();
-      return;
-    }
-
     showAddModal = true;
     errorMessage = "";
     newSourceUrl = "";
     newSourceName = "";
-  }
-
-  function authorizeGoogleSheets() {
-    const returnUrl = encodeURIComponent(window.location.pathname);
-    window.location.href = `${config.apiUrl}/google-sheets-auth/authorize?returnUrl=${returnUrl}`;
+    newSourceGid = undefined;
   }
 </script>
 
@@ -170,22 +140,9 @@
 <div class="tab-content">
   <div class="tab-actions">
     <Button variant="primary" size="sm" onclick={openAddModal}>
-      {isGoogleSheetsAuthorized
-        ? "+ Add Data Source"
-        : "Authorize Google Sheets"}
+      + Add Data Source
     </Button>
   </div>
-
-  {#if !isGoogleSheetsAuthorized && !checkingAuth}
-    <div class="auth-banner">
-      <p class="banner-title">🔐 Google Sheets Authorization Required</p>
-      <p class="banner-text">
-        To add Google Sheets as a data source, you need to authorize Deckle to
-        access your spreadsheets. Click the button above to connect your Google
-        account.
-      </p>
-    </div>
-  {/if}
 
   {#if loading}
     <EmptyState title="Loading..." border={false} />
@@ -267,6 +224,20 @@
     />
   </div>
 
+  <div class="form-group">
+    <label for="source-gid">Sheet GID (optional)</label>
+    <input
+      id="source-gid"
+      type="number"
+      bind:value={newSourceGid}
+      placeholder="Default: 0 (first sheet)"
+      disabled={addingSource}
+    />
+    <p class="help-text">
+      Find in URL: #gid=123456 or ?gid=123456. Leave empty for first sheet (0).
+    </p>
+  </div>
+
   {#snippet actions()}
     <Button
       variant="secondary"
@@ -290,27 +261,6 @@
     display: flex;
     justify-content: flex-end;
     margin-bottom: 1.5rem;
-  }
-
-  .auth-banner {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    margin-bottom: 2rem;
-  }
-
-  .banner-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    margin: 0 0 0.5rem 0;
-  }
-
-  .banner-text {
-    font-size: 0.875rem;
-    margin: 0;
-    opacity: 0.95;
-    line-height: 1.5;
   }
 
   .data-sources-list {
@@ -393,5 +343,11 @@
   .form-group input:disabled {
     background-color: #f5f5f5;
     cursor: not-allowed;
+  }
+
+  .help-text {
+    font-size: 0.75rem;
+    color: var(--color-muted-teal);
+    margin: 0.5rem 0 0 0;
   }
 </style>

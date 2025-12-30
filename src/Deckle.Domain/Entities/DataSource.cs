@@ -16,6 +16,10 @@ public class DataSource
 
     public string? GoogleSheetsUrl { get; set; }
 
+    public int? SheetGid { get; set; }
+
+    public string? CsvExportUrl { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

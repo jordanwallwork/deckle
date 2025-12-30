@@ -10,12 +10,15 @@ export interface DataSource {
   connectionString: string;
   googleSheetsId?: string;
   googleSheetsUrl?: string;
+  sheetGid?: number;
+  csvExportUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateDataSourceDto {
+  projectId: string;
   name: string;
-  type: DataSourceType;
-  googleSheetsUrl: string;
+  url: string;
+  sheetGid?: number;
 }

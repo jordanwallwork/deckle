@@ -37,6 +37,8 @@ public class DataSourceService
                 Type = ds.Type.ToString(),
                 GoogleSheetsId = ds.GoogleSheetsId,
                 GoogleSheetsUrl = ds.GoogleSheetsUrl,
+                SheetGid = ds.SheetGid,
+                CsvExportUrl = ds.CsvExportUrl,
                 CreatedAt = ds.CreatedAt,
                 UpdatedAt = ds.UpdatedAt
             })
@@ -72,12 +74,14 @@ public class DataSourceService
             Type = dataSource.Type.ToString(),
             GoogleSheetsId = dataSource.GoogleSheetsId,
             GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
+            SheetGid = dataSource.SheetGid,
+            CsvExportUrl = dataSource.CsvExportUrl,
             CreatedAt = dataSource.CreatedAt,
             UpdatedAt = dataSource.UpdatedAt
         };
     }
 
-    public async Task<DataSourceDto> CreateGoogleSheetsDataSourceAsync(Guid userId, Guid projectId, string name, string url)
+    public async Task<DataSourceDto> CreateGoogleSheetsDataSourceAsync(Guid userId, Guid projectId, string name, string url, int? sheetGid = null)
     {
         // Verify user has access to the project
         var hasAccess = await _dbContext.UserProjects
@@ -88,27 +92,34 @@ public class DataSourceService
             throw new UnauthorizedAccessException("User does not have access to this project");
         }
 
-        // Extract spreadsheet ID from URL
-        var spreadsheetId = GoogleSheetsService.ExtractSpreadsheetIdFromUrl(url);
-        if (string.IsNullOrEmpty(spreadsheetId))
+        // Extract spreadsheet ID and sheet GID from URL
+        var (extractedSpreadsheetId, extractedSheetGid) = _googleSheetsService.ExtractIdsFromUrl(url);
+
+        if (string.IsNullOrEmpty(extractedSpreadsheetId))
         {
-            throw new ArgumentException("Invalid Google Sheets URL");
+            throw new ArgumentException("Invalid Google Sheets URL. Please provide a valid Google Sheets URL.");
         }
 
-        // Verify the user can access this spreadsheet
-        try
-        {
-            var metadata = await _googleSheetsService.GetSpreadsheetMetadataAsync(userId, spreadsheetId);
+        // Use extracted GID if not explicitly provided
+        var finalSheetGid = sheetGid ?? extractedSheetGid ?? 0;
 
-            // Use spreadsheet title as name if not provided
-            if (string.IsNullOrEmpty(name))
-            {
-                name = metadata.Title;
-            }
-        }
-        catch (Exception ex)
+        // Build CSV export URL
+        var csvExportUrl = _googleSheetsService.BuildCsvExportUrl(extractedSpreadsheetId, finalSheetGid);
+
+        // Validate that the sheet is publicly accessible
+        var isAccessible = await _googleSheetsService.ValidateCsvAccessAsync(csvExportUrl);
+        if (!isAccessible)
         {
-            throw new InvalidOperationException($"Unable to access Google Sheet: {ex.Message}", ex);
+            throw new InvalidOperationException(
+                "This Google Sheet is not publicly accessible. " +
+                "Please set sharing to 'Anyone with the link can view' in Google Sheets."
+            );
+        }
+
+        // Use provided name or generate a default one
+        if (string.IsNullOrEmpty(name))
+        {
+            name = $"Google Sheet ({extractedSpreadsheetId})";
         }
 
         var dataSource = new DataSource
@@ -117,9 +128,11 @@ public class DataSourceService
             ProjectId = projectId,
             Name = name,
             Type = DataSourceType.GoogleSheets,
-            ConnectionString = url,
-            GoogleSheetsId = spreadsheetId,
+            ConnectionString = csvExportUrl,
+            GoogleSheetsId = extractedSpreadsheetId,
             GoogleSheetsUrl = url,
+            SheetGid = finalSheetGid,
+            CsvExportUrl = csvExportUrl,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -135,6 +148,8 @@ public class DataSourceService
             Type = dataSource.Type.ToString(),
             GoogleSheetsId = dataSource.GoogleSheetsId,
             GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
+            SheetGid = dataSource.SheetGid,
+            CsvExportUrl = dataSource.CsvExportUrl,
             CreatedAt = dataSource.CreatedAt,
             UpdatedAt = dataSource.UpdatedAt
         };

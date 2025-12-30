@@ -8,8 +8,10 @@ public record DataSourceDto
     public required string Type { get; init; }
     public string? GoogleSheetsId { get; init; }
     public string? GoogleSheetsUrl { get; init; }
+    public int? SheetGid { get; init; }
+    public string? CsvExportUrl { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
 }
 
-public record CreateDataSourceRequest(Guid ProjectId, string Name, string Url);
+public record CreateDataSourceRequest(Guid ProjectId, string Name, string Url, int? SheetGid = null);

@@ -14,7 +14,6 @@ public class AppDbContext : DbContext
     public DbSet<Project> Projects { get; set; }
     public DbSet<UserProject> UserProjects { get; set; }
     public DbSet<DataSource> DataSources { get; set; }
-    public DbSet<GoogleCredential> GoogleCredentials { get; set; }
     public DbSet<Component> Components { get; set; }
     public DbSet<Card> Cards { get; set; }
     public DbSet<Dice> Dices { get; set; }
@@ -123,6 +122,11 @@ public class AppDbContext : DbContext
             entity.Property(ds => ds.GoogleSheetsUrl)
                 .HasMaxLength(500);
 
+            entity.Property(ds => ds.SheetGid);
+
+            entity.Property(ds => ds.CsvExportUrl)
+                .HasMaxLength(1000);
+
             entity.Property(ds => ds.CreatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -134,45 +138,6 @@ public class AppDbContext : DbContext
             entity.HasOne(ds => ds.Project)
                 .WithMany(p => p.DataSources)
                 .HasForeignKey(ds => ds.ProjectId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<GoogleCredential>(entity =>
-        {
-            entity.HasKey(gc => gc.Id);
-
-            entity.HasIndex(gc => gc.UserId);
-
-            entity.Property(gc => gc.AccessToken)
-                .IsRequired()
-                .HasMaxLength(2048);
-
-            entity.Property(gc => gc.RefreshToken)
-                .IsRequired()
-                .HasMaxLength(512);
-
-            entity.Property(gc => gc.TokenType)
-                .IsRequired()
-                .HasMaxLength(50);
-
-            entity.Property(gc => gc.Scope)
-                .IsRequired()
-                .HasMaxLength(1000);
-
-            entity.Property(gc => gc.ExpiresAt)
-                .IsRequired();
-
-            entity.Property(gc => gc.CreatedAt)
-                .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            entity.Property(gc => gc.UpdatedAt)
-                .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            entity.HasOne(gc => gc.User)
-                .WithMany(u => u.GoogleCredentials)
-                .HasForeignKey(gc => gc.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

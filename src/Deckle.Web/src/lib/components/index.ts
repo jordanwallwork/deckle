@@ -11,3 +11,6 @@ export { default as PageLayout } from './layout/PageLayout.svelte';
 export { default as PageHeader } from './layout/PageHeader.svelte';
 export { default as Tabs } from './Tabs.svelte';
 export { default as TopBar } from './TopBar.svelte';
+
+// Form components
+export * from './form';

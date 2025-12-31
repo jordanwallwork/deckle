@@ -5,7 +5,7 @@
   import { goto } from "$app/navigation";
   import { buildDataSourceBreadcrumbs } from "$lib/utils/breadcrumbs";
   import { setBreadcrumbs } from "$lib/stores/breadcrumb";
-  import { Button } from "$lib/components";
+  import { Button, DataTable } from "$lib/components";
 
   let { data }: { data: PageData } = $props();
 
@@ -26,10 +26,6 @@
   let spreadsheetData = $state<string[][] | null>(null);
   let loading = $state(true);
   let errorMessage = $state("");
-
-  // Sorting state
-  let sortColumn = $state<number | null>(null);
-  let sortDirection = $state<'asc' | 'desc'>('asc');
 
   // Name editing state
   let isEditingName = $state(false);
@@ -118,49 +114,6 @@
     } catch (error) {
       console.error("Failed to delete data source:", error);
     }
-  }
-
-  function handleSort(columnIndex: number) {
-    if (sortColumn === columnIndex) {
-      // Toggle direction
-      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-      // New column, default to ascending
-      sortColumn = columnIndex;
-      sortDirection = 'asc';
-    }
-  }
-
-  function getSortedData(): string[][] | null {
-    if (!spreadsheetData || spreadsheetData.length === 0) {
-      return spreadsheetData;
-    }
-
-    if (sortColumn === null) {
-      return spreadsheetData;
-    }
-
-    const headers = spreadsheetData[0];
-    const rows = spreadsheetData.slice(1);
-
-    const sorted = [...rows].sort((a, b) => {
-      const aVal = a[sortColumn] || '';
-      const bVal = b[sortColumn] || '';
-
-      // Try to parse as numbers for numeric comparison
-      const aNum = parseFloat(aVal);
-      const bNum = parseFloat(bVal);
-
-      if (!isNaN(aNum) && !isNaN(bNum)) {
-        return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
-      }
-
-      // String comparison
-      const comparison = aVal.localeCompare(bVal);
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return [headers, ...sorted];
   }
 
   function startEditingName() {
@@ -301,7 +254,6 @@
   </div>
 
   {#if spreadsheetData && spreadsheetData.length > 0}
-    {@const sortedData = getSortedData()}
     <div class="data-info">
       <p class="data-summary">
         {spreadsheetData.length > 1 ? spreadsheetData.length - 1 : 0} rows
@@ -310,35 +262,7 @@
       </p>
     </div>
 
-    <div class="table-container">
-      <table class="data-table">
-        <thead>
-          <tr>
-            {#each sortedData?.[0] || [] as header, index}
-              <th onclick={() => handleSort(index)} class="sortable">
-                <div class="header-content">
-                  <span>{header}</span>
-                  {#if sortColumn === index}
-                    <span class="sort-indicator">
-                      {sortDirection === 'asc' ? '↑' : '↓'}
-                    </span>
-                  {/if}
-                </div>
-              </th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody>
-          {#each sortedData?.slice(1) || [] as row}
-            <tr>
-              {#each row as cell}
-                <td>{cell}</td>
-              {/each}
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+    <DataTable data={spreadsheetData} sortable={true} />
   {:else}
     <div class="empty-state">
       <p>No data available</p>
@@ -499,68 +423,6 @@
     font-size: 0.875rem;
     color: var(--color-muted-teal);
     margin: 0;
-  }
-
-  .table-container {
-    overflow-x: auto;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  .data-table thead {
-    background-color: var(--color-teal-grey);
-  }
-
-  .data-table th {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    font-weight: 600;
-    color: var(--color-sage);
-    border-bottom: 1px solid var(--color-teal-grey);
-    white-space: nowrap;
-  }
-
-  .data-table th.sortable {
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .data-table th.sortable:hover {
-    background-color: rgba(120, 160, 131, 0.1);
-  }
-
-  .header-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-
-  .sort-indicator {
-    font-size: 1rem;
-    color: var(--color-sage);
-    font-weight: bold;
-  }
-
-  .data-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #f0f0f0;
-    color: var(--color-muted-teal);
-  }
-
-  .data-table tbody tr:hover {
-    background-color: #fafafa;
-  }
-
-  .data-table tbody tr:last-child td {
-    border-bottom: none;
   }
 
   .empty-state {

@@ -54,6 +54,15 @@
     onchange={(rotation) => updateElement({ rotation })}
   />
 
+  <label class="markdown-toggle">
+    <input
+      type="checkbox"
+      checked={element.markdown ?? false}
+      onchange={(e) => updateElement({ markdown: e.currentTarget.checked })}
+    />
+    <span>Enable Markdown</span>
+  </label>
+
   <TextAreaField
     label="Content"
     id="content"
@@ -220,5 +229,22 @@
     display: flex;
     gap: 0.5rem;
     margin-bottom: 1rem;
+  }
+
+  .markdown-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+  }
+
+  .markdown-toggle input[type="checkbox"] {
+    cursor: pointer;
+  }
+
+  .markdown-toggle span {
+    user-select: none;
   }
 </style>

@@ -145,6 +145,7 @@ export interface ContainerElement extends BaseElement {
 export interface TextElement extends BaseElement {
   type: 'text';
   content: string;
+  markdown?: boolean; // When true, content is parsed as markdown
   display?: 'block' | 'inline';
 
   // Typography

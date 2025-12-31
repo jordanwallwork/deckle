@@ -24,6 +24,7 @@
 	},
 	"dependencies": {
 		"@panzoom/panzoom": "^4.6.1",
-		"convert-csv-to-json": "^3.20.0"
+		"convert-csv-to-json": "^3.20.0",
+		"marked": "^17.0.1"
 	}
 }

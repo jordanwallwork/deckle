@@ -4,9 +4,22 @@
   import ResizeHandles from './_components/ResizeHandles.svelte';
   import DragHandles from './_components/DragHandles.svelte';
   import RotationHandle from './_components/RotationHandle.svelte';
+  import MarkdownRenderer from './_components/MarkdownRenderer.svelte';
   import { templateStore } from '$lib/stores/templateElements';
+  import { parseInlineClasses, hasInlineClasses } from '$lib/utils/textParser';
 
   let { element }: { element: TemplateElement } = $props();
+
+  // For text elements, check if we need to parse inline classes
+  const textContent = $derived(() => {
+    if (element.type === 'text') {
+      const textEl = element as TextElement;
+      if (!textEl.markdown && hasInlineClasses(textEl.content)) {
+        return parseInlineClasses(textEl.content, true);
+      }
+    }
+    return null;
+  });
 
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
   const isSelected = $derived($templateStore.selectedElementId === element.id);
@@ -311,7 +324,13 @@
     role="button"
     tabindex="0"
   >
-    {(element as TextElement).content}
+    {#if (element as TextElement).markdown}
+      <MarkdownRenderer content={(element as TextElement).content} />
+    {:else if textContent()}
+      {@html textContent()}
+    {:else}
+      {(element as TextElement).content}
+    {/if}
     {#if isSelected && !element.locked}
       <ResizeHandles element={element} />
       <RotationHandle element={element} />

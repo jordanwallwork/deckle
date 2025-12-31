@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, TextInput, TextAreaInput } from "$lib/components";
+  import { Card, Button, Input, TextArea } from "$lib/components";
   import type { Project } from "$lib/types";
 
   let {
@@ -56,7 +56,7 @@
   {#if isEditing}
     <div class="form-group">
       <label for="projectName">Project Name</label>
-      <TextInput
+      <Input
         id="projectName"
         bind:value={projectName}
         placeholder="Enter project name"
@@ -66,7 +66,7 @@
 
     <div class="form-group">
       <label for="projectDescription">Description</label>
-      <TextAreaInput
+      <TextArea
         id="projectDescription"
         bind:value={projectDescription}
         placeholder="Enter project description (optional)"

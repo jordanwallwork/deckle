@@ -2,7 +2,7 @@
   let {
     id,
     type = "text",
-    value = "",
+    value = $bindable(""),
     placeholder,
     disabled = false,
     onchange,

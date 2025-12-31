@@ -25,9 +25,10 @@
 
     // Apply sorting if enabled and a column is selected
     if (sortable && sortColumn !== null) {
+      const colIndex = sortColumn; // Type narrowing
       result = [...rows].sort((a, b) => {
-        const aVal = a[sortColumn] || '';
-        const bVal = b[sortColumn] || '';
+        const aVal = a[colIndex] || '';
+        const bVal = b[colIndex] || '';
 
         // Try to parse as numbers for numeric comparison
         const aNum = parseFloat(aVal);

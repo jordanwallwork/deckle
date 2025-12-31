@@ -2,9 +2,9 @@
   import { Card, Badge } from "$lib/components";
 
   interface User {
-    name: string | null;
+    name?: string;
     email: string;
-    pictureUrl: string | null;
+    pictureUrl?: string;
     role: string;
   }
 

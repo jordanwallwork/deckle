@@ -2,6 +2,8 @@
   import { slide } from 'svelte/transition';
   import { templateStore } from '$lib/stores/templateElements';
   import type { TemplateElement, ElementType, MenuItem } from '../types';
+  import { getElementIcon } from '$lib/utils/icons';
+  import { createElementOfType } from '../elementFactory';
   import DropTarget from './DropTarget.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import TreeNode from './TreeNode.svelte';
@@ -60,19 +62,6 @@
     e.stopPropagation();
     if (!isRoot) {
       templateStore.removeElement(element.id);
-    }
-  }
-
-  function getElementIcon(type: ElementType): string {
-    switch (type) {
-      case 'container':
-        return 'M2 2h12v12H2z';
-      case 'text':
-        return 'M4 3h8M8 3v10M6 13h4';
-      case 'image':
-        return 'M2 2h12v12H2zM5.5 4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM2 11l3-3 3 3 3-3 3 3';
-      default:
-        return '';
     }
   }
 
@@ -186,46 +175,8 @@
     templateStore.duplicateElement(element.id);
   }
 
-  function createElementOfType(type: ElementType) {
-    let newElement: TemplateElement;
-
-    if (type === 'container') {
-      newElement = {
-        id: crypto.randomUUID(),
-        type: 'container',
-        visible: true,
-        opacity: 1,
-        display: 'flex',
-        flexConfig: {
-          direction: 'column',
-          wrap: 'nowrap',
-          justifyContent: 'flex-start',
-          alignItems: 'flex-start'
-        },
-        children: []
-      };
-    } else if (type === 'text') {
-      newElement = {
-        id: crypto.randomUUID(),
-        type: 'text',
-        visible: true,
-        opacity: 1,
-        content: 'New Text',
-        fontSize: 16,
-        color: '#000000'
-      };
-    } else {
-      // image
-      newElement = {
-        id: crypto.randomUUID(),
-        type: 'image',
-        visible: true,
-        opacity: 1,
-        imageId: '',
-        dimensions: { width: 100, height: 100 }
-      };
-    }
-
+  function handleAddElement(type: ElementType) {
+    const newElement = createElementOfType(type);
     templateStore.addElement(newElement, element.id);
   }
 
@@ -253,15 +204,15 @@
         submenu: [
           {
             label: 'Container',
-            action: () => createElementOfType('container')
+            action: () => handleAddElement('container')
           },
           {
             label: 'Text',
-            action: () => createElementOfType('text')
+            action: () => handleAddElement('text')
           },
           {
             label: 'Image',
-            action: () => createElementOfType('image')
+            action: () => handleAddElement('image')
           }
         ]
       });

@@ -7,6 +7,8 @@
     disabled = false,
     required = false,
     error = false,
+    onchange,
+    oninput,
   }: {
     value: string;
     type?: string;
@@ -15,6 +17,8 @@
     disabled?: boolean;
     required?: boolean;
     error?: boolean;
+    onchange?: (value: string) => void;
+    oninput?: (value: string) => void;
   } = $props();
 </script>
 
@@ -27,6 +31,8 @@
   {required}
   class="base-input"
   class:error
+  onchange={(e) => onchange?.(e.currentTarget.value)}
+  oninput={(e) => oninput?.(e.currentTarget.value)}
 />
 
 <style>

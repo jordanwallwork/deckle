@@ -8,6 +8,7 @@
   import { setBreadcrumbs } from "$lib/stores/breadcrumb";
   import { dataSourcesApi } from "$lib/api";
   import { formatRelativeTime } from "$lib/utils/date.utils";
+  import { syncDataSource } from "$lib/utils/dataSource.utils";
   import csvToJson from "convert-csv-to-json";
 
   let { data }: { data: PageData } = $props();
@@ -116,48 +117,14 @@
     }
   }
 
-  async function syncDataSource(source: DataSourceType) {
-    if (!source.csvExportUrl) {
-      syncErrors[source.id] = "No CSV export URL available";
-      return;
-    }
-
+  async function handleSyncDataSource(source: DataSourceType) {
     try {
       // Set syncing status
       syncStatuses[source.id] = "syncing";
       syncErrors[source.id] = "";
 
-      // Fetch the CSV data from the public URL
-      const response = await fetch(source.csvExportUrl);
-      if (!response.ok) {
-        throw new Error("Failed to fetch CSV data");
-      }
-
-      const csvText = await response.text();
-
-      // Parse CSV to extract headers and count rows
-      const lines = csvText.split('\n');
-
-      // Extract headers (first line)
-      const headers = lines[0]
-        .split(',')
-        .map(h => h.trim().replace(/^"|"$/g, '')) // Remove quotes if present
-        .filter(h => h.length > 0);
-
-      // Count non-empty data rows (skip header)
-      const dataRows = lines.slice(1).filter(line => {
-        // A row is non-empty if it has at least one non-empty cell
-        const cells = line.split(',').map(c => c.trim());
-        return cells.some(cell => cell.length > 0);
-      });
-
-      const rowCount = dataRows.length;
-
-      // Send metadata to the backend
-      const updatedSource = await dataSourcesApi.sync(source.id, {
-        headers,
-        rowCount
-      });
+      // Use the shared sync utility
+      const updatedSource = await syncDataSource(source);
 
       // Update the data source in the list
       dataSources = dataSources.map(ds =>
@@ -242,7 +209,7 @@
               <Button
                 variant="secondary"
                 size="sm"
-                onclick={() => syncDataSource(source)}
+                onclick={() => handleSyncDataSource(source)}
                 disabled={syncStatuses[source.id] === "syncing"}
               >
                 {syncStatuses[source.id] === "syncing" ? "Syncing..." : "Sync"}

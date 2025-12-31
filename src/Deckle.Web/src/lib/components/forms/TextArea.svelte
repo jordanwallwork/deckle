@@ -7,6 +7,8 @@
     required = false,
     rows = 3,
     error = false,
+    onchange,
+    oninput,
   }: {
     value: string;
     id?: string;
@@ -15,6 +17,8 @@
     required?: boolean;
     rows?: number;
     error?: boolean;
+    onchange?: (value: string) => void;
+    oninput?: (value: string) => void;
   } = $props();
 </script>
 
@@ -27,6 +31,8 @@
   {rows}
   class="base-input"
   class:error
+  onchange={(e) => onchange?.(e.currentTarget.value)}
+  oninput={(e) => oninput?.(e.currentTarget.value)}
 ></textarea>
 
 <style>

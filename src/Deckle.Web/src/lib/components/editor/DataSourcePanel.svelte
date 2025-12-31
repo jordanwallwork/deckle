@@ -1,11 +1,12 @@
 <script lang="ts">
   import Panel from "./_components/Panel.svelte";
-  import { Button } from "$lib/components";
+  import { Button, DataTable } from "$lib/components";
   import LinkDataSourceModal from "../../../routes/projects/[projectId]/components/_components/LinkDataSourceModal.svelte";
   import { componentsApi, dataSourcesApi } from "$lib/api";
   import { invalidateAll } from "$app/navigation";
   import type { DataSource } from "$lib/types";
   import { formatRelativeTime } from "$lib/utils/date.utils";
+  import { syncDataSource } from "$lib/utils/dataSource.utils";
 
   interface Props {
     dataSource: DataSource | null;
@@ -71,42 +72,12 @@
   }
 
   async function handleSync() {
-    if (!dataSource || isSyncing || !dataSource.csvExportUrl) return;
+    if (!dataSource || isSyncing) return;
 
     try {
       isSyncing = true;
 
-      // Fetch the CSV data from the public URL
-      const response = await fetch(dataSource.csvExportUrl);
-      if (!response.ok) {
-        throw new Error("Failed to fetch CSV data");
-      }
-
-      const csvText = await response.text();
-
-      // Parse CSV to extract headers and count rows
-      const lines = csvText.split("\n");
-
-      // Extract headers (first line)
-      const headers = lines[0]
-        .split(",")
-        .map((h) => h.trim().replace(/^"|"$/g, "")) // Remove quotes if present
-        .filter((h) => h.length > 0);
-
-      // Count non-empty data rows (skip header)
-      const dataRows = lines.slice(1).filter((line) => {
-        // A row is non-empty if it has at least one non-empty cell
-        const cells = line.split(",").map((c) => c.trim());
-        return cells.some((cell) => cell.length > 0);
-      });
-
-      const rowCount = dataRows.length;
-
-      // Send metadata to the backend
-      await dataSourcesApi.sync(dataSource.id, {
-        headers,
-        rowCount,
-      });
+      await syncDataSource(dataSource);
 
       // Refresh the page data
       await invalidateAll();
@@ -191,33 +162,7 @@
     {#if loadingData}
       <div class="loading-state">Loading data...</div>
     {:else if spreadsheetData && spreadsheetData.length > 0}
-      <div class="headers-section">
-        <div class="headers-table">
-          <table>
-            <thead>
-              <tr>
-                {#each spreadsheetData[0] as header}
-                  <th>{header}</th>
-                {/each}
-              </tr>
-            </thead>
-            <tbody>
-              {#each spreadsheetData.slice(1, 11) as row}
-                <tr>
-                  {#each row as cell}
-                    <td>{cell}</td>
-                  {/each}
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-        {#if spreadsheetData.length > 11}
-          <p class="showing-preview">
-            Showing first 10 rows of {spreadsheetData.length - 1}
-          </p>
-        {/if}
-      </div>
+      <DataTable data={spreadsheetData} sortable={false} maxRows={10} stickyHeader={true} />
     {:else if dataSource.headers && dataSource.headers.length > 0}
       <div class="no-data-state">
         <p>No data loaded yet. Click "Sync" to load the latest data.</p>
@@ -323,57 +268,6 @@
     text-align: center;
     color: var(--color-text-secondary);
     font-size: 0.875rem;
-  }
-
-  .headers-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .showing-preview {
-    font-size: 0.75rem;
-    color: #6b7280;
-    text-align: center;
-    margin: 0.5rem 0 0 0;
-    padding: 0.5rem;
-  }
-
-  .headers-table {
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  thead {
-    position: sticky;
-    top: 0;
-    background-color: var(--color-bg-secondary);
-    z-index: 1;
-  }
-
-  th {
-    padding: 0.5rem;
-    text-align: left;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  td {
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--color-border-light);
-  }
-
-  tbody tr:hover {
-    background-color: var(--color-bg-hover);
   }
 
   .empty-state {

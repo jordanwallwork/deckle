@@ -2,6 +2,7 @@
   import { templateStore } from '$lib/stores/templateElements';
   import type { TemplateElement } from '../types';
   import { getContext } from 'svelte';
+  import ResizeHandle from './ResizeHandle.svelte';
 
   let { element }: { element: TemplateElement } = $props();
 
@@ -277,56 +278,16 @@
 
 <div bind:this={resizeHandlesEl} class="resize-handles panzoom-exclude" style="--inverse-scale: {inverseScale}">
   <!-- Corner handles -->
-  <div
-    class="resize-handle panzoom-exclude nw"
-    onmousedown={(e) => handleMouseDown('nw', e)}
-    role="button"
-    tabindex="-1"
-  ></div>
-  <div
-    class="resize-handle panzoom-exclude ne"
-    onmousedown={(e) => handleMouseDown('ne', e)}
-    role="button"
-    tabindex="-1"
-  ></div>
-  <div
-    class="resize-handle panzoom-exclude se"
-    onmousedown={(e) => handleMouseDown('se', e)}
-    role="button"
-    tabindex="-1"
-  ></div>
-  <div
-    class="resize-handle panzoom-exclude sw"
-    onmousedown={(e) => handleMouseDown('sw', e)}
-    role="button"
-    tabindex="-1"
-  ></div>
+  <ResizeHandle position="nw" {inverseScale} onmousedown={(e) => handleMouseDown('nw', e)} />
+  <ResizeHandle position="ne" {inverseScale} onmousedown={(e) => handleMouseDown('ne', e)} />
+  <ResizeHandle position="se" {inverseScale} onmousedown={(e) => handleMouseDown('se', e)} />
+  <ResizeHandle position="sw" {inverseScale} onmousedown={(e) => handleMouseDown('sw', e)} />
 
   <!-- Edge handles -->
-  <div
-    class="resize-handle panzoom-exclude n"
-    onmousedown={(e) => handleMouseDown('n', e)}
-    role="button"
-    tabindex="-1"
-  ></div>
-  <div
-    class="resize-handle panzoom-exclude e"
-    onmousedown={(e) => handleMouseDown('e', e)}
-    role="button"
-    tabindex="-1"
-  ></div>
-  <div
-    class="resize-handle panzoom-exclude s"
-    onmousedown={(e) => handleMouseDown('s', e)}
-    role="button"
-    tabindex="-1"
-  ></div>
-  <div
-    class="resize-handle panzoom-exclude w"
-    onmousedown={(e) => handleMouseDown('w', e)}
-    role="button"
-    tabindex="-1"
-  ></div>
+  <ResizeHandle position="n" {inverseScale} onmousedown={(e) => handleMouseDown('n', e)} />
+  <ResizeHandle position="e" {inverseScale} onmousedown={(e) => handleMouseDown('e', e)} />
+  <ResizeHandle position="s" {inverseScale} onmousedown={(e) => handleMouseDown('s', e)} />
+  <ResizeHandle position="w" {inverseScale} onmousedown={(e) => handleMouseDown('w', e)} />
 </div>
 
 <style>
@@ -334,76 +295,5 @@
     position: absolute;
     inset: calc(-4px * var(--inverse-scale));
     pointer-events: none;
-  }
-
-  .resize-handle {
-    position: absolute;
-    width: calc(8px * var(--inverse-scale));
-    height: calc(8px * var(--inverse-scale));
-    background: #0066cc;
-    border: calc(1px * var(--inverse-scale)) solid white;
-    border-radius: calc(2px * var(--inverse-scale));
-    pointer-events: auto;
-    z-index: 10;
-    touch-action: none;
-    user-select: none;
-  }
-
-  /* Corner handles */
-  .resize-handle.nw {
-    top: calc(-4px * var(--inverse-scale));
-    left: calc(-4px * var(--inverse-scale));
-    cursor: nw-resize;
-  }
-
-  .resize-handle.ne {
-    top: calc(-4px * var(--inverse-scale));
-    right: calc(-4px * var(--inverse-scale));
-    cursor: ne-resize;
-  }
-
-  .resize-handle.se {
-    bottom: calc(-4px * var(--inverse-scale));
-    right: calc(-4px * var(--inverse-scale));
-    cursor: se-resize;
-  }
-
-  .resize-handle.sw {
-    bottom: calc(-4px * var(--inverse-scale));
-    left: calc(-4px * var(--inverse-scale));
-    cursor: sw-resize;
-  }
-
-  /* Edge handles */
-  .resize-handle.n {
-    top: calc(-4px * var(--inverse-scale));
-    left: 50%;
-    transform: translateX(-50%);
-    cursor: n-resize;
-  }
-
-  .resize-handle.e {
-    right: calc(-4px * var(--inverse-scale));
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: e-resize;
-  }
-
-  .resize-handle.s {
-    bottom: calc(-4px * var(--inverse-scale));
-    left: 50%;
-    transform: translateX(-50%);
-    cursor: s-resize;
-  }
-
-  .resize-handle.w {
-    left: calc(-4px * var(--inverse-scale));
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: w-resize;
-  }
-
-  .resize-handle:hover {
-    background: #0052a3;
   }
 </style>

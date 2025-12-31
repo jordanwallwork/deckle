@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { Border, BorderStyle } from "../types";
+  import BorderSideControl from "./BorderSideControl.svelte";
+  import { NumberInput } from "$lib/components/forms";
 
   let {
     border,
@@ -13,14 +15,6 @@
   let separateSides = $state(
     !!(border?.top || border?.right || border?.bottom || border?.left)
   );
-
-  const borderStyleOptions: Array<{ value: BorderStyle; label: string }> = [
-    { value: "none", label: "None" },
-    { value: "solid", label: "Solid" },
-    { value: "dashed", label: "Dashed" },
-    { value: "dotted", label: "Dotted" },
-    { value: "double", label: "Double" },
-  ];
 
   function toggleSeparateSides() {
     separateSides = !separateSides;
@@ -113,85 +107,37 @@
 
   {#if !separateSides}
     <!-- All sides mode -->
-    <div class="border-row">
-      <span class="side-label">All sides</span>
-      <input
-        type="color"
-        class="color-picker"
-        value={border?.color ?? "#000000"}
-        oninput={(e) => updateAllSides({ color: e.currentTarget.value })}
-      />
-      <div class="width-input">
-        <input
-          type="number"
-          min="0"
-          value={border?.width ?? ""}
-          placeholder="0"
-          oninput={(e) =>
-            updateAllSides({ width: parseInt(e.currentTarget.value) || 0 })}
-        />
-        <span class="unit">px</span>
-      </div>
-      <select
-        value={border?.style ?? "solid"}
-        onchange={(e) =>
-          updateAllSides({ style: e.currentTarget.value as BorderStyle })}
-      >
-        {#each borderStyleOptions as option}
-          <option value={option.value}>{option.label}</option>
-        {/each}
-      </select>
-    </div>
+    <BorderSideControl
+      label="All sides"
+      width={border?.width}
+      style={border?.style}
+      color={border?.color}
+      onchange={updateAllSides}
+    />
   {:else}
     <!-- Separate sides mode -->
     {#each [{ key: "top", label: "Top" }, { key: "right", label: "Right" }, { key: "bottom", label: "Bottom" }, { key: "left", label: "Left" }] as { key, label }}
-      <div class="border-row">
-        <span class="side-label">{label}</span>
-        <input
-          type="color"
-          class="color-picker"
-          value={border?.[key]?.color ?? "#000000"}
-          oninput={(e) => updateSide(key, { color: e.currentTarget.value })}
-        />
-        <div class="width-input">
-          <input
-            type="number"
-            min="0"
-            value={border?.[key]?.width ?? ""}
-            placeholder="0"
-            oninput={(e) =>
-              updateSide(key, { width: parseInt(e.currentTarget.value) || 0 })}
-          />
-          <span class="unit">px</span>
-        </div>
-        <select
-          value={border?.[key]?.style ?? "solid"}
-          onchange={(e) =>
-            updateSide(key, { style: e.currentTarget.value as BorderStyle })}
-        >
-          {#each borderStyleOptions as option}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
-      </div>
+      <BorderSideControl
+        {label}
+        width={border?.[key]?.width}
+        style={border?.[key]?.style}
+        color={border?.[key]?.color}
+        onchange={(updates) => updateSide(key, updates)}
+      />
     {/each}
   {/if}
 
   <!-- Border radius -->
   <div class="radius-input">
     <label for="border-radius">Border radius:</label>
-    <div class="radius-control">
-      <input
-        type="number"
-        id="border-radius"
-        min="0"
-        value={typeof border?.radius === "number" ? border.radius : ""}
-        placeholder="0"
-        oninput={(e) =>
-          updateRadius(parseInt(e.currentTarget.value) || undefined)}
-      />
-      <span class="unit">px</span>
-    </div>
+    <NumberInput
+      id="border-radius"
+      value={border?.radius}
+      min={0}
+      placeholder="0"
+      unit="px"
+      onchange={(value) => updateRadius(value || undefined)}
+    />
   </div>
 </div>
 
@@ -254,74 +200,6 @@
     left: 18px;
   }
 
-  .border-row {
-    display: grid;
-    grid-template-columns: auto 50px 80px 1fr;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .side-label {
-    font-size: 0.75rem;
-    color: #666;
-    min-width: 60px;
-  }
-
-  .color-picker {
-    width: 50px;
-    height: 36px;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .width-input {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .width-input input[type="number"] {
-    flex: 1;
-    min-width: 0;
-    padding: 0.375rem 0.5rem;
-    font-size: 0.813rem;
-    line-height: 1.25rem;
-    height: 2.125rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
-    box-sizing: border-box;
-  }
-
-  .width-input input[type="number"]:focus {
-    outline: none;
-    border-color: #0066cc;
-  }
-
-  .unit {
-    font-size: 0.75rem;
-    color: #666;
-  }
-
-  select {
-    padding: 0.375rem 0.5rem;
-    font-size: 0.813rem;
-    line-height: 1.25rem;
-    height: 2.125rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
-    box-sizing: border-box;
-    font-family: inherit;
-  }
-
-  select:focus {
-    outline: none;
-    border-color: #0066cc;
-  }
-
   .radius-input {
     display: flex;
     align-items: center;
@@ -333,30 +211,5 @@
     font-size: 0.75rem;
     color: #666;
     min-width: 90px;
-  }
-
-  .radius-control {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    flex: 1;
-  }
-
-  .radius-control input[type="number"] {
-    flex: 1;
-    min-width: 0;
-    padding: 0.375rem 0.5rem;
-    font-size: 0.813rem;
-    line-height: 1.25rem;
-    height: 2.125rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
-    box-sizing: border-box;
-  }
-
-  .radius-control input[type="number"]:focus {
-    outline: none;
-    border-color: #0066cc;
   }
 </style>

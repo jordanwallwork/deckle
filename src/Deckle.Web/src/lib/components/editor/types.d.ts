@@ -28,22 +28,22 @@ export type ImageFit = 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
 // ============================================================================
 
 export interface Spacing {
-  all?: number; // For "all sides" mode
-  top?: number;
-  right?: number;
-  bottom?: number;
-  left?: number;
+  all?: number | string; // For "all sides" mode - number for px, string for other units (mm, %)
+  top?: number | string;
+  right?: number | string;
+  bottom?: number | string;
+  left?: number | string;
 }
 
 export interface BorderSide {
-  width?: number;
+  width?: number | string;
   style?: BorderStyle;
   color?: string;
 }
 
 export interface Border {
   // For "all sides" mode - when these are set, apply to all sides
-  width?: number;
+  width?: number | string;
   style?: BorderStyle;
   color?: string;
 
@@ -54,11 +54,11 @@ export interface Border {
   left?: BorderSide;
 
   // Border radius (always applies)
-  radius?: number | {
-    topLeft?: number;
-    topRight?: number;
-    bottomRight?: number;
-    bottomLeft?: number;
+  radius?: number | string | {
+    topLeft?: number | string;
+    topRight?: number | string;
+    bottomRight?: number | string;
+    bottomLeft?: number | string;
   };
 }
 
@@ -110,8 +110,8 @@ export interface BaseElement {
   type: ElementType;
   label?: string; // User-defined label for the element, displayed in structure tree
   position?: Position;
-  x?: number; // for absolute positioning
-  y?: number; // for absolute positioning
+  x?: number | string; // for absolute positioning - number for px, string for other units (mm, %)
+  y?: number | string; // for absolute positioning - number for px, string for other units (mm, %)
   zIndex?: number;
   opacity?: number;
   visible?: boolean;

@@ -9,8 +9,9 @@
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import { parseInlineClasses, hasInlineClasses } from '$lib/utils/textParser';
   import { replaceMergeFields } from '$lib/utils/mergeFields';
+  import { mmToPx } from '$lib/utils/size.utils';
 
-  let { element }: { element: TemplateElement } = $props();
+  let { element, dpi }: { element: TemplateElement; dpi: number } = $props();
 
   // Get the data source row store for merge field functionality
   const dataSourceRow = getDataSourceRow();
@@ -58,23 +59,35 @@
   }
 
   // Helper to convert spacing to CSS string
-  function spacingToCss(spacing: { all?: number; top?: number; right?: number; bottom?: number; left?: number } | undefined): string {
+  function spacingToCss(spacing: { all?: number | string; top?: number | string; right?: number | string; bottom?: number | string; left?: number | string } | undefined): string {
     if (!spacing) return '0';
 
     // If 'all' is defined, use it for all sides
     if (spacing.all !== undefined) {
-      return `${spacing.all}px`;
+      return dimensionValue(spacing.all);
     }
 
     // Otherwise use individual sides
-    const { top = 0, right = 0, bottom = 0, left = 0 } = spacing;
-    return `${top}px ${right}px ${bottom}px ${left}px`;
+    const top = dimensionValue(spacing.top ?? 0);
+    const right = dimensionValue(spacing.right ?? 0);
+    const bottom = dimensionValue(spacing.bottom ?? 0);
+    const left = dimensionValue(spacing.left ?? 0);
+    return `${top} ${right} ${bottom} ${left}`;
   }
 
   // Helper to convert dimensions to CSS
   function dimensionValue(value: number | string | undefined): string {
     if (value === undefined) return 'auto';
     if (typeof value === 'number') return `${value}px`;
+
+    // Handle mm unit - convert to px
+    if (typeof value === 'string' && value.includes('mm')) {
+      const numericValue = parseFloat(value);
+      if (!isNaN(numericValue)) {
+        return `${mmToPx(numericValue, dpi)}px`;
+      }
+    }
+
     return value;
   }
 
@@ -94,7 +107,7 @@
         const sideProps = border[side];
         if (sideProps) {
           if (sideProps.width !== undefined) {
-            styles.push(`border-${side}-width: ${sideProps.width}px`);
+            styles.push(`border-${side}-width: ${dimensionValue(sideProps.width)}`);
           }
           if (sideProps.style) {
             styles.push(`border-${side}-style: ${sideProps.style}`);
@@ -106,17 +119,21 @@
       }
     } else {
       // Use main border properties (all sides)
-      if (border.width !== undefined) styles.push(`border-width: ${border.width}px`);
+      if (border.width !== undefined) styles.push(`border-width: ${dimensionValue(border.width)}`);
       if (border.style) styles.push(`border-style: ${border.style}`);
       if (border.color) styles.push(`border-color: ${border.color}`);
     }
 
     // Border radius (always applies)
-    if (typeof border.radius === 'number') {
-      styles.push(`border-radius: ${border.radius}px`);
-    } else if (border.radius) {
+    if (typeof border.radius === 'object') {
       const r = border.radius;
-      styles.push(`border-radius: ${r.topLeft || 0}px ${r.topRight || 0}px ${r.bottomRight || 0}px ${r.bottomLeft || 0}px`);
+      const tl = dimensionValue(r.topLeft ?? 0);
+      const tr = dimensionValue(r.topRight ?? 0);
+      const br = dimensionValue(r.bottomRight ?? 0);
+      const bl = dimensionValue(r.bottomLeft ?? 0);
+      styles.push(`border-radius: ${tl} ${tr} ${br} ${bl}`);
+    } else if (border.radius !== undefined) {
+      styles.push(`border-radius: ${dimensionValue(border.radius)}`);
     }
 
     return styles;
@@ -129,8 +146,8 @@
     // Position
     if (element.position === 'absolute') {
       styles.push('position: absolute');
-      if (element.x !== undefined) styles.push(`left: ${element.x}px`);
-      if (element.y !== undefined) styles.push(`top: ${element.y}px`);
+      if (element.x !== undefined) styles.push(`left: ${dimensionValue(element.x)}`);
+      if (element.y !== undefined) styles.push(`top: ${dimensionValue(element.y)}`);
     } else {
       styles.push('position: relative');
     }
@@ -320,7 +337,7 @@
     tabindex="0"
   >
     {#each (element as ContainerElement).children as child (child.id)}
-      <TemplateRenderer element={child} />
+      <TemplateRenderer element={child} {dpi} />
     {/each}
     {#if isSelected && !element.locked}
       <ResizeHandles element={element} />

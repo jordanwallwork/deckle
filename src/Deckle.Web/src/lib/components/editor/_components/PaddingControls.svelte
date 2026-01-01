@@ -1,10 +1,12 @@
 <script lang="ts">
+  import DimensionInput from './DimensionInput.svelte';
+
   type Padding = {
-    all?: number;
-    top?: number;
-    right?: number;
-    bottom?: number;
-    left?: number;
+    all?: number | string;
+    top?: number | string;
+    right?: number | string;
+    bottom?: number | string;
+    left?: number | string;
   };
 
   let {
@@ -14,6 +16,13 @@
     padding?: Padding;
     onchange: (newPadding: Padding) => void;
   } = $props();
+
+  // Convert number to string format for DimensionInput
+  function toStringValue(value: number | string | undefined): string | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value === 'number') return `${value}px`;
+    return value;
+  }
 
   // Track whether we're in "separate sides" mode
   let separateSides = $state(
@@ -56,7 +65,7 @@
     }
   }
 
-  function updateAllSides(value: number | undefined) {
+  function updateAllSides(value: number | string | undefined) {
     onchange({
       ...padding,
       all: value,
@@ -65,7 +74,7 @@
 
   function updateSide(
     side: "top" | "right" | "bottom" | "left",
-    value: number
+    value: number | string | undefined
   ) {
     onchange({
       ...padding,
@@ -89,74 +98,42 @@
 
   {#if !separateSides}
     <!-- All sides mode -->
-    <div class="padding-input">
-      <label for="padding-all">All sides</label>
-      <input
-        type="number"
-        id="padding-all"
-        value={padding?.all ?? ""}
-        placeholder="0"
-        oninput={(e) => {
-          const val = e.currentTarget.value;
-          updateAllSides(val ? parseInt(val) : undefined);
-        }}
-      />
-      <span class="unit">px</span>
-    </div>
+    <DimensionInput
+      label="All sides"
+      id="padding-all"
+      value={toStringValue(padding?.all)}
+      onchange={(value) => updateAllSides(value)}
+    />
   {:else}
     <!-- Separate sides mode -->
     <div class="padding-grid">
-      <div class="padding-input">
-        <label for="padding-top">Top</label>
-        <input
-          type="number"
-          id="padding-top"
-          value={padding?.top ?? ""}
-          placeholder="0"
-          oninput={(e) =>
-            updateSide("top", parseInt(e.currentTarget.value) || 0)}
-        />
-        <span class="unit">px</span>
-      </div>
+      <DimensionInput
+        label="Top"
+        id="padding-top"
+        value={toStringValue(padding?.top)}
+        onchange={(value) => updateSide("top", value)}
+      />
 
-      <div class="padding-input">
-        <label for="padding-right">Right</label>
-        <input
-          type="number"
-          id="padding-right"
-          value={padding?.right ?? ""}
-          placeholder="0"
-          oninput={(e) =>
-            updateSide("right", parseInt(e.currentTarget.value) || 0)}
-        />
-        <span class="unit">px</span>
-      </div>
+      <DimensionInput
+        label="Right"
+        id="padding-right"
+        value={toStringValue(padding?.right)}
+        onchange={(value) => updateSide("right", value)}
+      />
 
-      <div class="padding-input">
-        <label for="padding-bottom">Bottom</label>
-        <input
-          type="number"
-          id="padding-bottom"
-          value={padding?.bottom ?? ""}
-          placeholder="0"
-          oninput={(e) =>
-            updateSide("bottom", parseInt(e.currentTarget.value) || 0)}
-        />
-        <span class="unit">px</span>
-      </div>
+      <DimensionInput
+        label="Bottom"
+        id="padding-bottom"
+        value={toStringValue(padding?.bottom)}
+        onchange={(value) => updateSide("bottom", value)}
+      />
 
-      <div class="padding-input">
-        <label for="padding-left">Left</label>
-        <input
-          type="number"
-          id="padding-left"
-          value={padding?.left ?? ""}
-          placeholder="0"
-          oninput={(e) =>
-            updateSide("left", parseInt(e.currentTarget.value) || 0)}
-        />
-        <span class="unit">px</span>
-      </div>
+      <DimensionInput
+        label="Left"
+        id="padding-left"
+        value={toStringValue(padding?.left)}
+        onchange={(value) => updateSide("left", value)}
+      />
     </div>
   {/if}
 </div>
@@ -223,43 +200,10 @@
   .padding-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    row-gap: 0.5rem;
-  }
-
-  .padding-input {
-    display: flex;
-    align-items: center;
     gap: 0.5rem;
   }
 
-  .padding-input label {
-    font-size: 0.75rem;
-    color: #666;
-    margin: 0;
-    min-width: 40px;
-  }
-
-  .padding-input input[type="number"] {
-    flex: 1;
-    min-width: 60px;
-    padding: 0.375rem 0.5rem;
-    font-size: 0.813rem;
-    line-height: 1.25rem;
-    height: 2.125rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
-    box-sizing: border-box;
-  }
-
-  .padding-input input[type="number"]:focus {
-    outline: none;
-    border-color: #0066cc;
-  }
-
-  .padding-input .unit {
-    font-size: 0.75rem;
-    color: #666;
+  .padding-grid :global(.field) {
+    margin-bottom: 0;
   }
 </style>

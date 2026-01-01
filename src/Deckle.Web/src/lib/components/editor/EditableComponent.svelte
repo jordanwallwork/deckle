@@ -63,7 +63,7 @@
   tabindex="0"
 >
   {#each $templateStore.root.children as child (child.id)}
-    <TemplateRenderer element={child} />
+    <TemplateRenderer element={child} dpi={dimensions.dpi} />
   {/each}
 </div>
 

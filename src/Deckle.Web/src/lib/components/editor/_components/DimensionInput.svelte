@@ -23,6 +23,7 @@
   const unit = $derived(() => {
     const dimStr = String(value ?? '');
     if (dimStr.includes('%')) return '%';
+    if (dimStr.includes('mm')) return 'mm';
     return 'px';
   });
 
@@ -56,6 +57,7 @@
       onchange={(e) => handleUnitChange(e.currentTarget.value)}
     >
       <option value="px">px</option>
+      <option value="mm">mm</option>
       <option value="%">%</option>
     </select>
   </div>

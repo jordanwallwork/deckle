@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Border, BorderStyle } from "../types";
   import BorderSideControl from "./BorderSideControl.svelte";
-  import { NumberInput } from "$lib/components/forms";
+  import DimensionInput from "./DimensionInput.svelte";
 
   let {
     border,
@@ -10,6 +10,13 @@
     border?: Border;
     onchange: (newBorder: Border) => void;
   } = $props();
+
+  // Convert number to string format for DimensionInput
+  function toStringValue(value: number | string | undefined): string | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value === 'number') return `${value}px`;
+    return value;
+  }
 
   // Track whether we're in "separate sides" mode
   let separateSides = $state(
@@ -84,7 +91,7 @@
     });
   }
 
-  function updateRadius(radius: number | undefined) {
+  function updateRadius(radius: number | string | undefined) {
     onchange({
       ...border,
       radius,
@@ -128,17 +135,12 @@
   {/if}
 
   <!-- Border radius -->
-  <div class="radius-input">
-    <label for="border-radius">Border radius:</label>
-    <NumberInput
-      id="border-radius"
-      value={border?.radius}
-      min={0}
-      placeholder="0"
-      unit="px"
-      onchange={(value) => updateRadius(value || undefined)}
-    />
-  </div>
+  <DimensionInput
+    label="Border radius"
+    id="border-radius"
+    value={toStringValue(typeof border?.radius === 'object' ? undefined : border?.radius)}
+    onchange={(value) => updateRadius(value)}
+  />
 </div>
 
 <style>
@@ -198,18 +200,5 @@
 
   .toggle-label input[type="checkbox"]:checked::before {
     left: 18px;
-  }
-
-  .radius-input {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-  }
-
-  .radius-input label {
-    font-size: 0.75rem;
-    color: #666;
-    min-width: 90px;
   }
 </style>

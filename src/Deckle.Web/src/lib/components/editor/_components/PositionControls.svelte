@@ -1,39 +1,42 @@
 <script lang="ts">
+  import DimensionInput from "./DimensionInput.svelte";
+
   let {
-    x = 0,
-    y = 0,
-    onchange
+    x,
+    y,
+    onchange,
   }: {
-    x?: number;
-    y?: number;
-    onchange: (updates: { x?: number; y?: number }) => void;
+    x?: number | string;
+    y?: number | string;
+    onchange: (updates: { x?: number | string; y?: number | string }) => void;
   } = $props();
+
+  // Convert number to string format for DimensionInput
+  function toStringValue(
+    value: number | string | undefined
+  ): string | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value === "number") return `${value}px`;
+    return value;
+  }
 </script>
 
 <div class="field">
   <label class="section-label">Position:</label>
-  <div class="padding-grid">
-    <div class="padding-input">
-      <label for="position-x">Left</label>
-      <input
-        type="number"
-        id="position-x"
-        value={x ?? 0}
-        oninput={(e) => onchange({ x: parseInt(e.currentTarget.value) || 0 })}
-      />
-      <span class="unit">px</span>
-    </div>
+  <div class="position-grid">
+    <DimensionInput
+      label="Left"
+      id="position-x"
+      value={toStringValue(x)}
+      onchange={(newValue) => onchange({ x: newValue })}
+    />
 
-    <div class="padding-input">
-      <label for="position-y">Top</label>
-      <input
-        type="number"
-        id="position-y"
-        value={y ?? 0}
-        oninput={(e) => onchange({ y: parseInt(e.currentTarget.value) || 0 })}
-      />
-      <span class="unit">px</span>
-    </div>
+    <DimensionInput
+      label="Top"
+      id="position-y"
+      value={toStringValue(y)}
+      onchange={(newValue) => onchange({ y: newValue })}
+    />
   </div>
 </div>
 
@@ -50,45 +53,13 @@
     margin-bottom: 0.5rem;
   }
 
-  .padding-grid {
+  .position-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
   }
 
-  .padding-input {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .padding-input label {
-    font-size: 0.75rem;
-    color: #666;
-    margin: 0;
-    min-width: 40px;
-  }
-
-  .padding-input input[type="number"] {
-    flex: 1;
-    min-width: 0;
-    padding: 0.375rem 0.5rem;
-    font-size: 0.813rem;
-    line-height: 1.25rem;
-    height: 2.125rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
-    box-sizing: border-box;
-  }
-
-  .padding-input input[type="number"]:focus {
-    outline: none;
-    border-color: #0066cc;
-  }
-
-  .padding-input .unit {
-    font-size: 0.75rem;
-    color: #666;
+  .position-grid :global(.field) {
+    margin-bottom: 0;
   }
 </style>

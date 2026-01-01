@@ -9,6 +9,8 @@
   import { initDataSourceRow } from "$lib/stores/dataSourceRow";
   import type { CardComponent, DiceComponent } from "$lib/types";
   import { beforeNavigate } from "$app/navigation";
+  import { saveActionStore } from "$lib/stores/saveAction";
+  import { get } from "svelte/store";
 
   let { data }: { data: PageData } = $props();
 
@@ -68,13 +70,21 @@
     }
   });
 
-  // Keyboard shortcuts for undo/redo
+  // Keyboard shortcuts for undo/redo/save
   function handleKeydown(event: KeyboardEvent) {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const ctrlKey = isMac ? event.metaKey : event.ctrlKey;
 
+    // Save: Ctrl/Cmd+S
+    if (ctrlKey && event.key === 's') {
+      event.preventDefault();
+      const saveFunction = get(saveActionStore);
+      if (saveFunction) {
+        saveFunction();
+      }
+    }
     // Undo: Ctrl/Cmd+Z
-    if (ctrlKey && event.key === 'z' && !event.shiftKey) {
+    else if (ctrlKey && event.key === 'z' && !event.shiftKey) {
       event.preventDefault();
       templateStore.undo();
     }

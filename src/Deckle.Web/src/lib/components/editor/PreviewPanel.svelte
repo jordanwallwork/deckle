@@ -12,6 +12,7 @@
   import type { PanzoomObject } from "@panzoom/panzoom";
   import { templateStore } from "$lib/stores/templateElements";
   import { componentsApi } from "$lib/api";
+  import { saveActionStore } from "$lib/stores/saveAction";
 
   let {
     component,
@@ -87,6 +88,12 @@
       isSaving = false;
     }
   }
+
+  // Register the save function with the store for keyboard shortcuts
+  $effect(() => {
+    saveActionStore.register(handleSave);
+    return () => saveActionStore.unregister();
+  });
 </script>
 
 <Panel>
@@ -98,7 +105,7 @@
       class:success={saveSuccess}
       class:unsaved={$templateStore.hasUnsavedChanges}
       disabled={isSaving}
-      title="Save Design"
+      title="Save Design (Ctrl/Cmd+S)"
     >
       {isSaving ? "Saving..." : saveSuccess ? "Saved!" : "Save"}
     </button>

@@ -18,7 +18,14 @@
     onMaximize?: () => void;
   }
 
-  let { dataSource, dataSources, projectId, componentId, onMinimize, onMaximize }: Props = $props();
+  let {
+    dataSource,
+    dataSources,
+    projectId,
+    componentId,
+    onMinimize,
+    onMaximize,
+  }: Props = $props();
 
   // Get the store reference during component initialization
   const dataSourceRowStore = getDataSourceRow();
@@ -54,10 +61,13 @@
         const headers = spreadsheetData[0];
         const firstRow = spreadsheetData[1]; // First data row (index 1, since 0 is headers)
 
-        const rowObject = headers.reduce((obj, header, index) => {
-          obj[header] = firstRow[index] || '';
-          return obj;
-        }, {} as Record<string, string>);
+        const rowObject = headers.reduce(
+          (obj, header, index) => {
+            obj[header] = firstRow[index] || "";
+            return obj;
+          },
+          {} as Record<string, string>
+        );
 
         dataSourceRowStore.set(rowObject);
       } else {
@@ -84,12 +94,15 @@
 
       if (selectedRow) {
         // Map headers to values to create an object
-        const rowObject = headers.reduce((obj, header, index) => {
-          obj[header] = selectedRow[index] || '';
-          return obj;
-        }, {} as Record<string, string>);
+        const rowObject = headers.reduce(
+          (obj, header, index) => {
+            obj[header] = selectedRow[index] || "";
+            return obj;
+          },
+          {} as Record<string, string>
+        );
 
-        console.log('Selected row:', JSON.stringify(rowObject, null, 2));
+        console.log("Selected row:", JSON.stringify(rowObject, null, 2));
 
         // Update the store for merge field functionality
         dataSourceRowStore.set(rowObject);
@@ -145,7 +158,8 @@
     if (!spreadsheetData || spreadsheetData.length <= 1) return;
 
     const totalRows = spreadsheetData.length - 1; // Exclude header row
-    const newIndex = selectedRowIndex === 0 ? totalRows - 1 : selectedRowIndex - 1;
+    const newIndex =
+      selectedRowIndex === 0 ? totalRows - 1 : selectedRowIndex - 1;
     handleRowSelect(newIndex);
   }
 
@@ -153,7 +167,8 @@
     if (!spreadsheetData || spreadsheetData.length <= 1) return;
 
     const totalRows = spreadsheetData.length - 1; // Exclude header row
-    const newIndex = selectedRowIndex === totalRows - 1 ? 0 : selectedRowIndex + 1;
+    const newIndex =
+      selectedRowIndex === totalRows - 1 ? 0 : selectedRowIndex + 1;
     handleRowSelect(newIndex);
   }
 </script>
@@ -167,6 +182,42 @@
   {#snippet toolbar()}
     {#if dataSource}
       <div class="toolbar-content">
+        {#if spreadsheetData && spreadsheetData.length > 1}
+          <div class="navigation-buttons">
+            <button
+              class="nav-button"
+              onclick={navigateToPreviousRow}
+              title="Previous row"
+              aria-label="Previous row"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M10 12L6 8L10 4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              class="nav-button"
+              onclick={navigateToNextRow}
+              title="Next row"
+              aria-label="Next row"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M6 4L10 8L6 12"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        {/if}
         <span
           class="last-updated"
           title={new Date(dataSource.updatedAt).toLocaleString()}
@@ -190,30 +241,6 @@
             Change Data Source
           </button>
         </div>
-        {#if spreadsheetData && spreadsheetData.length > 1}
-          <div class="navigation-buttons">
-            <button
-              class="nav-button"
-              onclick={navigateToPreviousRow}
-              title="Previous row"
-              aria-label="Previous row"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <button
-              class="nav-button"
-              onclick={navigateToNextRow}
-              title="Next row"
-              aria-label="Next row"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
-        {/if}
       </div>
     {/if}
     <div class="panel-controls">
@@ -225,10 +252,34 @@
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <!-- Arrows pointing outward -->
-          <path d="M2 6L2 2L6 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M10 2L14 2L14 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M14 10L14 14L10 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M6 14L2 14L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path
+            d="M2 6L2 2L6 2"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M10 2L14 2L14 6"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M14 10L14 14L10 14"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M6 14L2 14L2 10"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       </button>
       <button
@@ -239,10 +290,34 @@
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <!-- Arrows pointing inward -->
-          <path d="M6 2L6 6L2 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M10 2L10 6L14 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M14 10L10 10L10 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2 10L6 10L6 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path
+            d="M6 2L6 6L2 6"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M10 2L10 6L14 6"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M14 10L10 10L10 14"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M2 10L6 10L6 14"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
       </button>
     </div>
@@ -257,7 +332,7 @@
         maxRows={10}
         stickyHeader={true}
         selectable={true}
-        selectedRowIndex={selectedRowIndex}
+        {selectedRowIndex}
         onRowSelect={handleRowSelect}
       />
     {:else if dataSource.headers && dataSource.headers.length > 0}

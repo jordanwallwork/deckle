@@ -89,7 +89,7 @@
   }
 </script>
 
-<Panel title="Preview">
+<Panel>
   {#snippet toolbar()}
     <button
       onclick={handleSave}

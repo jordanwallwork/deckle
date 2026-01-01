@@ -341,6 +341,17 @@
         </div>
       {:else}
         <span class="node-label root-label">{rootLabel || 'Root Container'}</span>
+        <div class="node-actions">
+          <button
+            class="action-button"
+            onclick={(e) => { e.stopPropagation(); onAddClick(e, 'root'); }}
+            aria-label="Add child element"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14">
+              <path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
       {/if}
     </div>
 
@@ -528,7 +539,8 @@
     margin-left: auto;
   }
 
-  .node-content:hover .node-actions {
+  .node-content:hover .node-actions,
+  .node-content.selected .node-actions {
     display: flex;
   }
 

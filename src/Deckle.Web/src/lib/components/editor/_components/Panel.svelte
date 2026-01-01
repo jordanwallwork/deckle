@@ -2,12 +2,14 @@
   import type { Snippet } from "svelte";
 
   let {
+    noheader,
     title,
     subtitle,
     toolbar,
     children,
   }: {
-    title: string;
+    noheader?: boolean;
+    title?: string;
     subtitle?: Snippet;
     toolbar?: Snippet;
     children?: Snippet;
@@ -15,21 +17,25 @@
 </script>
 
 <div class="panel">
-  <header class="panel-header">
-    <div class="panel-header-left">
-      <h3 class="panel-title">{title}</h3>
-      {#if subtitle}
-        <div class="panel-subtitle">
-          {@render subtitle()}
+  {#if !noheader}
+    <header class="panel-header">
+      <div class="panel-header-left">
+        {#if title}
+          <h3 class="panel-title">{title}</h3>
+        {/if}
+        {#if subtitle}
+          <div class="panel-subtitle">
+            {@render subtitle()}
+          </div>
+        {/if}
+      </div>
+      {#if toolbar}
+        <div class="panel-toolbar">
+          {@render toolbar()}
         </div>
       {/if}
-    </div>
-    {#if toolbar}
-      <div class="panel-toolbar">
-        {@render toolbar()}
-      </div>
-    {/if}
-  </header>
+    </header>
+  {/if}
   <div class="panel-content">
     {#if children}
       {@render children()}

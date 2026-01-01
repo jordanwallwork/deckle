@@ -1,12 +1,12 @@
 <script lang="ts">
   import Panel from "./_components/Panel.svelte";
   import TreeNode from "./_components/TreeNode.svelte";
-  import DropTarget from "./_components/DropTarget.svelte";
   import AddElementPopover from "./_components/AddElementPopover.svelte";
   import { templateStore } from "$lib/stores/templateElements";
   import type { EditableComponent } from "$lib/types";
 
-  let { component, part }: { component: EditableComponent; part?: string } = $props();
+  let { component, part }: { component: EditableComponent; part?: string } =
+    $props();
 
   let showAddPopover = $state(false);
   let popoverParentId = $state<string | null>(null);
@@ -15,11 +15,11 @@
 
   function handleClickOutside(event: MouseEvent) {
     if (showAddPopover) {
-      const popover = document.querySelector('.add-popover');
+      const popover = document.querySelector(".add-popover");
       if (popover && !popover.contains(event.target as Node)) {
         const target = event.target as HTMLElement;
         // Don't close if clicking an add button
-        if (!target.closest('.btn-add') && !target.closest('.action-button')) {
+        if (!target.closest(".btn-add") && !target.closest(".action-button")) {
           showAddPopover = false;
         }
       }
@@ -30,7 +30,7 @@
     const rect = target.getBoundingClientRect();
     popoverPosition = {
       top: rect.bottom + 4,
-      left: rect.right - 180 // popover width
+      left: rect.right - 180, // popover width
     };
   }
 
@@ -45,7 +45,7 @@
   function handleRootDragOver(e: DragEvent) {
     if (!e.dataTransfer) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
     isRootDragOver = true;
   }
 
@@ -58,27 +58,16 @@
     e.preventDefault();
     isRootDragOver = false;
 
-    const draggedId = e.dataTransfer.getData('text/plain');
+    const draggedId = e.dataTransfer.getData("text/plain");
     if (!draggedId) return;
 
-    templateStore.moveElement(draggedId, 'root');
+    templateStore.moveElement(draggedId, "root");
   }
 </script>
 
 <svelte:document onclick={handleClickOutside} />
 
-<Panel title="Structure Tree">
-  {#snippet toolbar()}
-    <div class="add-button-container">
-      <button class="btn-add" onclick={(e) => handleAddClick(e, 'root')} aria-label="Add root element">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        Add
-      </button>
-    </div>
-  {/snippet}
-
+<Panel noheader>
   {#snippet children()}
     <div
       class="tree-container"
@@ -106,29 +95,6 @@
 />
 
 <style>
-  .add-button-container {
-    position: relative;
-  }
-
-  .btn-add {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #0066cc;
-    background: white;
-    border: 1px solid #0066cc;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .btn-add:hover {
-    background: #f0f7ff;
-  }
-
   .tree-container {
     padding: 0.5rem;
     min-height: 100px;

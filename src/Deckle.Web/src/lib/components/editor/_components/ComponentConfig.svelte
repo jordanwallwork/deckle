@@ -39,8 +39,6 @@
         },
       })}
   />
-
-  <h4 class="subsection-title">Bleed/Safe Area Colors</h4>
   <ColorPicker
     label="Bleed Area Color"
     id="bleed-area-color"

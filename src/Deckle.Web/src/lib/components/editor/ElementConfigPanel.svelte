@@ -8,7 +8,8 @@
   import type { ContainerElement, TextElement, ImageElement } from "./types";
   import type { EditableComponent } from "$lib/types";
 
-  let { component, part }: { component: EditableComponent; part?: string } = $props();
+  let { component, part }: { component: EditableComponent; part?: string } =
+    $props();
 
   const selectedElement = $derived(
     $templateStore.selectedElementId
@@ -16,25 +17,27 @@
       : null
   );
 
-  const isRootSelected = $derived($templateStore.selectedElementId === 'root');
+  const isRootSelected = $derived($templateStore.selectedElementId === "root");
 </script>
 
-<Panel title="Config">
+<Panel noheader>
   {#snippet children()}
     {#if isRootSelected}
       <ComponentConfig {component} {part} />
     {:else if selectedElement}
-      {#if selectedElement.type === 'container'}
+      {#if selectedElement.type === "container"}
         <ContainerConfig element={selectedElement as ContainerElement} />
-      {:else if selectedElement.type === 'text'}
+      {:else if selectedElement.type === "text"}
         <TextConfig element={selectedElement as TextElement} />
-      {:else if selectedElement.type === 'image'}
+      {:else if selectedElement.type === "image"}
         <ImageConfig element={selectedElement as ImageElement} />
       {/if}
     {:else}
       <div class="empty-state">
         <p>No element selected</p>
-        <p class="hint">Select an element from the structure tree to edit its properties</p>
+        <p class="hint">
+          Select an element from the structure tree to edit its properties
+        </p>
       </div>
     {/if}
   {/snippet}

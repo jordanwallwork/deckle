@@ -83,6 +83,19 @@
     return null;
   });
 
+  // Parse the back design if available
+  const backDesign = $derived(() => {
+    if (component.backDesign) {
+      try {
+        return JSON.parse(component.backDesign) as ContainerElement;
+      } catch (error) {
+        console.error("Failed to parse back design:", error);
+        return null;
+      }
+    }
+    return null;
+  });
+
   // Calculate card dimensions including bleed
   const cardWidthPx = $derived(
     component.dimensions.widthPx + 2 * component.dimensions.bleedPx
@@ -114,6 +127,11 @@
 
   interface Page {
     cards: CardInstance[];
+  }
+
+  interface PageSet {
+    front: Page;
+    back: Page | null;
   }
 
   const pages = $derived.by((): Page[] => {
@@ -182,9 +200,46 @@
     return pages;
   });
 
+  // Generate back pages with horizontally mirrored positions for proper alignment when printing double-sided
+  const backPages = $derived.by((): Page[] => {
+    if (!pageSetup.exportBacks || !backDesign()) {
+      return [];
+    }
+
+    return pages.map((frontPage) => {
+      // Create a back page with horizontally mirrored card positions
+      const backPageCards: CardInstance[] = frontPage.cards.map((card) => {
+        // Mirror the x position: new_x = printableWidth - (card.x + cardWidth)
+        const mirroredX = printableAreaWidthPx - (card.x + cardWidthPx);
+        return {
+          x: mirroredX,
+          y: card.y,
+          mergeData: card.mergeData,
+        };
+      });
+
+      return { cards: backPageCards };
+    });
+  });
+
+  // Combine front and back pages into a single array for rendering
+  const allPages = $derived.by((): Array<{ page: Page; isBack: boolean }> => {
+    const result: Array<{ page: Page; isBack: boolean }> = [];
+
+    // Add front and back pages alternately
+    for (let i = 0; i < pages.length; i++) {
+      result.push({ page: pages[i], isBack: false });
+      if (backPages.length > i) {
+        result.push({ page: backPages[i], isBack: true });
+      }
+    }
+
+    return result;
+  });
+
   // Calculate bounding box for cards on each page (for perimeter crop marks)
   const pageCardBounds = $derived.by(() => {
-    return pages.map((page) => {
+    return allPages.map(({ page }) => {
       if (page.cards.length === 0) {
         return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
       }
@@ -208,7 +263,7 @@
 
 <div class="paper-preview-container" bind:clientWidth={containerWidth}>
   <div class="paper-wrapper">
-    {#if pages.length === 0}
+    {#if allPages.length === 0}
       <!-- No design or no pages -->
       <div
         class="paper-placeholder"
@@ -247,7 +302,7 @@
       </div>
     {:else}
       <!-- Render each page -->
-      {#each pages as page, pageIndex (pageIndex)}
+      {#each allPages as { page, isBack }, pageIndex (pageIndex)}
         <div
           class="paper-placeholder"
           style="
@@ -274,7 +329,7 @@
               "
             >
               {#each page.cards as card, cardIndex (`${pageIndex}-${cardIndex}`)}
-                {@const design = frontDesign()}
+                {@const design = isBack ? backDesign() : frontDesign()}
                 {#if design}
                   <div
                     class="card-instance"

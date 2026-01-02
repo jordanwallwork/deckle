@@ -36,7 +36,7 @@
       const textEl = element as TextElement;
 
       // Step 1: Replace merge fields FIRST (before inline classes)
-      let processedContent = replaceMergeFields(textEl.content, $dataSourceRow);
+      let processedContent = replaceMergeFields(textEl.content, dataSourceRow);
 
       // Step 2: Apply inline classes if not using markdown
       if (!textEl.markdown && hasInlineClasses(processedContent)) {
@@ -378,7 +378,7 @@
     {:else if textContent()}
       {@html textContent()}
     {:else}
-      {replaceMergeFields((element as TextElement).content, $dataSourceRow)}
+      {replaceMergeFields((element as TextElement).content, dataSourceRow)}
     {/if}
   </div>
 {:else if element.type === "image"}

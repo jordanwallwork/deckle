@@ -57,7 +57,7 @@
 <style>
   .static-card {
     background-color: #fff;
-    overflow: visible;
+    overflow: hidden;
     position: relative;
     flex-shrink: 0;
   }

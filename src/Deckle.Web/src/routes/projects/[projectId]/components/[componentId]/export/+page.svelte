@@ -35,12 +35,13 @@
 </svelte:head>
 
 {#if isCard(data.component)}
+  {@const cardComponent = data.component}
   <ResizablePanelContainer initialSplit={20}>
     {#snippet leftOrTop()}
       <PageSetupPanel bind:pageSetup />
     {/snippet}
     {#snippet rightOrBottom()}
-      <PaperPreview {pageSetup} component={data.component} />
+      <PaperPreview {pageSetup} component={cardComponent} dataSourceRows={data.dataSourceRows} />
     {/snippet}
   </ResizablePanelContainer>
 {:else}

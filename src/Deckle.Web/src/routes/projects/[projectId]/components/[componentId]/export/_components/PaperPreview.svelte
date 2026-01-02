@@ -1,13 +1,17 @@
 <script lang="ts">
   import type { PageSetup, CardComponent } from "$lib/types";
+  import type { ContainerElement } from "$lib/components/editor/types";
   import { PAPER_DIMENSIONS } from "$lib/types";
+  import StaticCardRenderer from "./StaticCardRenderer.svelte";
 
   let {
     pageSetup,
     component,
+    dataSourceRows = [],
   }: {
     pageSetup: PageSetup;
     component: CardComponent;
+    dataSourceRows?: Record<string, string>[];
   } = $props();
 
   // Get the component's DPI
@@ -19,8 +23,12 @@
     const isLandscape = pageSetup.orientation === "landscape";
 
     return {
-      width: isLandscape ? baseDimensions.heightInches : baseDimensions.widthInches,
-      height: isLandscape ? baseDimensions.widthInches : baseDimensions.heightInches,
+      width: isLandscape
+        ? baseDimensions.heightInches
+        : baseDimensions.widthInches,
+      height: isLandscape
+        ? baseDimensions.widthInches
+        : baseDimensions.heightInches,
     };
   });
 
@@ -61,53 +69,200 @@
     const visualWidth = paperDimensionsPx().width * zoom();
     return (placeholderWidth - visualWidth) / 2;
   });
+
+  // Parse the front design if available
+  const frontDesign = $derived(() => {
+    if (component.frontDesign) {
+      try {
+        return JSON.parse(component.frontDesign) as ContainerElement;
+      } catch (error) {
+        console.error("Failed to parse front design:", error);
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // Calculate card dimensions including bleed
+  const cardWidthPx = $derived(
+    component.dimensions.widthPx + 2 * component.dimensions.bleedPx
+  );
+  const cardHeightPx = $derived(
+    component.dimensions.heightPx + 2 * component.dimensions.bleedPx
+  );
+
+  // Calculate printable area dimensions
+  const printableAreaWidthPx = $derived(
+    paperDimensionsPx().width - 2 * marginPx
+  );
+  const printableAreaHeightPx = $derived(
+    paperDimensionsPx().height - 2 * marginPx
+  );
+
+  // Layout cards on pages
+  interface CardInstance {
+    x: number;
+    y: number;
+    mergeData: Record<string, string> | null;
+  }
+
+  interface Page {
+    cards: CardInstance[];
+  }
+
+  const pages = $derived.by((): Page[] => {
+    // If no design, return empty
+    if (!frontDesign()) {
+      return [];
+    }
+
+    // Determine how many instances to create
+    const instances: Record<string, string>[] =
+      dataSourceRows.length > 0
+        ? dataSourceRows
+        : [{}]; // Single instance with no merge data if no data source
+
+    const pages: Page[] = [];
+    let currentPage: Page = { cards: [] };
+
+    let currentX = 0;
+    let currentY = 0;
+    let rowHeight = 0;
+
+    for (const rowData of instances) {
+      // Check if card fits in current row
+      if (currentX + cardWidthPx > printableAreaWidthPx) {
+        // Move to next row
+        currentX = 0;
+        currentY += rowHeight;
+        rowHeight = 0;
+      }
+
+      // Check if card fits on current page
+      if (currentY + cardHeightPx > printableAreaHeightPx) {
+        // Start new page
+        if (currentPage.cards.length > 0) {
+          pages.push(currentPage);
+        }
+        currentPage = { cards: [] };
+        currentX = 0;
+        currentY = 0;
+        rowHeight = 0;
+      }
+
+      // Add card to current page
+      currentPage.cards.push({
+        x: currentX,
+        y: currentY,
+        mergeData: Object.keys(rowData).length > 0 ? rowData : null,
+      });
+
+      // Update position for next card
+      currentX += cardWidthPx;
+      rowHeight = Math.max(rowHeight, cardHeightPx);
+    }
+
+    // Add the last page if it has cards
+    if (currentPage.cards.length > 0) {
+      pages.push(currentPage);
+    }
+
+    return pages;
+  });
 </script>
 
 <div class="paper-preview-container" bind:clientWidth={containerWidth}>
   <div class="paper-wrapper">
-    <div class="info-header">
-      <div class="paper-info">
-        {pageSetup.paperSize}
-        ({paperDimensionsInches().width.toFixed(2)}" × {paperDimensionsInches().height.toFixed(2)}")
-        • {pageSetup.orientation}
-      </div>
-      <div class="dpi-info">
-        {componentDpi} DPI
-        • {paperDimensionsPx().width.toFixed(0)} × {paperDimensionsPx().height.toFixed(0)} px
-        • {(zoom() * 100).toFixed(0)}% zoom
-      </div>
-    </div>
-    <div
-      class="paper-placeholder"
-      style="
-        width: {scaledDimensions().width}px;
-        height: {scaledDimensions().height}px;
-      "
-    >
+    {#if pages.length === 0}
+      <!-- No design or no pages -->
       <div
-        class="paper"
+        class="paper-placeholder"
         style="
-          width: {paperDimensionsPx().width}px;
-          height: {paperDimensionsPx().height}px;
-          left: {paperLeftOffset()}px;
-          transform: scale({zoom()});
+          width: {scaledDimensions().width}px;
+          height: {scaledDimensions().height}px;
         "
       >
         <div
-          class="printable-area"
+          class="paper"
           style="
-            top: {marginPx}px;
-            left: {marginPx}px;
-            right: {marginPx}px;
-            bottom: {marginPx}px;
+            width: {paperDimensionsPx().width}px;
+            height: {paperDimensionsPx().height}px;
+            left: {paperLeftOffset()}px;
+            transform: scale({zoom()});
           "
         >
-          <div class="placeholder-text">
-            Components will be laid out here
+          <div
+            class="printable-area"
+            style="
+              top: {marginPx}px;
+              left: {marginPx}px;
+              right: {marginPx}px;
+              bottom: {marginPx}px;
+            "
+          >
+            <div class="placeholder-text">
+              {#if !frontDesign()}
+                No design available. Create a design in the Front editor first.
+              {:else}
+                No data to display.
+              {/if}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    {:else}
+      <!-- Render each page -->
+      {#each pages as page, pageIndex (pageIndex)}
+        <div
+          class="paper-placeholder"
+          style="
+            width: {scaledDimensions().width}px;
+            height: {scaledDimensions().height}px;
+          "
+        >
+          <div
+            class="paper"
+            style="
+              width: {paperDimensionsPx().width}px;
+              height: {paperDimensionsPx().height}px;
+              left: {paperLeftOffset()}px;
+              transform: scale({zoom()});
+            "
+          >
+            <div
+              class="printable-area"
+              style="
+                top: {marginPx}px;
+                left: {marginPx}px;
+                right: {marginPx}px;
+                bottom: {marginPx}px;
+              "
+            >
+              {#each page.cards as card, cardIndex (`${pageIndex}-${cardIndex}`)}
+                {@const design = frontDesign()}
+                {#if design}
+                  <div
+                    class="card-instance"
+                    style="
+                      position: absolute;
+                      left: {card.x}px;
+                      top: {card.y}px;
+                    "
+                  >
+                    <StaticCardRenderer
+                      {design}
+                      dimensions={component.dimensions}
+                      shape={component.shape}
+                      mergeData={card.mergeData}
+                    />
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          </div>
+        </div>
+      {/each}
+    {/if}
   </div>
 </div>
 
@@ -130,33 +285,6 @@
     gap: 1rem;
   }
 
-  .info-header {
-    position: sticky;
-    top: 0;
-    background: #f5f5f5;
-    padding: 0.75rem 1rem;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    z-index: 10;
-  }
-
-  .paper-info {
-    font-size: 0.813rem;
-    font-weight: 500;
-    color: #333;
-    text-align: center;
-  }
-
-  .dpi-info {
-    font-size: 0.75rem;
-    color: #666;
-    text-align: center;
-  }
-
   .paper-placeholder {
     position: relative;
     flex-shrink: 0;
@@ -174,17 +302,10 @@
 
   .printable-area {
     position: absolute;
-    border: 2px dashed #cbd5e0;
-    background: repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 10px,
-      #f7fafc 10px,
-      #f7fafc 20px
-    );
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 0;
   }
 
   .placeholder-text {
@@ -192,5 +313,13 @@
     color: #718096;
     text-align: center;
     padding: 2rem;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .card-instance {
+    pointer-events: auto;
   }
 </style>

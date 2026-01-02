@@ -95,6 +95,7 @@
   const cropMarkLength = 20; // Length of crop mark in pixels
   const cropMarkThickness = 1; // Thickness in pixels
   const cropMarkOffset = 5; // Gap between crop mark and cut line
+  const cropMarkSpace = cropMarkOffset + cropMarkLength; // Total space needed for crop marks
 
   // Calculate printable area dimensions
   const printableAreaWidthPx = $derived(
@@ -179,6 +180,29 @@
     }
 
     return pages;
+  });
+
+  // Calculate bounding box for cards on each page (for perimeter crop marks)
+  const pageCardBounds = $derived.by(() => {
+    return pages.map((page) => {
+      if (page.cards.length === 0) {
+        return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+      }
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      for (const card of page.cards) {
+        minX = Math.min(minX, card.x);
+        minY = Math.min(minY, card.y);
+        maxX = Math.max(maxX, card.x + cardWidthPx);
+        maxY = Math.max(maxY, card.y + cardHeightPx);
+      }
+
+      return { minX, minY, maxX, maxY };
+    });
   });
 </script>
 
@@ -266,102 +290,124 @@
                       shape={component.shape}
                       mergeData={card.mergeData}
                     />
-                    {#if pageSetup.cropMarks}
-                      <svg
-                        class="crop-marks"
-                        style="
-                          position: absolute;
-                          left: 0;
-                          top: 0;
-                          width: {cardWidthPx}px;
-                          height: {cardHeightPx}px;
-                          pointer-events: none;
-                        "
-                      >
-                        <!-- Top-left corner -->
-                        <!-- Horizontal line -->
-                        <line
-                          x1={component.dimensions.bleedPx - cropMarkOffset - cropMarkLength}
-                          y1={component.dimensions.bleedPx}
-                          x2={component.dimensions.bleedPx - cropMarkOffset}
-                          y2={component.dimensions.bleedPx}
-                          stroke="black"
-                          stroke-width={cropMarkThickness}
-                        />
-                        <!-- Vertical line -->
-                        <line
-                          x1={component.dimensions.bleedPx}
-                          y1={component.dimensions.bleedPx - cropMarkOffset - cropMarkLength}
-                          x2={component.dimensions.bleedPx}
-                          y2={component.dimensions.bleedPx - cropMarkOffset}
-                          stroke="black"
-                          stroke-width={cropMarkThickness}
-                        />
-
-                        <!-- Top-right corner -->
-                        <!-- Horizontal line -->
-                        <line
-                          x1={cardWidthPx - component.dimensions.bleedPx + cropMarkOffset}
-                          y1={component.dimensions.bleedPx}
-                          x2={cardWidthPx - component.dimensions.bleedPx + cropMarkOffset + cropMarkLength}
-                          y2={component.dimensions.bleedPx}
-                          stroke="black"
-                          stroke-width={cropMarkThickness}
-                        />
-                        <!-- Vertical line -->
-                        <line
-                          x1={cardWidthPx - component.dimensions.bleedPx}
-                          y1={component.dimensions.bleedPx - cropMarkOffset - cropMarkLength}
-                          x2={cardWidthPx - component.dimensions.bleedPx}
-                          y2={component.dimensions.bleedPx - cropMarkOffset}
-                          stroke="black"
-                          stroke-width={cropMarkThickness}
-                        />
-
-                        <!-- Bottom-left corner -->
-                        <!-- Horizontal line -->
-                        <line
-                          x1={component.dimensions.bleedPx - cropMarkOffset - cropMarkLength}
-                          y1={cardHeightPx - component.dimensions.bleedPx}
-                          x2={component.dimensions.bleedPx - cropMarkOffset}
-                          y2={cardHeightPx - component.dimensions.bleedPx}
-                          stroke="black"
-                          stroke-width={cropMarkThickness}
-                        />
-                        <!-- Vertical line -->
-                        <line
-                          x1={component.dimensions.bleedPx}
-                          y1={cardHeightPx - component.dimensions.bleedPx + cropMarkOffset}
-                          x2={component.dimensions.bleedPx}
-                          y2={cardHeightPx - component.dimensions.bleedPx + cropMarkOffset + cropMarkLength}
-                          stroke="black"
-                          stroke-width={cropMarkThickness}
-                        />
-
-                        <!-- Bottom-right corner -->
-                        <!-- Horizontal line -->
-                        <line
-                          x1={cardWidthPx - component.dimensions.bleedPx + cropMarkOffset}
-                          y1={cardHeightPx - component.dimensions.bleedPx}
-                          x2={cardWidthPx - component.dimensions.bleedPx + cropMarkOffset + cropMarkLength}
-                          y2={cardHeightPx - component.dimensions.bleedPx}
-                          stroke="black"
-                          stroke-width={cropMarkThickness}
-                        />
-                        <!-- Vertical line -->
-                        <line
-                          x1={cardWidthPx - component.dimensions.bleedPx}
-                          y1={cardHeightPx - component.dimensions.bleedPx + cropMarkOffset}
-                          x2={cardWidthPx - component.dimensions.bleedPx}
-                          y2={cardHeightPx - component.dimensions.bleedPx + cropMarkOffset + cropMarkLength}
-                          stroke="black"
-                          stroke-width={cropMarkThickness}
-                        />
-                      </svg>
-                    {/if}
                   </div>
                 {/if}
               {/each}
+
+              {#if pageSetup.cropMarks && page.cards.length > 0}
+                {@const bounds = pageCardBounds[pageIndex]}
+
+                <svg
+                  class="perimeter-crop-marks"
+                  style="
+                    position: absolute;
+                    left: -{cropMarkSpace}px;
+                    top: -{cropMarkSpace}px;
+                    width: {printableAreaWidthPx + 2 * cropMarkSpace}px;
+                    height: {printableAreaHeightPx + 2 * cropMarkSpace}px;
+                    pointer-events: none;
+                  "
+                >
+                  {#each page.cards as card}
+                    {@const cardBleedLeft = card.x + cropMarkSpace}
+                    {@const cardBleedTop = card.y + cropMarkSpace}
+                    {@const cardBleedRight = card.x + cardWidthPx + cropMarkSpace}
+                    {@const cardBleedBottom = card.y + cardHeightPx + cropMarkSpace}
+                    {@const cardCutLeft = card.x + component.dimensions.bleedPx + cropMarkSpace}
+                    {@const cardCutTop = card.y + component.dimensions.bleedPx + cropMarkSpace}
+                    {@const cardCutRight = card.x + cardWidthPx - component.dimensions.bleedPx + cropMarkSpace}
+                    {@const cardCutBottom = card.y + cardHeightPx - component.dimensions.bleedPx + cropMarkSpace}
+
+                    <!-- Check if this card is on the left edge -->
+                    {#if card.x === bounds.minX}
+                      <!-- Top crop mark -->
+                      <line
+                        x1={cardBleedLeft - cropMarkOffset - cropMarkLength}
+                        y1={cardCutTop}
+                        x2={cardBleedLeft - cropMarkOffset}
+                        y2={cardCutTop}
+                        stroke="black"
+                        stroke-width={cropMarkThickness}
+                      />
+                      <!-- Bottom crop mark -->
+                      <line
+                        x1={cardBleedLeft - cropMarkOffset - cropMarkLength}
+                        y1={cardCutBottom}
+                        x2={cardBleedLeft - cropMarkOffset}
+                        y2={cardCutBottom}
+                        stroke="black"
+                        stroke-width={cropMarkThickness}
+                      />
+                    {/if}
+
+                    <!-- Check if this card is on the right edge -->
+                    {#if card.x + cardWidthPx === bounds.maxX}
+                      <!-- Top crop mark -->
+                      <line
+                        x1={cardBleedRight + cropMarkOffset}
+                        y1={cardCutTop}
+                        x2={cardBleedRight + cropMarkOffset + cropMarkLength}
+                        y2={cardCutTop}
+                        stroke="black"
+                        stroke-width={cropMarkThickness}
+                      />
+                      <!-- Bottom crop mark -->
+                      <line
+                        x1={cardBleedRight + cropMarkOffset}
+                        y1={cardCutBottom}
+                        x2={cardBleedRight + cropMarkOffset + cropMarkLength}
+                        y2={cardCutBottom}
+                        stroke="black"
+                        stroke-width={cropMarkThickness}
+                      />
+                    {/if}
+
+                    <!-- Check if this card is on the top edge -->
+                    {#if card.y === bounds.minY}
+                      <!-- Left crop mark -->
+                      <line
+                        x1={cardCutLeft}
+                        y1={cardBleedTop - cropMarkOffset - cropMarkLength}
+                        x2={cardCutLeft}
+                        y2={cardBleedTop - cropMarkOffset}
+                        stroke="black"
+                        stroke-width={cropMarkThickness}
+                      />
+                      <!-- Right crop mark -->
+                      <line
+                        x1={cardCutRight}
+                        y1={cardBleedTop - cropMarkOffset - cropMarkLength}
+                        x2={cardCutRight}
+                        y2={cardBleedTop - cropMarkOffset}
+                        stroke="black"
+                        stroke-width={cropMarkThickness}
+                      />
+                    {/if}
+
+                    <!-- Check if this card is on the bottom edge -->
+                    {#if card.y + cardHeightPx === bounds.maxY}
+                      <!-- Left crop mark -->
+                      <line
+                        x1={cardCutLeft}
+                        y1={cardBleedBottom + cropMarkOffset}
+                        x2={cardCutLeft}
+                        y2={cardBleedBottom + cropMarkOffset + cropMarkLength}
+                        stroke="black"
+                        stroke-width={cropMarkThickness}
+                      />
+                      <!-- Right crop mark -->
+                      <line
+                        x1={cardCutRight}
+                        y1={cardBleedBottom + cropMarkOffset}
+                        x2={cardCutRight}
+                        y2={cardBleedBottom + cropMarkOffset + cropMarkLength}
+                        stroke="black"
+                        stroke-width={cropMarkThickness}
+                      />
+                    {/if}
+                  {/each}
+                </svg>
+              {/if}
             </div>
           </div>
         </div>

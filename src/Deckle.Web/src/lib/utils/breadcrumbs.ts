@@ -1,4 +1,4 @@
-import type { Component, Project, GameComponent, CardComponent } from '$lib/types';
+import type { Component, Project, GameComponent } from '$lib/types';
 import type { BreadcrumbItem } from '$lib/types/breadcrumb';
 
 type ProjectIdName = Project | { id: string, name: string};
@@ -75,6 +75,18 @@ export function buildEditorBreadcrumbs(
 
 	return extend(buildComponentsBreadcrumbs(project), breadcrumbs);
 }
+
+export function buildComponentExportBreadcrumbs(
+	project: ProjectIdName,
+	component: GameComponent) {
+		return extend(buildComponentsBreadcrumbs(project), [
+			{
+				label: 'Export',
+				href: `/projects/${project.id}/components/${component.id}/export`,
+				isActive: true
+			}
+		]);
+	}
 
 export function buildDataSourcesBreadcrumbs(
 	project:ProjectIdName

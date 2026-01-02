@@ -24,9 +24,9 @@
   // Initialize breadcrumbs context
   const breadcrumbs = initBreadcrumbs(buildProjectBreadcrumbs(data.project));
 
-  // Check if we're on the editor page (hide tabs on editor)
+  // Check if we're on the editor or export page (hide tabs on editor and export)
   const isEditorPage = $derived(
-    /\/projects\/[^/]+\/components\/[^/]+\/(front|back)/.test(
+    /\/projects\/[^/]+\/components\/[^/]+\/(front|back|export)/.test(
       $page.url.pathname
     )
   );

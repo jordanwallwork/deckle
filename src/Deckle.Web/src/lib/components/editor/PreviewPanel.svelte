@@ -13,6 +13,7 @@
   import { templateStore } from "$lib/stores/templateElements";
   import { componentsApi } from "$lib/api";
   import { saveActionStore } from "$lib/stores/saveAction";
+  import { goto } from "$app/navigation";
 
   let {
     component,
@@ -31,6 +32,7 @@
   let panzoomElement = $state<HTMLDivElement | null>(null);
   let isSaving = $state(false);
   let saveSuccess = $state(false);
+  let exportError = $state<string | null>(null);
 
   // Grid snap controls - owned by PreviewPanel and passed to ComponentViewer
   // Calculate sensible default: 1/50th of smallest dimension, rounded to nearest 5
@@ -47,6 +49,24 @@
   ) {
     panzoomInstance = instance;
     panzoomElement = element;
+  }
+
+  function handleExport() {
+    // Clear any previous error
+    exportError = null;
+
+    // Check for unsaved changes
+    if ($templateStore.hasUnsavedChanges) {
+      exportError = "Save unsaved changes before exporting";
+      // Clear the error after 3 seconds
+      setTimeout(() => {
+        exportError = null;
+      }, 3000);
+      return;
+    }
+
+    // Navigate to export page
+    goto(`/projects/${projectId}/components/${component.id}/export`);
   }
 
   async function handleSave() {
@@ -109,6 +129,15 @@
     >
       {isSaving ? "Saving..." : saveSuccess ? "Saved!" : "Save"}
     </button>
+    <button
+      onclick={handleExport}
+      class="export-button"
+      class:error={exportError !== null}
+      title={exportError || "Export Design"}
+    >
+      {exportError || "Export"}
+    </button>
+    <div class="toolbar-divider"></div>
     <UndoRedoControls />
     <div class="toolbar-divider"></div>
     <button
@@ -224,6 +253,36 @@
     background: #10b981;
     color: white;
     border-color: #10b981;
+  }
+
+  .export-button {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+
+  .export-button:hover {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+  }
+
+  .export-button.error {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+    cursor: not-allowed;
+  }
+
+  .export-button.error:hover {
+    background: #dc2626;
+    border-color: #dc2626;
   }
 
   .grid-controls {

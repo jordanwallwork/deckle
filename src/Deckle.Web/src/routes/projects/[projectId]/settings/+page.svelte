@@ -31,6 +31,9 @@
   const canInviteUsers = $derived(
     data.project.role === "Owner" || data.project.role === "Admin"
   );
+  const canEditRoles = $derived(
+    data.project.role === "Owner" || data.project.role === "Admin"
+  );
 
   async function saveProjectDetails(name: string, description?: string) {
     await projectsApi.update(data.project.id, {
@@ -38,6 +41,21 @@
       description,
     });
     await invalidateAll();
+  }
+
+  async function handleRoleChange(userId: string, newRole: string) {
+    try {
+      await projectsApi.updateUserRole(data.project.id, userId, newRole);
+      await invalidateAll();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        console.error("Failed to update user role:", err.message);
+        alert(`Failed to update user role: ${err.message}`);
+      } else {
+        console.error("Failed to update user role:", err);
+        alert("Failed to update user role. Please try again.");
+      }
+    }
   }
 
   async function handleDeleteProject() {
@@ -79,7 +97,9 @@
     <UserListCard
       users={data.users}
       canInvite={canInviteUsers}
+      canEditRoles={canEditRoles}
       onInviteClick={() => (showInviteDialog = true)}
+      onRoleChange={handleRoleChange}
     />
   </div>
 

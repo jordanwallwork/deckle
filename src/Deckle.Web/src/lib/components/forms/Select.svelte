@@ -7,6 +7,7 @@
     disabled = false,
     required = false,
     error = false,
+    onchange,
     children
   }: {
     value: string;
@@ -14,6 +15,7 @@
     disabled?: boolean;
     required?: boolean;
     error?: boolean;
+    onchange?: (event: Event & { currentTarget: HTMLSelectElement }) => void;
     children: Snippet;
   } = $props();
 </script>
@@ -23,6 +25,7 @@
   {id}
   {disabled}
   {required}
+  {onchange}
   class="base-input"
   class:error
 >

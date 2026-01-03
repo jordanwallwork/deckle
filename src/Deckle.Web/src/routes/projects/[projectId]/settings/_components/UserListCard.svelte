@@ -1,7 +1,9 @@
 <script lang="ts">
   import { Card, Badge, Button } from "$lib/components";
+  import { Select } from "$lib/components/forms";
 
   interface User {
+    userId: string;
     name?: string;
     email: string;
     pictureUrl?: string;
@@ -12,12 +14,18 @@
   let {
     users,
     canInvite = false,
-    onInviteClick
+    canEditRoles = false,
+    onInviteClick,
+    onRoleChange
   }: {
     users: User[];
     canInvite?: boolean;
+    canEditRoles?: boolean;
     onInviteClick?: () => void;
+    onRoleChange?: (userId: string, newRole: string) => Promise<void>;
   } = $props();
+
+  const availableRoles = ["Admin", "Collaborator", "Viewer"];
 
   function getRoleBadgeVariant(
     role: string
@@ -31,6 +39,12 @@
         return "success";
       default:
         return "default";
+    }
+  }
+
+  async function handleRoleChange(user: User, newRole: string) {
+    if (onRoleChange && newRole !== user.role) {
+      await onRoleChange(user.userId, newRole);
     }
   }
 </script>
@@ -67,7 +81,18 @@
           </div>
         </div>
         <div class="badges">
-          <Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge>
+          {#if canEditRoles && user.role !== "Owner"}
+            <Select
+              value={user.role}
+              onchange={(e) => handleRoleChange(user, e.currentTarget.value)}
+            >
+              {#each availableRoles as role}
+                <option value={role}>{role}</option>
+              {/each}
+            </Select>
+          {:else}
+            <Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge>
+          {/if}
           {#if user.isPending}
             <Badge variant="default">Pending</Badge>
           {/if}

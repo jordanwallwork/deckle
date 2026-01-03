@@ -147,9 +147,13 @@ public class ProjectService
                 JoinedAt = up.JoinedAt,
                 IsPending = up.User.GoogleId == null
             })
-            .OrderBy(u => u.Role)
-            .ThenBy(u => u.Email)
             .ToListAsync();
+
+        // Order by role priority: Owner, Admin, Collaborator, Viewer
+        users = users
+            .OrderBy(u => GetRolePriority(u.Role))
+            .ThenBy(u => u.Email)
+            .ToList();
 
         return users;
     }
@@ -242,6 +246,69 @@ public class ProjectService
         }, userProject.User.Name ?? userProject.User.Email);
     }
 
+    public async Task<ProjectUserDto?> UpdateUserRoleAsync(
+        Guid requestingUserId,
+        Guid projectId,
+        Guid targetUserId,
+        string roleString)
+    {
+        // 1. Verify requesting user has Owner or Admin role on this project
+        var requestingUserProject = await _dbContext.UserProjects
+            .Where(up => up.UserId == requestingUserId && up.ProjectId == projectId)
+            .FirstOrDefaultAsync();
+
+        if (requestingUserProject == null ||
+            (requestingUserProject.Role != ProjectRole.Owner && requestingUserProject.Role != ProjectRole.Admin))
+        {
+            return null; // Unauthorized
+        }
+
+        // 2. Validate role
+        if (!Enum.TryParse<ProjectRole>(roleString, out var newRole))
+        {
+            throw new ArgumentException("Invalid role");
+        }
+
+        // 3. Cannot change to Owner role
+        if (newRole == ProjectRole.Owner)
+        {
+            throw new ArgumentException("Cannot assign Owner role");
+        }
+
+        // 4. Get the target user's project membership
+        var targetUserProject = await _dbContext.UserProjects
+            .Where(up => up.UserId == targetUserId && up.ProjectId == projectId)
+            .Include(up => up.User)
+            .FirstOrDefaultAsync();
+
+        if (targetUserProject == null)
+        {
+            return null; // User not found in project
+        }
+
+        // 5. Cannot change Owner's role
+        if (targetUserProject.Role == ProjectRole.Owner)
+        {
+            throw new InvalidOperationException("Cannot change the role of the project Owner");
+        }
+
+        // 6. Update the role
+        targetUserProject.Role = newRole;
+        await _dbContext.SaveChangesAsync();
+
+        // 7. Return updated user details
+        return new ProjectUserDto
+        {
+            UserId = targetUserProject.UserId,
+            Email = targetUserProject.User.Email,
+            Name = targetUserProject.User.Name,
+            PictureUrl = targetUserProject.User.PictureUrl,
+            Role = newRole.ToString(),
+            JoinedAt = targetUserProject.JoinedAt,
+            IsPending = targetUserProject.User.GoogleId == null
+        };
+    }
+
     public async Task<bool> DeleteProjectAsync(Guid userId, Guid projectId)
     {
         var userProject = await _dbContext.UserProjects
@@ -264,5 +331,17 @@ public class ProjectService
         await _dbContext.SaveChangesAsync();
 
         return true;
+    }
+
+    private static int GetRolePriority(string role)
+    {
+        return role switch
+        {
+            "Owner" => 0,
+            "Admin" => 1,
+            "Collaborator" => 2,
+            "Viewer" => 3,
+            _ => 999 // Unknown roles go last
+        };
     }
 }

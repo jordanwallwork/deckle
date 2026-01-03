@@ -132,6 +132,41 @@ public static class ProjectEndpoints
         })
         .WithName("InviteUserToProject");
 
+        group.MapPut("{id:guid}/users/{userId:guid}/role", async (
+            Guid id,
+            Guid userId,
+            HttpContext httpContext,
+            ProjectService projectService,
+            UpdateUserRoleRequest request) =>
+        {
+            var requestingUserId = httpContext.GetUserId();
+
+            try
+            {
+                var updatedUser = await projectService.UpdateUserRoleAsync(
+                    requestingUserId,
+                    id,
+                    userId,
+                    request.Role);
+
+                if (updatedUser == null)
+                {
+                    return Results.NotFound();
+                }
+
+                return Results.Ok(updatedUser);
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        })
+        .WithName("UpdateUserRole");
+
         group.MapDelete("{id:guid}", async (Guid id, HttpContext httpContext, ProjectService projectService) =>
         {
             var userId = httpContext.GetUserId();

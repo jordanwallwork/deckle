@@ -8,7 +8,9 @@
   } from "$lib/components/editor/types";
   import StaticTemplateRenderer from "./StaticTemplateRenderer.svelte";
   import MarkdownRenderer from "$lib/components/editor/_components/MarkdownRenderer.svelte";
-  import { getDataSourceRow } from "$lib/stores/dataSourceRow";
+  import { getContext } from "svelte";
+  import type { Writable } from "svelte/store";
+  import type { DataSourceRowData } from "$lib/stores/dataSourceRow";
   import {
     parseInlineClasses,
     hasInlineClasses,
@@ -26,9 +28,9 @@
     mergeData?: Record<string, string> | null;
   } = $props();
 
-  // Get the data source row store for merge field functionality (fallback to context if prop not provided)
-  const dataSourceRowStore = getDataSourceRow();
-  const dataSourceRow = $derived(mergeData ?? $dataSourceRowStore);
+  // Get the data source row from props or context (if available)
+  const dataSourceRowStore = getContext<Writable<DataSourceRowData> | undefined>('dataSourceRow');
+  const dataSourceRow = $derived(mergeData ?? (dataSourceRowStore ? $dataSourceRowStore : null));
 
   // For text elements, apply merge fields first, then check if we need to parse inline classes
   const textContent = $derived(() => {
@@ -374,7 +376,7 @@
 {:else if element.type === "text"}
   <div style={buildStyle(element)} data-element-id={element.id}>
     {#if (element as TextElement).markdown}
-      <MarkdownRenderer content={(element as TextElement).content} />
+      <MarkdownRenderer content={(element as TextElement).content} {mergeData} />
     {:else if textContent()}
       {@html textContent()}
     {:else}

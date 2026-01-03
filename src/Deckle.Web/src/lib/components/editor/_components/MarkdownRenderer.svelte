@@ -1,13 +1,22 @@
 <script lang="ts">
   import { marked } from "marked";
   import { parseInlineClasses, hasInlineClasses } from "$lib/utils/textParser";
-  import { getDataSourceRow } from "$lib/stores/dataSourceRow";
+  import { getContext } from "svelte";
+  import type { Writable } from "svelte/store";
+  import type { DataSourceRowData } from "$lib/stores/dataSourceRow";
   import { replaceMergeFields } from "$lib/utils/mergeFields";
 
-  let { content = "" }: { content: string } = $props();
+  let {
+    content = "",
+    mergeData = null,
+  }: {
+    content: string;
+    mergeData?: Record<string, string> | null;
+  } = $props();
 
-  // Get the data source row store for merge field functionality
-  const dataSourceRow = getDataSourceRow();
+  // Get the data source row from props or context (if available)
+  const dataSourceRowStore = getContext<Writable<DataSourceRowData> | undefined>('dataSourceRow');
+  const dataSourceRow = $derived(mergeData ?? (dataSourceRowStore ? $dataSourceRowStore : null));
 
   // Configure marked for safe rendering
   marked.setOptions({
@@ -18,7 +27,7 @@
   // Pre-process content: merge fields → inline classes → markdown parsing
   const preprocessedContent = $derived(() => {
     // Step 1: Replace merge fields FIRST
-    let processedContent = replaceMergeFields(content, $dataSourceRow);
+    let processedContent = replaceMergeFields(content, dataSourceRow);
 
     // Step 2: Apply inline classes
     if (hasInlineClasses(processedContent)) {

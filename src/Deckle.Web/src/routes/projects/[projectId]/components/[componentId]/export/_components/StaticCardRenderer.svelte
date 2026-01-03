@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Dimensions, ComponentShape, RectangleShape } from "$lib/types";
   import type { ContainerElement } from "$lib/components/editor/types";
-  import { initDataSourceRow } from "$lib/stores/dataSourceRow";
   import { mmToPx } from "$lib/utils/size.utils";
   import StaticTemplateRenderer from "./StaticTemplateRenderer.svelte";
 
@@ -16,10 +15,6 @@
     shape?: ComponentShape;
     mergeData?: Record<string, string> | null;
   } = $props();
-
-  // Initialize data source row context for merge fields (for backwards compatibility)
-  // The merge data is now passed as props to StaticTemplateRenderer
-  initDataSourceRow(mergeData);
 
   // Calculate border radius for rectangle shapes
   let borderRadius = $derived(

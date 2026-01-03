@@ -8,11 +8,52 @@
     pageSetup,
     component,
     dataSourceRows = [],
+    pageElements = $bindable([]),
+    paperDimensions = $bindable({ width: 0, height: 0 }),
   }: {
     pageSetup: PageSetup;
     component: CardComponent;
     dataSourceRows?: Record<string, string>[];
+    pageElements?: HTMLElement[];
+    paperDimensions?: { width: number; height: number };
   } = $props();
+
+  // Array to store refs to page elements - using a map for better reactivity
+  let pageRefsMap = $state<Map<number, HTMLElement>>(new Map());
+
+  // Svelte action to capture element refs
+  function capturePageRef(node: HTMLElement, index: number) {
+    pageRefsMap.set(index, node);
+    // Trigger reactivity by creating a new Map
+    pageRefsMap = new Map(pageRefsMap);
+
+    return {
+      destroy() {
+        pageRefsMap.delete(index);
+        pageRefsMap = new Map(pageRefsMap);
+      }
+    };
+  }
+
+  // Update pageElements when pageRefsMap changes
+  $effect(() => {
+    // Convert map to array sorted by index
+    const elements: HTMLElement[] = [];
+    const sortedIndices = Array.from(pageRefsMap.keys()).sort((a, b) => a - b);
+    for (const index of sortedIndices) {
+      const el = pageRefsMap.get(index);
+      if (el) elements.push(el);
+    }
+    pageElements = elements;
+  });
+
+  // Update paperDimensions when they change
+  $effect(() => {
+    paperDimensions = {
+      width: paperDimensionsPx().width,
+      height: paperDimensionsPx().height,
+    };
+  });
 
   // Get the component's DPI
   const componentDpi = component.dimensions.dpi;
@@ -311,6 +352,7 @@
           "
         >
           <div
+            use:capturePageRef={pageIndex}
             class="paper"
             style="
               width: {paperDimensionsPx().width}px;

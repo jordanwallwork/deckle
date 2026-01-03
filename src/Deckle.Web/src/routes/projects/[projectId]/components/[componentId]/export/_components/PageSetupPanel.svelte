@@ -6,12 +6,22 @@
     Orientation,
     MeasurementUnit,
   } from "$lib/types";
+  import { toPng } from "html-to-image";
+  import { BlobWriter, ZipWriter } from "@zip.js/zip.js";
 
   let {
     pageSetup = $bindable(),
+    pageElements = [],
+    paperDimensions,
+    componentName = "component",
   }: {
     pageSetup: PageSetup;
+    pageElements?: HTMLElement[];
+    paperDimensions: { width: number; height: number };
+    componentName?: string;
   } = $props();
+
+  let isExporting = $state(false);
 
   // Helper to convert between units
   const inchesToCm = (inches: number) => inches * 2.54;
@@ -39,10 +49,101 @@
   function toggleUnit() {
     pageSetup.unit = pageSetup.unit === "inches" ? "cm" : "inches";
   }
+
+  // Export pages as PNG
+  async function exportAsPng() {
+    if (pageElements.length === 0) {
+      alert("No pages to export");
+      return;
+    }
+
+    isExporting = true;
+
+    try {
+      if (pageElements.length === 1) {
+        // Single page: download as PNG
+        const dataUrl = await capturePageAtFullSize(pageElements[0]);
+
+        // Download the image
+        const link = document.createElement("a");
+        link.download = `${componentName}.png`;
+        link.href = dataUrl;
+        link.click();
+      } else {
+        // Multiple pages: create a ZIP file
+        const zipWriter = new ZipWriter(new BlobWriter("application/zip"));
+
+        // Convert each page to PNG and add to ZIP
+        for (let i = 0; i < pageElements.length; i++) {
+          const dataUrl = await capturePageAtFullSize(pageElements[i]);
+
+          // Convert data URL to blob
+          const response = await fetch(dataUrl);
+          const blob = await response.blob();
+
+          // Add to ZIP with numbered filename
+          const pageNumber = String(i + 1).padStart(3, "0");
+          await zipWriter.add(`${componentName}-page-${pageNumber}.png`, blob.stream());
+        }
+
+        // Close the ZIP and download
+        const zipBlob = await zipWriter.close();
+        const zipUrl = URL.createObjectURL(zipBlob);
+
+        const link = document.createElement("a");
+        link.download = `${componentName}-pages.zip`;
+        link.href = zipUrl;
+        link.click();
+
+        // Clean up
+        URL.revokeObjectURL(zipUrl);
+      }
+    } catch (error) {
+      console.error("Failed to export as PNG:", error);
+      alert("Failed to export pages. Please try again.");
+    } finally {
+      isExporting = false;
+    }
+  }
+
+  // Capture a page at full size (without zoom transform)
+  async function capturePageAtFullSize(element: HTMLElement): Promise<string> {
+    // Save the original transform
+    const originalTransform = element.style.transform;
+    const originalTransformOrigin = element.style.transformOrigin;
+
+    try {
+      // Temporarily remove the scale transform
+      element.style.transform = "none";
+      element.style.transformOrigin = "top left";
+
+      // Capture at full resolution with exact dimensions
+      const dataUrl = await toPng(element, {
+        width: paperDimensions.width,
+        height: paperDimensions.height,
+        pixelRatio: 1,
+        backgroundColor: "#ffffff",
+      });
+
+      return dataUrl;
+    } finally {
+      // Restore the original transform
+      element.style.transform = originalTransform;
+      element.style.transformOrigin = originalTransformOrigin;
+    }
+  }
 </script>
 
 <div class="page-setup-panel">
   <h3>Page Setup</h3>
+
+  <button
+    class="export-png-button"
+    onclick={exportAsPng}
+    disabled={isExporting || pageElements.length === 0}
+  >
+    {isExporting ? "Exporting..." : "Export as PNG"}
+  </button>
 
   <FormField label="Paper Size" name="paperSize">
     <Select bind:value={pageSetup.paperSize}>
@@ -119,8 +220,35 @@
   h3 {
     font-size: 1rem;
     font-weight: 600;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 1rem 0;
     color: var(--color-sage);
+  }
+
+  .export-png-button {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+    background: var(--color-sage);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 1.5rem;
+  }
+
+  .export-png-button:hover:not(:disabled) {
+    background: #2d4a3e;
+  }
+
+  .export-png-button:active:not(:disabled) {
+    background: #243a32;
+  }
+
+  .export-png-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .margin-input-wrapper {

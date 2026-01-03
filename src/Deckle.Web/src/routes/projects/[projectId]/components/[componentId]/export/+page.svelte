@@ -13,6 +13,12 @@
   // Page setup state
   let pageSetup = $state<PageSetup>({ ...DEFAULT_PAGE_SETUP });
 
+  // Page elements for export
+  let pageElements = $state<HTMLElement[]>([]);
+
+  // Paper dimensions in pixels
+  let paperDimensions = $state({ width: 0, height: 0 });
+
   // Update breadcrumbs for this page
   $effect(() => {
     setBreadcrumbs(
@@ -38,10 +44,10 @@
   {@const cardComponent = data.component}
   <ResizablePanelContainer initialSplit={20}>
     {#snippet leftOrTop()}
-      <PageSetupPanel bind:pageSetup />
+      <PageSetupPanel bind:pageSetup {pageElements} {paperDimensions} componentName={data.component.name} />
     {/snippet}
     {#snippet rightOrBottom()}
-      <PaperPreview {pageSetup} component={cardComponent} dataSourceRows={data.dataSourceRows} />
+      <PaperPreview {pageSetup} component={cardComponent} dataSourceRows={data.dataSourceRows} bind:pageElements bind:paperDimensions />
     {/snippet}
   </ResizablePanelContainer>
 {:else}

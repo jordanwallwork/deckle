@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import type { Snippet } from "svelte";
 
   let {
     value = $bindable(),
@@ -8,7 +8,7 @@
     required = false,
     error = false,
     onchange,
-    children
+    children,
   }: {
     value: string;
     id?: string;
@@ -33,7 +33,7 @@
 </select>
 
 <style>
-  @import './base-input.css';
+  @import "./base-input.css";
 
   select {
     background-color: white;

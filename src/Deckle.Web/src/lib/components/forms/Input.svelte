@@ -1,7 +1,7 @@
 <script lang="ts">
   let {
     value = $bindable(),
-    type = 'text',
+    type = "text",
     id,
     placeholder,
     disabled = false,
@@ -36,5 +36,5 @@
 />
 
 <style>
-  @import './base-input.css';
+  @import "./base-input.css";
 </style>

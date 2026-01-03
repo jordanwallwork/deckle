@@ -1,7 +1,7 @@
 .base-input {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid var(--color-teal-grey);
+  padding: 0.5rem;
+  border: 2px solid var(--color-teal-grey-light);
   border-radius: 8px;
   font-family: inherit;
   font-size: 1rem;

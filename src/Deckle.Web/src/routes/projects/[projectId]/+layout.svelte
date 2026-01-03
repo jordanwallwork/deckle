@@ -8,18 +8,32 @@
 
   let { data, children }: { data: LayoutData; children: any } = $props();
 
-  const tabs = [
-    { name: "Components", path: `/projects/${data.project.id}/components` },
-    { name: "Data Sources", path: `/projects/${data.project.id}/data-sources` },
-    {
-      name: "Image Library",
-      path: `/projects/${data.project.id}/image-library`,
-    },
-    {
-      name: "Settings",
-      path: `/projects/${data.project.id}/settings`,
-    },
-  ];
+  // Filter tabs based on user role
+  // Viewers: only Components
+  // Collaborators: Components, Data Sources, Image Library
+  // Admins/Owners: All tabs including Settings
+  const tabs = $derived(
+    [
+      { name: "Components", path: `/projects/${data.project.id}/components` },
+      ...(data.project.role !== "Viewer"
+        ? [
+            { name: "Data Sources", path: `/projects/${data.project.id}/data-sources` },
+            {
+              name: "Image Library",
+              path: `/projects/${data.project.id}/image-library`,
+            },
+          ]
+        : []),
+      ...(data.project.role === "Owner" || data.project.role === "Admin"
+        ? [
+            {
+              name: "Settings",
+              path: `/projects/${data.project.id}/settings`,
+            },
+          ]
+        : []),
+    ]
+  );
 
   // Initialize breadcrumbs context
   const breadcrumbs = initBreadcrumbs(buildProjectBreadcrumbs(data.project));

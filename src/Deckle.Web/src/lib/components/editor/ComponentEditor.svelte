@@ -12,7 +12,7 @@
   import { saveActionStore } from "$lib/stores/saveAction";
   import { get } from "svelte/store";
 
-  let { data }: { data: PageData } = $props();
+  let { data, readOnly = false }: { data: PageData; readOnly?: boolean } = $props();
 
   // Capitalize the part name for display (e.g., "front" -> "Front")
   const partLabel = $derived(data.part.charAt(0).toUpperCase() + data.part.slice(1));
@@ -70,8 +70,11 @@
     }
   });
 
-  // Keyboard shortcuts for undo/redo/save
+  // Keyboard shortcuts for undo/redo/save (disabled in read-only mode)
   function handleKeydown(event: KeyboardEvent) {
+    // Disable keyboard shortcuts in read-only mode
+    if (readOnly) return;
+
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const ctrlKey = isMac ? event.metaKey : event.ctrlKey;
 
@@ -127,11 +130,21 @@
 
 <svelte:window onkeydown={handleKeydown} onbeforeunload={handleBeforeUnload} />
 
+{#if readOnly}
+  <div class="read-only-banner">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+    <span>Read-only mode: You have view-only access to this component</span>
+  </div>
+{/if}
+
 <ResizablePanelContainer orientation="vertical" bind:splitPercentage={dataSourcePanelSplit}>
   {#snippet leftOrTop()}
     <ResizablePanelContainer initialSplit={sidebarWidth}>
       {#snippet leftOrTop()}
-        <StructureTreePanel component={data.component} part={partLabel} />
+        <StructureTreePanel component={data.component} part={partLabel} {readOnly} />
       {/snippet}
       {#snippet rightOrBottom()}
         <ResizablePanelContainer
@@ -141,7 +154,7 @@
             <PreviewPanel component={data.component} projectId={data.project.id} part={data.part} />
           {/snippet}
           {#snippet rightOrBottom()}
-            <ElementConfigPanel component={data.component} part={partLabel} />
+            <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />
           {/snippet}
         </ResizablePanelContainer>
       {/snippet}
@@ -155,6 +168,25 @@
       componentId={data.component.id}
       onMinimize={minimizeDataSourcePanel}
       onMaximize={maximizeDataSourcePanel}
+      {readOnly}
     />
   {/snippet}
 </ResizablePanelContainer>
+
+<style>
+  .read-only-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background-color: #fff3cd;
+    border-bottom: 1px solid #ffc107;
+    color: #856404;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .read-only-banner svg {
+    flex-shrink: 0;
+  }
+</style>

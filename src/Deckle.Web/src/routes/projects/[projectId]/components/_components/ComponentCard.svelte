@@ -19,6 +19,9 @@
     onDelete?: (component: GameComponent) => void;
     onLinkDataSource?: (component: GameComponent) => void;
   } = $props();
+
+  // Determine if we can edit based on whether edit callbacks are provided
+  const canEdit = $derived(!!onEdit);
 </script>
 
 <Card>
@@ -112,14 +115,14 @@
         href="/projects/{component.projectId}/components/{component.id}/front"
         class="design-link"
       >
-        Edit Front
+        {canEdit ? "Edit" : "View"} Front
       </a>
       <span class="design-link-separator">•</span>
       <a
         href="/projects/{component.projectId}/components/{component.id}/back"
         class="design-link"
       >
-        Edit Back
+        {canEdit ? "Edit" : "View"} Back
       </a>
       <span class="design-link-separator">•</span>
       <a

@@ -8,18 +8,20 @@ namespace Deckle.API.Services;
 public class ComponentService
 {
     private readonly AppDbContext _context;
+    private readonly ProjectAuthorizationService _authService;
 
-    public ComponentService(AppDbContext context)
+    public ComponentService(AppDbContext context, ProjectAuthorizationService authService)
     {
         _context = context;
+        _authService = authService;
     }
 
     public async Task<List<ComponentDto>> GetProjectComponentsAsync(Guid userId, Guid projectId)
     {
-        var hasAccess = await _context.UserProjects
-            .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
-
-        if (!hasAccess) return [];
+        if (!await _authService.HasProjectAccessAsync(userId, projectId))
+        {
+            return [];
+        }
 
         var components = await _context.Components
             .Include(c => (c as Card)!.DataSource)
@@ -48,13 +50,7 @@ public class ComponentService
 
     public async Task<CardDto> CreateCardAsync(Guid userId, Guid projectId, string name, CardSize size)
     {
-        var hasAccess = await _context.UserProjects
-            .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
-
-        if (!hasAccess)
-        {
-            throw new UnauthorizedAccessException("User does not have access to this project");
-        }
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
 
         var card = new Card
         {
@@ -74,13 +70,7 @@ public class ComponentService
 
     public async Task<DiceDto> CreateDiceAsync(Guid userId, Guid projectId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
     {
-        var hasAccess = await _context.UserProjects
-            .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
-
-        if (!hasAccess)
-        {
-            throw new UnauthorizedAccessException("User does not have access to this project");
-        }
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
 
         var dice = new Dice
         {
@@ -104,11 +94,17 @@ public class ComponentService
     public async Task<CardDto?> UpdateCardAsync(Guid userId, Guid componentId, string name, CardSize size)
     {
         var card = await _context.Cards
-            .Where(c => c.Id == componentId &&
-                        c.Project.Users.Any(u => u.Id == userId))
+            .Where(c => c.Id == componentId && c.Project.Users.Any(u => u.Id == userId))
             .FirstOrDefaultAsync();
 
         if (card == null)
+        {
+            return null;
+        }
+
+        // Check user's role - Viewers cannot update components
+        var role = await _authService.GetUserProjectRoleAsync(userId, card.ProjectId);
+        if (role == null || !ProjectAuthorizationService.CanModifyResources(role.Value))
         {
             return null;
         }
@@ -125,11 +121,17 @@ public class ComponentService
     public async Task<DiceDto?> UpdateDiceAsync(Guid userId, Guid componentId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
     {
         var dice = await _context.Dices
-            .Where(d => d.Id == componentId &&
-                        d.Project.Users.Any(u => u.Id == userId))
+            .Where(d => d.Id == componentId && d.Project.Users.Any(u => u.Id == userId))
             .FirstOrDefaultAsync();
 
         if (dice == null)
+        {
+            return null;
+        }
+
+        // Check user's role - Viewers cannot update components
+        var role = await _authService.GetUserProjectRoleAsync(userId, dice.ProjectId);
+        if (role == null || !ProjectAuthorizationService.CanModifyResources(role.Value))
         {
             return null;
         }
@@ -149,11 +151,17 @@ public class ComponentService
     public async Task<bool> DeleteComponentAsync(Guid userId, Guid componentId)
     {
         var component = await _context.Components
-            .Where(c => c.Id == componentId &&
-                        c.Project.Users.Any(u => u.Id == userId))
+            .Where(c => c.Id == componentId && c.Project.Users.Any(u => u.Id == userId))
             .FirstOrDefaultAsync();
 
         if (component == null)
+        {
+            return false;
+        }
+
+        // Check user's role - Only Owners and Admins can delete components
+        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId);
+        if (role == null || !ProjectAuthorizationService.CanDeleteResources(role.Value))
         {
             return false;
         }
@@ -167,11 +175,17 @@ public class ComponentService
     public async Task<CardDto?> SaveCardDesignAsync(Guid userId, Guid componentId, string part, string? design)
     {
         var card = await _context.Cards
-            .Where(c => c.Id == componentId &&
-                        c.Project.Users.Any(u => u.Id == userId))
+            .Where(c => c.Id == componentId && c.Project.Users.Any(u => u.Id == userId))
             .FirstOrDefaultAsync();
 
         if (card == null)
+        {
+            return null;
+        }
+
+        // Check user's role - Viewers cannot save designs
+        var role = await _authService.GetUserProjectRoleAsync(userId, card.ProjectId);
+        if (role == null || !ProjectAuthorizationService.CanModifyResources(role.Value))
         {
             return null;
         }
@@ -199,11 +213,17 @@ public class ComponentService
     {
         var card = await _context.Cards
             .Include(c => c.DataSource)
-            .Where(c => c.Id == componentId &&
-                        c.Project.Users.Any(u => u.Id == userId))
+            .Where(c => c.Id == componentId && c.Project.Users.Any(u => u.Id == userId))
             .FirstOrDefaultAsync();
 
         if (card == null)
+        {
+            return null;
+        }
+
+        // Check user's role - Only Owners and Admins can update data source links
+        var role = await _authService.GetUserProjectRoleAsync(userId, card.ProjectId);
+        if (role == null || !ProjectAuthorizationService.CanManageDataSources(role.Value))
         {
             return null;
         }

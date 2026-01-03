@@ -183,6 +183,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddEmailServices(builder.Configuration);
 
 // Register application services
+builder.Services.AddScoped<ProjectAuthorizationService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<GoogleSheetsService>();

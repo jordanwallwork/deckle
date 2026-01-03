@@ -8,10 +8,12 @@ namespace Deckle.API.Services;
 public class ProjectService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ProjectAuthorizationService _authService;
 
-    public ProjectService(AppDbContext dbContext)
+    public ProjectService(AppDbContext dbContext, ProjectAuthorizationService authService)
     {
         _dbContext = dbContext;
+        _authService = authService;
     }
 
     public async Task<List<ProjectDto>> GetUserProjectsAsync(Guid userId)
@@ -90,10 +92,7 @@ public class ProjectService
 
     public async Task<ProjectDto?> UpdateProjectAsync(Guid userId, Guid projectId, string name, string? description)
     {
-        var userProject = await _dbContext.UserProjects
-            .Where(up => up.UserId == userId && up.ProjectId == projectId)
-            .Include(up => up.Project)
-            .FirstOrDefaultAsync();
+        var userProject = await _authService.GetUserProjectAsync(userId, projectId);
 
         if (userProject == null)
         {
@@ -101,7 +100,7 @@ public class ProjectService
         }
 
         // Only Owner and Admin can update project details
-        if (userProject.Role != ProjectRole.Owner && userProject.Role != ProjectRole.Admin)
+        if (!ProjectAuthorizationService.CanModifyProject(userProject.Role))
         {
             return null;
         }
@@ -125,11 +124,7 @@ public class ProjectService
 
     public async Task<List<ProjectUserDto>> GetProjectUsersAsync(Guid userId, Guid projectId)
     {
-        // Verify user has access to this project
-        var hasAccess = await _dbContext.UserProjects
-            .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
-
-        if (!hasAccess)
+        if (!await _authService.HasProjectAccessAsync(userId, projectId))
         {
             return [];
         }
@@ -165,14 +160,9 @@ public class ProjectService
         string roleString)
     {
         // 1. Verify user has Owner or Admin role on this project
-        var userProject = await _dbContext.UserProjects
-            .Where(up => up.UserId == userId && up.ProjectId == projectId)
-            .Include(up => up.Project)
-            .Include(up => up.User)
-            .FirstOrDefaultAsync();
+        var userProject = await _authService.GetUserProjectAsync(userId, projectId);
 
-        if (userProject == null ||
-            (userProject.Role != ProjectRole.Owner && userProject.Role != ProjectRole.Admin))
+        if (userProject == null || !ProjectAuthorizationService.CanManageUsers(userProject.Role))
         {
             return null; // Unauthorized
         }
@@ -253,12 +243,9 @@ public class ProjectService
         string roleString)
     {
         // 1. Verify requesting user has Owner or Admin role on this project
-        var requestingUserProject = await _dbContext.UserProjects
-            .Where(up => up.UserId == requestingUserId && up.ProjectId == projectId)
-            .FirstOrDefaultAsync();
+        var requestingUserRole = await _authService.GetUserProjectRoleAsync(requestingUserId, projectId);
 
-        if (requestingUserProject == null ||
-            (requestingUserProject.Role != ProjectRole.Owner && requestingUserProject.Role != ProjectRole.Admin))
+        if (requestingUserRole == null || !ProjectAuthorizationService.CanManageUsers(requestingUserRole.Value))
         {
             return null; // Unauthorized
         }
@@ -311,10 +298,7 @@ public class ProjectService
 
     public async Task<bool> DeleteProjectAsync(Guid userId, Guid projectId)
     {
-        var userProject = await _dbContext.UserProjects
-            .Where(up => up.UserId == userId && up.ProjectId == projectId)
-            .Include(up => up.Project)
-            .FirstOrDefaultAsync();
+        var userProject = await _authService.GetUserProjectAsync(userId, projectId);
 
         if (userProject == null)
         {
@@ -322,7 +306,7 @@ public class ProjectService
         }
 
         // Only Owner can delete the project
-        if (userProject.Role != ProjectRole.Owner)
+        if (!ProjectAuthorizationService.CanDeleteProject(userProject.Role))
         {
             return false;
         }

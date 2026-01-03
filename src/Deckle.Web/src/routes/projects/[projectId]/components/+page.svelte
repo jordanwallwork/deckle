@@ -19,6 +19,11 @@
     setBreadcrumbs(buildComponentsBreadcrumbs(data.project));
   });
 
+  // Permission checks based on user role
+  const canEdit = $derived(data.project.role !== "Viewer"); // Collaborators, Admins, and Owners can edit
+  const canDelete = $derived(data.project.role === "Owner" || data.project.role === "Admin"); // Only Owners and Admins can delete
+  const canLinkDataSource = $derived(data.project.role === "Owner" || data.project.role === "Admin"); // Only Owners and Admins can link data sources
+
   let showModal = $state(false);
   let selectedType: "card" | "dice" | null = $state(null);
   let componentName = $state("");
@@ -214,20 +219,22 @@
   />
 </svelte:head>
 
-<div class="actions">
-  <Button variant="primary" size="sm" onclick={openModal}>
-    + Add Component
-  </Button>
-</div>
+{#if canEdit}
+  <div class="actions">
+    <Button variant="primary" size="sm" onclick={openModal}>
+      + Add Component
+    </Button>
+  </div>
+{/if}
 
 {#if data.components && data.components.length > 0}
   <div class="components-list">
     {#each data.components as component}
       <ComponentCard
         {component}
-        onEdit={handleEdit}
-        onDelete={handleDeleteClick}
-        onLinkDataSource={handleLinkDataSource}
+        onEdit={canEdit ? handleEdit : undefined}
+        onDelete={canDelete ? handleDeleteClick : undefined}
+        onLinkDataSource={canLinkDataSource ? handleLinkDataSource : undefined}
       />
     {/each}
   </div>

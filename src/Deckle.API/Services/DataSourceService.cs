@@ -9,23 +9,18 @@ public class DataSourceService
 {
     private readonly AppDbContext _dbContext;
     private readonly GoogleSheetsService _googleSheetsService;
+    private readonly ProjectAuthorizationService _authService;
 
-    public DataSourceService(AppDbContext dbContext, GoogleSheetsService googleSheetsService)
+    public DataSourceService(AppDbContext dbContext, GoogleSheetsService googleSheetsService, ProjectAuthorizationService authService)
     {
         _dbContext = dbContext;
         _googleSheetsService = googleSheetsService;
+        _authService = authService;
     }
 
     public async Task<List<DataSourceDto>> GetProjectDataSourcesAsync(Guid userId, Guid projectId)
     {
-        // Verify user has access to the project
-        var hasAccess = await _dbContext.UserProjects
-            .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
-
-        if (!hasAccess)
-        {
-            throw new UnauthorizedAccessException("User does not have access to this project");
-        }
+        await _authService.RequireProjectAccessAsync(userId, projectId);
 
         var dataSources = await _dbContext.DataSources
             .Where(ds => ds.ProjectId == projectId)
@@ -52,8 +47,6 @@ public class DataSourceService
     public async Task<DataSourceDto?> GetDataSourceByIdAsync(Guid userId, Guid dataSourceId)
     {
         var dataSource = await _dbContext.DataSources
-            .Include(ds => ds.Project)
-                .ThenInclude(p => p.UserProjects)
             .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
 
         if (dataSource == null)
@@ -61,12 +54,7 @@ public class DataSourceService
             return null;
         }
 
-        // Verify user has access to the project
-        var hasAccess = dataSource.Project.UserProjects.Any(up => up.UserId == userId);
-        if (!hasAccess)
-        {
-            throw new UnauthorizedAccessException("User does not have access to this data source");
-        }
+        await _authService.RequireProjectAccessAsync(userId, dataSource.ProjectId, "User does not have access to this data source");
 
         return new DataSourceDto
         {
@@ -87,14 +75,7 @@ public class DataSourceService
 
     public async Task<DataSourceDto> CreateGoogleSheetsDataSourceAsync(Guid userId, Guid projectId, string name, string url, int? sheetGid = null)
     {
-        // Verify user has access to the project
-        var hasAccess = await _dbContext.UserProjects
-            .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
-
-        if (!hasAccess)
-        {
-            throw new UnauthorizedAccessException("User does not have access to this project");
-        }
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
 
         // Extract spreadsheet ID and sheet GID from URL
         var (extractedSpreadsheetId, extractedSheetGid) = _googleSheetsService.ExtractIdsFromUrl(url);
@@ -164,8 +145,6 @@ public class DataSourceService
     public async Task<DataSourceDto?> UpdateDataSourceAsync(Guid userId, Guid dataSourceId, string name)
     {
         var dataSource = await _dbContext.DataSources
-            .Include(ds => ds.Project)
-                .ThenInclude(p => p.UserProjects)
             .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
 
         if (dataSource == null)
@@ -173,11 +152,16 @@ public class DataSourceService
             return null;
         }
 
-        // Verify user has access to the project
-        var hasAccess = dataSource.Project.UserProjects.Any(up => up.UserId == userId);
-        if (!hasAccess)
+        // Check user's role - Viewers cannot update data sources
+        var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId);
+        if (role == null)
         {
             throw new UnauthorizedAccessException("User does not have access to this data source");
+        }
+
+        if (!ProjectAuthorizationService.CanModifyResources(role.Value))
+        {
+            return null;
         }
 
         // Update name
@@ -206,8 +190,6 @@ public class DataSourceService
     public async Task<DataSourceDto> SyncDataSourceMetadataAsync(Guid userId, Guid dataSourceId, List<string> headers, int rowCount)
     {
         var dataSource = await _dbContext.DataSources
-            .Include(ds => ds.Project)
-                .ThenInclude(p => p.UserProjects)
             .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
 
         if (dataSource == null)
@@ -215,12 +197,11 @@ public class DataSourceService
             throw new KeyNotFoundException($"Data source with ID {dataSourceId} not found");
         }
 
-        // Verify user has access to the project
-        var hasAccess = dataSource.Project.UserProjects.Any(up => up.UserId == userId);
-        if (!hasAccess)
-        {
-            throw new UnauthorizedAccessException("User does not have access to this data source");
-        }
+        await _authService.RequirePermissionAsync(
+            userId,
+            dataSource.ProjectId,
+            ProjectAuthorizationService.CanModifyResources,
+            "Viewers do not have permission to sync data sources");
 
         // Update metadata
         dataSource.Headers = headers;
@@ -249,8 +230,6 @@ public class DataSourceService
     public async Task<bool> DeleteDataSourceAsync(Guid userId, Guid dataSourceId)
     {
         var dataSource = await _dbContext.DataSources
-            .Include(ds => ds.Project)
-                .ThenInclude(p => p.UserProjects)
             .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
 
         if (dataSource == null)
@@ -258,11 +237,16 @@ public class DataSourceService
             return false;
         }
 
-        // Verify user has access to the project
-        var hasAccess = dataSource.Project.UserProjects.Any(up => up.UserId == userId);
-        if (!hasAccess)
+        // Check user's role - Viewers cannot delete data sources
+        var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId);
+        if (role == null)
         {
             throw new UnauthorizedAccessException("User does not have access to this data source");
+        }
+
+        if (!ProjectAuthorizationService.CanModifyResources(role.Value))
+        {
+            return false;
         }
 
         _dbContext.DataSources.Remove(dataSource);

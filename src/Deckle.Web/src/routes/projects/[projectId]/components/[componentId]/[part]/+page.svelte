@@ -18,11 +18,11 @@
 </script>
 
 <svelte:head>
-  <title>Edit {partLabel} Design · {data.component.name} · Deckle</title>
+  <title>{data.project.role === "Viewer" ? "View" : "Edit"} {partLabel} Design · {data.component.name} · Deckle</title>
   <meta
     name="description"
     content="Design the {data.part} of {data.component.name}"
   />
 </svelte:head>
 
-<ComponentEditor {data} />
+<ComponentEditor {data} readOnly={data.project.role === "Viewer"} />

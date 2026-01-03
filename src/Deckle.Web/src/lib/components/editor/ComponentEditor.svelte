@@ -15,7 +15,7 @@
   let { data }: { data: PageData } = $props();
 
   // Capitalize the part name for display (e.g., "front" -> "Front")
-  const partLabel = data.part.charAt(0).toUpperCase() + data.part.slice(1);
+  const partLabel = $derived(data.part.charAt(0).toUpperCase() + data.part.slice(1));
 
   const sidebarWidth = 20;
 

@@ -21,9 +21,13 @@ function sanitizeClassName(className: string): string {
  * Escapes HTML special characters to prevent XSS attacks.
  */
 function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  // Manual escaping for SSR compatibility (document is not available server-side)
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 /**

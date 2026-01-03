@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { browser } from "$app/environment";
 
   interface Props {
     orientation?: "horizontal" | "vertical";
@@ -26,6 +27,8 @@
   let containerRef: HTMLDivElement | undefined = $state();
 
   function handleMouseDown(e: MouseEvent) {
+    if (!browser) return;
+
     e.preventDefault();
     isDragging = true;
 

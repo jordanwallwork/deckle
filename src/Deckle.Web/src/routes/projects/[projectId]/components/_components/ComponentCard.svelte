@@ -121,6 +121,13 @@
       >
         Edit Back
       </a>
+      <span class="design-link-separator">•</span>
+      <a
+        href="/projects/{component.projectId}/components/{component.id}/export"
+        class="design-link"
+      >
+        Export
+      </a>
     </div>
     <div class="design-links">
       <span class="design-link">

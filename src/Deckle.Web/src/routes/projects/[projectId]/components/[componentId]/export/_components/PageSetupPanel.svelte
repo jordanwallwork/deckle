@@ -1,17 +1,25 @@
 <script lang="ts">
-  import { FormField, Select } from "$lib/components/forms";
-  import type {
-    PageSetup,
-    PaperSize,
-    Orientation,
-    MeasurementUnit,
-  } from "$lib/types";
+  import FieldWrapper from "$lib/components/editor/_components/FieldWrapper.svelte";
+  import SelectField from "$lib/components/editor/_components/SelectField.svelte";
+  import NumberField from "$lib/components/editor/_components/NumberField.svelte";
+  import type { PageSetup } from "$lib/types";
+  import { toPng } from "html-to-image";
+  import { BlobWriter, ZipWriter } from "@zip.js/zip.js";
+  import { jsPDF } from "jspdf";
 
   let {
     pageSetup = $bindable(),
+    pageElements = [],
+    paperDimensions,
+    componentName = "component",
   }: {
     pageSetup: PageSetup;
+    pageElements?: HTMLElement[];
+    paperDimensions: { width: number; height: number };
+    componentName?: string;
   } = $props();
+
+  let isExporting = $state(false);
 
   // Helper to convert between units
   const inchesToCm = (inches: number) => inches * 2.54;
@@ -39,26 +47,186 @@
   function toggleUnit() {
     pageSetup.unit = pageSetup.unit === "inches" ? "cm" : "inches";
   }
+
+  // Export pages as PNG
+  async function exportAsPng() {
+    if (pageElements.length === 0) {
+      alert("No pages to export");
+      return;
+    }
+
+    isExporting = true;
+
+    try {
+      if (pageElements.length === 1) {
+        // Single page: download as PNG
+        const dataUrl = await capturePageAtFullSize(pageElements[0]);
+
+        // Download the image
+        const link = document.createElement("a");
+        link.download = `${componentName}.png`;
+        link.href = dataUrl;
+        link.click();
+      } else {
+        // Multiple pages: create a ZIP file
+        const zipWriter = new ZipWriter(new BlobWriter("application/zip"));
+
+        // Convert each page to PNG and add to ZIP
+        for (let i = 0; i < pageElements.length; i++) {
+          const dataUrl = await capturePageAtFullSize(pageElements[i]);
+
+          // Convert data URL to blob
+          const response = await fetch(dataUrl);
+          const blob = await response.blob();
+
+          // Add to ZIP with numbered filename
+          const pageNumber = String(i + 1).padStart(3, "0");
+          await zipWriter.add(
+            `${componentName}-page-${pageNumber}.png`,
+            blob.stream()
+          );
+        }
+
+        // Close the ZIP and download
+        const zipBlob = await zipWriter.close();
+        const zipUrl = URL.createObjectURL(zipBlob);
+
+        const link = document.createElement("a");
+        link.download = `${componentName}-pages.zip`;
+        link.href = zipUrl;
+        link.click();
+
+        // Clean up
+        URL.revokeObjectURL(zipUrl);
+      }
+    } catch (error) {
+      console.error("Failed to export as PNG:", error);
+      alert("Failed to export pages. Please try again.");
+    } finally {
+      isExporting = false;
+    }
+  }
+
+  // Export pages as PDF
+  async function exportAsPdf() {
+    if (pageElements.length === 0) {
+      alert("No pages to export");
+      return;
+    }
+
+    isExporting = true;
+
+    try {
+      // Determine PDF orientation and dimensions based on paper size
+      const pdfOrientation = pageSetup.orientation === "portrait" ? "p" : "l";
+      const pdfFormat = pageSetup.paperSize === "A4" ? "a4" : "letter";
+
+      // Create PDF with same dimensions as the paper
+      const pdf = new jsPDF({
+        orientation: pdfOrientation,
+        unit: "px",
+        format: [paperDimensions.width, paperDimensions.height],
+      });
+
+      // Convert each page to PNG and add to PDF
+      for (let i = 0; i < pageElements.length; i++) {
+        if (i > 0) {
+          pdf.addPage([paperDimensions.width, paperDimensions.height]);
+        }
+
+        const dataUrl = await capturePageAtFullSize(pageElements[i]);
+
+        // Add image to PDF (full page)
+        pdf.addImage(
+          dataUrl,
+          "PNG",
+          0,
+          0,
+          paperDimensions.width,
+          paperDimensions.height
+        );
+      }
+
+      // Download the PDF
+      pdf.save(`${componentName}.pdf`);
+    } catch (error) {
+      console.error("Failed to export as PDF:", error);
+      alert("Failed to export PDF. Please try again.");
+    } finally {
+      isExporting = false;
+    }
+  }
+
+  // Capture a page at full size (without zoom transform)
+  async function capturePageAtFullSize(element: HTMLElement): Promise<string> {
+    // Save the original transform
+    const originalTransform = element.style.transform;
+    const originalTransformOrigin = element.style.transformOrigin;
+
+    try {
+      // Temporarily remove the scale transform
+      element.style.transform = "none";
+      element.style.transformOrigin = "top left";
+
+      // Capture at full resolution with exact dimensions
+      const dataUrl = await toPng(element, {
+        width: paperDimensions.width,
+        height: paperDimensions.height,
+        pixelRatio: 1,
+        backgroundColor: "#ffffff",
+      });
+
+      return dataUrl;
+    } finally {
+      // Restore the original transform
+      element.style.transform = originalTransform;
+      element.style.transformOrigin = originalTransformOrigin;
+    }
+  }
 </script>
 
 <div class="page-setup-panel">
-  <h3>Page Setup</h3>
+  <div class="export-buttons">
+    <button
+      class="export-button"
+      onclick={exportAsPng}
+      disabled={isExporting || pageElements.length === 0}
+    >
+      {isExporting ? "Exporting..." : "Export as PNG"}
+    </button>
+    <button
+      class="export-button"
+      onclick={exportAsPdf}
+      disabled={isExporting || pageElements.length === 0}
+    >
+      {isExporting ? "Exporting..." : "Export as PDF"}
+    </button>
+  </div>
 
-  <FormField label="Paper Size" name="paperSize">
-    <Select bind:value={pageSetup.paperSize}>
-      <option value="A4">A4</option>
-      <option value="USLetter">US Letter</option>
-    </Select>
-  </FormField>
+  <SelectField
+    label="Paper Size"
+    id="paperSize"
+    value={pageSetup.paperSize}
+    options={[
+      { value: "A4", label: "A4" },
+      { value: "USLetter", label: "US Letter" },
+    ]}
+    onchange={(value) => (pageSetup.paperSize = value as "A4" | "USLetter")}
+  />
 
-  <FormField label="Orientation" name="orientation">
-    <Select bind:value={pageSetup.orientation}>
-      <option value="portrait">Portrait</option>
-      <option value="landscape">Landscape</option>
-    </Select>
-  </FormField>
+  <SelectField
+    label="Orientation"
+    id="orientation"
+    value={pageSetup.orientation}
+    options={[
+      { value: "portrait", label: "Portrait" },
+      { value: "landscape", label: "Landscape" },
+    ]}
+    onchange={(value) =>
+      (pageSetup.orientation = value as "portrait" | "landscape")}
+  />
 
-  <FormField label="Margin" name="margin">
+  <FieldWrapper label="Margin" htmlFor="margin">
     <div class="margin-input-wrapper">
       <input
         type="number"
@@ -66,7 +234,6 @@
         value={marginValue.toFixed(2)}
         step={pageSetup.unit === "inches" ? "0.25" : "0.5"}
         min="0"
-        class="margin-input"
         oninput={handleMarginChange}
       />
       <button
@@ -78,21 +245,74 @@
         {pageSetup.unit}
       </button>
     </div>
-  </FormField>
+  </FieldWrapper>
+
+  <FieldWrapper label="Crop Marks" htmlFor="cropMarks">
+    <div class="checkbox-wrapper">
+      <input
+        type="checkbox"
+        id="cropMarks"
+        bind:checked={pageSetup.cropMarks}
+        class="checkbox-input"
+      />
+      <label for="cropMarks" class="checkbox-label">
+        Show crop marks for cutting
+      </label>
+    </div>
+  </FieldWrapper>
+
+  <FieldWrapper label="Export Backs" htmlFor="exportBacks">
+    <div class="checkbox-wrapper">
+      <input
+        type="checkbox"
+        id="exportBacks"
+        bind:checked={pageSetup.exportBacks}
+        class="checkbox-input"
+      />
+      <label for="exportBacks" class="checkbox-label">
+        Export back designs on separate pages
+      </label>
+    </div>
+  </FieldWrapper>
 </div>
 
 <style>
   .page-setup-panel {
-    padding: 1.5rem;
+    padding: 1rem;
     height: 100%;
     overflow-y: auto;
   }
 
-  h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0 0 1.5rem 0;
-    color: var(--color-sage);
+  .export-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .export-button {
+    flex: 1;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+    background: var(--color-sage);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .export-button:hover:not(:disabled) {
+    background: #2d4a3e;
+  }
+
+  .export-button:active:not(:disabled) {
+    background: #243a32;
+  }
+
+  .export-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .margin-input-wrapper {
@@ -101,23 +321,9 @@
     align-items: stretch;
   }
 
-  .margin-input {
+  .margin-input-wrapper input[type="number"] {
     flex: 1;
     min-width: 0;
-    padding: 0.375rem 0.5rem;
-    font-size: 0.813rem;
-    line-height: 1.25rem;
-    height: 2.125rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
-    box-sizing: border-box;
-    font-family: inherit;
-  }
-
-  .margin-input:focus {
-    outline: none;
-    border-color: #0066cc;
   }
 
   .unit-toggle {
@@ -131,6 +337,7 @@
     cursor: pointer;
     transition: all 0.2s;
     min-width: 3.5rem;
+    height: 2.125rem;
   }
 
   .unit-toggle:hover {
@@ -140,5 +347,24 @@
 
   .unit-toggle:active {
     background: #f3f4f6;
+  }
+
+  .checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .checkbox-input {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+  }
+
+  .checkbox-label {
+    font-size: 0.75rem;
+    color: #666;
+    cursor: pointer;
+    user-select: none;
   }
 </style>

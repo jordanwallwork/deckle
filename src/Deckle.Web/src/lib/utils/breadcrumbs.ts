@@ -81,6 +81,10 @@ export function buildComponentExportBreadcrumbs(
 	component: GameComponent) {
 		return extend(buildComponentsBreadcrumbs(project), [
 			{
+			label: component.name,
+			href: `/projects/${project.id}/components/${component.id}/front`
+		},
+			{
 				label: 'Export',
 				href: `/projects/${project.id}/components/${component.id}/export`,
 				isActive: true

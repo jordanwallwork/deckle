@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from "./$types";
-  import type { PageSetup, CardComponent } from "$lib/types";
+  import type { PageSetup, CardComponent, PlayerMatComponent } from "$lib/types";
   import { DEFAULT_PAGE_SETUP } from "$lib/types";
   import { setBreadcrumbs } from "$lib/stores/breadcrumb";
   import { buildComponentExportBreadcrumbs } from "$lib/utils/breadcrumbs";
@@ -26,9 +26,9 @@
     );
   });
 
-  // Type guard to check if component is a Card
-  const isCard = (component: typeof data.component): component is CardComponent => {
-    return component.type === "Card";
+  // Type guard to check if component supports export (Card or PlayerMat)
+  const isExportable = (component: typeof data.component): component is CardComponent | PlayerMatComponent => {
+    return component.type === "Card" || component.type === "PlayerMat";
   };
 </script>
 
@@ -40,19 +40,19 @@
   />
 </svelte:head>
 
-{#if isCard(data.component)}
-  {@const cardComponent = data.component}
+{#if isExportable(data.component)}
+  {@const exportableComponent = data.component}
   <ResizablePanelContainer initialSplit={20}>
     {#snippet leftOrTop()}
       <PageSetupPanel bind:pageSetup {pageElements} {paperDimensions} componentName={data.component.name} />
     {/snippet}
     {#snippet rightOrBottom()}
-      <PaperPreview {pageSetup} component={cardComponent} dataSourceRows={data.dataSourceRows} bind:pageElements bind:paperDimensions />
+      <PaperPreview {pageSetup} component={exportableComponent} dataSourceRows={data.dataSourceRows} bind:pageElements bind:paperDimensions />
     {/snippet}
   </ResizablePanelContainer>
 {:else}
   <div class="error-message">
-    <p>Export is only available for Card components.</p>
+    <p>Export is only available for Card and Player Mat components.</p>
   </div>
 {/if}
 

@@ -70,9 +70,9 @@
   }
 
   async function handleSave() {
-    // Only allow saving for cards
-    if (component.type !== "Card") {
-      alert("Only card designs can be saved.");
+    // Only allow saving for components that support design (Card and PlayerMat)
+    if (component.type !== "Card" && component.type !== "PlayerMat") {
+      alert("Only card and player mat designs can be saved.");
       return;
     }
 
@@ -86,13 +86,22 @@
         design = JSON.stringify(store.root);
       })();
 
-      // Save the design via API
-      await componentsApi.saveCardDesign(
-        projectId,
-        component.id,
-        part.toLowerCase(),
-        design
-      );
+      // Save the design via API based on component type
+      if (component.type === "Card") {
+        await componentsApi.saveCardDesign(
+          projectId,
+          component.id,
+          part.toLowerCase(),
+          design
+        );
+      } else if (component.type === "PlayerMat") {
+        await componentsApi.savePlayerMatDesign(
+          projectId,
+          component.id,
+          part.toLowerCase(),
+          design
+        );
+      }
 
       // Mark changes as saved
       templateStore.markAsSaved();

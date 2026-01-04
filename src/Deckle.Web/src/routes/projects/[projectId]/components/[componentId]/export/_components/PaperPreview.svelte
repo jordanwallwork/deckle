@@ -1,8 +1,9 @@
 <script lang="ts">
-  import type { PageSetup, CardComponent } from "$lib/types";
+  import type { PageSetup, CardComponent, PlayerMatComponent } from "$lib/types";
   import type { ContainerElement } from "$lib/components/editor/types";
   import { PAPER_DIMENSIONS } from "$lib/types";
   import StaticCardRenderer from "./StaticCardRenderer.svelte";
+  import StaticPlayerMatRenderer from "./StaticPlayerMatRenderer.svelte";
 
   let {
     pageSetup,
@@ -12,7 +13,7 @@
     paperDimensions = $bindable({ width: 0, height: 0 }),
   }: {
     pageSetup: PageSetup;
-    component: CardComponent;
+    component: CardComponent | PlayerMatComponent;
     dataSourceRows?: Record<string, string>[];
     pageElements?: HTMLElement[];
     paperDimensions?: { width: number; height: number };
@@ -381,12 +382,21 @@
                       top: {card.y}px;
                     "
                   >
-                    <StaticCardRenderer
-                      {design}
-                      dimensions={component.dimensions}
-                      shape={component.shape}
-                      mergeData={card.mergeData}
-                    />
+                    {#if component.type === 'Card'}
+                      <StaticCardRenderer
+                        {design}
+                        dimensions={component.dimensions}
+                        shape={component.shape}
+                        mergeData={card.mergeData}
+                      />
+                    {:else if component.type === 'PlayerMat'}
+                      <StaticPlayerMatRenderer
+                        {design}
+                        dimensions={component.dimensions}
+                        shape={component.shape}
+                        mergeData={card.mergeData}
+                      />
+                    {/if}
                   </div>
                 {/if}
               {/each}

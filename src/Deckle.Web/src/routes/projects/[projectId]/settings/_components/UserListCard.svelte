@@ -7,7 +7,7 @@
     name?: string;
     email: string;
     pictureUrl?: string;
-    role: string;
+    role: "Owner" | "Admin" | "Collaborator" | "Viewer";
     isPending: boolean;
   }
 
@@ -15,14 +15,22 @@
     users,
     canInvite = false,
     canEditRoles = false,
+    currentUserId,
     onInviteClick,
-    onRoleChange
+    onRoleChange,
+    onRemoveUser,
   }: {
     users: User[];
     canInvite?: boolean;
     canEditRoles?: boolean;
+    currentUserId?: string;
     onInviteClick?: () => void;
     onRoleChange?: (userId: string, newRole: string) => Promise<void>;
+    onRemoveUser?: (
+      userId: string,
+      userName: string,
+      role: string
+    ) => Promise<void>;
   } = $props();
 
   const availableRoles = ["Admin", "Collaborator", "Viewer"];
@@ -47,14 +55,34 @@
       await onRoleChange(user.userId, newRole);
     }
   }
+
+  // Determine if revoke button should be shown for a user
+  function canRevokeUser(user: User): boolean {
+    if (!onRemoveUser) return false;
+
+    if (user.role === "Owner") return;
+
+    const isSelf = user.userId === currentUserId;
+
+    if (isSelf) {
+      // Users can remove themselves (backend will validate owner rules)
+      return true;
+    }
+
+    // Can remove others if we have permission and they're not Owner
+    return canEditRoles && user.role !== "Owner";
+  }
+
+  function getRevokeButtonText(user: User): string {
+    const isSelf = user.userId === currentUserId;
+    return isSelf ? "Leave Project" : "Remove";
+  }
 </script>
 
 <Card>
   {#if canInvite}
     <div class="card-header">
-      <Button onclick={onInviteClick} size="sm">
-        Add Collaborator
-      </Button>
+      <Button onclick={onInviteClick} size="sm">Add Collaborator</Button>
     </div>
   {/if}
 
@@ -95,6 +123,17 @@
           {/if}
           {#if user.isPending}
             <Badge variant="default">Pending</Badge>
+          {/if}
+          {#if canRevokeUser(user)}
+            <Button
+              variant="danger"
+              outline
+              size="sm"
+              onclick={() =>
+                onRemoveUser?.(user.userId, user.name || user.email, user.role)}
+            >
+              {getRevokeButtonText(user)}
+            </Button>
           {/if}
         </div>
       </div>

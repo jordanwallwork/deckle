@@ -296,6 +296,83 @@ public class ProjectService
         };
     }
 
+    public async Task<bool> RemoveUserFromProjectAsync(
+        Guid requestingUserId,
+        Guid projectId,
+        Guid targetUserId)
+    {
+        // 1. Get requesting user's role
+        var requestingUserRole = await _authService.GetUserProjectRoleAsync(requestingUserId, projectId);
+
+        if (requestingUserRole == null)
+        {
+            return false; // Requesting user not in project
+        }
+
+        // 2. Get target user's project membership
+        var targetUserProject = await _dbContext.UserProjects
+            .Where(up => up.UserId == targetUserId && up.ProjectId == projectId)
+            .Include(up => up.User)
+            .FirstOrDefaultAsync();
+
+        if (targetUserProject == null)
+        {
+            return false; // Target user not found in project
+        }
+
+        bool isSelfRemoval = requestingUserId == targetUserId;
+
+        // 3. Authorization checks
+        if (isSelfRemoval)
+        {
+            // Self-removal rules:
+            // - Admin can remove themselves
+            // - Collaborator can remove themselves
+            // - Viewer can remove themselves
+            // - Owner CANNOT remove themselves if they are the last owner
+
+            if (targetUserProject.Role == ProjectRole.Owner)
+            {
+                // Check if this is the last owner
+                var ownerCount = await _dbContext.UserProjects
+                    .Where(up => up.ProjectId == projectId && up.Role == ProjectRole.Owner)
+                    .CountAsync();
+
+                if (ownerCount <= 1)
+                {
+                    throw new InvalidOperationException(
+                        "Cannot remove the last Owner from the project. " +
+                        "Please transfer ownership or delete the project.");
+                }
+
+                // Allow owner to remove themselves if there are other owners
+            }
+            // All other roles can remove themselves freely
+        }
+        else
+        {
+            // Removing another user - need Owner or Admin permission
+            if (!ProjectAuthorizationService.CanManageUsers(requestingUserRole.Value))
+            {
+                return false; // Not authorized to remove others
+            }
+
+            // Cannot remove an Owner (must be done by transferring ownership first)
+            if (targetUserProject.Role == ProjectRole.Owner)
+            {
+                throw new InvalidOperationException(
+                    "Cannot remove the project Owner. " +
+                    "Ownership must be transferred first.");
+            }
+        }
+
+        // 4. Remove the user from the project
+        _dbContext.UserProjects.Remove(targetUserProject);
+        await _dbContext.SaveChangesAsync();
+
+        return true;
+    }
+
     public async Task<bool> DeleteProjectAsync(Guid userId, Guid projectId)
     {
         var userProject = await _authService.GetUserProjectAsync(userId, projectId);

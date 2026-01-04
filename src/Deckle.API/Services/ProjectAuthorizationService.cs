@@ -32,12 +32,10 @@ public class ProjectAuthorizationService
     /// </summary>
     public async Task<ProjectRole?> GetUserProjectRoleAsync(Guid userId, Guid projectId)
     {
-        var userProject = await _context.UserProjects
+        return await _context.UserProjects
             .Where(up => up.UserId == userId && up.ProjectId == projectId)
             .Select(up => up.Role)
             .FirstOrDefaultAsync();
-
-        return userProject == default ? null : userProject;
     }
 
     /// <summary>

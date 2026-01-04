@@ -43,6 +43,12 @@ export const projectsApi = {
     api.put<ProjectUser>(`/projects/${projectId}/users/${userId}/role`, { role }, undefined, fetchFn),
 
   /**
+   * Remove a user from a project
+   */
+  removeUser: (projectId: string, userId: string, fetchFn?: typeof fetch) =>
+    api.delete(`/projects/${projectId}/users/${userId}`, undefined, fetchFn),
+
+  /**
    * Delete a project
    */
   delete: (id: string, fetchFn?: typeof fetch) => api.delete(`/projects/${id}`, undefined, fetchFn),

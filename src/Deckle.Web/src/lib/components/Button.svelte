@@ -6,6 +6,7 @@
     size = 'md',
     type = 'button',
     disabled = false,
+    outline = false,
     onclick,
     icon,
     children,
@@ -15,6 +16,7 @@
     size?: 'sm' | 'md' | 'lg';
     type?: 'button' | 'submit' | 'reset';
     disabled?: boolean;
+    outline?: boolean;
     onclick?: (e: MouseEvent) => void;
     icon?: Snippet;
     children?: Snippet;
@@ -32,6 +34,7 @@
   class:danger={variant === 'danger'}
   class:text={variant === 'text'}
   class:icon={variant === 'icon'}
+  class:outline={outline}
   class:sm={size === 'sm'}
   class:md={size === 'md'}
   class:lg={size === 'lg'}
@@ -150,6 +153,43 @@
 
   .btn.icon:hover:not(:disabled) {
     background-color: rgba(120, 160, 131, 0.1);
+  }
+
+  /* Outline variants */
+  .btn.outline.primary {
+    background-color: rgba(120, 160, 131, 0.1);
+    color: var(--color-muted-teal);
+    border: 2px solid var(--color-muted-teal);
+  }
+
+  .btn.outline.primary:hover:not(:disabled) {
+    background-color: rgba(120, 160, 131, 0.2);
+    border-color: var(--color-sage);
+    color: var(--color-sage);
+  }
+
+  .btn.outline.secondary {
+    background-color: rgba(120, 160, 131, 0.05);
+    color: var(--color-sage);
+    border: 2px solid var(--color-teal-grey);
+  }
+
+  .btn.outline.secondary:hover:not(:disabled) {
+    background-color: rgba(120, 160, 131, 0.15);
+    border-color: var(--color-muted-teal);
+    color: var(--color-muted-teal);
+  }
+
+  .btn.outline.danger {
+    background-color: rgba(231, 76, 60, 0.1);
+    color: #e74c3c;
+    border: 2px solid #e74c3c;
+  }
+
+  .btn.outline.danger:hover:not(:disabled) {
+    background-color: rgba(231, 76, 60, 0.2);
+    border-color: #c0392b;
+    color: #c0392b;
   }
 
   /* Disabled state */

@@ -128,7 +128,7 @@
       </a>
       <span class="design-link-separator">•</span>
       <a
-        href="/projects/{component.projectId}/components/{component.id}/export"
+        href="/projects/{component.projectId}/export?components={component.id}"
         class="design-link"
       >
         Export
@@ -183,7 +183,7 @@
       </a>
       <span class="design-link-separator">•</span>
       <a
-        href="/projects/{component.projectId}/components/{component.id}/export"
+        href="/projects/{component.projectId}/export?components={component.id}"
         class="design-link"
       >
         Export

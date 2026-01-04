@@ -65,8 +65,8 @@
       return;
     }
 
-    // Navigate to export page
-    goto(`/projects/${projectId}/components/${component.id}/export`);
+    // Navigate to export page with component ID in query string
+    goto(`/projects/${projectId}/export?components=${component.id}`);
   }
 
   async function handleSave() {

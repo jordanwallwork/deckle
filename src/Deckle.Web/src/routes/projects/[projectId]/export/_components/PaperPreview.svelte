@@ -56,8 +56,13 @@
     pageElements = elements;
   });
 
+  // Type guard to check if component is exportable (must be defined before use)
+  const isExportable = (component: GameComponent): component is CardComponent | PlayerMatComponent => {
+    return component.type === "Card" || component.type === "PlayerMat";
+  };
+
   // Use DPI from first exportable component (assume all components have same DPI)
-  const componentDpi = $derived(() => {
+  const componentDpi = $derived.by(() => {
     const firstExportable = components.find(c => isExportable(c.component));
     if (firstExportable && isExportable(firstExportable.component)) {
       return firstExportable.component.dimensions.dpi;
@@ -66,7 +71,7 @@
   });
 
   // Calculate paper dimensions in inches based on setup
-  const paperDimensionsInches = $derived(() => {
+  const paperDimensionsInches = $derived.by(() => {
     const baseDimensions = PAPER_DIMENSIONS[pageSetup.paperSize];
     const isLandscape = pageSetup.orientation === "landscape";
 
@@ -81,46 +86,46 @@
   });
 
   // Calculate paper dimensions in pixels at component DPI
-  const paperDimensionsPx = $derived(() => {
-    const dims = paperDimensionsInches();
+  const paperDimensionsPx = $derived.by(() => {
+    const dims = paperDimensionsInches;
     return {
-      width: dims.width * componentDpi(),
-      height: dims.height * componentDpi(),
+      width: dims.width * componentDpi,
+      height: dims.height * componentDpi,
     };
   });
 
   // Update paperDimensions when they change
   $effect(() => {
     paperDimensions = {
-      width: paperDimensionsPx().width,
-      height: paperDimensionsPx().height,
+      width: paperDimensionsPx.width,
+      height: paperDimensionsPx.height,
     };
   });
 
   // Calculate margin in pixels
-  const marginPx = $derived(pageSetup.marginInches * componentDpi());
+  const marginPx = $derived(pageSetup.marginInches * componentDpi);
 
   // Track container width for zoom calculation
   let containerWidth = $state(0);
 
   // Calculate zoom to fit width (with padding)
-  const zoom = $derived(() => {
+  const zoom = $derived.by(() => {
     if (containerWidth === 0) return 1;
     const padding = 64; // 2rem on each side
     const availableWidth = containerWidth - padding;
-    return Math.min(availableWidth / paperDimensionsPx().width, 1);
+    return Math.min(availableWidth / paperDimensionsPx.width, 1);
   });
 
   // Calculate scaled dimensions for layout
-  const scaledDimensions = $derived(() => ({
-    width: paperDimensionsPx().width * zoom(),
-    height: paperDimensionsPx().height * zoom(),
+  const scaledDimensions = $derived.by(() => ({
+    width: paperDimensionsPx.width * zoom,
+    height: paperDimensionsPx.height * zoom,
   }));
 
   // Calculate the left offset to center the paper
-  const paperLeftOffset = $derived(() => {
-    const placeholderWidth = scaledDimensions().width;
-    const visualWidth = paperDimensionsPx().width * zoom();
+  const paperLeftOffset = $derived.by(() => {
+    const placeholderWidth = scaledDimensions.width;
+    const visualWidth = paperDimensionsPx.width * zoom;
     return (placeholderWidth - visualWidth) / 2;
   });
 
@@ -132,10 +137,10 @@
 
   // Calculate printable area dimensions
   const printableAreaWidthPx = $derived(
-    paperDimensionsPx().width - 2 * marginPx
+    paperDimensionsPx.width - 2 * marginPx
   );
   const printableAreaHeightPx = $derived(
-    paperDimensionsPx().height - 2 * marginPx
+    paperDimensionsPx.height - 2 * marginPx
   );
 
   // Layout component instances on pages
@@ -152,11 +157,6 @@
   interface Page {
     instances: ComponentInstance[];
   }
-
-  // Type guard to check if component is exportable
-  const isExportable = (component: GameComponent): component is CardComponent | PlayerMatComponent => {
-    return component.type === "Card" || component.type === "PlayerMat";
-  };
 
   const pages = $derived.by((): Page[] => {
     const pages: Page[] = [];
@@ -318,17 +318,17 @@
       <div
         class="paper-placeholder"
         style="
-          width: {scaledDimensions().width}px;
-          height: {scaledDimensions().height}px;
+          width: {scaledDimensions.width}px;
+          height: {scaledDimensions.height}px;
         "
       >
         <div
           class="paper"
           style="
-            width: {paperDimensionsPx().width}px;
-            height: {paperDimensionsPx().height}px;
-            left: {paperLeftOffset()}px;
-            transform: scale({zoom()});
+            width: {paperDimensionsPx.width}px;
+            height: {paperDimensionsPx.height}px;
+            left: {paperLeftOffset}px;
+            transform: scale({zoom});
           "
         >
           <div
@@ -351,18 +351,18 @@
         <div
           class="paper-placeholder"
           style="
-            width: {scaledDimensions().width}px;
-            height: {scaledDimensions().height}px;
+            width: {scaledDimensions.width}px;
+            height: {scaledDimensions.height}px;
           "
         >
           <div
             use:capturePageRef={pageIndex}
             class="paper"
             style="
-              width: {paperDimensionsPx().width}px;
-              height: {paperDimensionsPx().height}px;
-              left: {paperLeftOffset()}px;
-              transform: scale({zoom()});
+              width: {paperDimensionsPx.width}px;
+              height: {paperDimensionsPx.height}px;
+              left: {paperLeftOffset}px;
+              transform: scale({zoom});
             "
           >
             <div

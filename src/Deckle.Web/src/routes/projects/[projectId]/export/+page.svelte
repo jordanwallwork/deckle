@@ -4,6 +4,7 @@
   import { DEFAULT_PAGE_SETUP } from "$lib/types";
   import { setBreadcrumbs } from "$lib/stores/breadcrumb";
   import { page } from "$app/stores";
+  import { browser } from "$app/environment";
   import ResizablePanelContainer from "$lib/components/ResizablePanelContainer.svelte";
   import PageSetupPanel from "./_components/PageSetupPanel.svelte";
   import PaperPreview from "./_components/PaperPreview.svelte";
@@ -11,8 +12,37 @@
 
   let { data }: { data: PageData } = $props();
 
+  const STORAGE_KEY = "deckle-export-page-setup";
+
   // Page setup state
   let pageSetup = $state<PageSetup>({ ...DEFAULT_PAGE_SETUP });
+
+  // Load page setup from localStorage on mount
+  $effect(() => {
+    if (browser) {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // Merge with defaults to ensure all properties exist
+          pageSetup = { ...DEFAULT_PAGE_SETUP, ...parsed };
+        }
+      } catch (error) {
+        console.error("Failed to load page setup from localStorage:", error);
+      }
+    }
+  });
+
+  // Save page setup to localStorage whenever it changes
+  $effect(() => {
+    if (browser) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(pageSetup));
+      } catch (error) {
+        console.error("Failed to save page setup to localStorage:", error);
+      }
+    }
+  });
 
   // Page elements for export
   let pageElements = $state<HTMLElement[]>([]);

@@ -108,13 +108,39 @@
   // Track container width for zoom calculation
   let containerWidth = $state(0);
 
+  // User-controlled zoom multiplier (1 = fit to width, >1 = zoom in, <1 = zoom out)
+  let userZoomMultiplier = $state(1);
+
   // Calculate zoom to fit width (with padding)
-  const zoom = $derived.by(() => {
+  const baseZoom = $derived.by(() => {
     if (containerWidth === 0) return 1;
     const padding = 64; // 2rem on each side
     const availableWidth = containerWidth - padding;
     return Math.min(availableWidth / paperDimensionsPx.width, 1);
   });
+
+  // Final zoom including user multiplier
+  const zoom = $derived(baseZoom * userZoomMultiplier);
+
+  // Zoom control functions
+  const zoomStep = 0.25;
+  const minZoom = 0.25;
+  const maxZoom = 4;
+
+  function zoomIn() {
+    userZoomMultiplier = Math.min(userZoomMultiplier + zoomStep, maxZoom);
+  }
+
+  function zoomOut() {
+    userZoomMultiplier = Math.max(userZoomMultiplier - zoomStep, minZoom);
+  }
+
+  function resetZoom() {
+    userZoomMultiplier = 1;
+  }
+
+  // Calculate zoom percentage for display
+  const zoomPercentage = $derived(Math.round(userZoomMultiplier * 100));
 
   // Calculate scaled dimensions for layout
   const scaledDimensions = $derived.by(() => ({
@@ -576,6 +602,33 @@
       {/each}
     {/if}
   </div>
+
+  <!-- Zoom control -->
+  <div class="zoom-control">
+    <button
+      class="zoom-btn"
+      onclick={zoomOut}
+      disabled={userZoomMultiplier <= minZoom}
+      title="Zoom out"
+    >
+      −
+    </button>
+    <button
+      class="zoom-reset"
+      onclick={resetZoom}
+      title="Reset zoom to fit"
+    >
+      {zoomPercentage}%
+    </button>
+    <button
+      class="zoom-btn"
+      onclick={zoomIn}
+      disabled={userZoomMultiplier >= maxZoom}
+      title="Zoom in"
+    >
+      +
+    </button>
+  </div>
 </div>
 
 <style>
@@ -647,5 +700,58 @@
 
   .component-renderer-wrapper {
     transition: transform 0.3s ease;
+  }
+
+  .zoom-control {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.25rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+  }
+
+  .zoom-btn,
+  .zoom-reset {
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #334155;
+    font-size: 1rem;
+    font-weight: 500;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .zoom-btn:hover:not(:disabled),
+  .zoom-reset:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .zoom-btn:active:not(:disabled),
+  .zoom-reset:active {
+    background: #f1f5f9;
+  }
+
+  .zoom-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .zoom-reset {
+    min-width: 3.5rem;
+    font-size: 0.875rem;
   }
 </style>

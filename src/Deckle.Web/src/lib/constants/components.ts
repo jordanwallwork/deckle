@@ -22,6 +22,18 @@ export interface DiceColor {
   colorblindFriendly: boolean;
 }
 
+export interface PlayerMatSize {
+  value: string;
+  label: string;
+  widthMm: number;
+  heightMm: number;
+}
+
+export interface PlayerMatOrientation {
+  value: string;
+  label: string;
+}
+
 // Card size options
 export const CARD_SIZES: readonly CardSize[] = [
   { value: 'MiniAmerican', label: 'Mini American (41mm × 63mm)' },
@@ -67,4 +79,20 @@ export const DICE_COLORS: readonly DiceColor[] = [
   { value: 'NebularPurple', label: 'Nebular Purple', hex: '#872a92', colorblindFriendly: false },
   { value: 'PlutoBrown', label: 'Pluto Brown', hex: '#8e4400', colorblindFriendly: false },
   { value: 'StarWhite', label: 'Star White', hex: '#ffffff', colorblindFriendly: false }
+] as const;
+
+// Player mat size options
+export const PLAYER_MAT_SIZES: readonly PlayerMatSize[] = [
+  { value: 'SmallRectangle', label: 'Small Rectangle', widthMm: 101.6, heightMm: 152.4 },
+  { value: 'SmallSquare', label: 'Small Square', widthMm: 152.4, heightMm: 152.4 },
+  { value: 'MediumRectangle', label: 'Medium Rectangle', widthMm: 152.4, heightMm: 228.6 },
+  { value: 'MediumSquare', label: 'Medium Square', widthMm: 228.6, heightMm: 228.6 },
+  { value: 'A4', label: 'A4', widthMm: 210, heightMm: 297 },
+  { value: 'USLetter', label: 'US Letter', widthMm: 215.9, heightMm: 279.4 }
+] as const;
+
+// Player mat orientation options
+export const PLAYER_MAT_ORIENTATIONS: readonly PlayerMatOrientation[] = [
+  { value: 'Portrait', label: 'Portrait' },
+  { value: 'Landscape', label: 'Landscape' }
 ] as const;

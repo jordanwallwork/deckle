@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { GameComponent, CreateCardDto, CreateDiceDto, UpdateCardDto, UpdateDiceDto } from '$lib/types';
+import type { GameComponent, CreateCardDto, CreateDiceDto, UpdateCardDto, UpdateDiceDto, CreatePlayerMatDto, UpdatePlayerMatDto } from '$lib/types';
 
 /**
  * Components API
@@ -48,14 +48,26 @@ export const componentsApi = {
     api.delete(`/projects/${projectId}/components/${componentId}`, undefined, fetchFn),
 
   /**
-   * Save card design for a specific part (front/back)
+   * Save design for a component (Card or PlayerMat) for a specific part (front/back)
    */
-  saveCardDesign: (projectId: string, cardId: string, part: string, design: string | null, fetchFn?: typeof fetch) =>
-    api.put<GameComponent>(`/projects/${projectId}/components/cards/${cardId}/design/${part}`, { design }, undefined, fetchFn),
+  saveDesign: (projectId: string, componentId: string, part: string, design: string | null, fetchFn?: typeof fetch) =>
+    api.put<GameComponent>(`/projects/${projectId}/components/${componentId}/design/${part}`, { design }, undefined, fetchFn),
 
   /**
-   * Update card data source
+   * Update data source for a component (Card or PlayerMat)
    */
-  updateCardDataSource: (projectId: string, cardId: string, dataSourceId: string | null, fetchFn?: typeof fetch) =>
-    api.put<GameComponent>(`/projects/${projectId}/components/cards/${cardId}/datasource`, { dataSourceId }, undefined, fetchFn),
+  updateDataSource: (projectId: string, componentId: string, dataSourceId: string | null, fetchFn?: typeof fetch) =>
+    api.put<GameComponent>(`/projects/${projectId}/components/${componentId}/datasource`, { dataSourceId }, undefined, fetchFn),
+
+  /**
+   * Create a new player mat component
+   */
+  createPlayerMat: (projectId: string, data: CreatePlayerMatDto, fetchFn?: typeof fetch) =>
+    api.post<GameComponent>(`/projects/${projectId}/components/playermats`, data, undefined, fetchFn),
+
+  /**
+   * Update a player mat component
+   */
+  updatePlayerMat: (projectId: string, componentId: string, data: UpdatePlayerMatDto, fetchFn?: typeof fetch) =>
+    api.put<GameComponent>(`/projects/${projectId}/components/playermats/${componentId}`, data, undefined, fetchFn),
 };

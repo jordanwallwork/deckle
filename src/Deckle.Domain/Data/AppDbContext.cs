@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<Component> Components { get; set; }
     public DbSet<Card> Cards { get; set; }
     public DbSet<Dice> Dices { get; set; }
+    public DbSet<PlayerMat> PlayerMats { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -180,7 +181,8 @@ public class AppDbContext : DbContext
 
             entity.HasDiscriminator<string>("ComponentType")
                 .HasValue<Card>("Card")
-                .HasValue<Dice>("Dice");
+                .HasValue<Dice>("Dice")
+                .HasValue<PlayerMat>("PlayerMat");
         });
 
         modelBuilder.Entity<Card>(entity =>
@@ -202,6 +204,11 @@ public class AppDbContext : DbContext
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<ComponentShape>(v, (JsonSerializerOptions?)null)!
                 );
+
+            entity.HasOne(c => c.DataSource)
+                .WithMany()
+                .HasForeignKey("DataSourceId")
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Dice>(entity =>
@@ -217,6 +224,41 @@ public class AppDbContext : DbContext
             entity.Property(d => d.BaseColor)
                 .IsRequired()
                 .HasConversion<string>();
+        });
+
+        modelBuilder.Entity<PlayerMat>(entity =>
+        {
+            entity.Property(pm => pm.PresetSize)
+                .HasConversion<string>();
+
+            entity.Property(pm => pm.Orientation)
+                .IsRequired()
+                .HasConversion<string>();
+
+            entity.Property(pm => pm.CustomWidthMm)
+                .HasColumnType("decimal(10,2)");
+
+            entity.Property(pm => pm.CustomHeightMm)
+                .HasColumnType("decimal(10,2)");
+
+            entity.Property(pm => pm.FrontDesign)
+                .HasColumnType("text");
+
+            entity.Property(pm => pm.BackDesign)
+                .HasColumnType("text");
+
+            entity.Property(pm => pm.Shape)
+                .IsRequired()
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<ComponentShape>(v, (JsonSerializerOptions?)null)!
+                );
+
+            entity.HasOne(pm => pm.DataSource)
+                .WithMany()
+                .HasForeignKey("DataSourceId")
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

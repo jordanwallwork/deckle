@@ -6,6 +6,7 @@ namespace Deckle.API.DTOs;
 
 [JsonDerivedType(typeof(CardDto), typeDiscriminator: "Card")]
 [JsonDerivedType(typeof(DiceDto), typeDiscriminator: "Dice")]
+[JsonDerivedType(typeof(PlayerMatDto), typeDiscriminator: "PlayerMat")]
 public abstract record ComponentDto
 {
     public required string Type { get; init; }
@@ -40,6 +41,7 @@ public static class ComponentExtensions
         {
             Card card => new CardDto(card),
             Dice dice => new DiceDto(dice),
+            PlayerMat playerMat => new PlayerMatDto(playerMat),
             _ => throw new InvalidOperationException($"Unknown component type: {c.GetType().Name}")
         };
     }
@@ -74,6 +76,7 @@ public record CardDto : ComponentDto
 
 public record DiceDto : ComponentDto
 {
+    public required string DiceType { get; init; }
     public required string Style { get; init; }
     public required string BaseColor { get; init; }
     public required int Number { get; init; }
@@ -83,6 +86,7 @@ public record DiceDto : ComponentDto
     [SetsRequiredMembers]
     public DiceDto(Dice dice) : base("Dice", dice)
     {
+        DiceType = dice.Type.ToString();
         Style = dice.Style.ToString();
         BaseColor = dice.BaseColor.ToString();
         Number = dice.Number;
@@ -96,4 +100,49 @@ public record CreateDiceRequest(string Name, DiceType Type, DiceStyle Style, Dic
 public record UpdateCardRequest(string Name, CardSize Size);
 
 public record UpdateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);
+
+public record PlayerMatDto : ComponentDto
+{
+    public string? PresetSize { get; init; }
+    public required string Orientation { get; init; }
+    public decimal? CustomWidthMm { get; init; }
+    public decimal? CustomHeightMm { get; init; }
+    public required Dimensions Dimensions { get; init; }
+    public string? FrontDesign { get; init; }
+    public string? BackDesign { get; init; }
+    public required ComponentShape Shape { get; init; }
+    public DataSourceInfo? DataSource { get; init; }
+
+    public PlayerMatDto() : base("PlayerMat") { }
+
+    [SetsRequiredMembers]
+    public PlayerMatDto(PlayerMat playerMat) : base("PlayerMat", playerMat)
+    {
+        PresetSize = playerMat.PresetSize?.ToString();
+        Orientation = playerMat.Orientation.ToString();
+        CustomWidthMm = playerMat.CustomWidthMm;
+        CustomHeightMm = playerMat.CustomHeightMm;
+        Dimensions = playerMat.GetDimensions();
+        FrontDesign = playerMat.FrontDesign;
+        BackDesign = playerMat.BackDesign;
+        Shape = playerMat.Shape;
+        DataSource = playerMat.DataSource != null
+            ? new DataSourceInfo(playerMat.DataSource.Id, playerMat.DataSource.Name)
+            : null;
+    }
+}
+
+public record CreatePlayerMatRequest(
+    string Name,
+    PlayerMatSize? PresetSize,
+    PlayerMatOrientation Orientation,
+    decimal? CustomWidthMm,
+    decimal? CustomHeightMm);
+
+public record UpdatePlayerMatRequest(
+    string Name,
+    PlayerMatSize? PresetSize,
+    PlayerMatOrientation Orientation,
+    decimal? CustomWidthMm,
+    decimal? CustomHeightMm);
 

@@ -1,0 +1,54 @@
+import type {
+  GameComponent,
+  CardComponent,
+  DiceComponent,
+  PlayerMatComponent,
+  EditableComponent,
+} from "$lib/types";
+
+// Type guard for components that can be edited (have front/back designs)
+// Both Card and PlayerMat extend EditableComponent
+export function isEditableComponent(
+  c: GameComponent
+): c is CardComponent | PlayerMatComponent {
+  return c.type === "Card" || c.type === "PlayerMat";
+}
+
+// Type guard for components that can have a data source
+// Both Card and PlayerMat have dataSource property
+export function hasDataSource(
+  c: GameComponent
+): c is CardComponent | PlayerMatComponent {
+  return c.type === "Card" || c.type === "PlayerMat";
+}
+
+// Specific component type guards
+export function isCard(c: GameComponent): c is CardComponent {
+  return c.type === "Card";
+}
+
+export function isDice(c: GameComponent): c is DiceComponent {
+  return c.type === "Dice";
+}
+
+export function isPlayerMat(c: GameComponent): c is PlayerMatComponent {
+  return c.type === "PlayerMat";
+}
+
+// Helper functions
+export function getComponentDisplayType(c: GameComponent): string {
+  switch (c.type) {
+    case "Card":
+      return "Card";
+    case "Dice":
+      return "Dice";
+    case "PlayerMat":
+      return "Player Mat";
+    default:
+      return c.type;
+  }
+}
+
+export function isExportable(c: GameComponent): boolean {
+  return isEditableComponent(c);
+}

@@ -1,12 +1,13 @@
 <script lang="ts">
-  import {
-    CARD_SIZES,
-    DICE_COLORS,
-    DICE_TYPES,
-    DICE_STYLES,
-  } from "$lib/constants";
   import { Card, Button } from "$lib/components";
   import type { GameComponent } from "$lib/types";
+  import {
+    isEditableComponent,
+    hasDataSource,
+  } from "$lib/utils/componentTypes";
+  import EditableComponentActions from "./ComponentCard/EditableComponentActions.svelte";
+  import DataSourceIndicator from "./ComponentCard/DataSourceIndicator.svelte";
+  import ComponentTypeInfo from "./ComponentCard/ComponentTypeInfo.svelte";
 
   let {
     component,
@@ -81,82 +82,15 @@
       {/if}
     </div>
   </div>
-  {#if component.type === "Dice"}
-    <div class="dice-info">
-      <p class="component-type">
-        {DICE_TYPES.find((t) => t.value === component.diceType)?.label ||
-          component.diceType}
-        • {DICE_STYLES.find((s) => s.value === component.diceStyle)?.label ||
-          component.diceStyle}
-      </p>
-      <p class="dice-number">Quantity: {component.diceNumber}</p>
-      <div class="dice-color-display">
-        <span
-          class="color-indicator"
-          style="background-color: {DICE_COLORS.find(
-            (c) => c.value === component.diceBaseColor
-          )?.hex}"
-          title={DICE_COLORS.find((c) => c.value === component.diceBaseColor)
-            ?.label}
-        ></span>
-        <span class="color-name"
-          >{DICE_COLORS.find((c) => c.value === component.diceBaseColor)
-            ?.label}</span
-        >
-      </div>
-    </div>
-  {:else if component.type === "Card"}
-    <p class="component-type">
-      Card • {CARD_SIZES.find((s) => s.value === component.size)?.label ||
-        component.size}
-    </p>
-    <div class="design-links" style:margin-top="0.5rem">
-      <a
-        href="/projects/{component.projectId}/components/{component.id}/front"
-        class="design-link"
-      >
-        {canEdit ? "Edit" : "View"} Front
-      </a>
-      <span class="design-link-separator">•</span>
-      <a
-        href="/projects/{component.projectId}/components/{component.id}/back"
-        class="design-link"
-      >
-        {canEdit ? "Edit" : "View"} Back
-      </a>
-      <span class="design-link-separator">•</span>
-      <a
-        href="/projects/{component.projectId}/components/{component.id}/export"
-        class="design-link"
-      >
-        Export
-      </a>
-    </div>
-    <div class="design-links">
-      <span class="design-link">
-        Data Source:
-        {#if component.dataSource}
-          <a
-            href="/projects/{component.projectId}/data-sources/{component
-              .dataSource.id}"
-            class="design-link">{component.dataSource.name}</a
-          >
-        {:else}
-          None
-        {/if}
-        {#if onLinkDataSource}
-          <Button
-            variant="text"
-            size="sm"
-            onclick={() => onLinkDataSource(component)}
-          >
-            ({component.dataSource ? "Change" : "Link"})
-          </Button>
-        {/if}
-      </span>
-    </div>
-  {:else}
-    <p class="component-type">Component</p>
+
+  <ComponentTypeInfo {component} />
+
+  {#if isEditableComponent(component)}
+    <EditableComponentActions {component} {canEdit} />
+  {/if}
+
+  {#if hasDataSource(component)}
+    <DataSourceIndicator {component} {onLinkDataSource} />
   {/if}
 </Card>
 
@@ -198,71 +132,5 @@
   :global(.delete-button:hover) {
     background-color: #ffebee !important;
     color: #b71c1c !important;
-  }
-
-  .component-type {
-    font-size: 0.875rem;
-    color: var(--color-muted-teal);
-    margin: 0;
-  }
-
-  .dice-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .dice-number {
-    font-size: 0.875rem;
-    color: var(--color-sage);
-    font-weight: 500;
-    margin: 0;
-  }
-
-  .dice-color-display {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .color-indicator {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    border: 2px solid var(--color-teal-grey);
-    flex-shrink: 0;
-  }
-
-  .color-name {
-    font-size: 0.875rem;
-    color: var(--color-sage);
-    font-weight: 500;
-  }
-
-  .design-links {
-    display: flex;
-    flex-direction: row;
-    gap: 0.5rem;
-    justify-content: center;
-  }
-
-  .design-link,
-  .design-link-separator {
-    display: inline-block;
-    font-size: 0.875rem;
-    color: var(--color-muted-teal);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  .design-link > a,
-  a.design-link {
-    font-weight: 500;
-  }
-
-  .design-link > a:hover,
-  a.design-link:hover {
-    color: var(--color-sage);
-    text-decoration: underline;
   }
 </style>

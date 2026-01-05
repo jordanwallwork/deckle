@@ -16,6 +16,7 @@ export interface PageSetup {
 	unit: MeasurementUnit;
 	cropMarks: boolean;
 	exportBacks: boolean;
+	separateComponentPages: boolean;
 }
 
 export const PAPER_DIMENSIONS: Record<PaperSize, PaperDimensions> = {
@@ -29,5 +30,6 @@ export const DEFAULT_PAGE_SETUP: PageSetup = {
 	marginInches: 0.25,
 	unit: 'inches',
 	cropMarks: true,
-	exportBacks: false
+	exportBacks: false,
+	separateComponentPages: false
 };

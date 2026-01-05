@@ -3,23 +3,26 @@
   import SelectField from "$lib/components/editor/_components/SelectField.svelte";
   import NumberField from "$lib/components/editor/_components/NumberField.svelte";
   import type { PageSetup } from "$lib/types";
-  import { toPng } from "html-to-image";
-  import { BlobWriter, ZipWriter } from "@zip.js/zip.js";
-  import { jsPDF } from "jspdf";
+  import { browser } from "$app/environment";
 
   let {
     pageSetup = $bindable(),
     pageElements = [],
     paperDimensions,
     componentName = "component",
+    componentCount = 1,
   }: {
     pageSetup: PageSetup;
     pageElements?: HTMLElement[];
     paperDimensions: { width: number; height: number };
     componentName?: string;
+    componentCount?: number;
   } = $props();
 
   let isExporting = $state(false);
+
+  // Show separate pages option only when multiple components selected
+  const shouldShowSeparatePages = $derived(componentCount > 1);
 
   // Helper to convert between units
   const inchesToCm = (inches: number) => inches * 2.54;
@@ -68,6 +71,9 @@
         link.href = dataUrl;
         link.click();
       } else {
+        // Dynamically import zip.js (browser-only library)
+        const { BlobWriter, ZipWriter } = await import("@zip.js/zip.js");
+
         // Multiple pages: create a ZIP file
         const zipWriter = new ZipWriter(new BlobWriter("application/zip"));
 
@@ -117,6 +123,9 @@
     isExporting = true;
 
     try {
+      // Dynamically import jspdf (browser-only library)
+      const { jsPDF } = await import("jspdf");
+
       // Determine PDF orientation and dimensions based on paper size
       const pdfOrientation = pageSetup.orientation === "portrait" ? "p" : "l";
       const pdfFormat = pageSetup.paperSize === "A4" ? "a4" : "letter";
@@ -159,6 +168,9 @@
 
   // Capture a page at full size (without zoom transform)
   async function capturePageAtFullSize(element: HTMLElement): Promise<string> {
+    // Dynamically import html-to-image (browser-only library)
+    const { toPng } = await import("html-to-image");
+
     // Save the original transform
     const originalTransform = element.style.transform;
     const originalTransformOrigin = element.style.transformOrigin;
@@ -274,6 +286,22 @@
       </label>
     </div>
   </FieldWrapper>
+
+  {#if shouldShowSeparatePages}
+    <FieldWrapper label="Separate Pages" htmlFor="separateComponentPages">
+      <div class="checkbox-wrapper">
+        <input
+          type="checkbox"
+          id="separateComponentPages"
+          bind:checked={pageSetup.separateComponentPages}
+          class="checkbox-input"
+        />
+        <label for="separateComponentPages" class="checkbox-label">
+          Put each component on separate pages
+        </label>
+      </div>
+    </FieldWrapper>
+  {/if}
 </div>
 
 <style>

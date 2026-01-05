@@ -120,7 +120,7 @@
 
   async function handleConfirmLinkDataSource(dataSourceId: string | null) {
     try {
-      await componentsApi.updateCardDataSource(
+      await componentsApi.updateDataSource(
         projectId,
         componentId,
         dataSourceId
@@ -128,7 +128,7 @@
       await invalidateAll();
       closeLinkDataSourceModal();
     } catch (err) {
-      console.error("Error updating card data source:", err);
+      console.error("Error updating component data source:", err);
       // Could add error handling UI here
     }
   }

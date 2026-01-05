@@ -3,6 +3,7 @@ using System;
 using Deckle.Domain.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Deckle.Domain.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260104112843_AddPlayerMatComponent")]
+    partial class AddPlayerMatComponent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -251,7 +254,6 @@ namespace Deckle.Domain.Migrations
 
                     b.Property<string>("Shape")
                         .IsRequired()
-                        .ValueGeneratedOnUpdateSometimes()
                         .HasColumnType("jsonb");
 
                     b.Property<string>("Size")
@@ -313,7 +315,6 @@ namespace Deckle.Domain.Migrations
 
                     b.Property<string>("Shape")
                         .IsRequired()
-                        .ValueGeneratedOnUpdateSometimes()
                         .HasColumnType("jsonb");
 
                     b.HasIndex("DataSourceId");
@@ -328,6 +329,9 @@ namespace Deckle.Domain.Migrations
 
                             t.Property("FrontDesign")
                                 .HasColumnName("PlayerMat_FrontDesign");
+
+                            t.Property("Shape")
+                                .HasColumnName("PlayerMat_Shape");
                         });
 
                     b.HasDiscriminator().HasValue("PlayerMat");
@@ -378,8 +382,7 @@ namespace Deckle.Domain.Migrations
                 {
                     b.HasOne("Deckle.Domain.Entities.DataSource", "DataSource")
                         .WithMany()
-                        .HasForeignKey("DataSourceId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("DataSourceId");
 
                     b.Navigation("DataSource");
                 });
@@ -388,8 +391,7 @@ namespace Deckle.Domain.Migrations
                 {
                     b.HasOne("Deckle.Domain.Entities.DataSource", "DataSource")
                         .WithMany()
-                        .HasForeignKey("DataSourceId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("DataSourceId");
 
                     b.Navigation("DataSource");
                 });

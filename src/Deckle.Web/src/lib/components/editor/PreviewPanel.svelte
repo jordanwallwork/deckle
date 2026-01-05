@@ -65,14 +65,14 @@
       return;
     }
 
-    // Navigate to export page
-    goto(`/projects/${projectId}/components/${component.id}/export`);
+    // Navigate to export page with component ID in query string
+    goto(`/projects/${projectId}/export?components=${component.id}`);
   }
 
   async function handleSave() {
-    // Only allow saving for cards
-    if (component.type !== "Card") {
-      alert("Only card designs can be saved.");
+    // Only allow saving for components that support design (Card and PlayerMat)
+    if (component.type !== "Card" && component.type !== "PlayerMat") {
+      alert("Only card and player mat designs can be saved.");
       return;
     }
 
@@ -86,8 +86,8 @@
         design = JSON.stringify(store.root);
       })();
 
-      // Save the design via API
-      await componentsApi.saveCardDesign(
+      // Save the design via API (works for both Card and PlayerMat)
+      await componentsApi.saveDesign(
         projectId,
         component.id,
         part.toLowerCase(),

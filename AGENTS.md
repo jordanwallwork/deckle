@@ -436,6 +436,62 @@ When working on API endpoints, verify:
 - [ ] Enums are handled appropriately (string or enum)
 - [ ] The API builds without warnings
 
+## Component Architecture
+
+### Component Interfaces
+
+Deckle uses interface-based component design:
+
+- **`IComponent`** - Base interface for all components (Id, ProjectId, Name, timestamps)
+- **`IEditableComponent`** - Components with front/back designs (Card, PlayerMat)
+- **`IDataSourceComponent`** - Components that can link to data sources (Card, PlayerMat)
+
+### Working with Components
+
+**DO:** Use polymorphic methods that work with interfaces:
+```csharp
+public async Task<ComponentDto> SaveDesignAsync(Guid componentId, string part, string design)
+{
+    var component = await _context.Components.FindAsync(componentId);
+    if (component is IEditableComponent editable) {
+        editable.SetDesign(part, design);
+    }
+}
+```
+
+**DON'T:** Create separate methods for each component type:
+```csharp
+// ❌ Avoid this pattern
+public async Task<CardDto> SaveCardDesignAsync(...)
+public async Task<PlayerMatDto> SavePlayerMatDesignAsync(...)
+```
+
+**Frontend:** Use capability-based type guards:
+```typescript
+if (isEditableComponent(component)) {
+    // Show edit UI
+}
+if (hasDataSource(component)) {
+    // Show data source linking
+}
+```
+
+### Adding New Component Types
+
+When adding a new component type:
+
+1. **Choose interfaces** - Implement `IEditableComponent`, `IDataSourceComponent`, or just `IComponent`
+2. **Backend** - Component automatically works with generic service methods
+3. **DTOs** - Add new DTO and update `ToComponentDto()` switch
+4. **API** - Add create/update endpoints (type-specific), but design/datasource endpoints work automatically
+5. **Frontend** - Add to type guards in `componentTypes.ts`, create type-specific form/display components
+6. **Migrations** - Follow standard migration process
+
+Components are **automatically supported** for:
+- Design saving (if `IEditableComponent`)
+- Data source linking (if `IDataSourceComponent`)
+- Export (if `IEditableComponent`)
+
 ## Svelte Development Guide
 
 When working with Svelte components in this project, follow the guidelines from https://svelte.dev/llms-small.txt:

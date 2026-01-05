@@ -40,7 +40,7 @@
 
   // Check if we're on the editor or export page (hide tabs on editor and export)
   const isEditorPage = $derived(
-    /\/projects\/[^/]+\/components\/[^/]+\/(front|back|export)/.test(
+    /\/projects\/[^/]+\/(components\/[^/]+\/(front|back|export)|export)/.test(
       $page.url.pathname
     )
   );

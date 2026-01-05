@@ -7,15 +7,18 @@
   import StructureTreePanel from "./StructureTreePanel.svelte";
   import { templateStore } from "$lib/stores/templateElements";
   import { initDataSourceRow } from "$lib/stores/dataSourceRow";
-  import type { CardComponent, DiceComponent } from "$lib/types";
   import { beforeNavigate } from "$app/navigation";
   import { saveActionStore } from "$lib/stores/saveAction";
   import { get } from "svelte/store";
+  import { isEditableComponent } from "$lib/utils/componentTypes";
 
-  let { data, readOnly = false }: { data: PageData; readOnly?: boolean } = $props();
+  let { data, readOnly = false }: { data: PageData; readOnly?: boolean } =
+    $props();
 
   // Capitalize the part name for display (e.g., "front" -> "Front")
-  const partLabel = $derived(data.part.charAt(0).toUpperCase() + data.part.slice(1));
+  const partLabel = $derived(
+    data.part.charAt(0).toUpperCase() + data.part.slice(1)
+  );
 
   const sidebarWidth = 20;
 
@@ -39,10 +42,16 @@
   $effect(() => {
     let savedDesign: string | null = null;
 
-    // Only load designs for cards
-    if (data.component.type === 'Card') {
-      const card = data.component as CardComponent;
-      savedDesign = (data.part === 'front' ? card.frontDesign : card.backDesign) ?? null;
+    // Check if component supports design editing (Card or PlayerMat)
+    if (isEditableComponent(data.component)) {
+      switch (data.part) {
+        case "front":
+          savedDesign = data.component.frontDesign ?? null;
+          break;
+        case "back":
+          savedDesign = data.component.backDesign ?? null;
+          break;
+      }
     }
 
     // Load the design into the template store
@@ -51,22 +60,22 @@
         const design = JSON.parse(savedDesign);
         templateStore.set({
           root: design,
-          selectedElementId: 'root',
+          selectedElementId: "root",
           hoveredElementId: null,
           canUndo: false,
           canRedo: false,
-          hasUnsavedChanges: false
+          hasUnsavedChanges: false,
         });
       } catch (error) {
-        console.error('Failed to parse saved design:', error);
+        console.error("Failed to parse saved design:", error);
         // If parsing fails, just use the default empty design
         templateStore.reset();
-        templateStore.selectElement('root');
+        templateStore.selectElement("root");
       }
     } else {
       // No saved design, start with empty template
       templateStore.reset();
-      templateStore.selectElement('root');
+      templateStore.selectElement("root");
     }
   });
 
@@ -75,11 +84,11 @@
     // Disable keyboard shortcuts in read-only mode
     if (readOnly) return;
 
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
     const ctrlKey = isMac ? event.metaKey : event.ctrlKey;
 
     // Save: Ctrl/Cmd+S
-    if (ctrlKey && event.key === 's') {
+    if (ctrlKey && event.key === "s") {
       event.preventDefault();
       const saveFunction = get(saveActionStore);
       if (saveFunction) {
@@ -87,12 +96,12 @@
       }
     }
     // Undo: Ctrl/Cmd+Z
-    else if (ctrlKey && event.key === 'z' && !event.shiftKey) {
+    else if (ctrlKey && event.key === "z" && !event.shiftKey) {
       event.preventDefault();
       templateStore.undo();
     }
     // Redo: Ctrl/Cmd+Y
-    else if (ctrlKey && event.key === 'y') {
+    else if (ctrlKey && event.key === "y") {
       event.preventDefault();
       templateStore.redo();
     }
@@ -108,8 +117,8 @@
     if (hasUnsavedChanges) {
       event.preventDefault();
       // Modern browsers require returnValue to be set
-      event.returnValue = '';
-      return '';
+      event.returnValue = "";
+      return "";
     }
   }
 
@@ -121,7 +130,11 @@
     })();
 
     if (hasUnsavedChanges) {
-      if (!confirm('You have unsaved changes. Do you want to leave without saving?')) {
+      if (
+        !confirm(
+          "You have unsaved changes. Do you want to leave without saving?"
+        )
+      ) {
         cancel();
       }
     }
@@ -132,29 +145,54 @@
 
 {#if readOnly}
   <div class="read-only-banner">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
-      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
     <span>Read-only mode: You have view-only access to this component</span>
   </div>
 {/if}
 
-<ResizablePanelContainer orientation="vertical" bind:splitPercentage={dataSourcePanelSplit}>
+<ResizablePanelContainer
+  orientation="vertical"
+  bind:splitPercentage={dataSourcePanelSplit}
+>
   {#snippet leftOrTop()}
     <ResizablePanelContainer initialSplit={sidebarWidth}>
       {#snippet leftOrTop()}
-        <StructureTreePanel component={data.component} part={partLabel} {readOnly} />
+        <StructureTreePanel
+          component={data.component}
+          part={partLabel}
+          {readOnly}
+        />
       {/snippet}
       {#snippet rightOrBottom()}
         <ResizablePanelContainer
           initialSplit={100 - (sidebarWidth / (100 - sidebarWidth)) * 100}
         >
           {#snippet leftOrTop()}
-            <PreviewPanel component={data.component} projectId={data.project.id} part={data.part} />
+            <PreviewPanel
+              component={data.component}
+              projectId={data.project.id}
+              part={data.part}
+            />
           {/snippet}
           {#snippet rightOrBottom()}
-            <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />
+            <ElementConfigPanel
+              component={data.component}
+              part={partLabel}
+              {readOnly}
+            />
           {/snippet}
         </ResizablePanelContainer>
       {/snippet}

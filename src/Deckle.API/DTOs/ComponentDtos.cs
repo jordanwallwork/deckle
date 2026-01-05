@@ -76,6 +76,7 @@ public record CardDto : ComponentDto
 
 public record DiceDto : ComponentDto
 {
+    public required string DiceType { get; init; }
     public required string Style { get; init; }
     public required string BaseColor { get; init; }
     public required int Number { get; init; }
@@ -85,6 +86,7 @@ public record DiceDto : ComponentDto
     [SetsRequiredMembers]
     public DiceDto(Dice dice) : base("Dice", dice)
     {
+        DiceType = dice.Type.ToString();
         Style = dice.Style.ToString();
         BaseColor = dice.BaseColor.ToString();
         Number = dice.Number;

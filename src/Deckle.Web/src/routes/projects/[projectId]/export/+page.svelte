@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from "./$types";
-  import type { PageSetup, CardComponent, PlayerMatComponent } from "$lib/types";
+  import type { PageSetup } from "$lib/types";
   import { DEFAULT_PAGE_SETUP } from "$lib/types";
   import { setBreadcrumbs } from "$lib/stores/breadcrumb";
   import { page } from "$app/stores";
@@ -22,9 +22,12 @@
 
   // Selected component IDs from URL
   let selectedComponentIds = $derived.by(() => {
-    const componentsParam = $page.url.searchParams.get('components');
+    const componentsParam = $page.url.searchParams.get("components");
     if (!componentsParam) return [];
-    return componentsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
+    return componentsParam
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
   });
 
   // Update breadcrumbs for this page
@@ -32,22 +35,24 @@
     setBreadcrumbs([
       { label: "Projects", href: "/projects" },
       { label: data.project.name, href: `/projects/${data.project.id}` },
-      { label: "Export", href: `/projects/${data.project.id}/export` }
+      { label: "Export", href: `/projects/${data.project.id}/export` },
     ]);
   });
 
   // Check if all components are exportable (Card or PlayerMat)
   const allExportable = $derived(
-    data.components.every(c =>
-      c.component.type === "Card" || c.component.type === "PlayerMat"
+    data.components.every(
+      (c) => c.component.type === "Card" || c.component.type === "PlayerMat"
     )
   );
 
   // Get non-exportable components
   const nonExportableComponents = $derived(
     data.components
-      .filter(c => c.component.type !== "Card" && c.component.type !== "PlayerMat")
-      .map(c => c.component.name)
+      .filter(
+        (c) => c.component.type !== "Card" && c.component.type !== "PlayerMat"
+      )
+      .map((c) => c.component.name)
   );
 
   // Generate export filename based on components
@@ -73,7 +78,7 @@
       <div class="component-selector-section">
         <ComponentSelector
           components={data.allExportableComponents}
-          selectedComponentIds={selectedComponentIds}
+          {selectedComponentIds}
         />
       </div>
 
@@ -127,10 +132,9 @@
   }
 
   .component-selector-section {
-    flex: 1;
     overflow: hidden;
     padding: 1rem;
-    min-height: 200px;
+    max-height: 300px;
   }
 
   .divider {

@@ -49,9 +49,9 @@ export interface CardComponent extends EditableComponent {
 export interface DiceComponent extends Component {
   type: 'Dice';
   diceType: string;
-  diceStyle: string;
-  diceBaseColor: string;
-  diceNumber: number;
+  style: string;
+  baseColor: string;
+  number: number;
 }
 
 export interface PlayerMatComponent extends EditableComponent {

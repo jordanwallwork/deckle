@@ -84,28 +84,30 @@
     </div>
   </div>
   {#if component.type === "Dice"}
+    {@debug component}
     <div class="dice-info">
       <p class="component-type">
-        {DICE_TYPES.find((t) => t.value === component.diceType)?.label ||
-          component.diceType}
-        • {DICE_STYLES.find((s) => s.value === component.diceStyle)?.label ||
-          component.diceStyle}
+        {component.number} x {DICE_TYPES.find(
+          (t) => t.value === component.diceType
+        )?.label || component.diceType}
+        • {DICE_STYLES.find((s) => s.value === component.style)?.label ||
+          component.style}
+        •
+        <span class="dice-color-display">
+          <span
+            class="color-indicator"
+            style="background-color: {DICE_COLORS.find(
+              (c) => c.value === component.baseColor
+            )?.hex}"
+            title={DICE_COLORS.find((c) => c.value === component.baseColor)
+              ?.label}
+          ></span>
+          <span class="color-name"
+            >{DICE_COLORS.find((c) => c.value === component.baseColor)
+              ?.label}</span
+          >
+        </span>
       </p>
-      <p class="dice-number">Quantity: {component.diceNumber}</p>
-      <div class="dice-color-display">
-        <span
-          class="color-indicator"
-          style="background-color: {DICE_COLORS.find(
-            (c) => c.value === component.diceBaseColor
-          )?.hex}"
-          title={DICE_COLORS.find((c) => c.value === component.diceBaseColor)
-            ?.label}
-        ></span>
-        <span class="color-name"
-          >{DICE_COLORS.find((c) => c.value === component.diceBaseColor)
-            ?.label}</span
-        >
-      </div>
     </div>
   {:else if component.type === "Card"}
     <p class="component-type">
@@ -161,8 +163,10 @@
     <p class="component-type">
       Player Mat •
       {#if component.presetSize}
-        {PLAYER_MAT_SIZES.find((s) => s.value === component.presetSize)?.label || component.presetSize}
-        ({PLAYER_MAT_ORIENTATIONS.find((o) => o.value === component.orientation)?.label || component.orientation})
+        {PLAYER_MAT_SIZES.find((s) => s.value === component.presetSize)
+          ?.label || component.presetSize}
+        ({PLAYER_MAT_ORIENTATIONS.find((o) => o.value === component.orientation)
+          ?.label || component.orientation})
       {:else}
         Custom ({component.customWidthMm}mm × {component.customHeightMm}mm)
       {/if}
@@ -261,6 +265,7 @@
     font-size: 0.875rem;
     color: var(--color-muted-teal);
     margin: 0;
+    text-align: center;
   }
 
   .dice-info {
@@ -269,25 +274,12 @@
     gap: 0.5rem;
   }
 
-  .dice-number {
-    font-size: 0.875rem;
-    color: var(--color-sage);
-    font-weight: 500;
-    margin: 0;
-  }
-
-  .dice-color-display {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
   .color-indicator {
+    display: inline-block;
     width: 20px;
     height: 20px;
     border-radius: 4px;
     border: 2px solid var(--color-teal-grey);
-    flex-shrink: 0;
   }
 
   .color-name {

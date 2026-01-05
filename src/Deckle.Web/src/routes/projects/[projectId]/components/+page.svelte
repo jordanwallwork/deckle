@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from "./$types";
   import { componentsApi, ApiError } from "$lib/api";
-  import { invalidateAll } from "$app/navigation";
+  import { invalidateAll, goto } from "$app/navigation";
   import { Button, Dialog, ConfirmDialog, EmptyState } from "$lib/components";
   import ComponentCard from "./_components/ComponentCard.svelte";
   import ComponentTypeSelector from "./_components/ComponentTypeSelector.svelte";
@@ -24,6 +24,16 @@
   const canEdit = $derived(data.project.role !== "Viewer"); // Collaborators, Admins, and Owners can edit
   const canDelete = $derived(data.project.role === "Owner" || data.project.role === "Admin"); // Only Owners and Admins can delete
   const canLinkDataSource = $derived(data.project.role === "Owner" || data.project.role === "Admin"); // Only Owners and Admins can link data sources
+
+  // Get exportable components (Card and PlayerMat only)
+  const exportableComponents = $derived(
+    data.components.filter(
+      (c) => c.type === "Card" || c.type === "PlayerMat"
+    )
+  );
+
+  // Check if there are any exportable components
+  const hasExportableComponents = $derived(exportableComponents.length > 0);
 
   let showModal = $state(false);
   let selectedType: "card" | "dice" | "playermat" | null = $state(null);
@@ -75,6 +85,11 @@
     errorMessage = "";
   }
 
+  function navigateToExport() {
+    const componentIds = exportableComponents.map((c) => c.id).join(",");
+    goto(`/projects/${data.project.id}/export?components=${componentIds}`);
+  }
+
   function closeModal() {
     showModal = false;
     selectedType = null;
@@ -98,9 +113,9 @@
     } else if (component.type === "Dice") {
       selectedType = "dice";
       diceType = component.diceType;
-      diceStyle = component.diceStyle;
-      diceColor = component.diceBaseColor;
-      diceNumber = String(component.diceNumber);
+      diceStyle = component.style;
+      diceColor = component.baseColor;
+      diceNumber = String(component.number);
     } else if (component.type === "PlayerMat") {
       selectedType = "playermat";
       if (component.presetSize) {
@@ -267,11 +282,18 @@
   />
 </svelte:head>
 
-{#if canEdit}
+{#if canEdit || hasExportableComponents}
   <div class="actions">
-    <Button variant="primary" size="sm" onclick={openModal}>
-      + Add Component
-    </Button>
+    {#if hasExportableComponents}
+      <Button variant="secondary" size="sm" onclick={navigateToExport}>
+        Export
+      </Button>
+    {/if}
+    {#if canEdit}
+      <Button variant="primary" size="sm" onclick={openModal}>
+        + Add Component
+      </Button>
+    {/if}
   </div>
 {/if}
 
@@ -374,6 +396,7 @@
   .actions {
     display: flex;
     justify-content: flex-end;
+    gap: 0.75rem;
     margin-bottom: 1.5rem;
   }
 

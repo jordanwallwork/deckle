@@ -1,0 +1,93 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install .NET Aspire workload
+        run: dotnet workload install aspire
+
+      - name: Restore dependencies
+        run: dotnet restore src/Deckle.slnx
+
+      - name: Build solution
+        run: dotnet build src/Deckle.slnx --no-restore --configuration Release
+
+      - name: Publish with Aspire
+        run: aspire publish -o docker-compose-artifacts
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for images
+        id: meta
+        run: |
+          echo "date=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+          echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker images
+        if: github.event_name != 'pull_request'
+        run: |
+          cd docker-compose-artifacts
+
+          # Extract image names from docker-compose.yaml
+          images=$(grep -E '^\s+image:' docker-compose.yaml | sed 's/.*image: //' | tr -d '"' | sort -u)
+
+          for image in $images; do
+            # Extract service name from image
+            service_name=$(echo $image | sed 's/.*\///')
+
+            echo "Processing image: $image (service: $service_name)"
+
+            # Tag with multiple tags for better versioning
+            ghcr_image="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${service_name}"
+
+            docker tag "$image" "${ghcr_image}:latest"
+            docker tag "$image" "${ghcr_image}:${{ steps.meta.outputs.sha_short }}"
+            docker tag "$image" "${ghcr_image}:${{ steps.meta.outputs.date }}"
+
+            # Push all tags
+            docker push "${ghcr_image}:latest"
+            docker push "${ghcr_image}:${{ steps.meta.outputs.sha_short }}"
+            docker push "${ghcr_image}:${{ steps.meta.outputs.date }}"
+
+            echo "Successfully pushed: $service_name"
+          done
+
+      - name: Upload docker-compose artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-compose-artifacts
+          path: docker-compose-artifacts/
+          retention-days: 30

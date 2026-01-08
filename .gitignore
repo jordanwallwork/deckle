@@ -195,3 +195,5 @@ public/
 
 
 mockups/
+docker-compose-artifacts/
+.claude/settings.local.json

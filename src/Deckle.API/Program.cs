@@ -15,18 +15,51 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Configure database context
-// In non-Aspire environments (like Railway), use standard EF Core configuration
-// Aspire's AddNpgsqlDbContext expects service discovery which isn't available outside Aspire orchestration
-var connectionString = builder.Configuration.GetConnectionString("deckledb");
-if (string.IsNullOrEmpty(connectionString))
-{
-    throw new InvalidOperationException("Database connection string 'deckledb' is not configured. Please set ConnectionStrings__deckledb environment variable.");
-}
+// Detect if running in Aspire orchestration (Development) or standalone (Railway Production)
+var isAspireOrchestrated = builder.Environment.IsDevelopment() &&
+                           builder.Configuration.GetConnectionString("deckledb") == null;
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+if (isAspireOrchestrated)
 {
-    options.UseNpgsql(connectionString);
-});
+    // Use Aspire's service discovery for local development
+    Console.WriteLine("Using Aspire service discovery for database connection");
+    builder.AddNpgsqlDbContext<AppDbContext>("deckledb");
+}
+else
+{
+    // Use standard EF Core configuration for Railway or any environment with explicit connection string
+    var connectionString = builder.Configuration.GetConnectionString("deckledb");
+
+    // Enhanced diagnostics
+    Console.WriteLine("=== DATABASE CONFIGURATION DEBUG ===");
+    Console.WriteLine($"Using standard EF Core configuration (non-Aspire)");
+    Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
+    Console.WriteLine($"Connection string is null: {connectionString == null}");
+    Console.WriteLine($"Connection string is empty: {string.IsNullOrEmpty(connectionString)}");
+    if (connectionString != null)
+    {
+        Console.WriteLine($"Connection string length: {connectionString.Length}");
+        Console.WriteLine($"First 10 chars: {connectionString.Substring(0, Math.Min(10, connectionString.Length))}");
+        // Mask password for security
+        var maskedConnString = System.Text.RegularExpressions.Regex.Replace(
+            connectionString,
+            @"(password=|:[^@:]+@)",
+            "$1***@",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        Console.WriteLine($"Full connection string (masked): {maskedConnString}");
+    }
+    Console.WriteLine("=== END DEBUG ===");
+
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("Database connection string 'deckledb' is not configured. Please set ConnectionStrings__deckledb environment variable.");
+    }
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+    {
+        options.UseNpgsql(connectionString);
+    });
+}
 
 // Add authentication services
 builder.Services.AddAuthentication(options =>

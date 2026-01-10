@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { BorderStyle } from "../types";
+  import type { BorderStyle } from "../../types";
   import { ColorInput, NumberInput } from "$lib/components/forms";
 
   let {

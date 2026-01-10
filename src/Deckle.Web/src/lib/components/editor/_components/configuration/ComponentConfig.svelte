@@ -4,8 +4,8 @@
     CardComponent,
     RectangleShape,
   } from "$lib/types";
-  import ConfigSection from "./ConfigSection.svelte";
-  import ColorPicker from "./ColorPicker.svelte";
+  import ConfigSection from "../config-controls/ConfigSection.svelte";
+  import ColorPicker from "../config-controls/ColorPicker.svelte";
   import { templateStore } from "$lib/stores/templateElements";
   import type { ContainerElement } from "$lib/components/editor/types";
 

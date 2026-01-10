@@ -1,6 +1,6 @@
 <script lang="ts">
   import { templateStore } from '$lib/stores/templateElements';
-  import type { TemplateElement } from '../types';
+  import type { TemplateElement } from '../../types';
   import { getContext } from 'svelte';
   import ResizeHandle from './ResizeHandle.svelte';
 

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import FieldWrapper from "$lib/components/editor/_components/FieldWrapper.svelte";
-  import SelectField from "$lib/components/editor/_components/SelectField.svelte";
-  import NumberField from "$lib/components/editor/_components/NumberField.svelte";
+  import FieldWrapper from "$lib/components/editor/_components/config-controls/FieldWrapper.svelte";
+  import SelectField from "$lib/components/editor/_components/config-controls/SelectField.svelte";
+  import NumberField from "$lib/components/editor/_components/config-controls/NumberField.svelte";
   import type { PageSetup } from "$lib/types";
   import { browser } from "$app/environment";
 

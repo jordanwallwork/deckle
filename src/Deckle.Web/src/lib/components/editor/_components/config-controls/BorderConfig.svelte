@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Border, BorderStyle } from "../types";
+  import type { Border, BorderStyle } from "../../types";
   import BorderSideControl from "./BorderSideControl.svelte";
   import DimensionInput from "./DimensionInput.svelte";
 

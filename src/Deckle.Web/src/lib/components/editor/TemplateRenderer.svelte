@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { TemplateElement, ContainerElement, TextElement, ImageElement } from './types';
   import TemplateRenderer from './TemplateRenderer.svelte';
-  import ElementWrapper from './_components/ElementWrapper.svelte';
+  import ElementWrapper from './_components/element-wrapper/ElementWrapper.svelte';
   import TextElementComponent from './_components/elements/TextElement.svelte';
   import ContainerElementComponent from './_components/elements/ContainerElement.svelte';
   import ImageElementComponent from './_components/elements/ImageElement.svelte';

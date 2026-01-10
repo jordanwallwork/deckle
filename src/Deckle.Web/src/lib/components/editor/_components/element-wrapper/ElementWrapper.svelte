@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TemplateElement, ImageElement } from '../types';
+  import type { TemplateElement, ImageElement } from '../../types';
   import ResizeHandles from './ResizeHandles.svelte';
   import DragHandles from './DragHandles.svelte';
   import RotationHandle from './RotationHandle.svelte';

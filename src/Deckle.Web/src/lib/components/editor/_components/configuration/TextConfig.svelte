@@ -1,19 +1,19 @@
 <script lang="ts">
-  import type { TextElement } from "../types";
+  import type { TextElement } from "../../types";
   import { templateStore } from "$lib/stores/templateElements";
-  import ConfigSection from "./ConfigSection.svelte";
-  import VisibilityCheckbox from "./VisibilityCheckbox.svelte";
-  import LockCheckbox from "./LockCheckbox.svelte";
-  import PositionControls from "./PositionControls.svelte";
-  import DimensionInput from "./DimensionInput.svelte";
-  import ColorPicker from "./ColorPicker.svelte";
-  import PaddingControls from "./PaddingControls.svelte";
-  import BorderConfig from "./BorderConfig.svelte";
-  import TextAreaField from "./TextAreaField.svelte";
-  import TextField from "./TextField.svelte";
-  import NumberField from "./NumberField.svelte";
-  import SelectField from "./SelectField.svelte";
-  import Fields from "./Fields.svelte";
+  import ConfigSection from "../config-controls/ConfigSection.svelte";
+  import VisibilityCheckbox from "../config-controls/VisibilityCheckbox.svelte";
+  import LockCheckbox from "../config-controls/LockCheckbox.svelte";
+  import PositionControls from "../config-controls/PositionControls.svelte";
+  import DimensionInput from "../config-controls/DimensionInput.svelte";
+  import ColorPicker from "../config-controls/ColorPicker.svelte";
+  import PaddingControls from "../config-controls/PaddingControls.svelte";
+  import BorderConfig from "../config-controls/BorderConfig.svelte";
+  import TextAreaField from "../config-controls/TextAreaField.svelte";
+  import TextField from "../config-controls/TextField.svelte";
+  import NumberField from "../config-controls/NumberField.svelte";
+  import SelectField from "../config-controls/SelectField.svelte";
+  import Fields from "../config-controls/Fields.svelte";
 
   let { element }: { element: TextElement } = $props();
 

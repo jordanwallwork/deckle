@@ -1,20 +1,20 @@
 <script lang="ts">
-  import type { ContainerElement } from "../types";
+  import type { ContainerElement } from "../../types";
   import { templateStore } from "$lib/stores/templateElements";
-  import ConfigSection from "./ConfigSection.svelte";
-  import FieldWrapper from "./FieldWrapper.svelte";
-  import SelectField from "./SelectField.svelte";
-  import VisibilityCheckbox from "./VisibilityCheckbox.svelte";
-  import LockCheckbox from "./LockCheckbox.svelte";
-  import PositionControls from "./PositionControls.svelte";
-  import DimensionInput from "./DimensionInput.svelte";
-  import ColorPicker from "./ColorPicker.svelte";
-  import PaddingControls from "./PaddingControls.svelte";
-  import BorderConfig from "./BorderConfig.svelte";
-  import Fields from "./Fields.svelte";
-  import NumberField from "./NumberField.svelte";
-  import AlignmentGrid from "./AlignmentGrid.svelte";
-  import GapControl from "./GapControl.svelte";
+  import ConfigSection from "../config-controls/ConfigSection.svelte";
+  import FieldWrapper from "../config-controls/FieldWrapper.svelte";
+  import SelectField from "../config-controls/SelectField.svelte";
+  import VisibilityCheckbox from "../config-controls/VisibilityCheckbox.svelte";
+  import LockCheckbox from "../config-controls/LockCheckbox.svelte";
+  import PositionControls from "../config-controls/PositionControls.svelte";
+  import DimensionInput from "../config-controls/DimensionInput.svelte";
+  import ColorPicker from "../config-controls/ColorPicker.svelte";
+  import PaddingControls from "../config-controls/PaddingControls.svelte";
+  import BorderConfig from "../config-controls/BorderConfig.svelte";
+  import Fields from "../config-controls/Fields.svelte";
+  import NumberField from "../config-controls/NumberField.svelte";
+  import AlignmentGrid from "../config-controls/AlignmentGrid.svelte";
+  import GapControl from "../config-controls/GapControl.svelte";
 
   let { element }: { element: ContainerElement } = $props();
 

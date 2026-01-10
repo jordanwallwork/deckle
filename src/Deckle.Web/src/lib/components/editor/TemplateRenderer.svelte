@@ -1,11 +1,8 @@
 <script lang="ts">
   import type { TemplateElement, ContainerElement, TextElement, ImageElement, Shadow } from './types';
   import TemplateRenderer from './TemplateRenderer.svelte';
-  import ResizeHandles from './_components/ResizeHandles.svelte';
-  import DragHandles from './_components/DragHandles.svelte';
-  import RotationHandle from './_components/RotationHandle.svelte';
+  import ElementWrapper from './_components/ElementWrapper.svelte';
   import MarkdownRenderer from './_components/MarkdownRenderer.svelte';
-  import { templateStore } from '$lib/stores/templateElements';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import { parseInlineClasses, hasInlineClasses } from '$lib/utils/textParser';
   import { replaceMergeFields } from '$lib/utils/mergeFields';
@@ -34,29 +31,6 @@
     }
     return null;
   });
-
-  const isHovered = $derived($templateStore.hoveredElementId === element.id);
-  const isSelected = $derived($templateStore.selectedElementId === element.id);
-
-  function handleMouseEnter() {
-    // Don't hover locked elements in preview
-    if (!element.locked) {
-      templateStore.setHoveredElement(element.id);
-    }
-  }
-
-  function handleMouseLeave() {
-    templateStore.setHoveredElement(null);
-  }
-
-  function handleClick(e: MouseEvent) {
-    // Don't select locked elements in preview - let clicks pass through
-    if (element.locked) {
-      return;
-    }
-    e.stopPropagation();
-    templateStore.selectElement(element.id);
-  }
 
   // Helper to convert spacing to CSS string
   function spacingToCss(spacing: { all?: number | string; top?: number | string; right?: number | string; bottom?: number | string; left?: number | string } | undefined): string {
@@ -140,35 +114,38 @@
   }
 
   // Helper to build style object
-  function buildStyle(element: TemplateElement): string {
+  // For images, skipPositioning can be true to exclude position/x/y (applied to wrapper instead)
+  function buildStyle(element: TemplateElement, skipPositioning = false): string {
     const styles: string[] = [];
 
     // Position
-    if (element.position === 'absolute') {
-      styles.push('position: absolute');
-      if (element.x !== undefined) styles.push(`left: ${dimensionValue(element.x)}`);
-      if (element.y !== undefined) styles.push(`top: ${dimensionValue(element.y)}`);
-    } else {
-      styles.push('position: relative');
+    if (!skipPositioning) {
+      if (element.position === 'absolute') {
+        styles.push('position: absolute');
+        if (element.x !== undefined) styles.push(`left: ${dimensionValue(element.x)}`);
+        if (element.y !== undefined) styles.push(`top: ${dimensionValue(element.y)}`);
+      } else {
+        styles.push('position: relative');
+      }
     }
 
-    // Z-index
-    if (element.zIndex !== undefined) {
+    // Z-index (skip if wrapper handles it for images)
+    if (!skipPositioning && element.zIndex !== undefined) {
       styles.push(`z-index: ${element.zIndex}`);
     }
 
-    // Opacity
-    if (element.opacity !== undefined) {
+    // Opacity (skip if wrapper handles it for images)
+    if (!skipPositioning && element.opacity !== undefined) {
       styles.push(`opacity: ${element.opacity}`);
     }
 
-    // Rotation
-    if (element.rotation !== undefined && element.rotation !== 0) {
+    // Rotation (skip if wrapper handles it for images)
+    if (!skipPositioning && element.rotation !== undefined && element.rotation !== 0) {
       styles.push(`transform: rotate(${element.rotation}deg)`);
     }
 
-    // Visibility
-    if (element.visible === false) {
+    // Visibility (skip if wrapper handles it for images)
+    if (!skipPositioning && element.visible === false) {
       styles.push('display: none');
       return styles.join('; ');
     }
@@ -285,8 +262,8 @@
     if (element.type === 'image') {
       const image = element as ImageElement;
 
-      // Dimensions
-      if (image.dimensions) {
+      // Dimensions (skip if building style for img tag when wrapper handles positioning)
+      if (!skipPositioning && image.dimensions) {
         const d = image.dimensions;
         if (d.width !== undefined) styles.push(`width: ${dimensionValue(d.width)}`);
         if (d.height !== undefined) styles.push(`height: ${dimensionValue(d.height)}`);
@@ -294,6 +271,11 @@
         if (d.maxWidth !== undefined) styles.push(`max-width: ${dimensionValue(d.maxWidth)}`);
         if (d.minHeight !== undefined) styles.push(`min-height: ${dimensionValue(d.minHeight)}`);
         if (d.maxHeight !== undefined) styles.push(`max-height: ${dimensionValue(d.maxHeight)}`);
+      } else if (skipPositioning) {
+        // When wrapper handles positioning/dimensions, make img fill the wrapper
+        styles.push('width: 100%');
+        styles.push('height: 100%');
+        styles.push('display: block');
       }
 
       // Object fit and position
@@ -320,47 +302,58 @@
 
     return styles.join('; ');
   }
+
+  // Helper to build wrapper style for image elements
+  function buildImageWrapperStyle(element: ImageElement): string {
+    const styles: string[] = [];
+
+    // Apply positioning to wrapper so handles align correctly
+    if (element.position === 'absolute') {
+      styles.push('position: absolute');
+      if (element.x !== undefined) styles.push(`left: ${dimensionValue(element.x)}`);
+      if (element.y !== undefined) styles.push(`top: ${dimensionValue(element.y)}`);
+    } else {
+      styles.push('position: relative');
+    }
+
+    // Apply dimensions to wrapper so handles have correct bounds
+    if (element.dimensions) {
+      const d = element.dimensions;
+      if (d.width !== undefined) styles.push(`width: ${dimensionValue(d.width)}`);
+      if (d.height !== undefined) styles.push(`height: ${dimensionValue(d.height)}`);
+    }
+
+    // Z-index should be on the wrapper
+    if (element.zIndex !== undefined) {
+      styles.push(`z-index: ${element.zIndex}`);
+    }
+
+    // Opacity and rotation should be on the wrapper
+    if (element.opacity !== undefined) {
+      styles.push(`opacity: ${element.opacity}`);
+    }
+
+    if (element.rotation !== undefined && element.rotation !== 0) {
+      styles.push(`transform: rotate(${element.rotation}deg)`);
+    }
+
+    // Visibility should be on the wrapper
+    if (element.visible === false) {
+      styles.push('display: none');
+    }
+
+    return styles.join('; ');
+  }
 </script>
 
 {#if element.type === 'container'}
-  <div
-    style={buildStyle(element)}
-    data-element-id={element.id}
-    class="editable-element"
-    class:locked={element.locked}
-    class:hovered={isHovered}
-    class:selected={isSelected}
-    onmouseenter={handleMouseEnter}
-    onmouseleave={handleMouseLeave}
-    onclick={handleClick}
-    role="button"
-    tabindex="0"
-  >
+  <ElementWrapper {element} wrapperStyle={buildStyle(element)}>
     {#each (element as ContainerElement).children as child (child.id)}
       <TemplateRenderer element={child} {dpi} />
     {/each}
-    {#if isSelected && !element.locked}
-      <ResizeHandles element={element} />
-      <RotationHandle element={element} />
-      {#if element.position === 'absolute'}
-        <DragHandles element={element} />
-      {/if}
-    {/if}
-  </div>
+  </ElementWrapper>
 {:else if element.type === 'text'}
-  <div
-    style={buildStyle(element)}
-    data-element-id={element.id}
-    class="editable-element"
-    class:locked={element.locked}
-    class:hovered={isHovered}
-    class:selected={isSelected}
-    onmouseenter={handleMouseEnter}
-    onmouseleave={handleMouseLeave}
-    onclick={handleClick}
-    role="button"
-    tabindex="0"
-  >
+  <ElementWrapper {element} wrapperStyle={buildStyle(element)}>
     {#if (element as TextElement).markdown}
       <MarkdownRenderer content={(element as TextElement).content} />
     {:else if textContent()}
@@ -368,61 +361,15 @@
     {:else}
       {replaceMergeFields((element as TextElement).content, $dataSourceRow)}
     {/if}
-    {#if isSelected && !element.locked}
-      <ResizeHandles element={element} />
-      <RotationHandle element={element} />
-      {#if element.position === 'absolute'}
-        <DragHandles element={element} />
-      {/if}
-    {/if}
-  </div>
+  </ElementWrapper>
 {:else if element.type === 'image'}
-  <div
-    style="position: relative; display: inline-block;"
-    data-element-id={element.id}
-  >
+  <ElementWrapper {element} wrapperStyle={buildImageWrapperStyle(element as ImageElement)}>
     <img
       src={(element as ImageElement).imageId}
       alt=""
-      style={buildStyle(element)}
-      class="editable-element"
-      class:locked={element.locked}
-      class:hovered={isHovered}
-      class:selected={isSelected}
-      onmouseenter={handleMouseEnter}
-      onmouseleave={handleMouseLeave}
-      onclick={handleClick}
-      role="button"
-      tabindex="0"
+      style={buildStyle(element, true)}
+      class="image-element"
     />
-    {#if isSelected && !element.locked}
-      <ResizeHandles element={element} />
-      <RotationHandle element={element} />
-      {#if element.position === 'absolute'}
-        <DragHandles element={element} />
-      {/if}
-    {/if}
-  </div>
+  </ElementWrapper>
 {/if}
 
-<style>
-  .editable-element {
-    cursor: pointer;
-    transition: outline 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .editable-element.locked {
-    cursor: default;
-  }
-
-  .editable-element.hovered {
-    outline: 1px dashed #0066cc;
-    outline-offset: 2px;
-  }
-
-  .editable-element.selected {
-    outline: 2px solid #0066cc;
-    outline-offset: 2px;
-    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
-  }
-</style>

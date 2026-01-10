@@ -12,8 +12,8 @@
     right?: number | string;
     bottom?: number | string;
     left?: number | string;
-  } | undefined): string {
-    if (!spacing) return '0';
+  } | undefined): string | undefined {
+    if (!spacing) return undefined;
 
     // If 'all' is defined, use it for all sides
     if (spacing.all !== undefined) {
@@ -44,9 +44,9 @@
     return value;
   }
 
-  // Helper to convert border to CSS
-  function borderToCss(border: any | undefined): string[] {
-    if (!border) return [];
+  // Helper to build border CSS string (complex property, keep as string)
+  function borderStyle(border: any | undefined): string | undefined {
+    if (!border) return undefined;
 
     const styles: string[] = [];
 
@@ -89,73 +89,72 @@
       styles.push(`border-radius: ${dimensionValue(border.radius)}`);
     }
 
-    return styles;
+    return styles.length > 0 ? styles.join('; ') : undefined;
   }
 
-  // Build element-specific styles (no positioning, margin, dimensions, opacity, rotation, z-index, visibility)
-  function buildElementStyle(): string {
+  // Helper to build background CSS string (complex property, keep as string)
+  function backgroundStyle(background: any | undefined): string | undefined {
+    if (!background) return undefined;
+
     const styles: string[] = [];
-
-    // Fill the wrapper
-    styles.push('width: 100%');
-    styles.push('height: 100%');
-
-    // Display
-    styles.push(`display: ${element.display || 'flex'}`);
-
-    // Flex config
-    if (element.display === 'flex' && element.flexConfig) {
-      const fc = element.flexConfig;
-      if (fc.direction) styles.push(`flex-direction: ${fc.direction}`);
-      if (fc.wrap) styles.push(`flex-wrap: ${fc.wrap}`);
-      if (fc.justifyContent) styles.push(`justify-content: ${fc.justifyContent}`);
-      if (fc.alignItems) styles.push(`align-items: ${fc.alignItems}`);
-      if (fc.alignContent) styles.push(`align-content: ${fc.alignContent}`);
-      if (fc.gap !== undefined) styles.push(`gap: ${fc.gap}px`);
-      if (fc.rowGap !== undefined) styles.push(`row-gap: ${fc.rowGap}px`);
-      if (fc.columnGap !== undefined) styles.push(`column-gap: ${fc.columnGap}px`);
+    if (background.color) styles.push(`background-color: ${background.color}`);
+    if (background.image) {
+      styles.push(`background-image: url(${background.image.imageId})`);
+      if (background.image.size) styles.push(`background-size: ${background.image.size}`);
+      if (background.image.repeat) styles.push(`background-repeat: ${background.image.repeat}`);
+      if (background.image.position) styles.push(`background-position: ${background.image.position}`);
     }
 
-    // Padding (NOT margin - that's on wrapper)
-    if (element.padding) styles.push(`padding: ${spacingToCss(element.padding)}`);
-
-    // Border
-    if (element.border) {
-      styles.push(...borderToCss(element.border));
-    }
-
-    // Background
-    if (element.background) {
-      const bg = element.background;
-      if (bg.color) styles.push(`background-color: ${bg.color}`);
-      if (bg.image) {
-        styles.push(`background-image: url(${bg.image.imageId})`);
-        if (bg.image.size) styles.push(`background-size: ${bg.image.size}`);
-        if (bg.image.repeat) styles.push(`background-repeat: ${bg.image.repeat}`);
-        if (bg.image.position) styles.push(`background-position: ${bg.image.position}`);
-      }
-    }
-
-    // Shadow
-    if (element.shadow) {
-      const shadows = Array.isArray(element.shadow) ? element.shadow : [element.shadow];
-      const shadowCss = shadows
-        .map(
-          (s: Shadow) =>
-            `${s.inset ? 'inset ' : ''}${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.spread || 0}px ${s.color}`
-        )
-        .join(', ');
-      styles.push(`box-shadow: ${shadowCss}`);
-    }
-
-    // Overflow
-    if (element.overflow) styles.push(`overflow: ${element.overflow}`);
-
-    return styles.join('; ');
+    return styles.length > 0 ? styles.join('; ') : undefined;
   }
+
+  // Helper to build box-shadow CSS string (complex property, keep as string)
+  function boxShadowStyle(shadow: Shadow | Shadow[] | undefined): string | undefined {
+    if (!shadow) return undefined;
+    const shadows = Array.isArray(shadow) ? shadow : [shadow];
+    return shadows
+      .map(
+        (s: Shadow) =>
+          `${s.inset ? 'inset ' : ''}${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.spread || 0}px ${s.color}`
+      )
+      .join(', ');
+  }
+
+  // Derived style properties for granular reactivity
+  const display = $derived(element.display || 'flex');
+  const flexDirection = $derived(element.display === 'flex' && element.flexConfig?.direction);
+  const flexWrap = $derived(element.display === 'flex' && element.flexConfig?.wrap);
+  const justifyContent = $derived(element.display === 'flex' && element.flexConfig?.justifyContent);
+  const alignItems = $derived(element.display === 'flex' && element.flexConfig?.alignItems);
+  const alignContent = $derived(element.display === 'flex' && element.flexConfig?.alignContent);
+  const gap = $derived(element.display === 'flex' && element.flexConfig?.gap !== undefined ? `${element.flexConfig.gap}px` : undefined);
+  const rowGap = $derived(element.display === 'flex' && element.flexConfig?.rowGap !== undefined ? `${element.flexConfig.rowGap}px` : undefined);
+  const columnGap = $derived(element.display === 'flex' && element.flexConfig?.columnGap !== undefined ? `${element.flexConfig.columnGap}px` : undefined);
+  const padding = $derived(spacingToCss(element.padding));
+  const border = $derived(borderStyle(element.border));
+  const background = $derived(backgroundStyle(element.background));
+  const boxShadow = $derived(boxShadowStyle(element.shadow));
+  const overflow = $derived(element.overflow);
 </script>
 
-<div style={buildElementStyle()} class="container-element">
+<div
+  style:width="100%"
+  style:height="100%"
+  style:display={display}
+  style:flex-direction={flexDirection}
+  style:flex-wrap={flexWrap}
+  style:justify-content={justifyContent}
+  style:align-items={alignItems}
+  style:align-content={alignContent}
+  style:gap
+  style:row-gap={rowGap}
+  style:column-gap={columnGap}
+  style:padding={padding}
+  style={[border, background].filter(Boolean).join('; ')}
+  style:box-shadow={boxShadow}
+  style:overflow
+  class="container-element"
+>
   {#if children}
     {@render children()}
   {:else}

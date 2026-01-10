@@ -31,8 +31,8 @@
     right?: number | string;
     bottom?: number | string;
     left?: number | string;
-  } | undefined): string {
-    if (!spacing) return '0';
+  } | undefined): string | undefined {
+    if (!spacing) return undefined;
 
     // If 'all' is defined, use it for all sides
     if (spacing.all !== undefined) {
@@ -63,9 +63,9 @@
     return value;
   }
 
-  // Helper to convert border to CSS
-  function borderToCss(border: any | undefined): string[] {
-    if (!border) return [];
+  // Helper to build border CSS string (complex property, keep as string)
+  function borderStyle(border: any | undefined): string | undefined {
+    if (!border) return undefined;
 
     const styles: string[] = [];
 
@@ -108,49 +108,47 @@
       styles.push(`border-radius: ${dimensionValue(border.radius)}`);
     }
 
-    return styles;
+    return styles.length > 0 ? styles.join('; ') : undefined;
   }
 
-  // Build element-specific styles (no positioning, margin, dimensions, opacity, rotation, z-index, visibility)
-  function buildElementStyle(): string {
-    const styles: string[] = [];
-
-    // Fill the wrapper
-    styles.push('width: 100%');
-    styles.push('height: 100%');
-
-    // Display
-    styles.push(`display: ${element.display || 'block'}`);
-
-    // Typography
-    if (element.fontSize) styles.push(`font-size: ${element.fontSize}px`);
-    if (element.fontFamily) styles.push(`font-family: ${element.fontFamily}`);
-    if (element.fontWeight) styles.push(`font-weight: ${element.fontWeight}`);
-    if (element.fontStyle) styles.push(`font-style: ${element.fontStyle}`);
-    if (element.color) styles.push(`color: ${element.color}`);
-    if (element.textDecoration) styles.push(`text-decoration: ${element.textDecoration}`);
-    if (element.textAlign) styles.push(`text-align: ${element.textAlign}`);
-    if (element.lineHeight) styles.push(`line-height: ${element.lineHeight}`);
-    if (element.letterSpacing) styles.push(`letter-spacing: ${element.letterSpacing}px`);
-    if (element.wordWrap) styles.push(`word-wrap: ${element.wordWrap}`);
-    if (element.textTransform) styles.push(`text-transform: ${element.textTransform}`);
-
-    // Padding (NOT margin - that's on wrapper)
-    if (element.padding) styles.push(`padding: ${spacingToCss(element.padding)}`);
-
-    // Background
-    if (element.backgroundColor) styles.push(`background-color: ${element.backgroundColor}`);
-
-    // Border
-    if (element.border) {
-      styles.push(...borderToCss(element.border));
-    }
-
-    return styles.join('; ');
-  }
+  // Derived style properties for granular reactivity
+  const display = $derived(element.display || 'block');
+  const fontSize = $derived(element.fontSize ? `${element.fontSize}px` : undefined);
+  const fontFamily = $derived(element.fontFamily);
+  const fontWeight = $derived(element.fontWeight);
+  const fontStyle = $derived(element.fontStyle);
+  const color = $derived(element.color);
+  const textDecoration = $derived(element.textDecoration);
+  const textAlign = $derived(element.textAlign);
+  const lineHeight = $derived(element.lineHeight);
+  const letterSpacing = $derived(element.letterSpacing ? `${element.letterSpacing}px` : undefined);
+  const wordWrap = $derived(element.wordWrap);
+  const textTransform = $derived(element.textTransform);
+  const padding = $derived(spacingToCss(element.padding));
+  const backgroundColor = $derived(element.backgroundColor);
+  const border = $derived(borderStyle(element.border));
 </script>
 
-<div style={buildElementStyle()} class="text-element">
+<div
+  style:width="100%"
+  style:height="100%"
+  style:display={display}
+  style:font-size={fontSize}
+  style:font-family={fontFamily}
+  style:font-weight={fontWeight}
+  style:font-style={fontStyle}
+  style:color
+  style:text-decoration={textDecoration}
+  style:text-align={textAlign}
+  style:line-height={lineHeight}
+  style:letter-spacing={letterSpacing}
+  style:word-wrap={wordWrap}
+  style:text-transform={textTransform}
+  style:padding={padding}
+  style:background-color={backgroundColor}
+  style={border}
+  class="text-element"
+>
   {#if element.markdown}
     <MarkdownRenderer content={element.content} />
   {:else if textContent()}

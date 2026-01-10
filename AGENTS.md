@@ -496,6 +496,14 @@ Components are **automatically supported** for:
 
 When working with Svelte components in this project, follow the guidelines from https://svelte.dev/llms-small.txt:
 
+### Hot Reload
+
+**IMPORTANT**: SvelteKit has automatic hot reload for frontend changes.
+
+- **DO NOT** run `npm run build` or `dotnet build` for frontend-only changes (Svelte components, TypeScript, CSS)
+- Changes to files in `src/Deckle.Web/src/` are automatically hot-reloaded in the browser
+- Only build when making backend changes (.NET code) or when preparing for deployment
+
 ### Core Svelte 5 Concepts
 
 **Runes** are language keywords (prefixed with `$`) that manage reactivity.

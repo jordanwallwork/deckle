@@ -20,9 +20,9 @@
     return value;
   }
 
-  // Helper to convert border to CSS
-  function borderToCss(border: any | undefined): string[] {
-    if (!border) return [];
+  // Helper to build border CSS string (complex property, keep as string)
+  function borderStyle(border: any | undefined): string | undefined {
+    if (!border) return undefined;
 
     const styles: string[] = [];
 
@@ -65,48 +65,42 @@
       styles.push(`border-radius: ${dimensionValue(border.radius)}`);
     }
 
-    return styles;
+    return styles.length > 0 ? styles.join('; ') : undefined;
   }
 
-  // Build element-specific styles
-  // Image fills the wrapper, so we use 100% width/height
-  function buildElementStyle(): string {
-    const styles: string[] = [];
-
-    // Fill the wrapper
-    styles.push('width: 100%');
-    styles.push('height: 100%');
-    styles.push('display: block');
-
-    // Object fit and position
-    if (element.objectFit) styles.push(`object-fit: ${element.objectFit}`);
-    if (element.objectPosition) styles.push(`object-position: ${element.objectPosition}`);
-
-    // Border
-    if (element.border) {
-      styles.push(...borderToCss(element.border));
-    }
-
-    // Border radius (simplified)
-    if (element.borderRadius) styles.push(`border-radius: ${element.borderRadius}px`);
-
-    // Shadow
-    if (element.shadow) {
-      const shadows = Array.isArray(element.shadow) ? element.shadow : [element.shadow];
-      const shadowCss = shadows
-        .map(
-          (s: Shadow) =>
-            `${s.inset ? 'inset ' : ''}${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.spread || 0}px ${s.color}`
-        )
-        .join(', ');
-      styles.push(`box-shadow: ${shadowCss}`);
-    }
-
-    return styles.join('; ');
+  // Helper to build box-shadow CSS string (complex property, keep as string)
+  function boxShadowStyle(shadow: Shadow | Shadow[] | undefined): string | undefined {
+    if (!shadow) return undefined;
+    const shadows = Array.isArray(shadow) ? shadow : [shadow];
+    return shadows
+      .map(
+        (s: Shadow) =>
+          `${s.inset ? 'inset ' : ''}${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.spread || 0}px ${s.color}`
+      )
+      .join(', ');
   }
+
+  // Derived style properties for granular reactivity
+  const objectFit = $derived(element.objectFit);
+  const objectPosition = $derived(element.objectPosition);
+  const border = $derived(borderStyle(element.border));
+  const borderRadius = $derived(element.borderRadius ? `${element.borderRadius}px` : undefined);
+  const boxShadow = $derived(boxShadowStyle(element.shadow));
 </script>
 
-<img src={element.imageId} alt="" style={buildElementStyle()} class="image-element" />
+<img
+  src={element.imageId}
+  alt=""
+  style:width="100%"
+  style:height="100%"
+  style:display="block"
+  style:object-fit={objectFit}
+  style:object-position={objectPosition}
+  style={border}
+  style:border-radius={borderRadius}
+  style:box-shadow={boxShadow}
+  class="image-element"
+/>
 
 <style>
   .image-element {

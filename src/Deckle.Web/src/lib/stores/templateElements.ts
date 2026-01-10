@@ -481,8 +481,12 @@ function duplicateElementWithNewIds(element: TemplateElement): TemplateElement {
 
 	// Offset position slightly for absolute positioned elements
 	if (duplicated.position === 'absolute') {
-		if (duplicated.x !== undefined) duplicated.x += 20;
-		if (duplicated.y !== undefined) duplicated.y += 20;
+		if (duplicated.x !== undefined && typeof duplicated.x === 'number') {
+			duplicated.x += 20;
+		}
+		if (duplicated.y !== undefined && typeof duplicated.y === 'number') {
+			duplicated.y += 20;
+		}
 	}
 
 	// Recursively update IDs of children

@@ -1,6 +1,7 @@
 import { componentsApi, dataSourcesApi } from '$lib/api';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import type { DataSource } from '$lib/types';
 
 export const load: PageServerLoad = async ({ params, fetch, parent }) => {
 	try {
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ params, fetch, parent }) => {
 		}
 
 		// Load all data sources for the project
-		let dataSources = [];
+		let dataSources: DataSource[] = [];
 		try {
 			dataSources = await dataSourcesApi.listByProject(params.projectId, fetch);
 		} catch (err) {

@@ -70,6 +70,15 @@ When creating a new .NET project:
    dotnet test
    ```
 
+4. **Frontend Type Check**: When making changes to the Svelte frontend (`src/Deckle.Web/src/`), verify there are no TypeScript or Svelte errors
+   ```bash
+   cd src/Deckle.Web
+   npm run check
+   ```
+   - Fix all TypeScript errors before committing
+   - Address type safety issues (no implicit `any`, proper type annotations)
+   - Accessibility warnings (a11y) can be addressed but are not blocking
+
 ### Database Migrations
 
 When making changes to the database schema (entity models in `Deckle.Domain`):

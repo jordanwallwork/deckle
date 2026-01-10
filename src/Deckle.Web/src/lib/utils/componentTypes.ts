@@ -45,7 +45,9 @@ export function getComponentDisplayType(c: GameComponent): string {
     case "PlayerMat":
       return "Player Mat";
     default:
-      return c.type;
+      // Exhaustive check - this should never happen
+      const _exhaustiveCheck: never = c;
+      return String(_exhaustiveCheck);
   }
 }
 

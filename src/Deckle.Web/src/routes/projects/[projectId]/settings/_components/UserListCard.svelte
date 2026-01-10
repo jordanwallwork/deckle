@@ -60,7 +60,7 @@
   function canRevokeUser(user: User): boolean {
     if (!onRemoveUser) return false;
 
-    if (user.role === "Owner") return;
+    if (user.role === "Owner") return false;
 
     const isSelf = user.userId === currentUserId;
 
@@ -69,8 +69,8 @@
       return true;
     }
 
-    // Can remove others if we have permission and they're not Owner
-    return canEditRoles && user.role !== "Owner";
+    // Can remove others if we have permission
+    return canEditRoles;
   }
 
   function getRevokeButtonText(user: User): string {

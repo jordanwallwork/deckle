@@ -16,6 +16,7 @@
     componentId: string;
     onMinimize?: () => void;
     onMaximize?: () => void;
+    readOnly?: boolean;
   }
 
   let {
@@ -25,6 +26,7 @@
     componentId,
     onMinimize,
     onMaximize,
+    readOnly = false,
   }: Props = $props();
 
   // Get the store reference during component initialization

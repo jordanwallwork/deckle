@@ -123,7 +123,7 @@
     />
   {:else}
     <!-- Separate sides mode -->
-    {#each [{ key: "top", label: "Top" }, { key: "right", label: "Right" }, { key: "bottom", label: "Bottom" }, { key: "left", label: "Left" }] as { key, label }}
+    {#each [{ key: "top" as const, label: "Top" }, { key: "right" as const, label: "Right" }, { key: "bottom" as const, label: "Bottom" }, { key: "left" as const, label: "Left" }] as { key, label }}
       <BorderSideControl
         {label}
         width={border?.[key]?.width}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ImageElement } from "../../types";
+  import type { BaseElement, ImageElement } from "../../types";
   import { templateStore } from "$lib/stores/templateElements";
   import BaseElementConfig from "./BaseElementConfig.svelte";
   import SelectField from "../config-controls/SelectField.svelte";
@@ -24,7 +24,7 @@
   }
 </script>
 
-<BaseElementConfig {element} {updateElement}>
+<BaseElementConfig {element} updateElement={updateElement as (updates: Partial<BaseElement>) => void}>
   <div class="image-url-field">
     <div class="field-header">
       <label for="image-url">Image URL</label>

@@ -10,11 +10,20 @@
     onchange
   }: {
     label: string;
-    width?: number;
+    width?: number | string;
     style?: BorderStyle;
     color?: string;
     onchange: (updates: { width?: number; style?: BorderStyle; color?: string }) => void;
   } = $props();
+
+  // Convert width to number if it's a string (e.g., "2px" -> 2)
+  const numericWidth = $derived(() => {
+    if (width === undefined) return undefined;
+    if (typeof width === 'number') return width;
+    // Parse numeric value from string like "2px"
+    const parsed = parseFloat(width);
+    return isNaN(parsed) ? undefined : parsed;
+  });
 
   const borderStyleOptions: Array<{ value: BorderStyle; label: string }> = [
     { value: "none", label: "None" },
@@ -32,7 +41,7 @@
     onchange={(newColor) => onchange({ color: newColor })}
   />
   <NumberInput
-    value={width}
+    value={numericWidth()}
     min={0}
     placeholder="0"
     unit="px"

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ContainerElement } from "../../types";
+  import type { BaseElement, ContainerElement } from "../../types";
   import { templateStore } from "$lib/stores/templateElements";
   import BaseElementConfig from "./BaseElementConfig.svelte";
   import FieldWrapper from "../config-controls/FieldWrapper.svelte";
@@ -23,7 +23,7 @@
   );
 </script>
 
-<BaseElementConfig {element} {updateElement}>
+<BaseElementConfig {element} updateElement={updateElement as (updates: Partial<BaseElement>) => void}>
   <SelectField
     label="Display"
     id="display"

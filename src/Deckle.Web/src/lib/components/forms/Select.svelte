@@ -10,7 +10,7 @@
     onchange,
     children,
   }: {
-    value: string;
+    value: string | null;
     id?: string;
     disabled?: boolean;
     required?: boolean;

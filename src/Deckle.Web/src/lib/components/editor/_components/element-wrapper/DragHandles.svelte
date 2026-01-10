@@ -46,8 +46,8 @@
 		isDragging = true;
 		startX = e.clientX;
 		startY = e.clientY;
-		initialX = element.x ?? 0;
-		initialY = element.y ?? 0;
+		initialX = typeof element.x === 'number' ? element.x : (parseFloat(String(element.x)) || 0);
+		initialY = typeof element.y === 'number' ? element.y : (parseFloat(String(element.y)) || 0);
 
 		// Disable panning during drag
 		const panzoom = getPanzoom();

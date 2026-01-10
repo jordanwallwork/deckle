@@ -7,11 +7,11 @@
 
   // Derived style properties for granular reactivity
   const display = $derived(element.display || 'flex');
-  const flexDirection = $derived(element.display === 'flex' && element.flexConfig?.direction);
-  const flexWrap = $derived(element.display === 'flex' && element.flexConfig?.wrap);
-  const justifyContent = $derived(element.display === 'flex' && element.flexConfig?.justifyContent);
-  const alignItems = $derived(element.display === 'flex' && element.flexConfig?.alignItems);
-  const alignContent = $derived(element.display === 'flex' && element.flexConfig?.alignContent);
+  const flexDirection = $derived(element.display === 'flex' ? element.flexConfig?.direction : undefined);
+  const flexWrap = $derived(element.display === 'flex' ? element.flexConfig?.wrap : undefined);
+  const justifyContent = $derived(element.display === 'flex' ? element.flexConfig?.justifyContent : undefined);
+  const alignItems = $derived(element.display === 'flex' ? element.flexConfig?.alignItems : undefined);
+  const alignContent = $derived(element.display === 'flex' ? element.flexConfig?.alignContent : undefined);
   const gap = $derived(element.display === 'flex' && element.flexConfig?.gap !== undefined ? `${element.flexConfig.gap}px` : undefined);
   const rowGap = $derived(element.display === 'flex' && element.flexConfig?.rowGap !== undefined ? `${element.flexConfig.rowGap}px` : undefined);
   const columnGap = $derived(element.display === 'flex' && element.flexConfig?.columnGap !== undefined ? `${element.flexConfig.columnGap}px` : undefined);

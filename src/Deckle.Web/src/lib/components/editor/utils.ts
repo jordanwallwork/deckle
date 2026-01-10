@@ -1,4 +1,4 @@
-import type { BaseElement, Shadow } from './types';
+import type { BaseElement, Shadow, TextElement } from './types';
 import { mmToPx } from '$lib/utils/size.utils';
 
 export function getElementLabel(el: BaseElement): string {
@@ -9,7 +9,8 @@ export function getElementLabel(el: BaseElement): string {
 
 	// Otherwise use default label
 	if (el.type === 'text') {
-		return el.content.substring(0, 20) + (el.content.length > 20 ? '...' : '');
+		const textEl = el as TextElement;
+		return textEl.content.substring(0, 20) + (textEl.content.length > 20 ? '...' : '');
 	}
 	return el.type.charAt(0).toUpperCase() + el.type.slice(1);
 }

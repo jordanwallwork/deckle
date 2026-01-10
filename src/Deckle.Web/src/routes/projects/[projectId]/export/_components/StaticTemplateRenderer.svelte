@@ -344,10 +344,6 @@
         styles.push(...borderToCss(image.border));
       }
 
-      // Border radius (simplified)
-      if (image.borderRadius)
-        styles.push(`border-radius: ${image.borderRadius}px`);
-
       // Shadow
       if (image.shadow) {
         const shadows = Array.isArray(image.shadow)

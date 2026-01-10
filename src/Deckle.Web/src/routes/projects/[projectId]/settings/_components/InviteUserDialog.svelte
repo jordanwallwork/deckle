@@ -20,7 +20,7 @@
   let email = $state("");
   let role = $state("Collaborator");
   let isSubmitting = $state(false);
-  let error = $state<string | null>(null);
+  let error = $state<string | undefined>(undefined);
 
   const roleDescriptions = {
     Admin: "Can manage project settings, invite users, and delete components",
@@ -33,12 +33,12 @@
       // Reset state when dialog closes
       email = "";
       role = "Collaborator";
-      error = null;
+      error = undefined;
     }
   });
 
   async function handleSubmit() {
-    error = null;
+    error = undefined;
 
     if (!email.trim()) {
       error = "Email is required";

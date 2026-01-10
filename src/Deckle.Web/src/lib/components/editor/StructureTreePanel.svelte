@@ -5,7 +5,7 @@
   import { templateStore } from "$lib/stores/templateElements";
   import type { EditableComponent } from "$lib/types";
 
-  let { component, part }: { component: EditableComponent; part?: string } =
+  let { component, part, readOnly = false }: { component: EditableComponent; part?: string; readOnly?: boolean } =
     $props();
 
   let showAddPopover = $state(false);

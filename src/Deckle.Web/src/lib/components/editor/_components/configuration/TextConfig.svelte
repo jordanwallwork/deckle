@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TextElement } from "../../types";
+  import type { BaseElement, TextElement } from "../../types";
   import { templateStore } from "$lib/stores/templateElements";
   import BaseElementConfig from "./BaseElementConfig.svelte";
   import ColorPicker from "../config-controls/ColorPicker.svelte";
@@ -17,7 +17,7 @@
   }
 </script>
 
-<BaseElementConfig {element} {updateElement}>
+<BaseElementConfig {element} updateElement={updateElement as (updates: Partial<BaseElement>) => void}>
   <label class="markdown-toggle">
     <input
       type="checkbox"

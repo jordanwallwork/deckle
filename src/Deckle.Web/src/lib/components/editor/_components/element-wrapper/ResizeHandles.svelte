@@ -100,8 +100,8 @@
     startY = e.clientY;
 
     const dims = getCurrentDimensions();
-    startLeft = element.x || 0;
-    startTop = element.y || 0;
+    startLeft = typeof element.x === 'number' ? element.x : (parseFloat(String(element.x)) || 0);
+    startTop = typeof element.y === 'number' ? element.y : (parseFloat(String(element.y)) || 0);
 
     // Get the actual element being resized (parent of resize handles)
     const targetElement = resizeHandlesEl?.parentElement;

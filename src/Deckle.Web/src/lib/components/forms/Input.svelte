@@ -7,6 +7,9 @@
     disabled = false,
     required = false,
     error = false,
+    min,
+    max,
+    step,
     onchange,
     oninput,
   }: {
@@ -17,6 +20,9 @@
     disabled?: boolean;
     required?: boolean;
     error?: boolean;
+    min?: string;
+    max?: string;
+    step?: string;
     onchange?: (value: string) => void;
     oninput?: (value: string) => void;
   } = $props();
@@ -29,6 +35,9 @@
   {placeholder}
   {disabled}
   {required}
+  {min}
+  {max}
+  {step}
   class="base-input"
   class:error
   onchange={(e) => onchange?.(e.currentTarget.value)}

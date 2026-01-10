@@ -1,20 +1,27 @@
 # Deckle
 
+[deckle.games](https://app.deckle.games)
+
 A modern tool for designing and managing tabletop game components. Create cards, dice, and other game components with ease.
+
+**Very much a work in progress**
 
 ## What is Deckle?
 
-Deckle helps board game designers and hobbyists create professional-looking game components. Whether you're prototyping a new game or preparing files for print-on-demand services, Deckle streamlines the design process.
+Deckle helps board game designers and hobbyists create game components quickly and easily. Whether you're prototyping a new game or preparing files for print-on-demand services, Deckle streamlines the design process.
 
 ### Features
 
 - **Project Management**: Organize your game components into projects
-- **Card Designer**: Create custom cards with configurable sizes and layouts
-- **Dice Designer**: Design custom dice with various face configurations
-- **Data Integration**: Connect to Google Sheets and other data sources
+- **Component Designer**: Create custom components, such as cards, player mats and game boards
+- **Data Integration**: Connect to Google Sheets to automatically create and update entire decks
 - **Export Ready**: Generate print-ready files for your game components
 
 ## Getting Started
+
+Deckle is available for use at [app.deckle.games](https://app.deckle.games)
+
+If you wish to run the project locally, either to contribute fixes/features or to self host, then read on (if self hosting, be sure to read [the license](LICENSE.md)) 
 
 ### Prerequisites
 
@@ -40,54 +47,7 @@ dotnet restore
 dotnet build
 ```
 
-## Versioning
-
-Deckle uses [GitVersion](https://gitversion.net/) for automatic semantic versioning. We follow **GitHubFlow**: master is always releasable, features branch off and PR back.
-
-### How It Works
-
-Every merge to master automatically gets a version number following [Semantic Versioning](https://semver.org/):
-
-- **MAJOR** (breaking changes): Add `+semver: major` to commit message
-- **MINOR** (new features): Add `+semver: minor` to commit message
-- **PATCH** (bug fixes): Default, or add `+semver: patch`
-
-### Workflow
-
-```bash
-# 1. Create a feature branch
-git checkout -b feature/new-component
-
-# 2. Make changes and commit
-git commit -m "Add player mat component +semver: minor"
-
-# 3. Push and create PR
-git push origin feature/new-component
-
-# 4. Merge PR to master
-# GitHub Actions automatically:
-#   - Calculates version (e.g., 1.3.0)
-#   - Tags Docker images
-#   - Creates Git tag (v1.3.0)
-```
-
-### Docker Image Tags
-
-Every master build creates images tagged with:
-
-- **{SemVer}** (1.2.3) - Full version
-- **{Major}.{Minor}** (1.2) - Minor version
-- **{Major}** (1) - Major version
-- **{sha}** (abc1234) - Git commit
-- **latest** - Always points to newest master build
-
-### Version Endpoint
-
-Check the version of a running instance:
-
-```bash
-curl http://localhost:5000/api/version
-```
+### Contributing
 
 ## Technology Stack
 
@@ -100,18 +60,16 @@ curl http://localhost:5000/api/version
 
 For detailed development guidelines, architecture information, and contribution rules, see [AGENTS.md](AGENTS.md).
 
+If you wish to contribute to Deckle, please feel free to fork the project, create a feature branch, and then submit a PR for consideration
+
 ## License
 
 Deckle is licensed under the [Business Source License 1.1](LICENSE.md).
 
 **TL;DR**: You can use Deckle for personal use, internal company use, and to design games you sell commercially. You cannot offer Deckle itself as a hosted service to others. The license converts to Apache 2.0 on after 2 years (exact date for current version in LICENSE.md)
 
-For commercial licensing inquiries: deckle.games@gmail.com
+For commercial licensing inquiries: licensin@deckle.games
 
 ## Contact
 
 For questions, issues, or feature requests, please open an issue on GitHub.
-
----
-
-Made with care for board game designers everywhere.

@@ -117,6 +117,12 @@ export interface BaseElement {
   visible?: boolean;
   locked?: boolean; // When true, element cannot be selected or edited in preview, but can be edited in structure tree
   rotation?: number; // rotation in degrees
+
+  // Common styling properties
+  padding?: Spacing;
+  margin?: Spacing;
+  border?: Border;
+  dimensions?: Dimensions;
 }
 
 // ============================================================================
@@ -128,12 +134,8 @@ export interface ContainerElement extends BaseElement {
   display?: 'flex' | 'block';
   flexConfig?: FlexConfig; // only used when display is 'flex'
   children: TemplateElement[];
-  padding?: Spacing;
-  margin?: Spacing;
-  border?: Border;
   background?: Background;
   shadow?: Shadow | Shadow[]; // support multiple shadows
-  dimensions?: Dimensions;
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
   bleedAreaColor?: string; // Color for bleed area marking
   safeAreaColor?: string; // Color for safe area marking
@@ -160,18 +162,8 @@ export interface TextElement extends BaseElement {
   lineHeight?: number | string;
   letterSpacing?: number;
 
-  // Spacing (block mode)
-  padding?: Spacing;
-  margin?: Spacing;
-
   // Background
   backgroundColor?: string;
-
-  // Border
-  border?: Border;
-
-  // Dimensions (block mode only)
-  dimensions?: Dimensions;
 
   // Other
   wordWrap?: 'normal' | 'break-word' | 'break-all';
@@ -187,14 +179,11 @@ export interface ImageElement extends BaseElement {
   imageId: string;
 
   // Sizing
-  dimensions?: Dimensions;
   objectFit?: ImageFit;
   objectPosition?: string; // e.g., "center", "50% 50%"
 
   // Optional styling
-  border?: Border;
   shadow?: Shadow | Shadow[];
-  borderRadius?: number;
 }
 
 // ============================================================================

@@ -1,19 +1,14 @@
 <script lang="ts">
-  import type { TextElement } from "../types";
+  import type { TextElement } from "../../types";
   import { templateStore } from "$lib/stores/templateElements";
-  import ConfigSection from "./ConfigSection.svelte";
-  import VisibilityCheckbox from "./VisibilityCheckbox.svelte";
-  import LockCheckbox from "./LockCheckbox.svelte";
-  import PositionControls from "./PositionControls.svelte";
-  import DimensionInput from "./DimensionInput.svelte";
-  import ColorPicker from "./ColorPicker.svelte";
-  import PaddingControls from "./PaddingControls.svelte";
-  import BorderConfig from "./BorderConfig.svelte";
-  import TextAreaField from "./TextAreaField.svelte";
-  import TextField from "./TextField.svelte";
-  import NumberField from "./NumberField.svelte";
-  import SelectField from "./SelectField.svelte";
-  import Fields from "./Fields.svelte";
+  import BaseElementConfig from "./BaseElementConfig.svelte";
+  import ColorPicker from "../config-controls/ColorPicker.svelte";
+  import PaddingControls from "../config-controls/PaddingControls.svelte";
+  import TextAreaField from "../config-controls/TextAreaField.svelte";
+  import TextField from "../config-controls/TextField.svelte";
+  import NumberField from "../config-controls/NumberField.svelte";
+  import SelectField from "../config-controls/SelectField.svelte";
+  import Fields from "../config-controls/Fields.svelte";
 
   let { element }: { element: TextElement } = $props();
 
@@ -22,38 +17,7 @@
   }
 </script>
 
-<ConfigSection>
-  <div class="icon-toggle-group">
-    <VisibilityCheckbox
-      visible={element.visible}
-      onchange={(visible) => updateElement({ visible })}
-    />
-
-    <LockCheckbox
-      locked={element.locked}
-      onchange={(locked) => updateElement({ locked })}
-    />
-  </div>
-
-  {#if element.position === "absolute"}
-    <PositionControls
-      x={element.x}
-      y={element.y}
-      onchange={(updates) => updateElement(updates)}
-    />
-  {/if}
-
-  <NumberField
-    label="Rotation"
-    id="rotation"
-    value={element.rotation ?? 0}
-    min={-360}
-    max={360}
-    step={1}
-    unit="°"
-    onchange={(rotation) => updateElement({ rotation })}
-  />
-
+<BaseElementConfig {element} {updateElement}>
   <label class="markdown-toggle">
     <input
       type="checkbox"
@@ -189,48 +153,9 @@
     padding={element.padding}
     onchange={(padding) => updateElement({ padding })}
   />
-
-  <BorderConfig
-    border={element.border}
-    onchange={(border) => updateElement({ border })}
-  />
-
-  <Fields>
-    <DimensionInput
-      label="Width"
-      id="width"
-      value={element.dimensions?.width?.toString()}
-      onchange={(width) =>
-        updateElement({
-          dimensions: {
-            ...element.dimensions,
-            width,
-          },
-        })}
-    />
-
-    <DimensionInput
-      label="Height"
-      id="height"
-      value={element.dimensions?.height?.toString()}
-      onchange={(height) =>
-        updateElement({
-          dimensions: {
-            ...element.dimensions,
-            height,
-          },
-        })}
-    />
-  </Fields>
-</ConfigSection>
+</BaseElementConfig>
 
 <style>
-  .icon-toggle-group {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-
   .markdown-toggle {
     display: flex;
     align-items: center;

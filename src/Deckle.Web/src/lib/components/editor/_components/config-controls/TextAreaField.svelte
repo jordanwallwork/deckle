@@ -7,6 +7,7 @@
     value,
     rows = 3,
     placeholder,
+    hideLabel = false,
     oninput
   }: {
     label: string;
@@ -14,11 +15,12 @@
     value: string;
     rows?: number;
     placeholder?: string;
+    hideLabel?: boolean;
     oninput: (e: Event & { currentTarget: HTMLTextAreaElement }) => void;
   } = $props();
 </script>
 
-<FieldWrapper {label} htmlFor={id}>
+<FieldWrapper {label} {hideLabel} htmlFor={id}>
   <textarea
     {id}
     {rows}

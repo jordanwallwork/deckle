@@ -1,9 +1,9 @@
 <script lang="ts">
   import Panel from "./_components/Panel.svelte";
-  import ContainerConfig from "./_components/ContainerConfig.svelte";
-  import TextConfig from "./_components/TextConfig.svelte";
-  import ImageConfig from "./_components/ImageConfig.svelte";
-  import ComponentConfig from "./_components/ComponentConfig.svelte";
+  import ContainerConfig from "./_components/configuration/ContainerConfig.svelte";
+  import TextConfig from "./_components/configuration/TextConfig.svelte";
+  import ImageConfig from "./_components/configuration/ImageConfig.svelte";
+  import ComponentConfig from "./_components/configuration/ComponentConfig.svelte";
   import { templateStore } from "$lib/stores/templateElements";
   import type { ContainerElement, TextElement, ImageElement } from "./types";
   import type { EditableComponent } from "$lib/types";

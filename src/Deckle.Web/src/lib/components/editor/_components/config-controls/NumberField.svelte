@@ -10,6 +10,7 @@
     step,
     placeholder,
     unit,
+    hideLabel = false,
     oninput,
     onchange
   }: {
@@ -21,6 +22,7 @@
     step?: number | string;
     placeholder?: string;
     unit?: string;
+    hideLabel?: boolean;
     oninput?: (e: Event & { currentTarget: HTMLInputElement }) => void;
     onchange?: (value: number) => void;
   } = $props();
@@ -41,7 +43,7 @@
   }
 </script>
 
-<FieldWrapper {label} htmlFor={id}>
+<FieldWrapper {label} {hideLabel} htmlFor={id}>
   <div class="number-field-container">
     <input
       type="number"

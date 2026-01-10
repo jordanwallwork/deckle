@@ -1,9 +1,14 @@
 <script lang="ts">
-  let { label, htmlFor, children }: { label: string; htmlFor: string; children: any } = $props();
+  let {
+    label,
+    htmlFor,
+    hideLabel = false,
+    children
+  }: { label: string; htmlFor: string; hideLabel?: boolean; children: any } = $props();
 </script>
 
 <div class="field">
-  <label for={htmlFor}>{label}</label>
+  <label for={htmlFor} class:visually-hidden={hideLabel}>{label}</label>
   {@render children()}
 </div>
 
@@ -52,5 +57,18 @@
   :global(.field textarea:focus) {
     outline: none;
     border-color: #0066cc;
+  }
+
+  /* Visually hide label while keeping it accessible to screen readers */
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

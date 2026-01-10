@@ -6,17 +6,19 @@
     id,
     value,
     options,
+    hideLabel = false,
     onchange
   }: {
     label: string;
     id: string;
     value: string | number;
     options: Array<{ value: string | number; label: string }>;
+    hideLabel?: boolean;
     onchange: (value: string) => void;
   } = $props();
 </script>
 
-<FieldWrapper {label} htmlFor={id}>
+<FieldWrapper {label} {hideLabel} htmlFor={id}>
   <select
     {id}
     {value}

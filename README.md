@@ -1,10 +1,8 @@
-# Deckle
-
-[deckle.games](https://app.deckle.games)
+# Deckle - [deckle.games](https://app.deckle.games)
 
 A modern tool for designing and managing tabletop game components. Create cards, dice, and other game components with ease.
 
-**Very much a work in progress**
+**-- Note: Very much a work in progress! --**
 
 ## What is Deckle?
 
@@ -68,7 +66,7 @@ Deckle is licensed under the [Business Source License 1.1](LICENSE.md).
 
 **TL;DR**: You can use Deckle for personal use, internal company use, and to design games you sell commercially. You cannot offer Deckle itself as a hosted service to others. The license converts to Apache 2.0 on after 2 years (exact date for current version in LICENSE.md)
 
-For commercial licensing inquiries: licensin@deckle.games
+For commercial licensing inquiries: licensing@deckle.games
 
 ## Contact
 

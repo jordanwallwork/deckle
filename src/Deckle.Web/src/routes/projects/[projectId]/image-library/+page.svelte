@@ -1,9 +1,13 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { PageData } from './$types';
   import { invalidateAll } from '$app/navigation';
+  import { filesApi } from '$lib/api';
   import FileUpload from '$lib/components/FileUpload.svelte';
   import FileGallery from '$lib/components/FileGallery.svelte';
   import Dialog from '$lib/components/Dialog.svelte';
+  import TagInput from '$lib/components/forms/TagInput.svelte';
+  import { TabContent } from '$lib/components';
 
   let { data }: { data: PageData } = $props();
 
@@ -12,6 +16,54 @@
 
   // Page-wide drag-and-drop state
   let isDraggingOverPage = $state(false);
+
+  // Tag filtering state
+  let selectedFilterTags = $state<string[]>([]);
+  let useAndLogic = $state(false);
+  let availableTags = $state<string[]>([]);
+  let filterLoading = $state(false);
+
+  // Load available tags on mount
+  onMount(async () => {
+    try {
+      const { tags } = await filesApi.getTags(data.project.id);
+      availableTags = tags;
+    } catch (err) {
+      console.error('Failed to load tags:', err);
+    }
+  });
+
+  // Apply filter by fetching from backend
+  async function applyFilter() {
+    if (selectedFilterTags.length === 0) {
+      // No filters - reload all files
+      await invalidateAll();
+      return;
+    }
+
+    filterLoading = true;
+    try {
+      data.files = await filesApi.list(
+        data.project.id,
+        selectedFilterTags,
+        useAndLogic
+      );
+    } catch (err) {
+      console.error('Failed to apply filter:', err);
+    } finally {
+      filterLoading = false;
+    }
+  }
+
+  // Watch for filter changes and apply them
+  $effect(() => {
+    // Trigger when selectedFilterTags or useAndLogic changes
+    const _ = selectedFilterTags.length;
+    const __ = useAndLogic;
+
+    // Apply filter (debounced would be better, but this works)
+    applyFilter();
+  });
 
   // Button click handler
   function openUploadModal() {
@@ -57,6 +109,20 @@
     await invalidateAll();
   }
 
+  // File updated handler (for tag changes)
+  async function handleFileUpdated() {
+    // Refresh data from server
+    await invalidateAll();
+
+    // Refresh available tags
+    try {
+      const { tags } = await filesApi.getTags(data.project.id);
+      availableTags = tags;
+    } catch (err) {
+      console.error('Failed to refresh tags:', err);
+    }
+  }
+
   // Format bytes for display
   function formatBytes(bytes: number): string {
     if (bytes === 0) return '0 B';
@@ -76,18 +142,19 @@
   />
 </svelte:head>
 
-<div
-  class="tab-content"
-  class:dragging-over={isDraggingOverPage}
-  ondragover={handlePageDragOver}
-  ondragleave={handlePageDragLeave}
-  ondrop={handlePageDrop}
->
-  <div class="tab-actions">
+<TabContent>
+  {#snippet actions()}
     <button class="add-button" onclick={openUploadModal}>+ Upload Images</button>
-  </div>
+  {/snippet}
 
-  {#if isDraggingOverPage}
+  <div
+    class="drag-drop-wrapper"
+    class:dragging-over={isDraggingOverPage}
+    ondragover={handlePageDragOver}
+    ondragleave={handlePageDragLeave}
+    ondrop={handlePageDrop}
+  >
+    {#if isDraggingOverPage}
     <div class="drag-overlay">
       <p>Drop images here to upload</p>
     </div>
@@ -103,29 +170,50 @@
     </div>
   {/if}
 
-  {#if data.files.length === 0}
+  {#if availableTags.length > 0}
+    <div class="filter-section">
+      <div class="filter-header">
+        <label for="filter-tags" class="filter-label">Filter by tags</label>
+      </div>
+      <TagInput bind:value={selectedFilterTags} suggestions={availableTags} />
+
+      {#if selectedFilterTags.length > 0}
+        <div class="filter-logic">
+          <label class="radio-label">
+            <input type="radio" bind:group={useAndLogic} value={false} />
+            Match ANY tag (OR)
+          </label>
+          <label class="radio-label">
+            <input type="radio" bind:group={useAndLogic} value={true} />
+            Match ALL tags (AND)
+          </label>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {#if filterLoading}
+    <div class="loading-state">
+      <p>Loading filtered files...</p>
+    </div>
+  {:else if data.files.length === 0}
     <div class="empty-state">
       <p class="empty-message">No images yet</p>
       <p class="empty-subtitle">Upload images to use in your game components</p>
     </div>
   {:else}
-    <FileGallery files={data.files} onFileDeleted={handleFileDeleted} />
-  {/if}
-</div>
+    <FileGallery files={data.files} onFileDeleted={handleFileDeleted} onFileUpdated={handleFileUpdated} />
+    {/if}
+  </div>
+</TabContent>
 
 <Dialog bind:show={showUploadModal} title="Upload Images" maxWidth="700px">
   <FileUpload projectId={data.project.id} onUploadComplete={handleUploadComplete} />
 </Dialog>
 
 <style>
-  .tab-content {
+  .drag-drop-wrapper {
     position: relative;
-  }
-
-  .tab-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 1.5rem;
   }
 
   .add-button {
@@ -180,6 +268,53 @@
   .quota-info p {
     margin: 0;
     font-size: 0.875rem;
+    color: var(--color-muted-teal);
+  }
+
+  .filter-section {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .filter-header {
+    margin-bottom: 0.75rem;
+  }
+
+  .filter-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .filter-logic {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    cursor: pointer;
+  }
+
+  .radio-label input[type='radio'] {
+    cursor: pointer;
+  }
+
+  .loading-state {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .loading-state p {
+    font-size: 1rem;
     color: var(--color-muted-teal);
   }
 

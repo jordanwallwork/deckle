@@ -29,7 +29,8 @@ public static class FileEndpoints
                     projectId,
                     request.FileName,
                     request.ContentType,
-                    request.FileSizeBytes);
+                    request.FileSizeBytes,
+                    request.Tags);
 
                 return Results.Ok(response);
             }
@@ -53,14 +54,34 @@ public static class FileEndpoints
         projectFilesGroup.MapGet("", async (
             Guid projectId,
             HttpContext httpContext,
-            FileService fileService) =>
+            FileService fileService,
+            string? tags,
+            bool? matchAll) =>
         {
             var userId = httpContext.GetUserId();
-            var files = await fileService.GetProjectFilesAsync(userId, projectId);
+            var filterTags = string.IsNullOrEmpty(tags)
+                ? null
+                : tags.Split(',').Select(t => t.Trim()).ToList();
+            var useAndLogic = matchAll ?? false;
+
+            var files = await fileService.GetProjectFilesAsync(userId, projectId, filterTags, useAndLogic);
             return Results.Ok(files);
         })
         .WithName("GetProjectFiles")
-        .WithDescription("Get all files for a project");
+        .WithDescription("Get all files for a project, optionally filtered by tags");
+
+        // Get project tags (for autocomplete)
+        projectFilesGroup.MapGet("/tags", async (
+            Guid projectId,
+            HttpContext httpContext,
+            FileService fileService) =>
+        {
+            var userId = httpContext.GetUserId();
+            var tags = await fileService.GetProjectTagsAsync(userId, projectId);
+            return Results.Ok(new FileTagsResponse(tags));
+        })
+        .WithName("GetProjectFileTags")
+        .WithDescription("Get all distinct tags used in project files (for autocomplete)");
 
         var filesGroup = routes.MapGroup("/files")
             .WithTags("Files")
@@ -116,6 +137,32 @@ public static class FileEndpoints
         })
         .WithName("GenerateFileDownloadUrl")
         .WithDescription("Generate a presigned URL for downloading a file");
+
+        // Update file tags
+        filesGroup.MapPatch("/{fileId:guid}/tags", async (
+            Guid fileId,
+            HttpContext httpContext,
+            FileService fileService,
+            UpdateFileTagsRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+
+            try
+            {
+                var file = await fileService.UpdateFileTagsAsync(userId, fileId, request.Tags);
+                return Results.Ok(file);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.NotFound(new { error = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Unauthorized();
+            }
+        })
+        .WithName("UpdateFileTags")
+        .WithDescription("Update tags for a file");
 
         // Delete file
         filesGroup.MapDelete("/{fileId:guid}", async (

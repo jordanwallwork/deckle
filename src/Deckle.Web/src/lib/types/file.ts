@@ -6,6 +6,7 @@ export interface File {
   fileSizeBytes: number;
   uploadedAt: string;
   uploadedBy: FileUploader;
+  tags: string[];
 }
 
 export interface FileUploader {
@@ -18,6 +19,7 @@ export interface RequestUploadUrlRequest {
   fileName: string;
   contentType: string;
   fileSizeBytes: number;
+  tags?: string[];
 }
 
 export interface RequestUploadUrlResponse {
@@ -36,4 +38,12 @@ export interface UserStorageQuota {
   usedBytes: number;
   availableBytes: number;
   usedPercentage: number;
+}
+
+export interface UpdateFileTagsRequest {
+  tags: string[];
+}
+
+export interface FileTagsResponse {
+  tags: string[];
 }

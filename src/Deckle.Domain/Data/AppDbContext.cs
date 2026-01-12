@@ -1,5 +1,6 @@
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Text.Json;
 
 namespace Deckle.Domain.Data;
@@ -309,10 +310,29 @@ public class AppDbContext : DbContext
                 .HasForeignKey(f => f.UploadedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure Tags as JSONB
+            entity.Property(f => f.Tags)
+                .HasColumnType("jsonb")
+                .HasDefaultValueSql("'[]'::jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>()
+                )
+                .Metadata.SetValueComparer(
+                    new ValueComparer<List<string>>(
+                        (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
+                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c == null ? new List<string>() : c.ToList()
+                    )
+                );
+
             // Indexes for performance
             entity.HasIndex(f => f.ProjectId);
             entity.HasIndex(f => f.UploadedByUserId);
             entity.HasIndex(f => new { f.Status, f.UploadedAt }); // For cleanup job
+            entity.HasIndex(f => f.Tags)
+                .HasMethod("gin")
+                .HasAnnotation("Npgsql:IndexOperators", new[] { "jsonb_path_ops" }); // For tag queries with better performance
         });
     }
 }

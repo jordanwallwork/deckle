@@ -17,6 +17,7 @@ public class File
     public long FileSizeBytes { get; set; }
     public string StorageKey { get; set; } = string.Empty; // "projects/{projectId}/files/{fileId}/{fileName}"
     public FileStatus Status { get; set; } = FileStatus.Pending;
+    public List<string> Tags { get; set; } = new();
 
     public DateTime UploadedAt { get; set; }
 

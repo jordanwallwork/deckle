@@ -3,6 +3,7 @@ using System;
 using Deckle.Domain.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Deckle.Domain.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260112085318_AddFileTagsJsonbColumn")]
+    partial class AddFileTagsJsonbColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -156,9 +159,7 @@ namespace Deckle.Domain.Migrations
 
                     b.Property<string>("Tags")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("jsonb")
-                        .HasDefaultValueSql("'[]'::jsonb");
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime>("UploadedAt")
                         .ValueGeneratedOnAdd()
@@ -175,7 +176,6 @@ namespace Deckle.Domain.Migrations
                     b.HasIndex("Tags");
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Tags"), "gin");
-                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Tags"), new[] { "jsonb_path_ops" });
 
                     b.HasIndex("UploadedByUserId");
 

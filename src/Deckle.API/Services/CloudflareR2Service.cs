@@ -54,7 +54,7 @@ public class CloudflareR2Service
     /// Required CORS settings:
     /// - AllowedOrigins: Your frontend origins (e.g., http://localhost:5173, https://yourdomain.com)
     /// - AllowedMethods: PUT, GET, HEAD
-    /// - AllowedHeaders: * (or at minimum: Content-Type, Content-Length)
+    /// - AllowedHeaders: 'content-type' + 'x-amz-meta-filesize' (or at minimum: Content-Type, Content-Length)
     /// - ExposeHeaders: ETag
     /// </remarks>
     public string GenerateUploadUrl(

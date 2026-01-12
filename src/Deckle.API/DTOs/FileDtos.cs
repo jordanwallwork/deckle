@@ -7,7 +7,8 @@ public record FileDto(
     string ContentType,
     long FileSizeBytes,
     DateTime UploadedAt,
-    FileUploaderDto UploadedBy
+    FileUploaderDto UploadedBy,
+    List<string> Tags
 );
 
 public record FileUploaderDto(
@@ -19,7 +20,8 @@ public record FileUploaderDto(
 public record RequestUploadUrlRequest(
     string FileName,
     string ContentType,
-    long FileSizeBytes
+    long FileSizeBytes,
+    List<string>? Tags
 );
 
 public record RequestUploadUrlResponse(
@@ -38,4 +40,12 @@ public record UserStorageQuotaDto(
     long UsedBytes,
     long AvailableBytes,
     double UsedPercentage
+);
+
+public record UpdateFileTagsRequest(
+    List<string> Tags
+);
+
+public record FileTagsResponse(
+    List<string> Tags
 );

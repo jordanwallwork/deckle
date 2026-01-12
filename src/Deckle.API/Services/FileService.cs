@@ -2,6 +2,7 @@ using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace Deckle.API.Services;
 
@@ -13,6 +14,9 @@ public class FileService
     private readonly ILogger<FileService> _logger;
 
     private const long MaxFileSizeBytes = 50 * 1024 * 1024; // 50MB
+    private const int MaxTagLength = 50;
+    private const int MaxTagsPerFile = 20;
+    private static readonly Regex TagPattern = new(@"^[a-z0-9\-_]+$", RegexOptions.Compiled);
 
     public FileService(
         AppDbContext context,
@@ -34,7 +38,8 @@ public class FileService
         Guid projectId,
         string fileName,
         string contentType,
-        long fileSizeBytes)
+        long fileSizeBytes,
+        List<string>? tags = null)
     {
         // 1. Authorization: User must have CanModifyResources permission
         await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
@@ -94,7 +99,13 @@ public class FileService
                 $"Project owner's storage quota exceeded. Available: {availableMb:F2}MB, Required: {requiredMb:F2}MB. Contact the project owner to free up space.");
         }
 
-        // 6. Create pending File record
+        // 6. Validate tags if provided
+        if (tags != null && tags.Any())
+        {
+            ValidateTags(tags);
+        }
+
+        // 7. Create pending File record
         var fileId = Guid.NewGuid();
         var storageKey = CloudflareR2Service.GenerateStorageKey(projectId, fileId, fileName);
 
@@ -108,13 +119,14 @@ public class FileService
             FileSizeBytes = fileSizeBytes,
             StorageKey = storageKey,
             Status = FileStatus.Pending,
-            UploadedAt = DateTime.UtcNow
+            UploadedAt = DateTime.UtcNow,
+            Tags = tags?.Select(t => t.Trim().ToLowerInvariant()).Where(t => !string.IsNullOrEmpty(t)).ToList() ?? new()
         };
 
         _context.Files.Add(file);
         await _context.SaveChangesAsync();
 
-        // 7. Generate presigned upload URL
+        // 8. Generate presigned upload URL
         var uploadUrl = _r2Service.GenerateUploadUrl(
             storageKey,
             contentType,
@@ -193,7 +205,11 @@ public class FileService
     /// <summary>
     /// List files for a project
     /// </summary>
-    public async Task<List<FileDto>> GetProjectFilesAsync(Guid userId, Guid projectId)
+    public async Task<List<FileDto>> GetProjectFilesAsync(
+        Guid userId,
+        Guid projectId,
+        List<string>? filterTags = null,
+        bool useAndLogic = false)
     {
         // Authorization
         if (!await _authService.HasProjectAccessAsync(userId, projectId))
@@ -201,8 +217,31 @@ public class FileService
             return [];
         }
 
-        var files = await _context.Files
+        var query = _context.Files
             .Where(f => f.ProjectId == projectId && f.Status == FileStatus.Confirmed)
+            .AsQueryable();
+
+        // Apply tag filtering
+        if (filterTags != null && filterTags.Any())
+        {
+            var normalizedFilterTags = filterTags.Select(t => t.ToLowerInvariant()).ToList();
+
+            if (useAndLogic)
+            {
+                // AND logic: file must have ALL tags
+                foreach (var tag in normalizedFilterTags)
+                {
+                    query = query.Where(f => f.Tags.Contains(tag));
+                }
+            }
+            else
+            {
+                // OR logic: file must have ANY tag
+                query = query.Where(f => f.Tags.Any(t => normalizedFilterTags.Contains(t)));
+            }
+        }
+
+        var files = await query
             .Include(f => f.UploadedBy)
             .OrderByDescending(f => f.UploadedAt)
             .ToListAsync();
@@ -320,6 +359,90 @@ public class FileService
         );
     }
 
+    /// <summary>
+    /// Update tags for a file
+    /// </summary>
+    public async Task<FileDto> UpdateFileTagsAsync(Guid userId, Guid fileId, List<string> tags)
+    {
+        var file = await _context.Files
+            .Include(f => f.UploadedBy)
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed);
+
+        if (file == null)
+            throw new InvalidOperationException("File not found");
+
+        // Authorization: User must have CanModifyResources permission
+        await _authService.EnsureCanModifyResourcesAsync(userId, file.ProjectId);
+
+        // Validate tags
+        ValidateTags(tags);
+
+        // Normalize tags: trim, lowercase, remove empty, remove duplicates
+        file.Tags = tags
+            .Select(t => t.Trim().ToLowerInvariant())
+            .Where(t => !string.IsNullOrEmpty(t))
+            .Distinct()
+            .ToList();
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Updated tags for file {FileId} by user {UserId}",
+            fileId, userId);
+
+        return MapToDto(file);
+    }
+
+    /// <summary>
+    /// Get all distinct tags used in a project (for autocomplete)
+    /// </summary>
+    public async Task<List<string>> GetProjectTagsAsync(Guid userId, Guid projectId)
+    {
+        // Authorization: User must have project access
+        if (!await _authService.HasProjectAccessAsync(userId, projectId))
+            return new List<string>();
+
+        var allTags = await _context.Files
+            .Where(f => f.ProjectId == projectId && f.Status == FileStatus.Confirmed)
+            .Select(f => f.Tags)
+            .ToListAsync();
+
+        // Flatten, get distinct, and sort alphabetically
+        return allTags
+            .SelectMany(tags => tags)
+            .Distinct()
+            .OrderBy(tag => tag)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Validate tags for length, count, and allowed characters
+    /// </summary>
+    private static void ValidateTags(List<string> tags)
+    {
+        // Filter out null/whitespace before validation
+        var validTags = tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
+
+        if (validTags.Count > MaxTagsPerFile)
+        {
+            throw new ArgumentException($"Maximum {MaxTagsPerFile} tags allowed per file");
+        }
+
+        foreach (var tag in validTags)
+        {
+            if (tag.Length > MaxTagLength)
+            {
+                throw new ArgumentException($"Tag '{tag}' exceeds maximum length of {MaxTagLength} characters");
+            }
+
+            var normalized = tag.Trim().ToLowerInvariant();
+            if (!TagPattern.IsMatch(normalized))
+            {
+                throw new ArgumentException($"Tag '{tag}' contains invalid characters. Only lowercase letters, numbers, hyphens, and underscores are allowed");
+            }
+        }
+    }
+
     private static FileDto MapToDto(Domain.Entities.File file)
     {
         return new FileDto(
@@ -333,7 +456,8 @@ public class FileService
                 file.UploadedBy.Id,
                 file.UploadedBy.Email,
                 file.UploadedBy.Name
-            )
+            ),
+            file.Tags
         );
     }
 }

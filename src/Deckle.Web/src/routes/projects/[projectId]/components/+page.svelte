@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { componentsApi, ApiError } from '$lib/api';
   import { invalidateAll, goto } from '$app/navigation';
-  import { Button, Dialog, ConfirmDialog, EmptyState } from '$lib/components';
+  import { Button, Dialog, ConfirmDialog, EmptyState, TabContent } from '$lib/components';
   import ComponentCard from './_components/ComponentCard.svelte';
   import ComponentTypeSelector from './_components/ComponentTypeSelector.svelte';
   import CardConfigForm from './_components/CardConfigForm.svelte';
@@ -353,18 +353,19 @@
   />
 </svelte:head>
 
-{#if canEdit || hasExportableComponents}
-  <div class="actions">
-    {#if hasExportableComponents}
-      <Button variant="secondary" size="sm" onclick={navigateToExport}>Export</Button>
-    {/if}
-    {#if canEdit}
-      <Button variant="primary" size="sm" onclick={openModal}>+ Add Component</Button>
-    {/if}
-  </div>
-{/if}
+<TabContent>
+  {#if canEdit || hasExportableComponents}
+    {#snippet actions()}
+      {#if hasExportableComponents}
+        <Button variant="secondary" size="sm" onclick={navigateToExport}>Export</Button>
+      {/if}
+      {#if canEdit}
+        <Button variant="primary" size="sm" onclick={openModal}>+ Add Component</Button>
+      {/if}
+    {/snippet}
+  {/if}
 
-{#if data.components && data.components.length > 0}
+  {#if data.components && data.components.length > 0}
   <div class="components-list">
     {#each data.components as component}
       <ComponentCard
@@ -375,13 +376,14 @@
       />
     {/each}
   </div>
-{:else}
-  <EmptyState
-    title="No components yet"
-    subtitle="Add components to build your game's card decks"
-    border={false}
-  />
-{/if}
+  {:else}
+    <EmptyState
+      title="No components yet"
+      subtitle="Add components to build your game's card decks"
+      border={false}
+    />
+  {/if}
+</TabContent>
 
 <Dialog
   bind:show={showModal}
@@ -460,13 +462,6 @@
 />
 
 <style>
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-  }
-
   .components-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));

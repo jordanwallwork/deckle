@@ -3,14 +3,18 @@
   import Button from './Button.svelte';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import EmptyState from './EmptyState.svelte';
+  import Badge from './Badge.svelte';
+  import TagInput from './forms/TagInput.svelte';
   import type { File } from '$lib/types';
 
   let {
     files = [],
-    onFileDeleted
+    onFileDeleted,
+    onFileUpdated
   }: {
     files: File[];
     onFileDeleted?: (fileId: string) => void;
+    onFileUpdated?: () => void;
   } = $props();
 
   let selectedFile = $state<File | null>(null);
@@ -20,6 +24,9 @@
   let fileToDelete = $state<File | null>(null);
   let deletingFileId = $state<string | null>(null);
   let error = $state<string | null>(null);
+  let editingTags = $state<string[]>([]);
+  let availableTags = $state<string[]>([]);
+  let savingTags = $state(false);
 
   async function openLightbox(file: File) {
     try {
@@ -27,7 +34,16 @@
       const { downloadUrl } = await filesApi.generateDownloadUrl(file.id);
       lightboxImageUrl = downloadUrl;
       selectedFile = file;
+      editingTags = [...file.tags];
       lightboxOpen = true;
+
+      // Load available tags for autocomplete
+      try {
+        const { tags } = await filesApi.getTags(file.projectId);
+        availableTags = tags;
+      } catch (err) {
+        console.error('Failed to load tags:', err);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         error = err.message;
@@ -41,6 +57,35 @@
     lightboxOpen = false;
     lightboxImageUrl = null;
     selectedFile = null;
+    editingTags = [];
+    savingTags = false;
+  }
+
+  async function saveTags() {
+    if (!selectedFile) return;
+
+    savingTags = true;
+    error = null;
+
+    try {
+      const updatedFile = await filesApi.updateTags(selectedFile.id, {
+        tags: editingTags
+      });
+
+      // Update selectedFile with new tags
+      selectedFile = updatedFile;
+
+      // Notify parent to refresh
+      onFileUpdated?.();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        error = err.message;
+      } else {
+        error = 'Failed to update tags';
+      }
+    } finally {
+      savingTags = false;
+    }
   }
 
   function openDeleteConfirm(file: File) {
@@ -155,6 +200,13 @@
             <p class="file-uploader">
               Uploaded by {file.uploadedBy.name || file.uploadedBy.email}
             </p>
+            {#if file.tags && file.tags.length > 0}
+              <div class="file-tags">
+                {#each file.tags as tag}
+                  <Badge variant="primary" size="sm">{tag}</Badge>
+                {/each}
+              </div>
+            {/if}
           </div>
 
           <div class="file-actions">
@@ -215,6 +267,16 @@
             selectedFile.uploadedAt
           )} by {selectedFile.uploadedBy.name || selectedFile.uploadedBy.email}
         </p>
+
+        <div class="lightbox-tags-section">
+          <label for="lightbox-tags" class="tags-label">Tags</label>
+          <TagInput bind:value={editingTags} suggestions={availableTags} />
+          <div class="tags-actions">
+            <Button variant="primary" size="sm" onclick={saveTags} disabled={savingTags}>
+              {savingTags ? 'Saving...' : 'Save Tags'}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -327,6 +389,13 @@
     margin: 0;
   }
 
+  .file-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+  }
+
   .file-actions {
     padding: 0 1rem 1rem;
     display: flex;
@@ -369,11 +438,12 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    padding: 2rem;
+    padding: 1rem;
+    overflow-y: auto;
   }
 
   .lightbox-close {
-    position: absolute;
+    position: fixed;
     top: 1rem;
     right: 1rem;
     background: rgba(255, 255, 255, 0.1);
@@ -400,27 +470,35 @@
   }
 
   .lightbox-content {
-    max-width: 90%;
-    max-height: 90%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 1024px) {
+    .lightbox-content {
+      grid-template-columns: 1fr;
+      max-width: 800px;
+    }
   }
 
   .lightbox-image {
-    max-width: 100%;
-    max-height: calc(90vh - 8rem);
+    width: 100%;
+    max-height: calc(90vh - 2rem);
     object-fit: contain;
     border-radius: var(--radius-lg);
   }
 
   .lightbox-info {
     background: rgba(255, 255, 255, 0.95);
-    padding: 1rem 1.5rem;
+    padding: 1.5rem;
     border-radius: var(--radius-lg);
-    text-align: center;
-    max-width: 600px;
+    max-height: calc(90vh - 2rem);
+    overflow-y: auto;
   }
 
   .lightbox-info h3 {
@@ -433,5 +511,24 @@
     margin: 0;
     color: var(--color-text-muted);
     font-size: 0.875rem;
+  }
+
+  .lightbox-tags-section {
+    margin-top: 1.5rem;
+    text-align: left;
+  }
+
+  .tags-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .tags-actions {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: flex-start;
   }
 </style>

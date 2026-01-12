@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ params, parent, fetch }) => {
   try {
     // Load files and quota in parallel
     const [files, quota] = await Promise.all([
-      filesApi.list(params.projectId, fetch),
+      filesApi.list(params.projectId, undefined, undefined, fetch),
       filesApi.getQuota(fetch).catch(() => null) // Optional - don't fail if quota fetch fails
     ]);
 

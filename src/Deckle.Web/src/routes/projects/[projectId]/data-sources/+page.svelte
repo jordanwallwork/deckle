@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import type { DataSource as DataSourceType, DataSourceSyncStatus } from '$lib/types';
-  import { Card, Dialog, Button, EmptyState, ConfirmDialog } from '$lib/components';
+  import { Card, Dialog, Button, EmptyState, ConfirmDialog, TabContent } from '$lib/components';
   import { buildDataSourcesBreadcrumbs } from '$lib/utils/breadcrumbs';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { dataSourcesApi, ApiError } from '$lib/api';
@@ -136,10 +136,10 @@
   />
 </svelte:head>
 
-<div class="tab-content">
-  <div class="tab-actions">
+<TabContent>
+  {#snippet actions()}
     <Button variant="primary" size="sm" onclick={openAddModal}>+ Add Data Source</Button>
-  </div>
+  {/snippet}
 
   {#if data.dataSources.length === 0}
     <EmptyState
@@ -203,7 +203,7 @@
       {/each}
     </div>
   {/if}
-</div>
+</TabContent>
 
 <Dialog
   bind:show={showAddModal}
@@ -271,16 +271,6 @@
 />
 
 <style>
-  .tab-content {
-    min-height: 400px;
-  }
-
-  .tab-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 1.5rem;
-  }
-
   .data-sources-list {
     display: flex;
     flex-direction: column;

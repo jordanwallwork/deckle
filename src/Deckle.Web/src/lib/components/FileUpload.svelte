@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { filesApi, ApiError } from '$lib/api';
   import Button from './Button.svelte';
+  import TagInput from './forms/TagInput.svelte';
   import type { File } from '$lib/types';
 
   let {
@@ -27,6 +29,18 @@
   let uploadProgress = $state(0);
   let error = $state<string | null>(null);
   let isDragging = $state(false);
+  let selectedTags = $state<string[]>([]);
+  let availableTags = $state<string[]>([]);
+
+  // Load available tags on mount
+  onMount(async () => {
+    try {
+      const { tags } = await filesApi.getTags(projectId);
+      availableTags = tags;
+    } catch (err) {
+      console.error('Failed to load tags:', err);
+    }
+  });
 
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -80,6 +94,7 @@
 
   function clearSelection() {
     selectedFile = null;
+    selectedTags = [];
     error = null;
     uploadProgress = 0;
     if (fileInput) {
@@ -99,7 +114,8 @@
       const { fileId, uploadUrl } = await filesApi.requestUploadUrl(projectId, {
         fileName: selectedFile.name,
         contentType: selectedFile.type,
-        fileSizeBytes: selectedFile.size
+        fileSizeBytes: selectedFile.size,
+        tags: selectedTags
       });
 
       // Phase 2: Upload to R2 (direct, with progress)
@@ -211,6 +227,10 @@
           </div>
         </div>
         {#if !uploading}
+          <div class="file-tags-section">
+            <label for="file-tags" class="tags-label">Tags (optional)</label>
+            <TagInput bind:value={selectedTags} suggestions={availableTags} />
+          </div>
           <div class="file-actions">
             <Button variant="primary" onclick={uploadFile}>Upload</Button>
             <Button variant="secondary" outline onclick={clearSelection}>Cancel</Button>
@@ -345,6 +365,19 @@
     font-size: 0.875rem;
     color: var(--color-text-muted);
     margin: 0.25rem 0 0;
+  }
+
+  .file-tags-section {
+    margin-top: 1rem;
+    width: 100%;
+  }
+
+  .tags-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text);
   }
 
   .file-actions {

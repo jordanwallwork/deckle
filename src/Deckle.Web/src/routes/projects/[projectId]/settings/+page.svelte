@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { projectsApi, ApiError } from '$lib/api';
   import { goto, invalidateAll } from '$app/navigation';
-  import { DeleteConfirmationDialog, ConfirmDialog } from '$lib/components';
+  import { DeleteConfirmationDialog, ConfirmDialog, TabContent } from '$lib/components';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { buildSettingsBreadcrumbs } from '$lib/utils/breadcrumbs';
   import ProjectDetailsCard from './_components/ProjectDetailsCard.svelte';
@@ -122,7 +122,7 @@
   />
 </svelte:head>
 
-<div class="tab-content">
+<TabContent>
   <div class="settings-section">
     <h2>Project Details</h2>
     <ProjectDetailsCard
@@ -151,7 +151,7 @@
       <DangerZoneCard onDeleteClick={() => (showDeleteDialog = true)} />
     </div>
   {/if}
-</div>
+</TabContent>
 
 <DeleteConfirmationDialog
   bind:show={showDeleteDialog}
@@ -179,10 +179,6 @@
 />
 
 <style>
-  .tab-content {
-    max-width: 900px;
-  }
-
   .settings-section {
     margin-bottom: 2.5rem;
   }

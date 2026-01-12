@@ -4,7 +4,9 @@ import type {
   RequestUploadUrlRequest,
   RequestUploadUrlResponse,
   GenerateDownloadUrlResponse,
-  UserStorageQuota
+  UserStorageQuota,
+  UpdateFileTagsRequest,
+  FileTagsResponse
 } from '$lib/types';
 
 /**
@@ -29,10 +31,32 @@ export const filesApi = {
     api.post<File>(`/files/${fileId}/confirm`, undefined, undefined, fetchFn),
 
   /**
-   * Get all files for a project
+   * Get all files for a project, optionally filtered by tags
    */
-  list: (projectId: string, fetchFn?: typeof fetch) =>
-    api.get<File[]>(`/projects/${projectId}/files`, undefined, fetchFn),
+  list: (projectId: string, tags?: string[], matchAll?: boolean, fetchFn?: typeof fetch) => {
+    const params = new URLSearchParams();
+    if (tags && tags.length > 0) {
+      params.set('tags', tags.join(','));
+    }
+    if (matchAll !== undefined) {
+      params.set('matchAll', matchAll.toString());
+    }
+    const queryString = params.toString();
+    const url = `/projects/${projectId}/files${queryString ? `?${queryString}` : ''}`;
+    return api.get<File[]>(url, undefined, fetchFn);
+  },
+
+  /**
+   * Get all distinct tags used in project files (for autocomplete)
+   */
+  getTags: (projectId: string, fetchFn?: typeof fetch) =>
+    api.get<FileTagsResponse>(`/projects/${projectId}/files/tags`, undefined, fetchFn),
+
+  /**
+   * Update tags for a file
+   */
+  updateTags: (fileId: string, data: UpdateFileTagsRequest, fetchFn?: typeof fetch) =>
+    api.patch<File>(`/files/${fileId}/tags`, data, undefined, fetchFn),
 
   /**
    * Generate a presigned URL for downloading a file

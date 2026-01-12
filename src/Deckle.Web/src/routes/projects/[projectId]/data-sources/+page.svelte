@@ -1,13 +1,13 @@
 <script lang="ts">
-  import type { PageData } from "./$types";
-  import type { DataSource as DataSourceType, DataSourceSyncStatus } from "$lib/types";
-  import { Card, Dialog, Button, EmptyState, ConfirmDialog } from "$lib/components";
-  import { buildDataSourcesBreadcrumbs } from "$lib/utils/breadcrumbs";
-  import { setBreadcrumbs } from "$lib/stores/breadcrumb";
-  import { dataSourcesApi, ApiError } from "$lib/api";
-  import { formatRelativeTime } from "$lib/utils/date.utils";
-  import { syncDataSource } from "$lib/utils/dataSource.utils";
-  import { invalidateAll } from "$app/navigation";
+  import type { PageData } from './$types';
+  import type { DataSource as DataSourceType, DataSourceSyncStatus } from '$lib/types';
+  import { Card, Dialog, Button, EmptyState, ConfirmDialog } from '$lib/components';
+  import { buildDataSourcesBreadcrumbs } from '$lib/utils/breadcrumbs';
+  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { dataSourcesApi, ApiError } from '$lib/api';
+  import { formatRelativeTime } from '$lib/utils/date.utils';
+  import { syncDataSource } from '$lib/utils/dataSource.utils';
+  import { invalidateAll } from '$app/navigation';
 
   let { data }: { data: PageData } = $props();
 
@@ -17,11 +17,11 @@
   });
 
   let showAddModal = $state(false);
-  let newSourceUrl = $state("");
-  let newSourceName = $state("");
+  let newSourceUrl = $state('');
+  let newSourceName = $state('');
   let newSourceGid = $state<number | undefined>(undefined);
   let addingSource = $state(false);
-  let errorMessage = $state("");
+  let errorMessage = $state('');
 
   // Track sync status per data source
   let syncStatuses = $state<Record<string, DataSourceSyncStatus>>({});
@@ -33,19 +33,19 @@
 
   async function addDataSource(): Promise<void> {
     if (!newSourceUrl.trim()) {
-      errorMessage = "Please enter a Google Sheets URL";
+      errorMessage = 'Please enter a Google Sheets URL';
       return;
     }
 
     try {
       addingSource = true;
-      errorMessage = "";
+      errorMessage = '';
 
       await dataSourcesApi.create({
         projectId: data.project.id,
-        name: newSourceName.trim() || "",
+        name: newSourceName.trim() || '',
         url: newSourceUrl.trim(),
-        sheetGid: newSourceGid,
+        sheetGid: newSourceGid
       });
 
       // Refresh data from server
@@ -53,15 +53,15 @@
 
       // Close modal and reset form
       showAddModal = false;
-      newSourceUrl = "";
-      newSourceName = "";
+      newSourceUrl = '';
+      newSourceName = '';
       newSourceGid = undefined;
     } catch (err) {
-      console.error("Failed to add data source:", err);
+      console.error('Failed to add data source:', err);
       if (err instanceof ApiError) {
         errorMessage = err.message;
       } else {
-        errorMessage = "Failed to add data source. Please try again.";
+        errorMessage = 'Failed to add data source. Please try again.';
       }
     } finally {
       addingSource = false;
@@ -82,11 +82,11 @@
       showDeleteConfirm = false;
       dataSourceToDelete = null;
     } catch (err) {
-      console.error("Failed to delete data source:", err);
+      console.error('Failed to delete data source:', err);
       if (err instanceof ApiError) {
         errorMessage = err.message;
       } else {
-        errorMessage = "Failed to delete data source. Please try again.";
+        errorMessage = 'Failed to delete data source. Please try again.';
       }
       showDeleteConfirm = false;
     }
@@ -100,8 +100,8 @@
   async function handleSyncDataSource(source: DataSourceType): Promise<void> {
     try {
       // Set syncing status
-      syncStatuses[source.id] = "syncing";
-      syncErrors[source.id] = "";
+      syncStatuses[source.id] = 'syncing';
+      syncErrors[source.id] = '';
 
       // Use the shared sync utility
       await syncDataSource(source);
@@ -110,19 +110,19 @@
       await invalidateAll();
 
       // Set idle status
-      syncStatuses[source.id] = "idle";
+      syncStatuses[source.id] = 'idle';
     } catch (error) {
-      console.error("Failed to sync data source:", error);
-      syncStatuses[source.id] = "error";
-      syncErrors[source.id] = error instanceof Error ? error.message : "Failed to sync data source";
+      console.error('Failed to sync data source:', error);
+      syncStatuses[source.id] = 'error';
+      syncErrors[source.id] = error instanceof Error ? error.message : 'Failed to sync data source';
     }
   }
 
   function openAddModal(): void {
     showAddModal = true;
-    errorMessage = "";
-    newSourceUrl = "";
-    newSourceName = "";
+    errorMessage = '';
+    newSourceUrl = '';
+    newSourceName = '';
     newSourceGid = undefined;
   }
 </script>
@@ -138,9 +138,7 @@
 
 <div class="tab-content">
   <div class="tab-actions">
-    <Button variant="primary" size="sm" onclick={openAddModal}>
-      + Add Data Source
-    </Button>
+    <Button variant="primary" size="sm" onclick={openAddModal}>+ Add Data Source</Button>
   </div>
 
   {#if data.dataSources.length === 0}
@@ -173,9 +171,9 @@
                   {source.headers.length} columns, {source.rowCount} rows
                 </p>
               {/if}
-              {#if syncStatuses[source.id] === "syncing"}
+              {#if syncStatuses[source.id] === 'syncing'}
                 <p class="sync-status syncing">Syncing...</p>
-              {:else if syncStatuses[source.id] === "error"}
+              {:else if syncStatuses[source.id] === 'error'}
                 <p class="sync-status error">
                   Sync failed: {syncErrors[source.id]}
                 </p>
@@ -186,9 +184,9 @@
                 variant="secondary"
                 size="sm"
                 onclick={() => handleSyncDataSource(source)}
-                disabled={syncStatuses[source.id] === "syncing"}
+                disabled={syncStatuses[source.id] === 'syncing'}
               >
-                {syncStatuses[source.id] === "syncing" ? "Syncing..." : "Sync"}
+                {syncStatuses[source.id] === 'syncing' ? 'Syncing...' : 'Sync'}
               </Button>
               <a
                 href={`/projects/${data.project.id}/data-sources/${source.id}`}
@@ -196,11 +194,7 @@
               >
                 <Button variant="primary" size="sm">View</Button>
               </a>
-              <Button
-                variant="danger"
-                size="sm"
-                onclick={() => initiateDelete(source)}
-              >
+              <Button variant="danger" size="sm" onclick={() => initiateDelete(source)}>
                 Delete
               </Button>
             </div>
@@ -257,15 +251,11 @@
   </div>
 
   {#snippet actions()}
-    <Button
-      variant="secondary"
-      onclick={() => (showAddModal = false)}
-      disabled={addingSource}
-    >
+    <Button variant="secondary" onclick={() => (showAddModal = false)} disabled={addingSource}>
       Cancel
     </Button>
     <Button variant="primary" onclick={addDataSource} disabled={addingSource}>
-      {addingSource ? "Adding..." : "Add Data Source"}
+      {addingSource ? 'Adding...' : 'Add Data Source'}
     </Button>
   {/snippet}
 </Dialog>

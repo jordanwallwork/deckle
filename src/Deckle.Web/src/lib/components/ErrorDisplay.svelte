@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getErrorFlavor } from "$lib/utils/errorFlavor";
-  import type { ApiError } from "$lib/api";
+  import { getErrorFlavor } from '$lib/utils/errorFlavor';
+  import type { ApiError } from '$lib/api';
 
   interface Props {
     /**
@@ -22,7 +22,7 @@
     let code: number;
     let technicalMsg: string;
 
-    if (typeof error === "string") {
+    if (typeof error === 'string') {
       code = statusCode || 500;
       technicalMsg = error;
     } else {
@@ -36,7 +36,7 @@
       title: flavor.title,
       flavorText: flavor.flavorText,
       statusCode: code,
-      technicalMessage: technicalMsg,
+      technicalMessage: technicalMsg
     };
   });
 </script>
@@ -93,7 +93,7 @@
     border-radius: var(--radius-sm);
     font-size: 0.8125rem;
     color: var(--color-text-secondary);
-    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     border-left: 3px solid rgba(231, 76, 60, 0.4);
   }
 </style>

@@ -25,13 +25,18 @@
 
 <svelte:head>
   <title>Deckle - Open Source Game Component Design</title>
-  <meta name="description" content="Create game components from spreadsheets in minutes. Deckle is an open source tool for designing cards, tokens, and game pieces for playtesting." />
+  <meta
+    name="description"
+    content="Create game components from spreadsheets in minutes. Deckle is an open source tool for designing cards, tokens, and game pieces for playtesting."
+  />
 </svelte:head>
 
 <div class="container">
   <main>
     <h1>Deckle</h1>
-    <p class="subtitle">Open source game component design - From spreadsheet to playtest in minutes</p>
+    <p class="subtitle">
+      Open source game component design - From spreadsheet to playtest in minutes
+    </p>
     <button class="google-signin" onclick={handleSignIn}>Sign In with Google</button>
   </main>
 </div>

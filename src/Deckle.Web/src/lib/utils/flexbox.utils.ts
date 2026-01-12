@@ -7,28 +7,28 @@
  */
 export function cssToUserValue(
   cssValue: string,
-  axis: "main" | "cross",
+  axis: 'main' | 'cross',
   isColumn: boolean
 ): string {
-  if (axis === "main") {
+  if (axis === 'main') {
     // Main axis can have space-between, space-around
     const map: Record<string, string> = {
-      "flex-start": isColumn ? "top" : "left",
-      "flex-end": isColumn ? "bottom" : "right",
-      center: "center",
-      "space-between": "space-between",
-      "space-around": "space-around",
-      "space-evenly": "space-around", // Map space-evenly to space-around
+      'flex-start': isColumn ? 'top' : 'left',
+      'flex-end': isColumn ? 'bottom' : 'right',
+      center: 'center',
+      'space-between': 'space-between',
+      'space-around': 'space-around',
+      'space-evenly': 'space-around' // Map space-evenly to space-around
     };
     return map[cssValue] || cssValue;
   } else {
     // Cross axis
     const map: Record<string, string> = {
-      "flex-start": isColumn ? "left" : "top",
-      "flex-end": isColumn ? "right" : "bottom",
-      center: "center",
-      stretch: "stretch",
-      baseline: "stretch", // Map baseline to stretch
+      'flex-start': isColumn ? 'left' : 'top',
+      'flex-end': isColumn ? 'right' : 'bottom',
+      center: 'center',
+      stretch: 'stretch',
+      baseline: 'stretch' // Map baseline to stretch
     };
     return map[cssValue] || cssValue;
   }
@@ -37,29 +37,26 @@ export function cssToUserValue(
 /**
  * Convert user-friendly value to CSS flexbox value based on axis
  */
-export function userValueToCss(
-  userValue: string,
-  axis: "main" | "cross"
-): string {
-  if (axis === "main") {
+export function userValueToCss(userValue: string, axis: 'main' | 'cross'): string {
+  if (axis === 'main') {
     const map: Record<string, string> = {
-      left: "flex-start",
-      right: "flex-end",
-      top: "flex-start",
-      bottom: "flex-end",
-      center: "center",
-      "space-between": "space-between",
-      "space-around": "space-around",
+      left: 'flex-start',
+      right: 'flex-end',
+      top: 'flex-start',
+      bottom: 'flex-end',
+      center: 'center',
+      'space-between': 'space-between',
+      'space-around': 'space-around'
     };
     return map[userValue] || userValue;
   } else {
     const map: Record<string, string> = {
-      left: "flex-start",
-      right: "flex-end",
-      top: "flex-start",
-      bottom: "flex-end",
-      center: "center",
-      stretch: "stretch",
+      left: 'flex-start',
+      right: 'flex-end',
+      top: 'flex-start',
+      bottom: 'flex-end',
+      center: 'center',
+      stretch: 'stretch'
     };
     return map[userValue] || userValue;
   }
@@ -71,18 +68,18 @@ export function userValueToCss(
 export function getXOptions(isColumn: boolean) {
   if (isColumn) {
     return [
-      { value: "left", label: "Left" },
-      { value: "center", label: "Center" },
-      { value: "right", label: "Right" },
-      { value: "stretch", label: "Stretch" },
+      { value: 'left', label: 'Left' },
+      { value: 'center', label: 'Center' },
+      { value: 'right', label: 'Right' },
+      { value: 'stretch', label: 'Stretch' }
     ];
   } else {
     return [
-      { value: "left", label: "Left" },
-      { value: "center", label: "Center" },
-      { value: "right", label: "Right" },
-      { value: "space-between", label: "Space Between" },
-      { value: "space-around", label: "Space Around" },
+      { value: 'left', label: 'Left' },
+      { value: 'center', label: 'Center' },
+      { value: 'right', label: 'Right' },
+      { value: 'space-between', label: 'Space Between' },
+      { value: 'space-around', label: 'Space Around' }
     ];
   }
 }
@@ -93,18 +90,18 @@ export function getXOptions(isColumn: boolean) {
 export function getYOptions(isColumn: boolean) {
   if (isColumn) {
     return [
-      { value: "top", label: "Top" },
-      { value: "center", label: "Center" },
-      { value: "bottom", label: "Bottom" },
-      { value: "space-between", label: "Space Between" },
-      { value: "space-around", label: "Space Around" },
+      { value: 'top', label: 'Top' },
+      { value: 'center', label: 'Center' },
+      { value: 'bottom', label: 'Bottom' },
+      { value: 'space-between', label: 'Space Between' },
+      { value: 'space-around', label: 'Space Around' }
     ];
   } else {
     return [
-      { value: "top", label: "Top" },
-      { value: "center", label: "Center" },
-      { value: "bottom", label: "Bottom" },
-      { value: "stretch", label: "Stretch" },
+      { value: 'top', label: 'Top' },
+      { value: 'center', label: 'Center' },
+      { value: 'bottom', label: 'Bottom' },
+      { value: 'stretch', label: 'Stretch' }
     ];
   }
 }
@@ -116,12 +113,8 @@ export function getAlignmentGridCells(isColumn: boolean) {
   const cells: Array<{ x: string; y: string }> = [];
 
   // Only show the 3x3 grid with basic alignments
-  const xValues = isColumn
-    ? ["left", "center", "right"]
-    : ["left", "center", "right"];
-  const yValues = isColumn
-    ? ["top", "center", "bottom"]
-    : ["top", "center", "bottom"];
+  const xValues = isColumn ? ['left', 'center', 'right'] : ['left', 'center', 'right'];
+  const yValues = isColumn ? ['top', 'center', 'bottom'] : ['top', 'center', 'bottom'];
 
   for (const y of yValues) {
     for (const x of xValues) {

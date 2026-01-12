@@ -21,11 +21,5 @@
 </script>
 
 <FieldWrapper {label} {hideLabel} htmlFor={id}>
-  <textarea
-    {id}
-    {rows}
-    {value}
-    {placeholder}
-    {oninput}
-  ></textarea>
+  <textarea {id} {rows} {value} {placeholder} {oninput}></textarea>
 </FieldWrapper>

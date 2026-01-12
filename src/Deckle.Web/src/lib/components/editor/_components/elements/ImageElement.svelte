@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { ImageElement } from "../../types";
-  import { borderStyle, boxShadowStyle } from "../../utils";
+  import type { ImageElement } from '../../types';
+  import { borderStyle, boxShadowStyle } from '../../utils';
 
   let { element, dpi }: { element: ImageElement; dpi: number } = $props();
 
@@ -8,16 +8,15 @@
   const objectFit = $derived(element.objectFit);
   const objectPosition = $derived(element.objectPosition);
   const border = $derived(borderStyle(element.border, dpi));
-  const borderRadius = $derived(
-    element.borderRadius ? `${element.borderRadius}px` : undefined
-  );
+  // Border radius is handled by borderStyle helper, no need for separate property
   const boxShadow = $derived(boxShadowStyle(element.shadow));
 
   // Generate placeholder URL when imageId is empty
+  // Use default 400x300 dimensions for placeholder (image elements inherit size from container)
   const displaySrc = $derived(
-    element.imageId && element.imageId.trim() !== ""
+    element.imageId && element.imageId.trim() !== ''
       ? element.imageId
-      : `https://placehold.co/${Math.round(element.width || 400)}x${Math.round(element.height || 300)}/e5e7eb/9ca3af.png?text=Image`
+      : `https://placehold.co/400x300/e5e7eb/9ca3af.png?text=Image`
   );
 </script>
 
@@ -30,7 +29,6 @@
   style:object-fit={objectFit}
   style:object-position={objectPosition}
   style={border}
-  style:border-radius={borderRadius}
   style:box-shadow={boxShadow}
   class="image-element"
 />

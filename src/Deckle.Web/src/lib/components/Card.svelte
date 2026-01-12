@@ -5,24 +5,41 @@
     children,
     href = undefined,
     onclick = undefined,
-    class: className = ''
+    class: className = '',
+    ariaLabel = undefined
   }: {
     children: Snippet;
     href?: string;
     onclick?: () => void;
     class?: string;
+    ariaLabel?: string;
   } = $props();
 
   const isLink = href !== undefined;
   const isClickable = onclick !== undefined || isLink;
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if ((e.key === 'Enter' || e.key === ' ') && onclick) {
+      e.preventDefault();
+      onclick();
+    }
+  }
 </script>
 
 {#if isLink}
-  <a {href} class="card {className}" class:clickable={isClickable}>
+  <a {href} class="card {className}" class:clickable={isClickable} aria-label={ariaLabel}>
     {@render children()}
   </a>
 {:else if onclick}
-  <div class="card {className}" class:clickable={isClickable} role="button" tabindex="0" {onclick} onkeydown={(e) => e.key === 'Enter' && onclick?.()}>
+  <div
+    class="card {className}"
+    class:clickable={isClickable}
+    role="button"
+    tabindex="0"
+    aria-label={ariaLabel}
+    {onclick}
+    onkeydown={handleKeyDown}
+  >
     {@render children()}
   </div>
 {:else}

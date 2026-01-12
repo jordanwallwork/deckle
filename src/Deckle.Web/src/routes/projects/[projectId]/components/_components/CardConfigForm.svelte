@@ -13,11 +13,7 @@
 
 <div class="configuration-form">
   <FormField label="Component Name" name="component-name">
-    <Input
-      id="component-name"
-      bind:value={componentName}
-      placeholder="Enter component name"
-    />
+    <Input id="component-name" bind:value={componentName} placeholder="Enter component name" />
   </FormField>
 
   <FormField label="Card Size" name="card-size">

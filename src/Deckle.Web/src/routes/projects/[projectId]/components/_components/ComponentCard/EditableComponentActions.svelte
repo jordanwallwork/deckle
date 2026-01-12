@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { CardComponent, PlayerMatComponent } from "$lib/types";
+  import type { CardComponent, PlayerMatComponent } from '$lib/types';
 
   let {
     component,
-    canEdit = false,
+    canEdit = false
   }: {
     component: CardComponent | PlayerMatComponent;
     canEdit?: boolean;
@@ -11,24 +11,15 @@
 </script>
 
 <div class="design-links" style:margin-top="0.5rem">
-  <a
-    href="/projects/{component.projectId}/components/{component.id}/front"
-    class="design-link"
-  >
-    {canEdit ? "Edit" : "View"} Front
+  <a href="/projects/{component.projectId}/components/{component.id}/front" class="design-link">
+    {canEdit ? 'Edit' : 'View'} Front
   </a>
   <span class="design-link-separator">•</span>
-  <a
-    href="/projects/{component.projectId}/components/{component.id}/back"
-    class="design-link"
-  >
-    {canEdit ? "Edit" : "View"} Back
+  <a href="/projects/{component.projectId}/components/{component.id}/back" class="design-link">
+    {canEdit ? 'Edit' : 'View'} Back
   </a>
   <span class="design-link-separator">•</span>
-  <a
-    href="/projects/{component.projectId}/export?components={component.id}"
-    class="design-link"
-  >
+  <a href="/projects/{component.projectId}/export?components={component.id}" class="design-link">
     Export
   </a>
 </div>

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import { browser } from "$app/environment";
+  import type { Snippet } from 'svelte';
+  import { browser } from '$app/environment';
 
   interface Props {
-    orientation?: "horizontal" | "vertical";
+    orientation?: 'horizontal' | 'vertical';
     leftOrTop: Snippet;
     rightOrBottom: Snippet;
     initialSplit?: number; // percentage for left/top panel
@@ -14,14 +14,14 @@
   }
 
   let {
-    orientation = "horizontal",
+    orientation = 'horizontal',
     leftOrTop,
     rightOrBottom,
     initialSplit = 50,
     splitPercentage = $bindable(initialSplit),
     minSize = 10,
     maxSize = 90,
-    onResize,
+    onResize
   }: Props = $props();
   let isDragging = $state(false);
   let containerRef: HTMLDivElement | undefined = $state();
@@ -38,7 +38,7 @@
       const rect = containerRef.getBoundingClientRect();
       let newSplit: number;
 
-      if (orientation === "horizontal") {
+      if (orientation === 'horizontal') {
         const x = e.clientX - rect.left;
         newSplit = (x / rect.width) * 100;
       } else {
@@ -57,29 +57,28 @@
 
     const handleMouseUp = () => {
       isDragging = false;
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.body.style.cursor =
-      orientation === "horizontal" ? "col-resize" : "row-resize";
-    document.body.style.userSelect = "none";
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = orientation === 'horizontal' ? 'col-resize' : 'row-resize';
+    document.body.style.userSelect = 'none';
   }
 </script>
 
 <div
   bind:this={containerRef}
   class="resizable-container"
-  class:horizontal={orientation === "horizontal"}
-  class:vertical={orientation === "vertical"}
+  class:horizontal={orientation === 'horizontal'}
+  class:vertical={orientation === 'vertical'}
 >
   <div
     class="panel left-or-top"
-    style={orientation === "horizontal"
+    style={orientation === 'horizontal'
       ? `width: ${splitPercentage}%`
       : `height: ${splitPercentage}%`}
   >
@@ -88,13 +87,13 @@
 
   <button
     class="divider"
-    class:horizontal={orientation === "horizontal"}
-    class:vertical={orientation === "vertical"}
+    class:horizontal={orientation === 'horizontal'}
+    class:vertical={orientation === 'vertical'}
     class:dragging={isDragging}
     onmousedown={handleMouseDown}
-    aria-label={orientation === "horizontal"
-      ? "Resize panels horizontally"
-      : "Resize panels vertically"}
+    aria-label={orientation === 'horizontal'
+      ? 'Resize panels horizontally'
+      : 'Resize panels vertically'}
   >
     <div class="divider-handle"></div>
   </button>

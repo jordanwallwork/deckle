@@ -24,6 +24,11 @@ public class User
 
     public DateTime? LastLoginAt { get; set; }
 
+    // Storage quota tracking
+    public int StorageQuotaMb { get; set; } = 50;
+    public long StorageUsedBytes { get; set; } = 0;
+
     public ICollection<Project> Projects { get; set; } = [];
     public ICollection<UserProject> UserProjects { get; set; } = [];
+    public ICollection<File> UploadedFiles { get; set; } = [];
 }

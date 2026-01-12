@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { PanzoomObject } from "@panzoom/panzoom";
+  import type { PanzoomObject } from '@panzoom/panzoom';
 
   let {
     panzoomInstance,
-    panzoomElement,
+    panzoomElement
   }: {
     panzoomInstance: PanzoomObject | null;
     panzoomElement: HTMLDivElement | null;
@@ -98,9 +98,7 @@
     </div>
     <button class="zoom-btn zoom-btn-right" onclick={zoomIn} title="Zoom in"> + </button>
   </div>
-  <button class="zoom-btn" onclick={resetZoom} title="Reset zoom">
-    Reset
-  </button>
+  <button class="zoom-btn" onclick={resetZoom} title="Reset zoom"> Reset </button>
 </div>
 
 <style>
@@ -168,7 +166,7 @@
     margin: 0;
   }
 
-  .zoom-input[type="number"] {
+  .zoom-input[type='number'] {
     -moz-appearance: textfield;
     appearance: textfield;
   }

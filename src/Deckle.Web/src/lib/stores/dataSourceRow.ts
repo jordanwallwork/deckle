@@ -10,11 +10,11 @@ export type DataSourceRowData = Record<string, string> | null;
  * This should be called in ComponentEditor or a parent component.
  */
 export function initDataSourceRow(
-	initialData: DataSourceRowData = null
+  initialData: DataSourceRowData = null
 ): Writable<DataSourceRowData> {
-	const store = writable<DataSourceRowData>(initialData);
-	setContext(DATA_SOURCE_ROW_CONTEXT_KEY, store);
-	return store;
+  const store = writable<DataSourceRowData>(initialData);
+  setContext(DATA_SOURCE_ROW_CONTEXT_KEY, store);
+  return store;
 }
 
 /**
@@ -24,11 +24,11 @@ export function initDataSourceRow(
  * Store the reference and use it later: const store = getDataSourceRow(); store.set(data);
  */
 export function getDataSourceRow(): Writable<DataSourceRowData> {
-	const store = getContext<Writable<DataSourceRowData>>(DATA_SOURCE_ROW_CONTEXT_KEY);
-	if (!store) {
-		throw new Error(
-			'DataSourceRow context not found. Did you call initDataSourceRow() in ComponentEditor?'
-		);
-	}
-	return store;
+  const store = getContext<Writable<DataSourceRowData>>(DATA_SOURCE_ROW_CONTEXT_KEY);
+  if (!store) {
+    throw new Error(
+      'DataSourceRow context not found. Did you call initDataSourceRow() in ComponentEditor?'
+    );
+  }
+  return store;
 }

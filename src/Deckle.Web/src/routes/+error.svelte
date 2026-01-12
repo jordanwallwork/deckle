@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { page } from "$app/stores";
-  import ErrorDisplay from "$lib/components/ErrorDisplay.svelte";
-  import Button from "$lib/components/Button.svelte";
-  import { ApiError } from "$lib/api";
+  import { page } from '$app/stores';
+  import ErrorDisplay from '$lib/components/ErrorDisplay.svelte';
+  import Button from '$lib/components/Button.svelte';
+  import { ApiError } from '$lib/api';
 
   // SvelteKit's error page receives error and status via $page.error and $page.status
   const error = $derived(() => {
@@ -10,14 +10,12 @@
     const status = $page.status || 500;
 
     if (!pageError) {
-      return new ApiError(status, "An unknown error occurred");
+      return new ApiError(status, 'An unknown error occurred');
     }
 
     // Convert SvelteKit error to ApiError format for ErrorDisplay
     const message =
-      typeof pageError === "string"
-        ? pageError
-        : pageError.message || "An error occurred";
+      typeof pageError === 'string' ? pageError : pageError.message || 'An error occurred';
 
     return new ApiError(status, message);
   });
@@ -31,9 +29,7 @@
       <a href="/" class="home-link">
         <Button variant="primary" size="md">Return Home</Button>
       </a>
-      <Button variant="secondary" size="md" onclick={() => window.history.back()}>
-        Go Back
-      </Button>
+      <Button variant="secondary" size="md" onclick={() => window.history.back()}>Go Back</Button>
     </div>
   </div>
 </div>

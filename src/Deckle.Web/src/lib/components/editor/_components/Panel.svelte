@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import type { Snippet } from 'svelte';
 
   let {
     noheader,
     title,
     subtitle,
     toolbar,
-    children,
+    children
   }: {
     noheader?: boolean;
     title?: string;

@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { Dimensions, ComponentShape, RectangleShape } from "$lib/types";
-  import type { ContainerElement } from "$lib/components/editor/types";
-  import { mmToPx } from "$lib/utils/size.utils";
-  import StaticTemplateRenderer from "./StaticTemplateRenderer.svelte";
+  import type { Dimensions, ComponentShape, RectangleShape } from '$lib/types';
+  import type { ContainerElement } from '$lib/components/editor/types';
+  import { mmToPx } from '$lib/utils/size.utils';
+  import StaticTemplateRenderer from './StaticTemplateRenderer.svelte';
 
   let {
     design,
     dimensions,
     shape,
-    mergeData = null,
+    mergeData = null
   }: {
     design: ContainerElement;
     dimensions: Dimensions;
@@ -18,7 +18,7 @@
 
   // Calculate border radius for rectangle shapes
   let borderRadius = $derived(
-    !shape || shape.type !== "rectangle"
+    !shape || shape.type !== 'rectangle'
       ? 0
       : (() => {
           const rectShape = shape as RectangleShape;
@@ -34,7 +34,7 @@
     if (design.background?.color) {
       styles.push(`background-color: ${design.background.color}`);
     }
-    return styles.join("; ");
+    return styles.join('; ');
   });
 </script>
 

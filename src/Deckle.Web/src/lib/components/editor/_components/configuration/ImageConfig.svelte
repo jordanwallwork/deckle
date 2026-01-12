@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ImageElement } from "../../types";
-  import { templateStore } from "$lib/stores/templateElements";
-  import BaseElementConfig from "./BaseElementConfig.svelte";
-  import SelectField from "../config-controls/SelectField.svelte";
-  import ObjectPositionGrid from "../config-controls/ObjectPositionGrid.svelte";
-  import PlaceholderModal from "./PlaceholderModal.svelte";
+  import type { BaseElement, ImageElement } from '../../types';
+  import { templateStore } from '$lib/stores/templateElements';
+  import BaseElementConfig from './BaseElementConfig.svelte';
+  import SelectField from '../config-controls/SelectField.svelte';
+  import ObjectPositionGrid from '../config-controls/ObjectPositionGrid.svelte';
+  import PlaceholderModal from './PlaceholderModal.svelte';
 
   let { element }: { element: ImageElement } = $props();
 
@@ -24,15 +24,14 @@
   }
 </script>
 
-<BaseElementConfig {element} {updateElement}>
+<BaseElementConfig
+  {element}
+  updateElement={updateElement as (updates: Partial<BaseElement>) => void}
+>
   <div class="image-url-field">
     <div class="field-header">
       <label for="image-url">Image URL</label>
-      <button
-        type="button"
-        class="placeholder-link"
-        onclick={() => (showPlaceholderModal = true)}
-      >
+      <button type="button" class="placeholder-link" onclick={() => (showPlaceholderModal = true)}>
         Use Placeholder
       </button>
     </div>
@@ -48,22 +47,22 @@
   <SelectField
     label="Object Fit"
     id="object-fit"
-    value={element.objectFit || "cover"}
+    value={element.objectFit || 'cover'}
     options={[
-      { value: "cover", label: "Cover" },
-      { value: "contain", label: "Contain" },
-      { value: "fill", label: "Fill" },
-      { value: "none", label: "None" },
-      { value: "scale-down", label: "Scale Down" },
+      { value: 'cover', label: 'Cover' },
+      { value: 'contain', label: 'Contain' },
+      { value: 'fill', label: 'Fill' },
+      { value: 'none', label: 'None' },
+      { value: 'scale-down', label: 'Scale Down' }
     ]}
     onchange={(value) => updateElement({ objectFit: value as any })}
   />
 
-  {#if element.objectFit !== "fill"}
+  {#if element.objectFit !== 'fill'}
     <div class="object-position-section">
-      <label for="object-position" class="section-label">Object Position</label>
+      <span class="section-label">Object Position</span>
       <ObjectPositionGrid
-        value={element.objectPosition ?? "center center"}
+        value={element.objectPosition ?? 'center center'}
         onchange={(position) => updateElement({ objectPosition: position })}
       />
     </div>
@@ -109,7 +108,7 @@
     color: #0052a3;
   }
 
-  .image-url-field input[type="text"] {
+  .image-url-field input[type='text'] {
     width: 100%;
     padding: 0.375rem 0.5rem;
     font-size: 0.813rem;
@@ -122,7 +121,7 @@
     height: 2.125rem;
   }
 
-  .image-url-field input[type="text"]:focus {
+  .image-url-field input[type='text']:focus {
     outline: none;
     border-color: #0066cc;
   }

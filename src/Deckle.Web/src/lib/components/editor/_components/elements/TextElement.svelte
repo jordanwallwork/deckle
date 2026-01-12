@@ -45,7 +45,7 @@
 <div
   style:width="100%"
   style:height="100%"
-  style:display={display}
+  style:display
   style:font-size={fontSize}
   style:font-family={fontFamily}
   style:font-weight={fontWeight}
@@ -57,7 +57,7 @@
   style:letter-spacing={letterSpacing}
   style:word-wrap={wordWrap}
   style:text-transform={textTransform}
-  style:padding={padding}
+  style:padding
   style:background-color={backgroundColor}
   style={border}
   class="text-element"

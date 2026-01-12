@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { BreadcrumbItem } from "$lib/types/breadcrumb";
-  import { goto } from "$app/navigation";
+  import type { BreadcrumbItem } from '$lib/types/breadcrumb';
+  import { goto } from '$app/navigation';
 
   let { items = [] }: { items: BreadcrumbItem[] } = $props();
 

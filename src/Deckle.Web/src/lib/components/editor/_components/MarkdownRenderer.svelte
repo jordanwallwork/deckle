@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { marked } from "marked";
-  import { parseInlineClasses, hasInlineClasses } from "$lib/utils/textParser";
-  import { getContext } from "svelte";
-  import type { Writable } from "svelte/store";
-  import type { DataSourceRowData } from "$lib/stores/dataSourceRow";
-  import { replaceMergeFields } from "$lib/utils/mergeFields";
+  import { marked } from 'marked';
+  import { parseInlineClasses, hasInlineClasses } from '$lib/utils/textParser';
+  import { getContext } from 'svelte';
+  import type { Writable } from 'svelte/store';
+  import type { DataSourceRowData } from '$lib/stores/dataSourceRow';
+  import { replaceMergeFields } from '$lib/utils/mergeFields';
 
   let {
-    content = "",
-    mergeData = null,
+    content = '',
+    mergeData = null
   }: {
     content: string;
     mergeData?: Record<string, string> | null;
@@ -21,7 +21,7 @@
   // Configure marked for safe rendering
   marked.setOptions({
     breaks: true, // Support GitHub-style line breaks
-    gfm: true, // GitHub Flavored Markdown
+    gfm: true // GitHub Flavored Markdown
   });
 
   // Pre-process content: merge fields → inline classes → markdown parsing
@@ -102,7 +102,7 @@
     background-color: rgba(0, 0, 0, 0.05);
     padding: 0.1em 0.3em;
     border-radius: 3px;
-    font-family: "Courier New", Courier, monospace;
+    font-family: 'Courier New', Courier, monospace;
   }
 
   .markdown-content :global(pre) {

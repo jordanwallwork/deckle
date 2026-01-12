@@ -1,10 +1,10 @@
 <script lang="ts">
   let {
     id,
-    value = "#000000",
+    value = '#000000',
     onchange,
     disabled = false,
-    class: className = ""
+    class: className = ''
   }: {
     id?: string;
     value?: string;

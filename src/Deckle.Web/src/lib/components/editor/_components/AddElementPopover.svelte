@@ -80,10 +80,7 @@
 </script>
 
 {#if isOpen}
-  <div
-    class="add-popover"
-    style="top: {position.top}px; left: {position.left}px;"
-  >
+  <div class="add-popover" style="top: {position.top}px; left: {position.left}px;">
     <div class="popover-header">
       Add Element
       {#if isRootLevel}
@@ -94,21 +91,42 @@
     </div>
     <button class="popover-item" onclick={() => addElement('container')}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        <rect
+          x="2"
+          y="2"
+          width="12"
+          height="12"
+          stroke="currentColor"
+          stroke-width="1.5"
+          fill="none"
+        />
       </svg>
       Container
     </button>
     <button class="popover-item" onclick={() => addElement('text')}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M4 3H12M8 3V13M6 13H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <path
+          d="M4 3H12M8 3V13M6 13H10"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        />
       </svg>
       Text
     </button>
     <button class="popover-item" onclick={() => addElement('image')}>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.5" fill="none"/>
-        <circle cx="5.5" cy="5.5" r="1.5" fill="currentColor"/>
-        <path d="M2 11L5 8L8 11L11 8L14 11" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        <rect
+          x="2"
+          y="2"
+          width="12"
+          height="12"
+          stroke="currentColor"
+          stroke-width="1.5"
+          fill="none"
+        />
+        <circle cx="5.5" cy="5.5" r="1.5" fill="currentColor" />
+        <path d="M2 11L5 8L8 11L11 8L14 11" stroke="currentColor" stroke-width="1.5" fill="none" />
       </svg>
       Image
     </button>

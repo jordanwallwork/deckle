@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { config } from "$lib/config";
-  import type { CurrentUser } from "$lib/types";
-  import LogoMark from "./LogoMark.svelte";
+  import { config } from '$lib/config';
+  import type { CurrentUser } from '$lib/types';
+  import LogoMark from './LogoMark.svelte';
 
   let { user }: { user: CurrentUser } = $props();
   let showDropdown = $state(false);
@@ -17,12 +17,12 @@
   async function handleSignOut(): Promise<void> {
     try {
       await fetch(`${config.apiUrl}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
+        method: 'POST',
+        credentials: 'include'
       });
-      window.location.href = "/";
+      window.location.href = '/';
     } catch (error) {
-      console.error("Failed to sign out:", error);
+      console.error('Failed to sign out:', error);
     }
   }
 </script>
@@ -87,10 +87,7 @@
                 Sign Out
               </button>
             </div>
-            <button
-              class="dropdown-overlay"
-              onclick={closeDropdown}
-              aria-label="Close dropdown"
+            <button class="dropdown-overlay" onclick={closeDropdown} aria-label="Close dropdown"
             ></button>
           {/if}
         </div>

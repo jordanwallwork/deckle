@@ -1,15 +1,15 @@
 <script lang="ts">
-  import type { Dimensions } from "$lib/types";
-  import type { Snippet } from "svelte";
-  import type { PanzoomObject } from "@panzoom/panzoom";
-  import { onMount, setContext } from "svelte";
+  import type { Dimensions } from '$lib/types';
+  import type { Snippet } from 'svelte';
+  import type { PanzoomObject } from '@panzoom/panzoom';
+  import { onMount, setContext } from 'svelte';
 
   let {
     dimensions,
     gridEnabled,
     gridSize,
     children,
-    onPanzoomReady,
+    onPanzoomReady
   }: {
     dimensions: Dimensions;
     gridEnabled: boolean;
@@ -52,7 +52,7 @@
     (async () => {
       if (contentElement && viewerElement) {
         // Dynamic import to avoid SSR issues - panzoom is browser-only
-        const { default: Panzoom } = await import("@panzoom/panzoom");
+        const { default: Panzoom } = await import('@panzoom/panzoom');
 
         // Calculate the scale needed to fit the component in the viewer
         const padding = 40; // padding in pixels
@@ -71,9 +71,9 @@
           minScale: 0.1,
           startScale: fitScale,
           step: 0.1,
-          cursor: "grab",
+          cursor: 'grab',
           // Exclude resize handles, drag handles, and other interactive elements from triggering pan
-          excludeClass: "panzoom-exclude",
+          excludeClass: 'panzoom-exclude'
         });
 
         // Set initial scale
@@ -112,8 +112,7 @@
 
 <style>
   .component-viewer {
-    background: repeating-conic-gradient(#e5e5e5 0 25%, #fff 0 50%) 50% / 8px
-      8px;
+    background: repeating-conic-gradient(#e5e5e5 0 25%, #fff 0 50%) 50% / 8px 8px;
     height: 100%;
     overflow: hidden;
     display: flex;

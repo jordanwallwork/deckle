@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { slide } from "svelte/transition";
-  import { templateStore } from "$lib/stores/templateElements";
-  import type { TemplateElement, ElementType, MenuItem } from "../types";
-  import { getElementIcon } from "$lib/utils/icons";
-  import { createElementOfType } from "../elementFactory";
-  import DropTarget from "./DropTarget.svelte";
-  import ContextMenu from "./ContextMenu.svelte";
-  import TreeNode from "./TreeNode.svelte";
-  import { getElementLabel } from "../utils";
+  import { slide } from 'svelte/transition';
+  import { templateStore } from '$lib/stores/templateElements';
+  import type { TemplateElement, ElementType, MenuItem } from '../types';
+  import { getElementIcon } from '$lib/utils/icons';
+  import { createElementOfType } from '../elementFactory';
+  import DropTarget from './DropTarget.svelte';
+  import ContextMenu from './ContextMenu.svelte';
+  import TreeNode from './TreeNode.svelte';
+  import { getElementLabel } from '../utils';
 
   let {
     element,
@@ -15,7 +15,7 @@
     rootLabel,
     depth = 0,
     selectedId,
-    onAddClick,
+    onAddClick
   }: {
     element: TemplateElement;
     isRoot?: boolean;
@@ -28,14 +28,12 @@
   let expanded = $state(true);
   let isDragOver = $state(false);
   let isEditingLabel = $state(false);
-  let editLabelValue = $state("");
+  let editLabelValue = $state('');
   let showContextMenu = $state(false);
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
 
-  const hasChildren = $derived(
-    element.type === "container" && element.children.length > 0
-  );
+  const hasChildren = $derived(element.type === 'container' && element.children.length > 0);
   const isSelected = $derived(selectedId === element.id);
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
   const isInvisible = $derived(element.visible === false);
@@ -81,9 +79,9 @@
   }
 
   function handleLabelKeyDown(e: KeyboardEvent) {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       saveLabelEdit();
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       isEditingLabel = false;
     }
   }
@@ -92,7 +90,7 @@
     if (isEditingLabel) {
       const trimmedValue = editLabelValue.trim();
       templateStore.updateElement(element.id, {
-        label: trimmedValue || undefined,
+        label: trimmedValue || undefined
       });
       isEditingLabel = false;
     }
@@ -107,8 +105,8 @@
   // Drag and drop handlers
   function handleDragStart(e: DragEvent) {
     if (!e.dataTransfer || isRoot) return;
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", element.id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', element.id);
     e.stopPropagation();
   }
 
@@ -118,8 +116,8 @@
     e.stopPropagation();
 
     // Only allow drop on containers or root
-    if (element.type === "container" || isRoot) {
-      e.dataTransfer.dropEffect = "move";
+    if (element.type === 'container' || isRoot) {
+      e.dataTransfer.dropEffect = 'move';
       isDragOver = true;
     }
   }
@@ -135,14 +133,14 @@
 
     isDragOver = false;
 
-    const draggedId = e.dataTransfer.getData("text/plain");
+    const draggedId = e.dataTransfer.getData('text/plain');
     if (!draggedId) return;
 
     // Don't drop on yourself
     if (draggedId === element.id) return;
 
     // Drop into container or root
-    const targetParentId = isRoot ? "root" : element.id;
+    const targetParentId = isRoot ? 'root' : element.id;
     templateStore.moveElement(draggedId, targetParentId);
   }
 
@@ -183,49 +181,49 @@
 
     // Duplicate action (available for all non-root elements)
     items.push({
-      label: "Duplicate",
-      action: handleDuplicate,
+      label: 'Duplicate',
+      action: handleDuplicate
     });
 
     // Add submenu for container elements
-    if (element.type === "container") {
+    if (element.type === 'container') {
       items.push({
-        label: "Add...",
+        label: 'Add...',
         submenu: [
           {
-            label: "Container",
-            action: () => handleAddElement("container"),
+            label: 'Container',
+            action: () => handleAddElement('container')
           },
           {
-            label: "Text",
-            action: () => handleAddElement("text"),
+            label: 'Text',
+            action: () => handleAddElement('text')
           },
           {
-            label: "Image",
-            action: () => handleAddElement("image"),
-          },
-        ],
+            label: 'Image',
+            action: () => handleAddElement('image')
+          }
+        ]
       });
     }
 
     // Visibility toggle
     items.push({ divider: true });
     items.push({
-      label: element.visible === false ? "Show" : "Hide",
-      action: handleToggleVisibility,
+      label: element.visible === false ? 'Show' : 'Hide',
+      action: handleToggleVisibility
     });
 
     // Lock toggle
     items.push({
-      label: element.locked === true ? "Unlock" : "Lock",
-      action: handleToggleLock,
+      label: element.locked === true ? 'Unlock' : 'Lock',
+      action: handleToggleLock
     });
 
     // Delete action (with divider before it)
     items.push({ divider: true });
     items.push({
-      label: "Delete",
-      action: () => handleDelete(new MouseEvent("click")),
+      label: 'Delete',
+      action: () => handleDelete(new MouseEvent('click'))
     });
 
     return items;
@@ -260,14 +258,9 @@
           e.stopPropagation();
           toggleExpanded();
         }}
-        aria-label={expanded ? "Collapse" : "Expand"}
+        aria-label={expanded ? 'Collapse' : 'Expand'}
       >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          class:rotated={expanded}
-        >
+        <svg width="12" height="12" viewBox="0 0 12 12" class:rotated={expanded}>
           <path
             d="M4 2L8 6L4 10"
             stroke="currentColor"
@@ -299,13 +292,7 @@
         <circle cx="9" cy="12" r="1.5" fill="currentColor" />
       </svg>
 
-      <svg
-        class="node-icon"
-        width="16"
-        height="16"
-        viewBox="0 0 16 16"
-        fill="none"
-      >
+      <svg class="node-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path
           d={getElementIcon(element.type)}
           stroke="currentColor"
@@ -359,7 +346,7 @@
       {/if}
 
       <div class="node-actions">
-        {#if element.type === "container"}
+        {#if element.type === 'container'}
           <button
             class="action-button"
             onclick={(e) => {
@@ -378,11 +365,7 @@
             </svg>
           </button>
         {/if}
-        <button
-          class="action-button delete"
-          onclick={handleDelete}
-          aria-label="Delete element"
-        >
+        <button class="action-button delete" onclick={handleDelete} aria-label="Delete element">
           <svg width="14" height="14" viewBox="0 0 14 14">
             <path
               d="M3 3l8 8M11 3l-8 8"
@@ -394,13 +377,13 @@
         </button>
       </div>
     {:else}
-      <span class="node-label root-label">{rootLabel || "Root Container"}</span>
+      <span class="node-label root-label">{rootLabel || 'Root Container'}</span>
       <div class="node-actions">
         <button
           class="action-button"
           onclick={(e) => {
             e.stopPropagation();
-            onAddClick(e, "root");
+            onAddClick(e, 'root');
           }}
           aria-label="Add child element"
         >
@@ -417,18 +400,14 @@
     {/if}
   </div>
 
-  {#if hasChildren && expanded && element.type === "container"}
+  {#if hasChildren && expanded && element.type === 'container'}
     <div class="node-children" transition:slide={{ duration: 200 }}>
       {#each element.children as child, index (child.id)}
-        <DropTarget
-          parentId={isRoot ? "root" : element.id}
-          insertIndex={index}
-          depth={depth + 1}
-        />
+        <DropTarget parentId={isRoot ? 'root' : element.id} insertIndex={index} depth={depth + 1} />
         <TreeNode element={child} depth={depth + 1} {selectedId} {onAddClick} />
       {/each}
       <DropTarget
-        parentId={isRoot ? "root" : element.id}
+        parentId={isRoot ? 'root' : element.id}
         insertIndex={element.children.length}
         depth={depth + 1}
       />
@@ -463,11 +442,11 @@
     position: relative;
   }
 
-  .node-content[draggable="true"] {
+  .node-content[draggable='true'] {
     cursor: grab;
   }
 
-  .node-content[draggable="true"]:active {
+  .node-content[draggable='true']:active {
     cursor: grabbing;
   }
 

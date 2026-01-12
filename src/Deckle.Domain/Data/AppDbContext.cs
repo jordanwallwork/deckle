@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<Card> Cards { get; set; }
     public DbSet<Dice> Dices { get; set; }
     public DbSet<PlayerMat> PlayerMats { get; set; }
+    public DbSet<Entities.File> Files { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -62,6 +63,14 @@ public class AppDbContext : DbContext
             entity.Property(u => u.UpdatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(u => u.StorageQuotaMb)
+                .IsRequired()
+                .HasDefaultValue(50);
+
+            entity.Property(u => u.StorageUsedBytes)
+                .IsRequired()
+                .HasDefaultValue(0);
         });
 
         modelBuilder.Entity<Project>(entity =>
@@ -259,6 +268,51 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey("DataSourceId")
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Entities.File>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+
+            entity.Property(f => f.FileName)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(f => f.ContentType)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(f => f.FileSizeBytes)
+                .IsRequired();
+
+            entity.Property(f => f.StorageKey)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(f => f.Status)
+                .IsRequired()
+                .HasConversion<string>();
+
+            entity.Property(f => f.UploadedAt)
+                .IsRequired()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            // Project cascade delete (cleanup R2 files in service layer)
+            entity.HasOne(f => f.Project)
+                .WithMany(p => p.Files)
+                .HasForeignKey(f => f.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // User restrict (keep files if user deleted)
+            entity.HasOne(f => f.UploadedBy)
+                .WithMany(u => u.UploadedFiles)
+                .HasForeignKey(f => f.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Indexes for performance
+            entity.HasIndex(f => f.ProjectId);
+            entity.HasIndex(f => f.UploadedByUserId);
+            entity.HasIndex(f => new { f.Status, f.UploadedAt }); // For cleanup job
         });
     }
 }

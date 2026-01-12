@@ -1,11 +1,11 @@
 <script lang="ts">
-  import Dialog from "./Dialog.svelte";
-  import Button from "./Button.svelte";
+  import Dialog from './Dialog.svelte';
+  import Button from './Button.svelte';
 
   let {
     show = $bindable(false),
     itemName,
-    itemType = "item",
+    itemType = 'item',
     onConfirm,
     onCancel,
     isDeleting = false
@@ -18,14 +18,14 @@
     isDeleting?: boolean;
   } = $props();
 
-  let confirmationText = $state("");
-  let errorMessage = $state("");
+  let confirmationText = $state('');
+  let errorMessage = $state('');
 
   $effect(() => {
     if (!show) {
       // Reset state when dialog closes
-      confirmationText = "";
-      errorMessage = "";
+      confirmationText = '';
+      errorMessage = '';
     }
   });
 
@@ -42,19 +42,14 @@
       return;
     }
 
-    errorMessage = "";
+    errorMessage = '';
     await onConfirm();
   }
 
   const isConfirmDisabled = $derived(isDeleting || confirmationText !== itemName);
 </script>
 
-<Dialog
-  bind:show
-  title="Delete {itemType}"
-  maxWidth="500px"
-  onclose={handleClose}
->
+<Dialog bind:show title="Delete {itemType}" maxWidth="500px" onclose={handleClose}>
   <div class="delete-dialog-content">
     <p class="warning-text">
       This action cannot be undone. This will permanently delete
@@ -77,19 +72,9 @@
   </div>
 
   {#snippet actions()}
-    <Button
-      variant="secondary"
-      onclick={handleClose}
-      disabled={isDeleting}
-    >
-      Cancel
-    </Button>
-    <Button
-      variant="danger"
-      onclick={handleConfirm}
-      disabled={isConfirmDisabled}
-    >
-      {isDeleting ? "Deleting..." : `Delete ${itemType}`}
+    <Button variant="secondary" onclick={handleClose} disabled={isDeleting}>Cancel</Button>
+    <Button variant="danger" onclick={handleConfirm} disabled={isConfirmDisabled}>
+      {isDeleting ? 'Deleting...' : `Delete ${itemType}`}
     </Button>
   {/snippet}
 </Dialog>

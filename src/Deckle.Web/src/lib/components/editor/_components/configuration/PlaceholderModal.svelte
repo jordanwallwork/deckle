@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { Dialog, Button } from "$lib/components";
+  import { Dialog, Button } from '$lib/components';
 
   let {
     show = $bindable(),
     onConfirm,
-    onClose,
+    onClose
   }: {
     show: boolean;
     onConfirm: (url: string) => void;
@@ -14,18 +14,18 @@
   // Default values
   let width = $state(400);
   let height = $state(300);
-  let bgColor = $state("cccccc");
-  let textColor = $state("333333");
-  let text = $state("Image");
+  let bgColor = $state('cccccc');
+  let textColor = $state('333333');
+  let text = $state('Image');
 
   // Reset to defaults when dialog opens
   $effect(() => {
     if (show) {
       width = 400;
       height = 300;
-      bgColor = "cccccc";
-      textColor = "333333";
-      text = "Image";
+      bgColor = 'cccccc';
+      textColor = '333333';
+      text = 'Image';
     }
   });
 
@@ -40,7 +40,7 @@
 
   function sanitizeColorInput(value: string): string {
     // Remove # if present and keep only valid hex characters
-    return value.replace(/[^0-9a-fA-F]/g, "").substring(0, 6);
+    return value.replace(/[^0-9a-fA-F]/g, '').substring(0, 6);
   }
 </script>
 
@@ -51,23 +51,11 @@
       <div class="form-row">
         <div class="form-field">
           <label for="width">Width (px)</label>
-          <input
-            type="number"
-            id="width"
-            min="1"
-            max="5000"
-            bind:value={width}
-          />
+          <input type="number" id="width" min="1" max="5000" bind:value={width} />
         </div>
         <div class="form-field">
           <label for="height">Height (px)</label>
-          <input
-            type="number"
-            id="height"
-            min="1"
-            max="5000"
-            bind:value={height}
-          />
+          <input type="number" id="height" min="1" max="5000" bind:value={height} />
         </div>
       </div>
 
@@ -153,8 +141,8 @@
     color: #666;
   }
 
-  .form-field input[type="text"],
-  .form-field input[type="number"] {
+  .form-field input[type='text'],
+  .form-field input[type='number'] {
     width: 100%;
     padding: 0.375rem 0.5rem;
     font-size: 0.813rem;

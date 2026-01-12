@@ -1,24 +1,21 @@
 <script lang="ts">
-  import ResizablePanelContainer from "$lib/components/ResizablePanelContainer.svelte";
-  import DataSourcePanel from "./DataSourcePanel.svelte";
-  import type { PageData } from "../../../routes/projects/[projectId]/components/[componentId]/[part]/$types";
-  import ElementConfigPanel from "./ElementConfigPanel.svelte";
-  import PreviewPanel from "./PreviewPanel.svelte";
-  import StructureTreePanel from "./StructureTreePanel.svelte";
-  import { templateStore } from "$lib/stores/templateElements";
-  import { initDataSourceRow } from "$lib/stores/dataSourceRow";
-  import { beforeNavigate } from "$app/navigation";
-  import { saveActionStore } from "$lib/stores/saveAction";
-  import { get } from "svelte/store";
-  import { isEditableComponent } from "$lib/utils/componentTypes";
+  import ResizablePanelContainer from '$lib/components/ResizablePanelContainer.svelte';
+  import DataSourcePanel from './DataSourcePanel.svelte';
+  import type { PageData } from '../../../routes/projects/[projectId]/components/[componentId]/[part]/$types';
+  import ElementConfigPanel from './ElementConfigPanel.svelte';
+  import PreviewPanel from './PreviewPanel.svelte';
+  import StructureTreePanel from './StructureTreePanel.svelte';
+  import { templateStore } from '$lib/stores/templateElements';
+  import { initDataSourceRow } from '$lib/stores/dataSourceRow';
+  import { beforeNavigate } from '$app/navigation';
+  import { saveActionStore } from '$lib/stores/saveAction';
+  import { get } from 'svelte/store';
+  import { isEditableComponent } from '$lib/utils/componentTypes';
 
-  let { data, readOnly = false }: { data: PageData; readOnly?: boolean } =
-    $props();
+  let { data, readOnly = false }: { data: PageData; readOnly?: boolean } = $props();
 
   // Capitalize the part name for display (e.g., "front" -> "Front")
-  const partLabel = $derived(
-    data.part.charAt(0).toUpperCase() + data.part.slice(1)
-  );
+  const partLabel = $derived(data.part.charAt(0).toUpperCase() + data.part.slice(1));
 
   const sidebarWidth = 20;
 
@@ -45,10 +42,10 @@
     // Check if component supports design editing (Card or PlayerMat)
     if (isEditableComponent(data.component)) {
       switch (data.part) {
-        case "front":
+        case 'front':
           savedDesign = data.component.frontDesign ?? null;
           break;
-        case "back":
+        case 'back':
           savedDesign = data.component.backDesign ?? null;
           break;
       }
@@ -60,22 +57,22 @@
         const design = JSON.parse(savedDesign);
         templateStore.set({
           root: design,
-          selectedElementId: "root",
+          selectedElementId: 'root',
           hoveredElementId: null,
           canUndo: false,
           canRedo: false,
-          hasUnsavedChanges: false,
+          hasUnsavedChanges: false
         });
       } catch (error) {
-        console.error("Failed to parse saved design:", error);
+        console.error('Failed to parse saved design:', error);
         // If parsing fails, just use the default empty design
         templateStore.reset();
-        templateStore.selectElement("root");
+        templateStore.selectElement('root');
       }
     } else {
       // No saved design, start with empty template
       templateStore.reset();
-      templateStore.selectElement("root");
+      templateStore.selectElement('root');
     }
   });
 
@@ -84,11 +81,11 @@
     // Disable keyboard shortcuts in read-only mode
     if (readOnly) return;
 
-    const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const ctrlKey = isMac ? event.metaKey : event.ctrlKey;
 
     // Save: Ctrl/Cmd+S
-    if (ctrlKey && event.key === "s") {
+    if (ctrlKey && event.key === 's') {
       event.preventDefault();
       const saveFunction = get(saveActionStore);
       if (saveFunction) {
@@ -96,12 +93,12 @@
       }
     }
     // Undo: Ctrl/Cmd+Z
-    else if (ctrlKey && event.key === "z" && !event.shiftKey) {
+    else if (ctrlKey && event.key === 'z' && !event.shiftKey) {
       event.preventDefault();
       templateStore.undo();
     }
     // Redo: Ctrl/Cmd+Y
-    else if (ctrlKey && event.key === "y") {
+    else if (ctrlKey && event.key === 'y') {
       event.preventDefault();
       templateStore.redo();
     }
@@ -117,8 +114,8 @@
     if (hasUnsavedChanges) {
       event.preventDefault();
       // Modern browsers require returnValue to be set
-      event.returnValue = "";
-      return "";
+      event.returnValue = '';
+      return '';
     }
   }
 
@@ -130,11 +127,7 @@
     })();
 
     if (hasUnsavedChanges) {
-      if (
-        !confirm(
-          "You have unsaved changes. Do you want to leave without saving?"
-        )
-      ) {
+      if (!confirm('You have unsaved changes. Do you want to leave without saving?')) {
         cancel();
       }
     }
@@ -163,36 +156,19 @@
   </div>
 {/if}
 
-<ResizablePanelContainer
-  orientation="vertical"
-  bind:splitPercentage={dataSourcePanelSplit}
->
+<ResizablePanelContainer orientation="vertical" bind:splitPercentage={dataSourcePanelSplit}>
   {#snippet leftOrTop()}
     <ResizablePanelContainer initialSplit={sidebarWidth}>
       {#snippet leftOrTop()}
-        <StructureTreePanel
-          component={data.component}
-          part={partLabel}
-          {readOnly}
-        />
+        <StructureTreePanel component={data.component} part={partLabel} {readOnly} />
       {/snippet}
       {#snippet rightOrBottom()}
-        <ResizablePanelContainer
-          initialSplit={100 - (sidebarWidth / (100 - sidebarWidth)) * 100}
-        >
+        <ResizablePanelContainer initialSplit={100 - (sidebarWidth / (100 - sidebarWidth)) * 100}>
           {#snippet leftOrTop()}
-            <PreviewPanel
-              component={data.component}
-              projectId={data.project.id}
-              part={data.part}
-            />
+            <PreviewPanel component={data.component} projectId={data.project.id} part={data.part} />
           {/snippet}
           {#snippet rightOrBottom()}
-            <ElementConfigPanel
-              component={data.component}
-              part={partLabel}
-              {readOnly}
-            />
+            <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />
           {/snippet}
         </ResizablePanelContainer>
       {/snippet}

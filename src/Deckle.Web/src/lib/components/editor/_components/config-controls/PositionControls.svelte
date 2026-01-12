@@ -1,10 +1,10 @@
 <script lang="ts">
-  import DimensionInput from "./DimensionInput.svelte";
+  import DimensionInput from './DimensionInput.svelte';
 
   let {
     x,
     y,
-    onchange,
+    onchange
   }: {
     x?: number | string;
     y?: number | string;
@@ -12,17 +12,15 @@
   } = $props();
 
   // Convert number to string format for DimensionInput
-  function toStringValue(
-    value: number | string | undefined
-  ): string | undefined {
+  function toStringValue(value: number | string | undefined): string | undefined {
     if (value === undefined) return undefined;
-    if (typeof value === "number") return `${value}px`;
+    if (typeof value === 'number') return `${value}px`;
     return value;
   }
 </script>
 
 <div class="field">
-  <label class="section-label">Position:</label>
+  <span class="section-label">Position:</span>
   <div class="position-grid">
     <DimensionInput
       label="Left"

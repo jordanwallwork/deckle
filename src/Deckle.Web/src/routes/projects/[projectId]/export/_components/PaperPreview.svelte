@@ -1,13 +1,8 @@
 <script lang="ts">
-  import type {
-    PageSetup,
-    CardComponent,
-    PlayerMatComponent,
-    GameComponent,
-  } from "$lib/types";
-  import type { ContainerElement } from "$lib/components/editor/types";
-  import { PAPER_DIMENSIONS } from "$lib/types";
-  import StaticComponentRenderer from "./StaticComponentRenderer.svelte";
+  import type { PageSetup, CardComponent, PlayerMatComponent, GameComponent } from '$lib/types';
+  import type { ContainerElement } from '$lib/components/editor/types';
+  import { PAPER_DIMENSIONS } from '$lib/types';
+  import StaticComponentRenderer from './StaticComponentRenderer.svelte';
 
   interface ComponentWithData {
     component: GameComponent;
@@ -19,7 +14,7 @@
     pageSetup,
     components,
     pageElements = $bindable([]),
-    paperDimensions = $bindable({ width: 0, height: 0 }),
+    paperDimensions = $bindable({ width: 0, height: 0 })
   }: {
     pageSetup: PageSetup;
     components: ComponentWithData[];
@@ -40,7 +35,7 @@
       destroy() {
         pageRefsMap.delete(index);
         pageRefsMap = new Map(pageRefsMap);
-      },
+      }
     };
   }
 
@@ -57,13 +52,15 @@
   });
 
   // Type guard to check if component is exportable (must be defined before use)
-  const isExportable = (component: GameComponent): component is CardComponent | PlayerMatComponent => {
-    return component.type === "Card" || component.type === "PlayerMat";
+  const isExportable = (
+    component: GameComponent
+  ): component is CardComponent | PlayerMatComponent => {
+    return component.type === 'Card' || component.type === 'PlayerMat';
   };
 
   // Use DPI from first exportable component (assume all components have same DPI)
   const componentDpi = $derived.by(() => {
-    const firstExportable = components.find(c => isExportable(c.component));
+    const firstExportable = components.find((c) => isExportable(c.component));
     if (firstExportable && isExportable(firstExportable.component)) {
       return firstExportable.component.dimensions.dpi;
     }
@@ -73,15 +70,11 @@
   // Calculate paper dimensions in inches based on setup
   const paperDimensionsInches = $derived.by(() => {
     const baseDimensions = PAPER_DIMENSIONS[pageSetup.paperSize];
-    const isLandscape = pageSetup.orientation === "landscape";
+    const isLandscape = pageSetup.orientation === 'landscape';
 
     return {
-      width: isLandscape
-        ? baseDimensions.heightInches
-        : baseDimensions.widthInches,
-      height: isLandscape
-        ? baseDimensions.widthInches
-        : baseDimensions.heightInches,
+      width: isLandscape ? baseDimensions.heightInches : baseDimensions.widthInches,
+      height: isLandscape ? baseDimensions.widthInches : baseDimensions.heightInches
     };
   });
 
@@ -90,7 +83,7 @@
     const dims = paperDimensionsInches;
     return {
       width: dims.width * componentDpi,
-      height: dims.height * componentDpi,
+      height: dims.height * componentDpi
     };
   });
 
@@ -98,7 +91,7 @@
   $effect(() => {
     paperDimensions = {
       width: paperDimensionsPx.width,
-      height: paperDimensionsPx.height,
+      height: paperDimensionsPx.height
     };
   });
 
@@ -150,7 +143,7 @@
   // Calculate scaled dimensions for layout
   const scaledDimensions = $derived.by(() => ({
     width: paperDimensionsPx.width * zoom,
-    height: paperDimensionsPx.height * zoom,
+    height: paperDimensionsPx.height * zoom
   }));
 
   // Calculate the left offset to center the paper
@@ -167,19 +160,19 @@
   const cropMarkSpace = cropMarkOffset + cropMarkLength;
 
   // Calculate printable area dimensions
-  const printableAreaWidthPx = $derived(
-    paperDimensionsPx.width - 2 * marginPx
-  );
-  const printableAreaHeightPx = $derived(
-    paperDimensionsPx.height - 2 * marginPx
-  );
+  const printableAreaWidthPx = $derived(paperDimensionsPx.width - 2 * marginPx);
+  const printableAreaHeightPx = $derived(paperDimensionsPx.height - 2 * marginPx);
 
   // Rotation state - tracks which component instances are rotated
   // Key format: "componentIndex-dataHash"
   let rotationState = $state<Map<string, boolean>>(new Map());
 
   // Generate a unique key for each instance
-  function getInstanceKey(componentIndex: number, mergeData: Record<string, string> | null, copyIndex: number): string {
+  function getInstanceKey(
+    componentIndex: number,
+    mergeData: Record<string, string> | null,
+    copyIndex: number
+  ): string {
     if (!mergeData || Object.keys(mergeData).length === 0) {
       return `${componentIndex}-${copyIndex}`;
     }
@@ -265,20 +258,20 @@
 
       // Determine instances based on data source
       const instances: Record<string, string>[] =
-        componentWithData.dataSourceRows.length > 0
-          ? componentWithData.dataSourceRows
-          : [{}];
+        componentWithData.dataSourceRows.length > 0 ? componentWithData.dataSourceRows : [{}];
 
       // Create instances for this component
       for (const rowData of instances) {
         // Check for "Num" field for duplicates
-        const numCopies = rowData.Num
-          ? Math.max(1, parseInt(rowData.Num, 10) || 1)
-          : 1;
+        const numCopies = rowData.Num ? Math.max(1, parseInt(rowData.Num, 10) || 1) : 1;
 
         for (let copyIndex = 0; copyIndex < numCopies; copyIndex++) {
           // Generate instance key and check rotation state
-          const instanceKey = getInstanceKey(componentIndex, Object.keys(rowData).length > 0 ? rowData : null, copyIndex);
+          const instanceKey = getInstanceKey(
+            componentIndex,
+            Object.keys(rowData).length > 0 ? rowData : null,
+            copyIndex
+          );
           const isRotated = rotationStateMap.get(instanceKey) || false;
 
           // Swap dimensions if rotated
@@ -315,7 +308,7 @@
             heightPx: instanceHeightPx,
             bleedPx: component.dimensions.bleedPx,
             instanceKey,
-            isRotated,
+            isRotated
           });
 
           // Update position for next instance (use layout dimensions)
@@ -378,7 +371,7 @@
         const mirroredX = printableAreaWidthPx - (instance.x + layoutWidth);
         return {
           ...instance,
-          x: mirroredX,
+          x: mirroredX
         };
       });
 
@@ -498,8 +491,12 @@
                   {#if designJson}
                     {@const design = JSON.parse(designJson) as ContainerElement}
                     {@const rotation = instance.isRotated ? (isBack ? -90 : 90) : 0}
-                    {@const layoutWidthPx = instance.isRotated ? instance.heightPx : instance.widthPx}
-                    {@const layoutHeightPx = instance.isRotated ? instance.widthPx : instance.heightPx}
+                    {@const layoutWidthPx = instance.isRotated
+                      ? instance.heightPx
+                      : instance.widthPx}
+                    {@const layoutHeightPx = instance.isRotated
+                      ? instance.widthPx
+                      : instance.heightPx}
                     <div
                       class="component-instance"
                       role="button"
@@ -523,7 +520,11 @@
                       <div
                         class="component-renderer-wrapper"
                         style="
-                          transform: rotate({rotation}deg) {rotation === 90 ? 'translateY(-100%)' : rotation === -90 ? 'translateX(-100%)' : ''};
+                          transform: rotate({rotation}deg) {rotation === 90
+                          ? 'translateY(-100%)'
+                          : rotation === -90
+                            ? 'translateX(-100%)'
+                            : ''};
                           transform-origin: top left;
                           width: {instance.widthPx}px;
                           height: {instance.heightPx}px;
@@ -556,16 +557,22 @@
                   "
                 >
                   {#each page.instances as instance}
-                    {@const layoutWidthPx = instance.isRotated ? instance.heightPx : instance.widthPx}
-                    {@const layoutHeightPx = instance.isRotated ? instance.widthPx : instance.heightPx}
+                    {@const layoutWidthPx = instance.isRotated
+                      ? instance.heightPx
+                      : instance.widthPx}
+                    {@const layoutHeightPx = instance.isRotated
+                      ? instance.widthPx
+                      : instance.heightPx}
                     {@const instanceBleedLeft = instance.x + cropMarkSpace}
                     {@const instanceBleedTop = instance.y + cropMarkSpace}
                     {@const instanceBleedRight = instance.x + layoutWidthPx + cropMarkSpace}
                     {@const instanceBleedBottom = instance.y + layoutHeightPx + cropMarkSpace}
                     {@const instanceCutLeft = instance.x + instance.bleedPx + cropMarkSpace}
                     {@const instanceCutTop = instance.y + instance.bleedPx + cropMarkSpace}
-                    {@const instanceCutRight = instance.x + layoutWidthPx - instance.bleedPx + cropMarkSpace}
-                    {@const instanceCutBottom = instance.y + layoutHeightPx - instance.bleedPx + cropMarkSpace}
+                    {@const instanceCutRight =
+                      instance.x + layoutWidthPx - instance.bleedPx + cropMarkSpace}
+                    {@const instanceCutBottom =
+                      instance.y + layoutHeightPx - instance.bleedPx + cropMarkSpace}
 
                     <!-- Left edge crop marks -->
                     {#if instance.x === bounds.minX}
@@ -658,7 +665,9 @@
 
   <!-- Info display -->
   <div class="info-display">
-    {totalInstances} {totalInstances === 1 ? 'Component' : 'Components'}; {allPages.length} {allPages.length === 1 ? 'Page' : 'Pages'}
+    {totalInstances}
+    {totalInstances === 1 ? 'Component' : 'Components'}; {allPages.length}
+    {allPages.length === 1 ? 'Page' : 'Pages'}
   </div>
 
   <!-- Zoom control -->
@@ -671,11 +680,7 @@
     >
       −
     </button>
-    <button
-      class="zoom-reset"
-      onclick={resetZoom}
-      title="Reset zoom to fit"
-    >
+    <button class="zoom-reset" onclick={resetZoom} title="Reset zoom to fit">
       {zoomPercentage}%
     </button>
     <button

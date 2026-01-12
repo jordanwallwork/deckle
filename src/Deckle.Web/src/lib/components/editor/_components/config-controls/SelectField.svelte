@@ -19,11 +19,7 @@
 </script>
 
 <FieldWrapper {label} {hideLabel} htmlFor={id}>
-  <select
-    {id}
-    {value}
-    onchange={(e) => onchange(e.currentTarget.value)}
-  >
+  <select {id} {value} onchange={(e) => onchange(e.currentTarget.value)}>
     {#each options as option}
       <option value={option.value}>{option.label}</option>
     {/each}

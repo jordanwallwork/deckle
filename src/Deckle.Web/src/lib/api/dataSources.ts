@@ -1,5 +1,11 @@
 import { api } from './client';
-import type { DataSource, CreateDataSourceDto, UpdateDataSourceDto, SyncDataSourceMetadataRequest, DataSourceMetadata } from '$lib/types';
+import type {
+  DataSource,
+  CreateDataSourceDto,
+  UpdateDataSourceDto,
+  SyncDataSourceMetadataRequest,
+  DataSourceMetadata
+} from '$lib/types';
 
 /**
  * Data Sources API
@@ -51,5 +57,5 @@ export const dataSourcesApi = {
    * Get data from a data source (CSV as 2D array)
    */
   getData: (id: string, fetchFn?: typeof fetch) =>
-    api.get<{ data: string[][] }>(`/data-sources/${id}/data`, undefined, fetchFn),
+    api.get<{ data: string[][] }>(`/data-sources/${id}/data`, undefined, fetchFn)
 };

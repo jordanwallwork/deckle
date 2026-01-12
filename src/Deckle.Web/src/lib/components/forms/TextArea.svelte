@@ -8,7 +8,7 @@
     rows = 3,
     error = false,
     onchange,
-    oninput,
+    oninput
   }: {
     value: string;
     id?: string;

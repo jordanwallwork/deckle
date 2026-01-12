@@ -34,7 +34,7 @@
   class:danger={variant === 'danger'}
   class:text={variant === 'text'}
   class:icon={variant === 'icon'}
-  class:outline={outline}
+  class:outline
   class:sm={size === 'sm'}
   class:md={size === 'md'}
   class:lg={size === 'lg'}

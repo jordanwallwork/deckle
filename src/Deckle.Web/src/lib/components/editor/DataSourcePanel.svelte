@@ -1,13 +1,13 @@
 <script lang="ts">
-  import Panel from "./_components/Panel.svelte";
-  import { Button, DataTable } from "$lib/components";
-  import LinkDataSourceModal from "../../../routes/projects/[projectId]/components/_components/LinkDataSourceModal.svelte";
-  import { componentsApi, dataSourcesApi } from "$lib/api";
-  import { invalidateAll } from "$app/navigation";
-  import type { DataSource } from "$lib/types";
-  import { formatRelativeTime } from "$lib/utils/date.utils";
-  import { syncDataSource } from "$lib/utils/dataSource.utils";
-  import { getDataSourceRow } from "$lib/stores/dataSourceRow";
+  import Panel from './_components/Panel.svelte';
+  import { Button, DataTable } from '$lib/components';
+  import LinkDataSourceModal from '../../../routes/projects/[projectId]/components/_components/LinkDataSourceModal.svelte';
+  import { componentsApi, dataSourcesApi } from '$lib/api';
+  import { invalidateAll } from '$app/navigation';
+  import type { DataSource } from '$lib/types';
+  import { formatRelativeTime } from '$lib/utils/date.utils';
+  import { syncDataSource } from '$lib/utils/dataSource.utils';
+  import { getDataSourceRow } from '$lib/stores/dataSourceRow';
 
   interface Props {
     dataSource: DataSource | null;
@@ -16,6 +16,7 @@
     componentId: string;
     onMinimize?: () => void;
     onMaximize?: () => void;
+    readOnly?: boolean;
   }
 
   let {
@@ -25,6 +26,7 @@
     componentId,
     onMinimize,
     onMaximize,
+    readOnly = false
   }: Props = $props();
 
   // Get the store reference during component initialization
@@ -63,7 +65,7 @@
 
         const rowObject = headers.reduce(
           (obj, header, index) => {
-            obj[header] = firstRow[index] || "";
+            obj[header] = firstRow[index] || '';
             return obj;
           },
           {} as Record<string, string>
@@ -75,7 +77,7 @@
         dataSourceRowStore.set(null);
       }
     } catch (err) {
-      console.error("Error loading data source data:", err);
+      console.error('Error loading data source data:', err);
       spreadsheetData = null;
       dataSourceRowStore.set(null);
     } finally {
@@ -96,13 +98,13 @@
         // Map headers to values to create an object
         const rowObject = headers.reduce(
           (obj, header, index) => {
-            obj[header] = selectedRow[index] || "";
+            obj[header] = selectedRow[index] || '';
             return obj;
           },
           {} as Record<string, string>
         );
 
-        console.log("Selected row:", JSON.stringify(rowObject, null, 2));
+        console.log('Selected row:', JSON.stringify(rowObject, null, 2));
 
         // Update the store for merge field functionality
         dataSourceRowStore.set(rowObject);
@@ -120,15 +122,11 @@
 
   async function handleConfirmLinkDataSource(dataSourceId: string | null) {
     try {
-      await componentsApi.updateDataSource(
-        projectId,
-        componentId,
-        dataSourceId
-      );
+      await componentsApi.updateDataSource(projectId, componentId, dataSourceId);
       await invalidateAll();
       closeLinkDataSourceModal();
     } catch (err) {
-      console.error("Error updating component data source:", err);
+      console.error('Error updating component data source:', err);
       // Could add error handling UI here
     }
   }
@@ -147,7 +145,7 @@
       // Reload the spreadsheet data
       await loadData();
     } catch (err) {
-      console.error("Error syncing data source:", err);
+      console.error('Error syncing data source:', err);
       // Could add error handling UI here
     } finally {
       isSyncing = false;
@@ -158,8 +156,7 @@
     if (!spreadsheetData || spreadsheetData.length <= 1) return;
 
     const totalRows = spreadsheetData.length - 1; // Exclude header row
-    const newIndex =
-      selectedRowIndex === 0 ? totalRows - 1 : selectedRowIndex - 1;
+    const newIndex = selectedRowIndex === 0 ? totalRows - 1 : selectedRowIndex - 1;
     handleRowSelect(newIndex);
   }
 
@@ -167,8 +164,7 @@
     if (!spreadsheetData || spreadsheetData.length <= 1) return;
 
     const totalRows = spreadsheetData.length - 1; // Exclude header row
-    const newIndex =
-      selectedRowIndex === totalRows - 1 ? 0 : selectedRowIndex + 1;
+    const newIndex = selectedRowIndex === totalRows - 1 ? 0 : selectedRowIndex + 1;
     handleRowSelect(newIndex);
   }
 </script>
@@ -218,10 +214,7 @@
             </button>
           </div>
         {/if}
-        <span
-          class="last-updated"
-          title={new Date(dataSource.updatedAt).toLocaleString()}
-        >
+        <span class="last-updated" title={new Date(dataSource.updatedAt).toLocaleString()}>
           Last updated {formatRelativeTime(dataSource.updatedAt)}
         </span>
         <div class="toolbar-buttons">
@@ -231,7 +224,7 @@
             title="Sync data from Google Sheets"
             disabled={isSyncing}
           >
-            {isSyncing ? "Syncing..." : "Sync"}
+            {isSyncing ? 'Syncing...' : 'Sync'}
           </button>
           <button
             onclick={openLinkDataSourceModal}
@@ -343,12 +336,8 @@
   {:else}
     <div class="empty-state">
       <p class="empty-message">No data source linked to this component.</p>
-      <p class="empty-hint">
-        Link a data source to populate this component with dynamic data.
-      </p>
-      <Button variant="primary" onclick={openLinkDataSourceModal}>
-        Link Data Source
-      </Button>
+      <p class="empty-hint">Link a data source to populate this component with dynamic data.</p>
+      <Button variant="primary" onclick={openLinkDataSourceModal}>Link Data Source</Button>
     </div>
   {/if}
 </Panel>

@@ -81,7 +81,7 @@
     align-items: center;
   }
 
-  .dimension-input input[type="number"] {
+  .dimension-input input[type='number'] {
     flex: 1;
     min-width: 0;
     padding: 0.375rem 0.5rem;
@@ -95,7 +95,7 @@
     box-sizing: border-box;
   }
 
-  .dimension-input input[type="number"]:focus {
+  .dimension-input input[type='number']:focus {
     outline: none;
     border-color: #0066cc;
     border-right: none;

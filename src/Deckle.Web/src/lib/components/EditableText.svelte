@@ -2,10 +2,10 @@
   let {
     value,
     onSave,
-    placeholder = "Enter text",
-    class: className = "",
-    editingClass = "",
-    displayClass = ""
+    placeholder = 'Enter text',
+    class: className = '',
+    editingClass = '',
+    displayClass = ''
   }: {
     value: string;
     onSave: (newValue: string) => void;
@@ -16,7 +16,7 @@
   } = $props();
 
   let isEditing = $state(false);
-  let editValue = $state("");
+  let editValue = $state('');
 
   function startEditing() {
     editValue = value;
@@ -33,14 +33,21 @@
 
   function cancelEdit() {
     isEditing = false;
-    editValue = "";
+    editValue = '';
   }
 
-  function handleKeyDown(e: KeyboardEvent) {
+  function handleInputKeyDown(e: KeyboardEvent) {
     if (e.key === 'Enter') {
       saveEdit();
     } else if (e.key === 'Escape') {
       cancelEdit();
+    }
+  }
+
+  function handleSpanKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      startEditing();
     }
   }
 
@@ -58,14 +65,18 @@
     {placeholder}
     class="editable-text-input {className} {editingClass}"
     onblur={saveEdit}
-    onkeydown={handleKeyDown}
+    onkeydown={handleInputKeyDown}
     onclick={(e) => e.stopPropagation()}
     use:focusAndSelect
   />
 {:else}
   <span
     class="editable-text-display {className} {displayClass}"
+    role="button"
+    tabindex="0"
+    aria-label="Double-click or press Enter/Space to edit"
     ondblclick={startEditing}
+    onkeydown={handleSpanKeyDown}
   >
     {value || placeholder}
   </span>

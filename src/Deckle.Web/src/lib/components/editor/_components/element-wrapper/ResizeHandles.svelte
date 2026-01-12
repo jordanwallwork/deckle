@@ -58,9 +58,10 @@
 
   // Get current dimensions
   function getCurrentDimensions() {
-    const dims = element.type === 'container' || element.type === 'text' || element.type === 'image'
-      ? (element as any).dimensions
-      : undefined;
+    const dims =
+      element.type === 'container' || element.type === 'text' || element.type === 'image'
+        ? (element as any).dimensions
+        : undefined;
 
     const width = dims?.width;
     const height = dims?.height;
@@ -100,19 +101,22 @@
     startY = e.clientY;
 
     const dims = getCurrentDimensions();
-    startLeft = element.x || 0;
-    startTop = element.y || 0;
+    startLeft = typeof element.x === 'number' ? element.x : parseFloat(String(element.x)) || 0;
+    startTop = typeof element.y === 'number' ? element.y : parseFloat(String(element.y)) || 0;
 
     // Get the actual element being resized (parent of resize handles)
     const targetElement = resizeHandlesEl?.parentElement;
 
     // Check if dimensions are percentages and need conversion
-    const elementDims = element.type === 'container' || element.type === 'text' || element.type === 'image'
-      ? (element as any).dimensions
-      : undefined;
+    const elementDims =
+      element.type === 'container' || element.type === 'text' || element.type === 'image'
+        ? (element as any).dimensions
+        : undefined;
 
-    const widthIsPercentage = typeof elementDims?.width === 'string' && elementDims.width.includes('%');
-    const heightIsPercentage = typeof elementDims?.height === 'string' && elementDims.height.includes('%');
+    const widthIsPercentage =
+      typeof elementDims?.width === 'string' && elementDims.width.includes('%');
+    const heightIsPercentage =
+      typeof elementDims?.height === 'string' && elementDims.height.includes('%');
 
     // If dimensions are percentages, get the actual rendered pixel size
     if (targetElement && (widthIsPercentage || heightIsPercentage)) {
@@ -219,7 +223,9 @@
     // History is saved once at the start of the drag operation
     const updates: any = {
       dimensions: {
-        ...(element.type === 'container' || element.type === 'text' || element.type === 'image' ? (element as any).dimensions : {})
+        ...(element.type === 'container' || element.type === 'text' || element.type === 'image'
+          ? (element as any).dimensions
+          : {})
       }
     };
 
@@ -276,7 +282,11 @@
   });
 </script>
 
-<div bind:this={resizeHandlesEl} class="resize-handles panzoom-exclude" style="--inverse-scale: {inverseScale}">
+<div
+  bind:this={resizeHandlesEl}
+  class="resize-handles panzoom-exclude"
+  style="--inverse-scale: {inverseScale}"
+>
   <!-- Corner handles -->
   <ResizeHandle position="nw" {inverseScale} onmousedown={(e) => handleMouseDown('nw', e)} />
   <ResizeHandle position="ne" {inverseScale} onmousedown={(e) => handleMouseDown('ne', e)} />

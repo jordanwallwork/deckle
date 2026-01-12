@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { PageData } from "./$types";
-  import PageLayout from "$lib/components/layout/PageLayout.svelte";
-  import PageHeader from "$lib/components/layout/PageHeader.svelte";
+  import type { PageData } from './$types';
+  import PageLayout from '$lib/components/layout/PageLayout.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data }: { data: PageData } = $props();
 </script>
@@ -19,34 +19,30 @@
       <div class="profile-card">
         <div class="profile-avatar-section">
           {#if data.user.picture}
-            <img
-              src={data.user.picture}
-              alt={data.user.name || "User"}
-              class="profile-avatar"
-            />
+            <img src={data.user.picture} alt={data.user.name || 'User'} class="profile-avatar" />
           {:else}
             <div class="profile-avatar-placeholder">
-              {data.user.name?.charAt(0).toUpperCase() || "U"}
+              {data.user.name?.charAt(0).toUpperCase() || 'U'}
             </div>
           {/if}
         </div>
 
-        <div class="profile-fields">
+        <dl class="profile-fields">
           <div class="field-group">
-            <label class="field-label">User ID</label>
-            <div class="field-value">{data.user.id || "N/A"}</div>
+            <dt class="field-label">User ID</dt>
+            <dd class="field-value">{data.user.id || 'N/A'}</dd>
           </div>
 
           <div class="field-group">
-            <label class="field-label">Name</label>
-            <div class="field-value">{data.user.name || "N/A"}</div>
+            <dt class="field-label">Name</dt>
+            <dd class="field-value">{data.user.name || 'N/A'}</dd>
           </div>
 
           <div class="field-group">
-            <label class="field-label">Email</label>
-            <div class="field-value">{data.user.email || "N/A"}</div>
+            <dt class="field-label">Email</dt>
+            <dd class="field-value">{data.user.email || 'N/A'}</dd>
           </div>
-        </div>
+        </dl>
       </div>
     </div>
   </div>
@@ -112,12 +108,14 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    margin: 0;
   }
 
   .field-group {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    margin: 0;
   }
 
   .field-label {
@@ -126,6 +124,7 @@
     color: var(--color-sage);
     text-transform: uppercase;
     letter-spacing: 0.025em;
+    margin: 0;
   }
 
   .field-value {
@@ -135,6 +134,7 @@
     background-color: rgba(120, 160, 131, 0.05);
     border: 1px solid rgba(120, 160, 131, 0.2);
     border-radius: 8px;
+    margin: 0;
   }
 
   @media (min-width: 640px) {

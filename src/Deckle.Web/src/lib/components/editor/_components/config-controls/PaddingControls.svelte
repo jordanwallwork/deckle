@@ -11,7 +11,7 @@
 
   let {
     padding,
-    onchange,
+    onchange
   }: {
     padding?: Padding;
     onchange: (newPadding: Padding) => void;
@@ -40,17 +40,13 @@
     if (!separateSides) {
       // Switching to "all sides" mode - use first defined side or default
       const allValue =
-        padding?.top ??
-        padding?.right ??
-        padding?.bottom ??
-        padding?.left ??
-        padding?.all;
+        padding?.top ?? padding?.right ?? padding?.bottom ?? padding?.left ?? padding?.all;
       onchange({
         all: allValue,
         top: undefined,
         right: undefined,
         bottom: undefined,
-        left: undefined,
+        left: undefined
       });
     } else {
       // Switching to "separate sides" mode - copy from all to individual sides
@@ -60,7 +56,7 @@
         top: value,
         right: value,
         bottom: value,
-        left: value,
+        left: value
       });
     }
   }
@@ -68,31 +64,27 @@
   function updateAllSides(value: number | string | undefined) {
     onchange({
       ...padding,
-      all: value,
+      all: value
     });
   }
 
   function updateSide(
-    side: "top" | "right" | "bottom" | "left",
+    side: 'top' | 'right' | 'bottom' | 'left',
     value: number | string | undefined
   ) {
     onchange({
       ...padding,
-      [side]: value,
+      [side]: value
     });
   }
 </script>
 
 <div class="field">
   <div class="header">
-    <label class="section-label">Padding:</label>
+    <span class="section-label">Padding:</span>
     <label class="toggle-label">
       <span>Separate sides</span>
-      <input
-        type="checkbox"
-        checked={separateSides}
-        onchange={toggleSeparateSides}
-      />
+      <input type="checkbox" checked={separateSides} onchange={toggleSeparateSides} />
     </label>
   </div>
 
@@ -111,28 +103,28 @@
         label="Top"
         id="padding-top"
         value={toStringValue(padding?.top)}
-        onchange={(value) => updateSide("top", value)}
+        onchange={(value) => updateSide('top', value)}
       />
 
       <DimensionInput
         label="Right"
         id="padding-right"
         value={toStringValue(padding?.right)}
-        onchange={(value) => updateSide("right", value)}
+        onchange={(value) => updateSide('right', value)}
       />
 
       <DimensionInput
         label="Bottom"
         id="padding-bottom"
         value={toStringValue(padding?.bottom)}
-        onchange={(value) => updateSide("bottom", value)}
+        onchange={(value) => updateSide('bottom', value)}
       />
 
       <DimensionInput
         label="Left"
         id="padding-left"
         value={toStringValue(padding?.left)}
-        onchange={(value) => updateSide("left", value)}
+        onchange={(value) => updateSide('left', value)}
       />
     </div>
   {/if}
@@ -166,7 +158,7 @@
     cursor: pointer;
   }
 
-  .toggle-label input[type="checkbox"] {
+  .toggle-label input[type='checkbox'] {
     cursor: pointer;
     width: 36px;
     height: 20px;
@@ -177,12 +169,12 @@
     transition: background 0.2s;
   }
 
-  .toggle-label input[type="checkbox"]:checked {
+  .toggle-label input[type='checkbox']:checked {
     background: #0066cc;
   }
 
-  .toggle-label input[type="checkbox"]::before {
-    content: "";
+  .toggle-label input[type='checkbox']::before {
+    content: '';
     position: absolute;
     width: 16px;
     height: 16px;
@@ -193,7 +185,7 @@
     transition: left 0.2s;
   }
 
-  .toggle-label input[type="checkbox"]:checked::before {
+  .toggle-label input[type='checkbox']:checked::before {
     left: 18px;
   }
 

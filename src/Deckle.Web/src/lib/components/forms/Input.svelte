@@ -1,14 +1,17 @@
 <script lang="ts">
   let {
     value = $bindable(),
-    type = "text",
+    type = 'text',
     id,
     placeholder,
     disabled = false,
     required = false,
     error = false,
+    min,
+    max,
+    step,
     onchange,
-    oninput,
+    oninput
   }: {
     value: string;
     type?: string;
@@ -17,6 +20,9 @@
     disabled?: boolean;
     required?: boolean;
     error?: boolean;
+    min?: string;
+    max?: string;
+    step?: string;
     onchange?: (value: string) => void;
     oninput?: (value: string) => void;
   } = $props();
@@ -29,6 +35,9 @@
   {placeholder}
   {disabled}
   {required}
+  {min}
+  {max}
+  {step}
   class="base-input"
   class:error
   onchange={(e) => onchange?.(e.currentTarget.value)}
@@ -36,5 +45,5 @@
 />
 
 <style>
-  @import "./base-input.css";
+  @import './base-input.css';
 </style>

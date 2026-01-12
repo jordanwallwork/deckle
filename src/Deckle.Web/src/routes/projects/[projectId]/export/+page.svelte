@@ -1,18 +1,18 @@
 <script lang="ts">
-  import type { PageData } from "./$types";
-  import type { PageSetup } from "$lib/types";
-  import { DEFAULT_PAGE_SETUP } from "$lib/types";
-  import { setBreadcrumbs } from "$lib/stores/breadcrumb";
-  import { page } from "$app/stores";
-  import { browser } from "$app/environment";
-  import ResizablePanelContainer from "$lib/components/ResizablePanelContainer.svelte";
-  import PageSetupPanel from "./_components/PageSetupPanel.svelte";
-  import PaperPreview from "./_components/PaperPreview.svelte";
-  import ComponentSelector from "./_components/ComponentSelector.svelte";
+  import type { PageData } from './$types';
+  import type { PageSetup } from '$lib/types';
+  import { DEFAULT_PAGE_SETUP } from '$lib/types';
+  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { page } from '$app/stores';
+  import { browser } from '$app/environment';
+  import ResizablePanelContainer from '$lib/components/ResizablePanelContainer.svelte';
+  import PageSetupPanel from './_components/PageSetupPanel.svelte';
+  import PaperPreview from './_components/PaperPreview.svelte';
+  import ComponentSelector from './_components/ComponentSelector.svelte';
 
   let { data }: { data: PageData } = $props();
 
-  const STORAGE_KEY = "deckle-export-page-setup";
+  const STORAGE_KEY = 'deckle-export-page-setup';
 
   // Page setup state
   let pageSetup = $state<PageSetup>({ ...DEFAULT_PAGE_SETUP });
@@ -28,7 +28,7 @@
           pageSetup = { ...DEFAULT_PAGE_SETUP, ...parsed };
         }
       } catch (error) {
-        console.error("Failed to load page setup from localStorage:", error);
+        console.error('Failed to load page setup from localStorage:', error);
       }
     }
   });
@@ -39,7 +39,7 @@
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(pageSetup));
       } catch (error) {
-        console.error("Failed to save page setup to localStorage:", error);
+        console.error('Failed to save page setup to localStorage:', error);
       }
     }
   });
@@ -52,10 +52,10 @@
 
   // Selected component IDs from URL
   let selectedComponentIds = $derived.by(() => {
-    const componentsParam = $page.url.searchParams.get("components");
+    const componentsParam = $page.url.searchParams.get('components');
     if (!componentsParam) return [];
     return componentsParam
-      .split(",")
+      .split(',')
       .map((id) => id.trim())
       .filter((id) => id.length > 0);
   });
@@ -63,25 +63,21 @@
   // Update breadcrumbs for this page
   $effect(() => {
     setBreadcrumbs([
-      { label: "Projects", href: "/projects" },
+      { label: 'Projects', href: '/projects' },
       { label: data.project.name, href: `/projects/${data.project.id}` },
-      { label: "Export", href: `/projects/${data.project.id}/export` },
+      { label: 'Export', href: `/projects/${data.project.id}/export` }
     ]);
   });
 
   // Check if all components are exportable (Card or PlayerMat)
   const allExportable = $derived(
-    data.components.every(
-      (c) => c.component.type === "Card" || c.component.type === "PlayerMat"
-    )
+    data.components.every((c) => c.component.type === 'Card' || c.component.type === 'PlayerMat')
   );
 
   // Get non-exportable components
   const nonExportableComponents = $derived(
     data.components
-      .filter(
-        (c) => c.component.type !== "Card" && c.component.type !== "PlayerMat"
-      )
+      .filter((c) => c.component.type !== 'Card' && c.component.type !== 'PlayerMat')
       .map((c) => c.component.name)
   );
 
@@ -96,20 +92,14 @@
 
 <svelte:head>
   <title>Export · {data.project.name} · Deckle</title>
-  <meta
-    name="description"
-    content="Export components from {data.project.name}."
-  />
+  <meta name="description" content="Export components from {data.project.name}." />
 </svelte:head>
 
 <ResizablePanelContainer initialSplit={20}>
   {#snippet leftOrTop()}
     <div class="left-panel">
       <div class="component-selector-section">
-        <ComponentSelector
-          components={data.allExportableComponents}
-          {selectedComponentIds}
-        />
+        <ComponentSelector components={data.allExportableComponents} {selectedComponentIds} />
       </div>
 
       {#if data.components.length > 0}

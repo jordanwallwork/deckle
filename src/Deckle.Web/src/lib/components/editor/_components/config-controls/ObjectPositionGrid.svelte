@@ -1,10 +1,10 @@
 <script lang="ts">
-  type PositionX = "left" | "center" | "right";
-  type PositionY = "top" | "center" | "bottom";
+  type PositionX = 'left' | 'center' | 'right';
+  type PositionY = 'top' | 'center' | 'bottom';
 
   let {
-    value = "center center",
-    onchange,
+    value = 'center center',
+    onchange
   }: {
     value?: string;
     onchange: (position: string) => void;
@@ -15,43 +15,43 @@
     const normalized = pos.trim().toLowerCase();
 
     // Handle various CSS object-position formats
-    if (normalized === "center" || normalized === "50% 50%") {
-      return { x: "center", y: "center" };
+    if (normalized === 'center' || normalized === '50% 50%') {
+      return { x: 'center', y: 'center' };
     }
 
     // Split by space and parse
     const parts = normalized.split(/\s+/);
-    let x: PositionX = "center";
-    let y: PositionY = "center";
+    let x: PositionX = 'center';
+    let y: PositionY = 'center';
 
     // First part is horizontal (x)
     if (parts[0]) {
-      if (parts[0].includes("left") || parts[0] === "0%" || parts[0] === "0") {
-        x = "left";
-      } else if (parts[0].includes("right") || parts[0] === "100%") {
-        x = "right";
+      if (parts[0].includes('left') || parts[0] === '0%' || parts[0] === '0') {
+        x = 'left';
+      } else if (parts[0].includes('right') || parts[0] === '100%') {
+        x = 'right';
       } else {
-        x = "center";
+        x = 'center';
       }
     }
 
     // Second part is vertical (y)
     if (parts[1]) {
-      if (parts[1].includes("top") || parts[1] === "0%" || parts[1] === "0") {
-        y = "top";
-      } else if (parts[1].includes("bottom") || parts[1] === "100%") {
-        y = "bottom";
+      if (parts[1].includes('top') || parts[1] === '0%' || parts[1] === '0') {
+        y = 'top';
+      } else if (parts[1].includes('bottom') || parts[1] === '100%') {
+        y = 'bottom';
       } else {
-        y = "center";
+        y = 'center';
       }
     } else if (parts[0]) {
       // If only one part, check if it's a vertical keyword
-      if (parts[0].includes("top")) {
-        y = "top";
-        x = "center";
-      } else if (parts[0].includes("bottom")) {
-        y = "bottom";
-        x = "center";
+      if (parts[0].includes('top')) {
+        y = 'top';
+        x = 'center';
+      } else if (parts[0].includes('bottom')) {
+        y = 'bottom';
+        x = 'center';
       }
     }
 
@@ -67,28 +67,28 @@
 
   // Grid cells for 3x3 layout
   const gridCells: Array<{ x: PositionX; y: PositionY }> = [
-    { x: "left", y: "top" },
-    { x: "center", y: "top" },
-    { x: "right", y: "top" },
-    { x: "left", y: "center" },
-    { x: "center", y: "center" },
-    { x: "right", y: "center" },
-    { x: "left", y: "bottom" },
-    { x: "center", y: "bottom" },
-    { x: "right", y: "bottom" },
+    { x: 'left', y: 'top' },
+    { x: 'center', y: 'top' },
+    { x: 'right', y: 'top' },
+    { x: 'left', y: 'center' },
+    { x: 'center', y: 'center' },
+    { x: 'right', y: 'center' },
+    { x: 'left', y: 'bottom' },
+    { x: 'center', y: 'bottom' },
+    { x: 'right', y: 'bottom' }
   ];
 
   // X and Y options for dropdowns
   const xOptions: Array<{ value: PositionX; label: string }> = [
-    { value: "left", label: "Left" },
-    { value: "center", label: "Center" },
-    { value: "right", label: "Right" },
+    { value: 'left', label: 'Left' },
+    { value: 'center', label: 'Center' },
+    { value: 'right', label: 'Right' }
   ];
 
   const yOptions: Array<{ value: PositionY; label: string }> = [
-    { value: "top", label: "Top" },
-    { value: "center", label: "Center" },
-    { value: "bottom", label: "Bottom" },
+    { value: 'top', label: 'Top' },
+    { value: 'center', label: 'Center' },
+    { value: 'bottom', label: 'Bottom' }
   ];
 
   function isSelected(x: PositionX, y: PositionY): boolean {
@@ -195,7 +195,7 @@
 
   /* Create visual indicators using CSS */
   .position-icon::before {
-    content: "";
+    content: '';
     width: 8px;
     height: 8px;
     background: #888;
@@ -208,56 +208,56 @@
   }
 
   /* Horizontal position (X) */
-  .position-icon[data-x="left"]::before {
+  .position-icon[data-x='left']::before {
     left: 0;
   }
 
-  .position-icon[data-x="center"]::before {
+  .position-icon[data-x='center']::before {
     left: 50%;
     transform: translateX(-50%);
   }
 
-  .position-icon[data-x="right"]::before {
+  .position-icon[data-x='right']::before {
     right: 0;
   }
 
   /* Vertical position (Y) */
-  .position-icon[data-y="top"]::before {
+  .position-icon[data-y='top']::before {
     top: 0;
   }
 
-  .position-icon[data-y="center"]::before {
+  .position-icon[data-y='center']::before {
     top: 50%;
     transform: translateY(-50%);
   }
 
-  .position-icon[data-y="bottom"]::before {
+  .position-icon[data-y='bottom']::before {
     bottom: 0;
   }
 
   /* Combined transforms */
-  .position-icon[data-x="center"][data-y="center"]::before {
+  .position-icon[data-x='center'][data-y='center']::before {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
   }
 
-  .position-icon[data-x="center"][data-y="top"]::before {
+  .position-icon[data-x='center'][data-y='top']::before {
     left: 50%;
     transform: translateX(-50%);
   }
 
-  .position-icon[data-x="center"][data-y="bottom"]::before {
+  .position-icon[data-x='center'][data-y='bottom']::before {
     left: 50%;
     transform: translateX(-50%);
   }
 
-  .position-icon[data-x="left"][data-y="center"]::before {
+  .position-icon[data-x='left'][data-y='center']::before {
     top: 50%;
     transform: translateY(-50%);
   }
 
-  .position-icon[data-x="right"][data-y="center"]::before {
+  .position-icon[data-x='right'][data-y='center']::before {
     top: 50%;
     transform: translateY(-50%);
   }

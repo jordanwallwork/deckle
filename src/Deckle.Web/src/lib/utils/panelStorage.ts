@@ -27,12 +27,12 @@ export function loadPanelLayout(): PanelLayout {
         ...parsed,
         panels: {
           ...DEFAULT_PANEL_LAYOUT.panels,
-          ...parsed.panels,
+          ...parsed.panels
         },
         splitSizes: {
           ...DEFAULT_PANEL_LAYOUT.splitSizes,
-          ...parsed.splitSizes,
-        },
+          ...parsed.splitSizes
+        }
       };
     }
   } catch (error) {

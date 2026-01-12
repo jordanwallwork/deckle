@@ -216,6 +216,14 @@ builder.Services.AddHttpClient();
 // Register email services
 builder.Services.AddEmailServices(builder.Configuration);
 
+// Configure Cloudflare R2
+builder.Services.Configure<CloudflareR2Options>(
+    builder.Configuration.GetSection("CloudflareR2"));
+builder.Services.AddSingleton<CloudflareR2Service>();
+
+// Register background services
+builder.Services.AddHostedService<FileCleanupService>();
+
 // Register application services
 builder.Services.AddScoped<ProjectAuthorizationService>();
 builder.Services.AddScoped<UserService>();
@@ -223,6 +231,7 @@ builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<GoogleSheetsService>();
 builder.Services.AddScoped<DataSourceService>();
 builder.Services.AddScoped<ComponentService>();
+builder.Services.AddScoped<FileService>();
 
 var app = builder.Build();
 
@@ -257,5 +266,6 @@ app.MapAuthEndpoints();
 app.MapProjectEndpoints();
 app.MapDataSourceEndpoints();
 app.MapComponentEndpoints();
+app.MapFileEndpoints();
 
 app.Run();

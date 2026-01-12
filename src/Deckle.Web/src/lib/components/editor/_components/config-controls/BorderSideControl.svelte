@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { BorderStyle } from "../../types";
-  import { ColorInput, NumberInput } from "$lib/components/forms";
+  import type { BorderStyle } from '../../types';
+  import { ColorInput, NumberInput } from '$lib/components/forms';
 
   let {
     label,
@@ -10,36 +10,42 @@
     onchange
   }: {
     label: string;
-    width?: number;
+    width?: number | string;
     style?: BorderStyle;
     color?: string;
     onchange: (updates: { width?: number; style?: BorderStyle; color?: string }) => void;
   } = $props();
 
+  // Convert width to number if it's a string (e.g., "2px" -> 2)
+  const numericWidth = $derived(() => {
+    if (width === undefined) return undefined;
+    if (typeof width === 'number') return width;
+    // Parse numeric value from string like "2px"
+    const parsed = parseFloat(width);
+    return isNaN(parsed) ? undefined : parsed;
+  });
+
   const borderStyleOptions: Array<{ value: BorderStyle; label: string }> = [
-    { value: "none", label: "None" },
-    { value: "solid", label: "Solid" },
-    { value: "dashed", label: "Dashed" },
-    { value: "dotted", label: "Dotted" },
-    { value: "double", label: "Double" },
+    { value: 'none', label: 'None' },
+    { value: 'solid', label: 'Solid' },
+    { value: 'dashed', label: 'Dashed' },
+    { value: 'dotted', label: 'Dotted' },
+    { value: 'double', label: 'Double' }
   ];
 </script>
 
 <div class="border-row">
   <span class="side-label">{label}</span>
-  <ColorInput
-    value={color ?? "#000000"}
-    onchange={(newColor) => onchange({ color: newColor })}
-  />
+  <ColorInput value={color ?? '#000000'} onchange={(newColor) => onchange({ color: newColor })} />
   <NumberInput
-    value={width}
+    value={numericWidth()}
     min={0}
     placeholder="0"
     unit="px"
     onchange={(newWidth) => onchange({ width: newWidth })}
   />
   <select
-    value={style ?? "solid"}
+    value={style ?? 'solid'}
     onchange={(e) => onchange({ style: e.currentTarget.value as BorderStyle })}
   >
     {#each borderStyleOptions as option}

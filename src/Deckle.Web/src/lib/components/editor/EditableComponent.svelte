@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { Dimensions, ComponentShape, RectangleShape } from "$lib/types";
-  import { templateStore } from "$lib/stores/templateElements";
-  import type { ContainerElement } from "./types";
-  import TemplateRenderer from "./TemplateRenderer.svelte";
-  import { mmToPx } from "$lib/utils/size.utils";
+  import type { Dimensions, ComponentShape, RectangleShape } from '$lib/types';
+  import { templateStore } from '$lib/stores/templateElements';
+  import type { ContainerElement } from './types';
+  import TemplateRenderer from './TemplateRenderer.svelte';
+  import { mmToPx } from '$lib/utils/size.utils';
 
   let {
     dimensions,
     shape,
-    showBleedSafeArea = false,
+    showBleedSafeArea = false
   }: {
     dimensions: Dimensions;
     shape?: ComponentShape;
@@ -17,7 +17,7 @@
 
   // Calculate border radius for different areas when shape is a rectangle
   let borderRadius = $derived(
-    !shape || shape.type !== "rectangle"
+    !shape || shape.type !== 'rectangle'
       ? { component: 0, bleed: 0, safe: 0 }
       : (() => {
           const rectShape = shape as RectangleShape;
@@ -27,7 +27,7 @@
           return {
             component: basePx + bleedPx, // Outer area (includes bleed)
             bleed: basePx, // Trim area (red border)
-            safe: Math.max(0, basePx - bleedPx), // Safe area (green border)
+            safe: Math.max(0, basePx - bleedPx) // Safe area (green border)
           };
         })()
   );
@@ -57,7 +57,10 @@
 <div
   class="component"
   class:show-bleed-safe-area={showBleedSafeArea}
-  style="{componentStyle}; width: {dimensions.widthPx + 2 * dimensions.bleedPx}px; height: {dimensions.heightPx + 2 * dimensions.bleedPx}px; --bleed-px: {dimensions.bleedPx}px; --width-px: {dimensions.widthPx}px; --height-px: {dimensions.heightPx}px; --border-radius-component: {borderRadius.component}px; --border-radius-bleed: {borderRadius.bleed}px; --border-radius-safe: {borderRadius.safe}px"
+  style="{componentStyle}; width: {dimensions.widthPx +
+    2 * dimensions.bleedPx}px; height: {dimensions.heightPx +
+    2 *
+      dimensions.bleedPx}px; --bleed-px: {dimensions.bleedPx}px; --width-px: {dimensions.widthPx}px; --height-px: {dimensions.heightPx}px; --border-radius-component: {borderRadius.component}px; --border-radius-bleed: {borderRadius.bleed}px; --border-radius-safe: {borderRadius.safe}px"
   onclick={handleRootClick}
   role="button"
   tabindex="0"
@@ -76,7 +79,7 @@
   }
 
   .component.show-bleed-safe-area::before {
-    content: "";
+    content: '';
     position: absolute;
     top: calc(var(--bleed-px) * 2);
     left: calc(var(--bleed-px) * 2);
@@ -89,7 +92,7 @@
   }
 
   .component.show-bleed-safe-area::after {
-    content: "";
+    content: '';
     position: absolute;
     top: var(--bleed-px);
     left: var(--bleed-px);

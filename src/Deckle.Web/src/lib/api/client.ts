@@ -31,8 +31,8 @@ class ApiClient {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+        ...options?.headers
+      }
     });
 
     if (!response.ok) {
@@ -45,7 +45,7 @@ class ApiClient {
       } catch {
         // If response is not JSON, try to get text
         try {
-          errorMessage = await response.text() || errorMessage;
+          errorMessage = (await response.text()) || errorMessage;
         } catch {
           // Use default error message
         }
@@ -66,53 +66,88 @@ class ApiClient {
    * GET request
    */
   async get<T>(endpoint: string, options?: RequestInit, fetchFn?: typeof fetch): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'GET',
-    }, fetchFn);
+    return this.request<T>(
+      endpoint,
+      {
+        ...options,
+        method: 'GET'
+      },
+      fetchFn
+    );
   }
 
   /**
    * POST request
    */
-  async post<T>(endpoint: string, body?: unknown, options?: RequestInit, fetchFn?: typeof fetch): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
-    }, fetchFn);
+  async post<T>(
+    endpoint: string,
+    body?: unknown,
+    options?: RequestInit,
+    fetchFn?: typeof fetch
+  ): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        ...options,
+        method: 'POST',
+        body: body ? JSON.stringify(body) : undefined
+      },
+      fetchFn
+    );
   }
 
   /**
    * PUT request
    */
-  async put<T>(endpoint: string, body?: unknown, options?: RequestInit, fetchFn?: typeof fetch): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'PUT',
-      body: body ? JSON.stringify(body) : undefined,
-    }, fetchFn);
+  async put<T>(
+    endpoint: string,
+    body?: unknown,
+    options?: RequestInit,
+    fetchFn?: typeof fetch
+  ): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        ...options,
+        method: 'PUT',
+        body: body ? JSON.stringify(body) : undefined
+      },
+      fetchFn
+    );
   }
 
   /**
    * DELETE request
    */
   async delete<T>(endpoint: string, options?: RequestInit, fetchFn?: typeof fetch): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'DELETE',
-    }, fetchFn);
+    return this.request<T>(
+      endpoint,
+      {
+        ...options,
+        method: 'DELETE'
+      },
+      fetchFn
+    );
   }
 
   /**
    * PATCH request
    */
-  async patch<T>(endpoint: string, body?: unknown, options?: RequestInit, fetchFn?: typeof fetch): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'PATCH',
-      body: body ? JSON.stringify(body) : undefined,
-    }, fetchFn);
+  async patch<T>(
+    endpoint: string,
+    body?: unknown,
+    options?: RequestInit,
+    fetchFn?: typeof fetch
+  ): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        ...options,
+        method: 'PATCH',
+        body: body ? JSON.stringify(body) : undefined
+      },
+      fetchFn
+    );
   }
 }
 

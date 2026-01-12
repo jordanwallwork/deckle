@@ -34,11 +34,30 @@
       onclose();
     }
   }
+
+  // Auto-focus action for dialog
+  function autoFocus(element: HTMLElement) {
+    element.focus();
+  }
 </script>
 
 {#if show}
-  <div class="dialog-overlay" onclick={handleOverlayClick} onkeydown={handleEscapeKey}>
-    <div class="dialog" style="max-width: {maxWidth}" onclick={handleDialogClick} role="dialog" aria-modal="true" aria-labelledby="dialog-title" tabindex="-1">
+  <div
+    class="dialog-overlay"
+    role="presentation"
+    onclick={handleOverlayClick}
+    onkeydown={handleEscapeKey}
+  >
+    <div
+      class="dialog"
+      style="max-width: {maxWidth}"
+      onclick={handleDialogClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dialog-title"
+      tabindex="-1"
+      use:autoFocus
+    >
       <h2 id="dialog-title">{title}</h2>
       <div class="dialog-content">
         {@render children()}

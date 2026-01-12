@@ -1,12 +1,15 @@
 <script lang="ts">
-  import Panel from "./_components/Panel.svelte";
-  import TreeNode from "./_components/TreeNode.svelte";
-  import AddElementPopover from "./_components/AddElementPopover.svelte";
-  import { templateStore } from "$lib/stores/templateElements";
-  import type { EditableComponent } from "$lib/types";
+  import Panel from './_components/Panel.svelte';
+  import TreeNode from './_components/TreeNode.svelte';
+  import AddElementPopover from './_components/AddElementPopover.svelte';
+  import { templateStore } from '$lib/stores/templateElements';
+  import type { EditableComponent } from '$lib/types';
 
-  let { component, part }: { component: EditableComponent; part?: string } =
-    $props();
+  let {
+    component,
+    part,
+    readOnly = false
+  }: { component: EditableComponent; part?: string; readOnly?: boolean } = $props();
 
   let showAddPopover = $state(false);
   let popoverParentId = $state<string | null>(null);
@@ -15,11 +18,11 @@
 
   function handleClickOutside(event: MouseEvent) {
     if (showAddPopover) {
-      const popover = document.querySelector(".add-popover");
+      const popover = document.querySelector('.add-popover');
       if (popover && !popover.contains(event.target as Node)) {
         const target = event.target as HTMLElement;
         // Don't close if clicking an add button
-        if (!target.closest(".btn-add") && !target.closest(".action-button")) {
+        if (!target.closest('.btn-add') && !target.closest('.action-button')) {
           showAddPopover = false;
         }
       }
@@ -30,7 +33,7 @@
     const rect = target.getBoundingClientRect();
     popoverPosition = {
       top: rect.bottom + 4,
-      left: rect.right - 180, // popover width
+      left: rect.right - 180 // popover width
     };
   }
 
@@ -45,7 +48,7 @@
   function handleRootDragOver(e: DragEvent) {
     if (!e.dataTransfer) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    e.dataTransfer.dropEffect = 'move';
     isRootDragOver = true;
   }
 
@@ -58,10 +61,10 @@
     e.preventDefault();
     isRootDragOver = false;
 
-    const draggedId = e.dataTransfer.getData("text/plain");
+    const draggedId = e.dataTransfer.getData('text/plain');
     if (!draggedId) return;
 
-    templateStore.moveElement(draggedId, "root");
+    templateStore.moveElement(draggedId, 'root');
   }
 </script>
 

@@ -8,5 +8,5 @@ export const authApi = {
   /**
    * Get current user information
    */
-  me: (fetchFn?: typeof fetch) => api.get<CurrentUser>('/auth/me', undefined, fetchFn),
+  me: (fetchFn?: typeof fetch) => api.get<CurrentUser>('/auth/me', undefined, fetchFn)
 };

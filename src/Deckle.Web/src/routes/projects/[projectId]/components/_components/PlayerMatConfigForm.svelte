@@ -34,31 +34,17 @@
 
 <div class="configuration-form">
   <FormField label="Component Name" name="component-name">
-    <Input
-      id="component-name"
-      bind:value={componentName}
-      placeholder="Enter component name"
-    />
+    <Input id="component-name" bind:value={componentName} placeholder="Enter component name" />
   </FormField>
 
   <FormField label="Size Configuration" name="size-mode">
     <div class="radio-group">
       <label class="radio-option">
-        <input
-          type="radio"
-          name="size-mode"
-          value="preset"
-          bind:group={sizeMode}
-        />
+        <input type="radio" name="size-mode" value="preset" bind:group={sizeMode} />
         <span>Preset Size</span>
       </label>
       <label class="radio-option">
-        <input
-          type="radio"
-          name="size-mode"
-          value="custom"
-          bind:group={sizeMode}
-        />
+        <input type="radio" name="size-mode" value="custom" bind:group={sizeMode} />
         <span>Custom Size</span>
       </label>
     </div>
@@ -134,7 +120,7 @@
     cursor: pointer;
   }
 
-  .radio-option input[type="radio"] {
+  .radio-option input[type='radio'] {
     cursor: pointer;
   }
 

@@ -1,12 +1,16 @@
 <script lang="ts">
-  let { width = "24", height = "24", class: className = "" }: { width?: string, height?: string, class?: string } = $props();
+  let {
+    width = '24',
+    height = '24',
+    class: className = ''
+  }: { width?: string; height?: string; class?: string } = $props();
 </script>
 
 <svg
   class={className}
   viewBox="20 20 88 88"
-  width={width}
-  height={height}
+  {width}
+  {height}
   fill="none"
   xmlns="http://www.w3.org/2000/svg"
   style="display: block; flex-shrink: 0;"
@@ -27,14 +31,6 @@
       style="filter: brightness(120%)"
     />
 
-    <rect
-      x="28"
-      y="28"
-      width="48"
-      height="32"
-      rx="6"
-      ry="6"
-      style="filter: brightness(140%)"
-    />
+    <rect x="28" y="28" width="48" height="32" rx="6" ry="6" style="filter: brightness(140%)" />
   </g>
 </svg>

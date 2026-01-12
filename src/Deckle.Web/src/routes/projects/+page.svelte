@@ -1,19 +1,19 @@
 <script lang="ts">
-  import { projectsApi, ApiError } from "$lib/api";
-  import type { PageData } from "./$types";
-  import { Button, EmptyState, Dialog, ErrorDisplay } from "$lib/components";
-  import { FormField, Input, TextArea } from "$lib/components/forms";
-  import ProjectCard from "./_components/ProjectCard.svelte";
-  import PageHeader from "$lib/components/layout/PageHeader.svelte";
-  import { invalidateAll } from "$app/navigation";
+  import { projectsApi, ApiError } from '$lib/api';
+  import type { PageData } from './$types';
+  import { Button, EmptyState, Dialog, ErrorDisplay } from '$lib/components';
+  import { FormField, Input, TextArea } from '$lib/components/forms';
+  import ProjectCard from './_components/ProjectCard.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import { invalidateAll } from '$app/navigation';
 
   let { data }: { data: PageData } = $props();
 
   const projectCount = $derived(data.projects.length);
 
   let showCreateDialog = $state(false);
-  let projectName = $state("");
-  let projectDescription = $state("");
+  let projectName = $state('');
+  let projectDescription = $state('');
   let isCreating = $state(false);
   let createError = $state<ApiError | null>(null);
 
@@ -29,7 +29,7 @@
     try {
       await projectsApi.create({
         name: projectName,
-        description: projectDescription,
+        description: projectDescription
       });
 
       // Refresh data from server
@@ -38,11 +38,11 @@
       // Close dialog and reset form
       closeDialog();
     } catch (error) {
-      console.error("Failed to create project:", error);
+      console.error('Failed to create project:', error);
       if (error instanceof ApiError) {
         createError = error;
       } else {
-        createError = new ApiError(500, "Failed to create project. Please try again.");
+        createError = new ApiError(500, 'Failed to create project. Please try again.');
       }
     } finally {
       isCreating = false;
@@ -51,8 +51,8 @@
 
   function closeDialog(): void {
     showCreateDialog = false;
-    projectName = "";
-    projectDescription = "";
+    projectName = '';
+    projectDescription = '';
     createError = null;
   }
 </script>
@@ -72,11 +72,7 @@
   </div>
 
   {#snippet headerActions()}
-    <Button
-      variant="primary"
-      onclick={() => (showCreateDialog = true)}
-      class="header-button"
-    >
+    <Button variant="primary" onclick={() => (showCreateDialog = true)} class="header-button">
       {#snippet icon()}
         <svg viewBox="0 0 20 20" fill="currentColor">
           <path
@@ -114,11 +110,7 @@
   </div>
 {/if}
 
-<Dialog
-  bind:show={showCreateDialog}
-  title="Create New Project"
-  onclose={closeDialog}
->
+<Dialog bind:show={showCreateDialog} title="Create New Project" onclose={closeDialog}>
   <form
     onsubmit={(e) => {
       e.preventDefault();
@@ -126,12 +118,7 @@
     }}
   >
     <FormField label="Project Name" name="name" required>
-      <Input
-        id="name"
-        bind:value={projectName}
-        placeholder="My Game Project"
-        required
-      />
+      <Input id="name" bind:value={projectName} placeholder="My Game Project" required />
     </FormField>
 
     <FormField label="Description (optional)" name="description">
@@ -148,12 +135,8 @@
 
   {#snippet actions()}
     <Button variant="secondary" onclick={closeDialog}>Cancel</Button>
-    <Button
-      variant="primary"
-      disabled={isCreating || !projectName.trim()}
-      onclick={createProject}
-    >
-      {isCreating ? "Creating..." : "Create Project"}
+    <Button variant="primary" disabled={isCreating || !projectName.trim()} onclick={createProject}>
+      {isCreating ? 'Creating...' : 'Create Project'}
     </Button>
   {/snippet}
 </Dialog>

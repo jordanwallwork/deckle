@@ -4,14 +4,14 @@
     userValueToCss,
     getXOptions,
     getYOptions,
-    getAlignmentGridCells,
-  } from "$lib/utils/flexbox.utils";
+    getAlignmentGridCells
+  } from '$lib/utils/flexbox.utils';
 
   let {
     isColumn,
-    justifyContent = "flex-start",
-    alignItems = "flex-start",
-    onchange,
+    justifyContent = 'flex-start',
+    alignItems = 'flex-start',
+    onchange
   }: {
     isColumn: boolean;
     justifyContent?: string;
@@ -23,20 +23,20 @@
   const currentX = $derived(() => {
     if (isColumn) {
       // In column mode, X controls alignItems
-      return cssToUserValue(alignItems, "cross", isColumn);
+      return cssToUserValue(alignItems, 'cross', isColumn);
     } else {
       // In row mode, X controls justifyContent
-      return cssToUserValue(justifyContent, "main", isColumn);
+      return cssToUserValue(justifyContent, 'main', isColumn);
     }
   });
 
   const currentY = $derived(() => {
     if (isColumn) {
       // In column mode, Y controls justifyContent
-      return cssToUserValue(justifyContent, "main", isColumn);
+      return cssToUserValue(justifyContent, 'main', isColumn);
     } else {
       // In row mode, Y controls alignItems
-      return cssToUserValue(alignItems, "cross", isColumn);
+      return cssToUserValue(alignItems, 'cross', isColumn);
     }
   });
 
@@ -59,24 +59,24 @@
     if (isColumn) {
       // In column mode: X = alignItems, Y = justifyContent
       if (x !== undefined) {
-        newAlign = userValueToCss(x, "cross");
+        newAlign = userValueToCss(x, 'cross');
       }
       if (y !== undefined) {
-        newJustify = userValueToCss(y, "main");
+        newJustify = userValueToCss(y, 'main');
       }
     } else {
       // In row mode: X = justifyContent, Y = alignItems
       if (x !== undefined) {
-        newJustify = userValueToCss(x, "main");
+        newJustify = userValueToCss(x, 'main');
       }
       if (y !== undefined) {
-        newAlign = userValueToCss(y, "cross");
+        newAlign = userValueToCss(y, 'cross');
       }
     }
 
     onchange({
       justifyContent: newJustify,
-      alignItems: newAlign,
+      alignItems: newAlign
     });
   }
 </script>
@@ -172,7 +172,7 @@
 
   /* Create visual indicators using CSS */
   .alignment-icon::before {
-    content: "";
+    content: '';
     width: 8px;
     height: 8px;
     background: #888;
@@ -185,56 +185,56 @@
   }
 
   /* Horizontal alignment (X) */
-  .alignment-icon[data-x="left"]::before {
+  .alignment-icon[data-x='left']::before {
     left: 0;
   }
 
-  .alignment-icon[data-x="center"]::before {
+  .alignment-icon[data-x='center']::before {
     left: 50%;
     transform: translateX(-50%);
   }
 
-  .alignment-icon[data-x="right"]::before {
+  .alignment-icon[data-x='right']::before {
     right: 0;
   }
 
   /* Vertical alignment (Y) */
-  .alignment-icon[data-y="top"]::before {
+  .alignment-icon[data-y='top']::before {
     top: 0;
   }
 
-  .alignment-icon[data-y="center"]::before {
+  .alignment-icon[data-y='center']::before {
     top: 50%;
     transform: translateY(-50%);
   }
 
-  .alignment-icon[data-y="bottom"]::before {
+  .alignment-icon[data-y='bottom']::before {
     bottom: 0;
   }
 
   /* Combined transforms */
-  .alignment-icon[data-x="center"][data-y="center"]::before {
+  .alignment-icon[data-x='center'][data-y='center']::before {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
   }
 
-  .alignment-icon[data-x="center"][data-y="top"]::before {
+  .alignment-icon[data-x='center'][data-y='top']::before {
     left: 50%;
     transform: translateX(-50%);
   }
 
-  .alignment-icon[data-x="center"][data-y="bottom"]::before {
+  .alignment-icon[data-x='center'][data-y='bottom']::before {
     left: 50%;
     transform: translateX(-50%);
   }
 
-  .alignment-icon[data-x="left"][data-y="center"]::before {
+  .alignment-icon[data-x='left'][data-y='center']::before {
     top: 50%;
     transform: translateY(-50%);
   }
 
-  .alignment-icon[data-x="right"][data-y="center"]::before {
+  .alignment-icon[data-x='right'][data-y='center']::before {
     top: 50%;
     transform: translateY(-50%);
   }

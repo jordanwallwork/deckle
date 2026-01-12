@@ -2,7 +2,7 @@
   let {
     position,
     inverseScale,
-    onmousedown,
+    onmousedown
   }: {
     position: 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
     inverseScale: number;
@@ -17,7 +17,7 @@
     se: 'se-resize',
     s: 's-resize',
     sw: 'sw-resize',
-    w: 'w-resize',
+    w: 'w-resize'
   };
 </script>
 

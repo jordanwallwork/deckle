@@ -16,32 +16,32 @@
  * replaceMergeFields('{{Player Name|Unknown}}', {}) // 'Unknown'
  */
 export function replaceMergeFields(
-	content: string,
-	rowData: Record<string, string> | null | undefined
+  content: string,
+  rowData: Record<string, string> | null | undefined
 ): string {
-	if (!rowData) {
-		// If no row data, replace merge fields with fallback values or keep the pattern
-		return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, _fieldName, fallback) => {
-			return fallback !== undefined ? fallback.trim() : match;
-		});
-	}
+  if (!rowData) {
+    // If no row data, replace merge fields with fallback values or keep the pattern
+    return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, _fieldName, fallback) => {
+      return fallback !== undefined ? fallback.trim() : match;
+    });
+  }
 
-	// Pattern explanation:
-	// \{\{ - Opening braces (escaped)
-	// ([^|{}]+) - Capture group 1: Field name (anything except |, {, })
-	// (?:\|([^}]*))? - Optional non-capturing group for fallback:
-	//   \| - Pipe character
-	//   ([^}]*) - Capture group 2: Fallback value (anything except })
-	// \}\} - Closing braces (escaped)
-	return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, fieldName, fallback) => {
-		const normalizedFieldName = fieldName.trim();
-		const value = rowData[normalizedFieldName];
+  // Pattern explanation:
+  // \{\{ - Opening braces (escaped)
+  // ([^|{}]+) - Capture group 1: Field name (anything except |, {, })
+  // (?:\|([^}]*))? - Optional non-capturing group for fallback:
+  //   \| - Pipe character
+  //   ([^}]*) - Capture group 2: Fallback value (anything except })
+  // \}\} - Closing braces (escaped)
+  return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, fieldName, fallback) => {
+    const normalizedFieldName = fieldName.trim();
+    const value = rowData[normalizedFieldName];
 
-		// Return value if found, otherwise use fallback (or original pattern if no fallback)
-		if (value !== undefined && value !== null && value !== '') {
-			return value;
-		}
+    // Return value if found, otherwise use fallback (or original pattern if no fallback)
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
 
-		return fallback !== undefined ? fallback.trim() : match;
-	});
+    return fallback !== undefined ? fallback.trim() : match;
+  });
 }

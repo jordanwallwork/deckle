@@ -45,16 +45,7 @@
 
 <FieldWrapper {label} {hideLabel} htmlFor={id}>
   <div class="number-field-container">
-    <input
-      type="number"
-      {id}
-      {value}
-      {min}
-      {max}
-      {step}
-      {placeholder}
-      oninput={handleInput}
-    />
+    <input type="number" {id} {value} {min} {max} {step} {placeholder} oninput={handleInput} />
     {#if unit}
       <span class="unit">{unit}</span>
     {/if}
@@ -81,7 +72,7 @@
     user-select: none;
   }
 
-  input[type="number"] {
+  input[type='number'] {
     padding-right: 2rem;
   }
 </style>

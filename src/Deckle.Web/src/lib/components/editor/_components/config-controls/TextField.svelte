@@ -19,11 +19,5 @@
 </script>
 
 <FieldWrapper {label} {hideLabel} htmlFor={id}>
-  <input
-    type="text"
-    {id}
-    {value}
-    {placeholder}
-    {oninput}
-  />
+  <input type="text" {id} {value} {placeholder} {oninput} />
 </FieldWrapper>

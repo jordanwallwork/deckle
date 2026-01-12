@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { Button } from "$lib/components";
-  import type { CardComponent, PlayerMatComponent } from "$lib/types";
+  import { Button } from '$lib/components';
+  import type { CardComponent, PlayerMatComponent } from '$lib/types';
 
   let {
     component,
-    onLinkDataSource,
+    onLinkDataSource
   }: {
     component: CardComponent | PlayerMatComponent;
     onLinkDataSource?: (component: CardComponent | PlayerMatComponent) => void;
@@ -16,20 +16,15 @@
     Data Source:
     {#if component.dataSource}
       <a
-        href="/projects/{component.projectId}/data-sources/{component.dataSource
-          .id}"
+        href="/projects/{component.projectId}/data-sources/{component.dataSource.id}"
         class="design-link">{component.dataSource.name}</a
       >
     {:else}
       None
     {/if}
     {#if onLinkDataSource}
-      <Button
-        variant="text"
-        size="sm"
-        onclick={() => onLinkDataSource(component)}
-      >
-        ({component.dataSource ? "Change" : "Link"})
+      <Button variant="text" size="sm" onclick={() => onLinkDataSource(component)}>
+        ({component.dataSource ? 'Change' : 'Link'})
       </Button>
     {/if}
   </span>

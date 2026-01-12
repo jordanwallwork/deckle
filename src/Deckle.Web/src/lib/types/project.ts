@@ -24,7 +24,7 @@ export interface ProjectUser {
   email: string;
   name?: string;
   pictureUrl?: string;
-  role: "Owner" | "Admin" | "Collaborator" | "Viewer";
+  role: 'Owner' | 'Admin' | 'Collaborator' | 'Viewer';
   joinedAt: string;
   isPending: boolean;
 }

@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { Card, Badge, Button } from "$lib/components";
-  import { Select } from "$lib/components/forms";
+  import { Card, Badge, Button } from '$lib/components';
+  import { Select } from '$lib/components/forms';
 
   interface User {
     userId: string;
     name?: string;
     email: string;
     pictureUrl?: string;
-    role: "Owner" | "Admin" | "Collaborator" | "Viewer";
+    role: 'Owner' | 'Admin' | 'Collaborator' | 'Viewer';
     isPending: boolean;
   }
 
@@ -18,7 +18,7 @@
     currentUserId,
     onInviteClick,
     onRoleChange,
-    onRemoveUser,
+    onRemoveUser
   }: {
     users: User[];
     canInvite?: boolean;
@@ -26,27 +26,21 @@
     currentUserId?: string;
     onInviteClick?: () => void;
     onRoleChange?: (userId: string, newRole: string) => Promise<void>;
-    onRemoveUser?: (
-      userId: string,
-      userName: string,
-      role: string
-    ) => Promise<void>;
+    onRemoveUser?: (userId: string, userName: string, role: string) => Promise<void>;
   } = $props();
 
-  const availableRoles = ["Admin", "Collaborator", "Viewer"];
+  const availableRoles = ['Admin', 'Collaborator', 'Viewer'];
 
-  function getRoleBadgeVariant(
-    role: string
-  ): "default" | "success" | "warning" | "danger" {
+  function getRoleBadgeVariant(role: string): 'default' | 'success' | 'warning' | 'danger' {
     switch (role) {
-      case "Owner":
-        return "danger";
-      case "Admin":
-        return "warning";
-      case "Collaborator":
-        return "success";
+      case 'Owner':
+        return 'danger';
+      case 'Admin':
+        return 'warning';
+      case 'Collaborator':
+        return 'success';
       default:
-        return "default";
+        return 'default';
     }
   }
 
@@ -60,7 +54,7 @@
   function canRevokeUser(user: User): boolean {
     if (!onRemoveUser) return false;
 
-    if (user.role === "Owner") return;
+    if (user.role === 'Owner') return false;
 
     const isSelf = user.userId === currentUserId;
 
@@ -69,13 +63,13 @@
       return true;
     }
 
-    // Can remove others if we have permission and they're not Owner
-    return canEditRoles && user.role !== "Owner";
+    // Can remove others if we have permission
+    return canEditRoles;
   }
 
   function getRevokeButtonText(user: User): string {
     const isSelf = user.userId === currentUserId;
-    return isSelf ? "Leave Project" : "Remove";
+    return isSelf ? 'Leave Project' : 'Remove';
   }
 </script>
 
@@ -91,11 +85,7 @@
       <div class="user-item">
         <div class="user-info">
           {#if user.pictureUrl}
-            <img
-              src={user.pictureUrl}
-              alt={user.name || user.email}
-              class="user-avatar"
-            />
+            <img src={user.pictureUrl} alt={user.name || user.email} class="user-avatar" />
           {:else}
             <div class="user-avatar-placeholder">
               {(user.name || user.email).charAt(0).toUpperCase()}
@@ -109,7 +99,7 @@
           </div>
         </div>
         <div class="badges">
-          {#if canEditRoles && user.role !== "Owner"}
+          {#if canEditRoles && user.role !== 'Owner'}
             <Select
               value={user.role}
               onchange={(e) => handleRoleChange(user, e.currentTarget.value)}
@@ -129,8 +119,7 @@
               variant="danger"
               outline
               size="sm"
-              onclick={() =>
-                onRemoveUser?.(user.userId, user.name || user.email, user.role)}
+              onclick={() => onRemoveUser?.(user.userId, user.name || user.email, user.role)}
             >
               {getRevokeButtonText(user)}
             </Button>

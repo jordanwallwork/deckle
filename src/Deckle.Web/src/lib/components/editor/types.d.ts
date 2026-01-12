@@ -8,9 +8,21 @@ export type Position = 'absolute' | 'relative';
 export type Display = 'flex' | 'block' | 'inline';
 export type FlexDirection = 'row' | 'column' | 'row-reverse' | 'column-reverse';
 export type FlexWrap = 'nowrap' | 'wrap' | 'wrap-reverse';
-export type JustifyContent = 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'space-evenly';
+export type JustifyContent =
+  | 'flex-start'
+  | 'flex-end'
+  | 'center'
+  | 'space-between'
+  | 'space-around'
+  | 'space-evenly';
 export type AlignItems = 'flex-start' | 'flex-end' | 'center' | 'stretch' | 'baseline';
-export type AlignContent = 'flex-start' | 'flex-end' | 'center' | 'stretch' | 'space-between' | 'space-around';
+export type AlignContent =
+  | 'flex-start'
+  | 'flex-end'
+  | 'center'
+  | 'stretch'
+  | 'space-between'
+  | 'space-around';
 
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
 export type TextDecoration = 'none' | 'underline' | 'overline' | 'line-through';
@@ -54,12 +66,15 @@ export interface Border {
   left?: BorderSide;
 
   // Border radius (always applies)
-  radius?: number | string | {
-    topLeft?: number | string;
-    topRight?: number | string;
-    bottomRight?: number | string;
-    bottomLeft?: number | string;
-  };
+  radius?:
+    | number
+    | string
+    | {
+        topLeft?: number | string;
+        topRight?: number | string;
+        bottomRight?: number | string;
+        bottomLeft?: number | string;
+      };
 }
 
 export interface Shadow {

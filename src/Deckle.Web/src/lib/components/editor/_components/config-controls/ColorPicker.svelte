@@ -15,17 +15,8 @@
 <div class="field">
   <label for={id}>{label}</label>
   <div class="color-input">
-    <input
-      type="color"
-      {id}
-      {value}
-      oninput={(e) => onchange(e.currentTarget.value)}
-    />
-    <input
-      type="text"
-      {value}
-      oninput={(e) => onchange(e.currentTarget.value)}
-    />
+    <input type="color" {id} {value} oninput={(e) => onchange(e.currentTarget.value)} />
+    <input type="text" {value} oninput={(e) => onchange(e.currentTarget.value)} />
   </div>
 </div>
 
@@ -47,7 +38,7 @@
     gap: 0.5rem;
   }
 
-  .color-input input[type="color"] {
+  .color-input input[type='color'] {
     width: 50px;
     height: 36px;
     border: 1px solid #d1d5db;
@@ -55,7 +46,7 @@
     cursor: pointer;
   }
 
-  .color-input input[type="text"] {
+  .color-input input[type='text'] {
     flex: 1;
     padding: 0.375rem 0.5rem;
     font-size: 0.813rem;
@@ -67,7 +58,7 @@
     box-sizing: border-box;
   }
 
-  .color-input input[type="text"]:focus {
+  .color-input input[type='text']:focus {
     outline: none;
     border-color: #0066cc;
   }

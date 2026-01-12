@@ -1,25 +1,16 @@
 <script lang="ts">
-  import type {
-    EditableComponent,
-    CardComponent,
-    RectangleShape,
-  } from "$lib/types";
-  import ConfigSection from "../config-controls/ConfigSection.svelte";
-  import ColorPicker from "../config-controls/ColorPicker.svelte";
-  import { templateStore } from "$lib/stores/templateElements";
-  import type { ContainerElement } from "$lib/components/editor/types";
+  import type { EditableComponent, CardComponent, RectangleShape } from '$lib/types';
+  import ConfigSection from '../config-controls/ConfigSection.svelte';
+  import ColorPicker from '../config-controls/ColorPicker.svelte';
+  import { templateStore } from '$lib/stores/templateElements';
+  import type { ContainerElement } from '$lib/components/editor/types';
 
-  let { component, part }: { component: EditableComponent; part?: string } =
-    $props();
+  let { component, part }: { component: EditableComponent; part?: string } = $props();
 
   // Check if this is a card component with shape info
-  let cardComponent = $derived(
-    "shape" in component ? (component as CardComponent) : null
-  );
+  let cardComponent = $derived('shape' in component ? (component as CardComponent) : null);
   let rectangleShape = $derived(
-    cardComponent?.shape?.type === "rectangle"
-      ? (cardComponent.shape as RectangleShape)
-      : null
+    cardComponent?.shape?.type === 'rectangle' ? (cardComponent.shape as RectangleShape) : null
   );
 
   // Get the root element from the template store for styling
@@ -30,31 +21,31 @@
   <ColorPicker
     label="Background Color"
     id="component-bg-color"
-    value={rootElement.background?.color || "#ffffff"}
+    value={rootElement.background?.color || '#ffffff'}
     onchange={(color) =>
-      templateStore.updateElement("root", {
+      templateStore.updateElement('root', {
         background: {
           ...rootElement.background,
-          color,
-        },
+          color
+        }
       })}
   />
   <ColorPicker
     label="Bleed Area Color"
     id="bleed-area-color"
-    value={rootElement.bleedAreaColor || "#ff0000"}
+    value={rootElement.bleedAreaColor || '#ff0000'}
     onchange={(color) =>
-      templateStore.updateElement("root", {
-        bleedAreaColor: color,
+      templateStore.updateElement('root', {
+        bleedAreaColor: color
       })}
   />
   <ColorPicker
     label="Safe Area Color"
     id="safe-area-color"
-    value={rootElement.safeAreaColor || "#00ff00"}
+    value={rootElement.safeAreaColor || '#00ff00'}
     onchange={(color) =>
-      templateStore.updateElement("root", {
-        safeAreaColor: color,
+      templateStore.updateElement('root', {
+        safeAreaColor: color
       })}
   />
 
@@ -76,23 +67,17 @@
   <div class="info-group">
     <div class="info-item">
       <span class="info-label">Width</span>
-      <span class="info-value"
-        >{component.dimensions.widthMm.toFixed(2)} mm</span
-      >
+      <span class="info-value">{component.dimensions.widthMm.toFixed(2)} mm</span>
     </div>
 
     <div class="info-item">
       <span class="info-label">Height</span>
-      <span class="info-value"
-        >{component.dimensions.heightMm.toFixed(2)} mm</span
-      >
+      <span class="info-value">{component.dimensions.heightMm.toFixed(2)} mm</span>
     </div>
 
     <div class="info-item">
       <span class="info-label">Bleed</span>
-      <span class="info-value"
-        >{component.dimensions.bleedMm.toFixed(2)} mm</span
-      >
+      <span class="info-value">{component.dimensions.bleedMm.toFixed(2)} mm</span>
     </div>
 
     <div class="info-item">
@@ -111,9 +96,7 @@
 
       <div class="info-item">
         <span class="info-label">Border Radius</span>
-        <span class="info-value"
-          >{rectangleShape.borderRadiusMm.toFixed(2)} mm</span
-        >
+        <span class="info-value">{rectangleShape.borderRadiusMm.toFixed(2)} mm</span>
       </div>
     </div>
   {/if}

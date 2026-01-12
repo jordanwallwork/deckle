@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Card, Button } from "$lib/components";
+  import { Card, Button } from '$lib/components';
 
   let {
-    onDeleteClick,
+    onDeleteClick
   }: {
     onDeleteClick: () => void;
   } = $props();
@@ -12,14 +12,9 @@
   <div class="danger-zone-content">
     <div>
       <h3>Delete Project</h3>
-      <p>
-        Once you delete a project, there is no going back. Please be
-        certain.
-      </p>
+      <p>Once you delete a project, there is no going back. Please be certain.</p>
     </div>
-    <Button variant="danger" onclick={onDeleteClick}>
-      Delete Project
-    </Button>
+    <Button variant="danger" onclick={onDeleteClick}>Delete Project</Button>
   </div>
 </Card>
 

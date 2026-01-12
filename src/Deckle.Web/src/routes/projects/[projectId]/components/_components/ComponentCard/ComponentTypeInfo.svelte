@@ -5,10 +5,10 @@
     DICE_TYPES,
     DICE_STYLES,
     PLAYER_MAT_SIZES,
-    PLAYER_MAT_ORIENTATIONS,
-  } from "$lib/constants";
-  import type { GameComponent } from "$lib/types";
-  import { isCard, isDice, isPlayerMat } from "$lib/utils/componentTypes";
+    PLAYER_MAT_ORIENTATIONS
+  } from '$lib/constants';
+  import type { GameComponent } from '$lib/types';
+  import { isCard, isDice, isPlayerMat } from '$lib/utils/componentTypes';
 
   let { component }: { component: GameComponent } = $props();
 </script>
@@ -16,17 +16,13 @@
 {#if isDice(component)}
   <div class="dice-info">
     <p class="component-type">
-      {component.number} x {DICE_TYPES.find(
-        (t) => t.value === component.diceType
-      )?.label || component.diceType}
-      • {DICE_STYLES.find((s) => s.value === component.style)?.label ||
-        component.style}
+      {component.number} x {DICE_TYPES.find((t) => t.value === component.diceType)?.label ||
+        component.diceType}
+      • {DICE_STYLES.find((s) => s.value === component.style)?.label || component.style}
       •
       <span
         class="color-indicator"
-        style="background-color: {DICE_COLORS.find(
-          (c) => c.value === component.baseColor
-        )?.hex}"
+        style="background-color: {DICE_COLORS.find((c) => c.value === component.baseColor)?.hex}"
         title={DICE_COLORS.find((c) => c.value === component.baseColor)?.label}
       ></span>
       {DICE_COLORS.find((c) => c.value === component.baseColor)?.label}
@@ -34,8 +30,7 @@
   </div>
 {:else if isCard(component)}
   <p class="component-type">
-    Card • {CARD_SIZES.find((s) => s.value === component.size)?.label ||
-      component.size}
+    Card • {CARD_SIZES.find((s) => s.value === component.size)?.label || component.size}
   </p>
 {:else if isPlayerMat(component)}
   <p class="component-type">
@@ -43,8 +38,8 @@
     {#if component.presetSize}
       {PLAYER_MAT_SIZES.find((s) => s.value === component.presetSize)?.label ||
         component.presetSize}
-      ({PLAYER_MAT_ORIENTATIONS.find((o) => o.value === component.orientation)
-        ?.label || component.orientation})
+      ({PLAYER_MAT_ORIENTATIONS.find((o) => o.value === component.orientation)?.label ||
+        component.orientation})
     {:else}
       Custom ({component.customWidthMm}mm × {component.customHeightMm}mm)
     {/if}

@@ -1,30 +1,25 @@
 <script lang="ts">
-  import ComponentViewer from "$lib/components/editor/ComponentViewer.svelte";
-  import Panel from "$lib/components/editor/_components/Panel.svelte";
-  import UndoRedoControls from "$lib/components/editor/_components/UndoRedoControls.svelte";
-  import ZoomControls from "$lib/components/editor/_components/ZoomControls.svelte";
-  import type {
-    EditableComponent,
-    ComponentShape,
-    CardComponent,
-  } from "$lib/types";
-  import EditableComponentView from "./EditableComponent.svelte";
-  import type { PanzoomObject } from "@panzoom/panzoom";
-  import { templateStore } from "$lib/stores/templateElements";
-  import { componentsApi } from "$lib/api";
-  import { saveActionStore } from "$lib/stores/saveAction";
-  import { goto } from "$app/navigation";
+  import ComponentViewer from '$lib/components/editor/ComponentViewer.svelte';
+  import Panel from '$lib/components/editor/_components/Panel.svelte';
+  import UndoRedoControls from '$lib/components/editor/_components/UndoRedoControls.svelte';
+  import ZoomControls from '$lib/components/editor/_components/ZoomControls.svelte';
+  import type { EditableComponent, ComponentShape, CardComponent } from '$lib/types';
+  import EditableComponentView from './EditableComponent.svelte';
+  import type { PanzoomObject } from '@panzoom/panzoom';
+  import { templateStore } from '$lib/stores/templateElements';
+  import { componentsApi } from '$lib/api';
+  import { saveActionStore } from '$lib/stores/saveAction';
+  import { goto } from '$app/navigation';
 
   let {
     component,
     projectId,
-    part,
-  }: { component: EditableComponent; projectId: string; part: string } =
-    $props();
+    part
+  }: { component: EditableComponent; projectId: string; part: string } = $props();
   let dimensions = component.dimensions;
   // Extract shape if this is a CardComponent
   let shape = $derived<ComponentShape | undefined>(
-    "shape" in component ? (component as CardComponent).shape : undefined
+    'shape' in component ? (component as CardComponent).shape : undefined
   );
 
   let showBleedSafeArea = $state(true);
@@ -43,10 +38,7 @@
   let gridEnabled = $state(true);
   let gridSize = $state(defaultGridSize);
 
-  function handlePanzoomReady(
-    instance: PanzoomObject,
-    element: HTMLDivElement
-  ) {
+  function handlePanzoomReady(instance: PanzoomObject, element: HTMLDivElement) {
     panzoomInstance = instance;
     panzoomElement = element;
   }
@@ -57,7 +49,7 @@
 
     // Check for unsaved changes
     if ($templateStore.hasUnsavedChanges) {
-      exportError = "Save unsaved changes before exporting";
+      exportError = 'Save unsaved changes before exporting';
       // Clear the error after 3 seconds
       setTimeout(() => {
         exportError = null;
@@ -71,8 +63,8 @@
 
   async function handleSave() {
     // Only allow saving for components that support design (Card and PlayerMat)
-    if (component.type !== "Card" && component.type !== "PlayerMat") {
-      alert("Only card and player mat designs can be saved.");
+    if (component.type !== 'Card' && component.type !== 'PlayerMat') {
+      alert('Only card and player mat designs can be saved.');
       return;
     }
 
@@ -87,12 +79,7 @@
       })();
 
       // Save the design via API (works for both Card and PlayerMat)
-      await componentsApi.saveDesign(
-        projectId,
-        component.id,
-        part.toLowerCase(),
-        design
-      );
+      await componentsApi.saveDesign(projectId, component.id, part.toLowerCase(), design);
 
       // Mark changes as saved
       templateStore.markAsSaved();
@@ -102,8 +89,8 @@
         saveSuccess = false;
       }, 2000);
     } catch (error) {
-      console.error("Failed to save design:", error);
-      alert("Failed to save design. Please try again.");
+      console.error('Failed to save design:', error);
+      alert('Failed to save design. Please try again.');
     } finally {
       isSaving = false;
     }
@@ -127,15 +114,15 @@
       disabled={isSaving}
       title="Save Design (Ctrl/Cmd+S)"
     >
-      {isSaving ? "Saving..." : saveSuccess ? "Saved!" : "Save"}
+      {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save'}
     </button>
     <button
       onclick={handleExport}
       class="export-button"
       class:error={exportError !== null}
-      title={exportError || "Export Design"}
+      title={exportError || 'Export Design'}
     >
-      {exportError || "Export"}
+      {exportError || 'Export'}
     </button>
     <div class="toolbar-divider"></div>
     <UndoRedoControls />
@@ -143,11 +130,9 @@
     <button
       onclick={() => (showBleedSafeArea = !showBleedSafeArea)}
       class="bleed-safe-area-toggle"
-      title={showBleedSafeArea
-        ? "Hide Bleed/Safe Area"
-        : "Show Bleed/Safe Area"}
+      title={showBleedSafeArea ? 'Hide Bleed/Safe Area' : 'Show Bleed/Safe Area'}
     >
-      {showBleedSafeArea ? "Hide" : "Show"} Bleed/Safe Area
+      {showBleedSafeArea ? 'Hide' : 'Show'} Bleed/Safe Area
     </button>
     <div class="toolbar-divider"></div>
     <div class="grid-controls">
@@ -155,10 +140,10 @@
         onclick={() => (gridEnabled = !gridEnabled)}
         class="grid-toggle"
         title={gridEnabled
-          ? "Disable Grid Snapping (Shift to temporarily disable)"
-          : "Enable Grid Snapping"}
+          ? 'Disable Grid Snapping (Shift to temporarily disable)'
+          : 'Enable Grid Snapping'}
       >
-        Grid: {gridEnabled ? "On" : "Off"}
+        Grid: {gridEnabled ? 'On' : 'Off'}
       </button>
       <label class="grid-size-label">
         <span>Size:</span>
@@ -176,12 +161,7 @@
     <div class="toolbar-divider"></div>
     <ZoomControls {panzoomInstance} {panzoomElement} />
   {/snippet}
-  <ComponentViewer
-    {dimensions}
-    {gridEnabled}
-    {gridSize}
-    onPanzoomReady={handlePanzoomReady}
-  >
+  <ComponentViewer {dimensions} {gridEnabled} {gridSize} onPanzoomReady={handlePanzoomReady}>
     <EditableComponentView {dimensions} {shape} {showBleedSafeArea} />
   </ComponentViewer>
 </Panel>

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { PageData } from "./$types";
-  import { setBreadcrumbs } from "$lib/stores/breadcrumb";
-  import { buildEditorBreadcrumbs } from "$lib/utils/breadcrumbs";
-  import ComponentEditor from "$lib/components/editor/ComponentEditor.svelte";
+  import type { PageData } from './$types';
+  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { buildEditorBreadcrumbs } from '$lib/utils/breadcrumbs';
+  import ComponentEditor from '$lib/components/editor/ComponentEditor.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -11,18 +11,16 @@
 
   // Update breadcrumbs for this page
   $effect(() => {
-    setBreadcrumbs(
-      buildEditorBreadcrumbs(data.project, data.component, partLabel)
-    );
+    setBreadcrumbs(buildEditorBreadcrumbs(data.project, data.component, partLabel));
   });
 </script>
 
 <svelte:head>
-  <title>{data.project.role === "Viewer" ? "View" : "Edit"} {partLabel} Design · {data.component.name} · Deckle</title>
-  <meta
-    name="description"
-    content="Design the {data.part} of {data.component.name}"
-  />
+  <title
+    >{data.project.role === 'Viewer' ? 'View' : 'Edit'}
+    {partLabel} Design · {data.component.name} · Deckle</title
+  >
+  <meta name="description" content="Design the {data.part} of {data.component.name}" />
 </svelte:head>
 
-<ComponentEditor {data} readOnly={data.project.role === "Viewer"} />
+<ComponentEditor {data} readOnly={data.project.role === 'Viewer'} />

@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { Dialog, Button } from "$lib/components";
-  import type { DataSource } from "$lib/types";
+  import { Dialog, Button } from '$lib/components';
+  import type { DataSource } from '$lib/types';
 
   let {
     show = $bindable(),
     dataSources,
     currentDataSourceId,
     onConfirm,
-    onClose,
+    onClose
   }: {
     show: boolean;
     dataSources: DataSource[];
@@ -38,8 +38,7 @@
   {#snippet children()}
     {#if dataSources.length === 0}
       <p class="no-data-sources">
-        No data sources available. Create a data source first to link it to this
-        card.
+        No data sources available. Create a data source first to link it to this card.
       </p>
     {:else}
       <div class="data-sources-list">
@@ -73,11 +72,7 @@
     {/if}
     <Button variant="primary" outline onclick={onClose}>Cancel</Button>
     {#if dataSources.length > 0}
-      <Button
-        variant="primary"
-        onclick={handleConfirm}
-        disabled={!selectedDataSourceId}
-      >
+      <Button variant="primary" onclick={handleConfirm} disabled={!selectedDataSourceId}>
         Link Data Source
       </Button>
     {/if}
@@ -120,7 +115,7 @@
     background-color: var(--color-teal-grey);
   }
 
-  .data-source-option input[type="radio"] {
+  .data-source-option input[type='radio'] {
     width: 20px;
     height: 20px;
     cursor: pointer;

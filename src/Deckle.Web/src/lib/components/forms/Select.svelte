@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import type { Snippet } from 'svelte';
 
   let {
     value = $bindable(),
@@ -8,9 +8,9 @@
     required = false,
     error = false,
     onchange,
-    children,
+    children
   }: {
-    value: string;
+    value: string | null;
     id?: string;
     disabled?: boolean;
     required?: boolean;
@@ -20,20 +20,12 @@
   } = $props();
 </script>
 
-<select
-  bind:value
-  {id}
-  {disabled}
-  {required}
-  {onchange}
-  class="base-input"
-  class:error
->
+<select bind:value {id} {disabled} {required} {onchange} class="base-input" class:error>
   {@render children()}
 </select>
 
 <style>
-  @import "./base-input.css";
+  @import './base-input.css';
 
   select {
     background-color: white;

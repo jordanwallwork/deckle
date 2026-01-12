@@ -1,15 +1,15 @@
 <script lang="ts">
-  import type { TemplateElement } from "../../types";
-  import ResizeHandles from "./ResizeHandles.svelte";
-  import DragHandles from "./DragHandles.svelte";
-  import RotationHandle from "./RotationHandle.svelte";
-  import { templateStore } from "$lib/stores/templateElements";
-  import { spacingToCss, dimensionValue } from "../../utils";
+  import type { TemplateElement } from '../../types';
+  import ResizeHandles from './ResizeHandles.svelte';
+  import DragHandles from './DragHandles.svelte';
+  import RotationHandle from './RotationHandle.svelte';
+  import { templateStore } from '$lib/stores/templateElements';
+  import { spacingToCss, dimensionValue } from '../../utils';
 
   let {
     element,
     dpi,
-    children,
+    children
   }: {
     element: TemplateElement;
     dpi: number;
@@ -20,14 +20,12 @@
   const isSelected = $derived($templateStore.selectedElementId === element.id);
 
   // Derived style properties for granular reactivity
-  const position = $derived(
-    element.position === "absolute" ? "absolute" : "relative"
-  );
+  const position = $derived(element.position === 'absolute' ? 'absolute' : 'relative');
   const left = $derived(
-    element.position === "absolute" ? dimensionValue(element.x, dpi) : undefined
+    element.position === 'absolute' ? dimensionValue(element.x, dpi) : undefined
   );
   const top = $derived(
-    element.position === "absolute" ? dimensionValue(element.y, dpi) : undefined
+    element.position === 'absolute' ? dimensionValue(element.y, dpi) : undefined
   );
   const margin = $derived(spacingToCss(element.margin, dpi));
 
@@ -45,7 +43,7 @@
       ? `rotate(${element.rotation}deg)`
       : undefined
   );
-  const display = $derived(element.visible === false ? "none" : undefined);
+  const display = $derived(element.visible === false ? 'none' : undefined);
 
   function handleMouseEnter() {
     // Don't hover locked elements in preview
@@ -99,7 +97,7 @@
   {#if isSelected && !element.locked}
     <ResizeHandles {element} />
     <RotationHandle {element} />
-    {#if element.position === "absolute"}
+    {#if element.position === 'absolute'}
       <DragHandles {element} />
     {/if}
   {/if}

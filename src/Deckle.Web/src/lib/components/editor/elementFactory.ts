@@ -1,43 +1,43 @@
-import type { TemplateElement, ElementType } from "./types";
+import type { TemplateElement, ElementType } from './types';
 
 /**
  * Factory function to create new template elements with default values
  */
 export function createElementOfType(type: ElementType): TemplateElement {
-  if (type === "container") {
+  if (type === 'container') {
     return {
       id: crypto.randomUUID(),
-      type: "container",
+      type: 'container',
       visible: true,
       opacity: 1,
-      display: "flex",
+      display: 'flex',
       flexConfig: {
-        direction: "column",
-        wrap: "nowrap",
-        justifyContent: "flex-start",
-        alignItems: "flex-start",
+        direction: 'column',
+        wrap: 'nowrap',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-start'
       },
-      children: [],
+      children: []
     };
-  } else if (type === "text") {
+  } else if (type === 'text') {
     return {
       id: crypto.randomUUID(),
-      type: "text",
+      type: 'text',
       visible: true,
       opacity: 1,
-      content: "New Text",
+      content: 'New Text',
       fontSize: 16,
-      color: "#000000",
+      color: '#000000'
     };
   } else {
     // image
     return {
       id: crypto.randomUUID(),
-      type: "image",
+      type: 'image',
       visible: true,
       opacity: 1,
-      imageId: "",
-      dimensions: { width: 100, height: 100 },
+      imageId: '',
+      dimensions: { width: 100, height: 100 }
     };
   }
 }

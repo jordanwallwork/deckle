@@ -32,7 +32,7 @@
   class:md={size === 'md'}
   class:pill={shape === 'pill'}
   class:circle={shape === 'circle'}
-  style:position={position}
+  style:position
   style:top={position === 'absolute' ? top : undefined}
   style:right={position === 'absolute' ? right : undefined}
 >

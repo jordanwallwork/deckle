@@ -1,17 +1,17 @@
 <script lang="ts">
-  import type { PageData } from "./$types";
-  import { componentsApi, ApiError } from "$lib/api";
-  import { invalidateAll, goto } from "$app/navigation";
-  import { Button, Dialog, ConfirmDialog, EmptyState } from "$lib/components";
-  import ComponentCard from "./_components/ComponentCard.svelte";
-  import ComponentTypeSelector from "./_components/ComponentTypeSelector.svelte";
-  import CardConfigForm from "./_components/CardConfigForm.svelte";
-  import DiceConfigForm from "./_components/DiceConfigForm.svelte";
-  import PlayerMatConfigForm from "./_components/PlayerMatConfigForm.svelte";
-  import LinkDataSourceModal from "./_components/LinkDataSourceModal.svelte";
-  import type { GameComponent } from "$lib/types";
-  import { setBreadcrumbs } from "$lib/stores/breadcrumb";
-  import { buildComponentsBreadcrumbs } from "$lib/utils/breadcrumbs";
+  import type { PageData } from './$types';
+  import { componentsApi, ApiError } from '$lib/api';
+  import { invalidateAll, goto } from '$app/navigation';
+  import { Button, Dialog, ConfirmDialog, EmptyState } from '$lib/components';
+  import ComponentCard from './_components/ComponentCard.svelte';
+  import ComponentTypeSelector from './_components/ComponentTypeSelector.svelte';
+  import CardConfigForm from './_components/CardConfigForm.svelte';
+  import DiceConfigForm from './_components/DiceConfigForm.svelte';
+  import PlayerMatConfigForm from './_components/PlayerMatConfigForm.svelte';
+  import LinkDataSourceModal from './_components/LinkDataSourceModal.svelte';
+  import type { GameComponent } from '$lib/types';
+  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { buildComponentsBreadcrumbs } from '$lib/utils/breadcrumbs';
 
   let { data }: { data: PageData } = $props();
 
@@ -21,43 +21,43 @@
   });
 
   // Permission checks based on user role
-  const canEdit = $derived(data.project.role !== "Viewer"); // Collaborators, Admins, and Owners can edit
-  const canDelete = $derived(data.project.role === "Owner" || data.project.role === "Admin"); // Only Owners and Admins can delete
-  const canLinkDataSource = $derived(data.project.role === "Owner" || data.project.role === "Admin"); // Only Owners and Admins can link data sources
+  const canEdit = $derived(data.project.role !== 'Viewer'); // Collaborators, Admins, and Owners can edit
+  const canDelete = $derived(data.project.role === 'Owner' || data.project.role === 'Admin'); // Only Owners and Admins can delete
+  const canLinkDataSource = $derived(
+    data.project.role === 'Owner' || data.project.role === 'Admin'
+  ); // Only Owners and Admins can link data sources
 
   // Get exportable components (Card and PlayerMat only)
   const exportableComponents = $derived(
-    data.components.filter(
-      (c) => c.type === "Card" || c.type === "PlayerMat"
-    )
+    data.components.filter((c) => c.type === 'Card' || c.type === 'PlayerMat')
   );
 
   // Check if there are any exportable components
   const hasExportableComponents = $derived(exportableComponents.length > 0);
 
   let showModal = $state(false);
-  let selectedType: "card" | "dice" | "playermat" | null = $state(null);
-  let componentName = $state("");
+  let selectedType: 'card' | 'dice' | 'playermat' | null = $state(null);
+  let componentName = $state('');
   let editingComponent: GameComponent | null = $state(null);
 
   // Card configuration
-  let cardSize = $state("StandardPoker");
+  let cardSize = $state('StandardPoker');
 
   // Dice configuration
-  let diceType = $state("D6");
-  let diceStyle = $state("Numbered");
-  let diceColor = $state("EarthGreen");
-  let diceNumber = $state("1");
+  let diceType = $state('D6');
+  let diceStyle = $state('Numbered');
+  let diceColor = $state('EarthGreen');
+  let diceNumber = $state('1');
 
   // Player Mat configuration
   let playerMatSizeMode: 'preset' | 'custom' = $state('preset');
-  let playerMatPresetSize = $state<string | null>("A4");
-  let playerMatOrientation = $state("Portrait");
-  let playerMatCustomWidth = $state("210");
-  let playerMatCustomHeight = $state("297");
+  let playerMatPresetSize = $state<string | null>('A4');
+  let playerMatOrientation = $state('Portrait');
+  let playerMatCustomWidth = $state('210');
+  let playerMatCustomHeight = $state('297');
 
   let isSubmitting = $state(false);
-  let errorMessage = $state("");
+  let errorMessage = $state('');
 
   // Delete confirmation
   let showDeleteConfirm = $state(false);
@@ -70,44 +70,44 @@
   function openModal() {
     showModal = true;
     selectedType = null;
-    componentName = "";
+    componentName = '';
     editingComponent = null;
-    cardSize = "StandardPoker";
-    diceType = "D6";
-    diceStyle = "Numbered";
-    diceColor = "EarthGreen";
-    diceNumber = "1";
+    cardSize = 'StandardPoker';
+    diceType = 'D6';
+    diceStyle = 'Numbered';
+    diceColor = 'EarthGreen';
+    diceNumber = '1';
     playerMatSizeMode = 'preset';
-    playerMatPresetSize = "A4";
-    playerMatOrientation = "Portrait";
-    playerMatCustomWidth = "210";
-    playerMatCustomHeight = "297";
-    errorMessage = "";
+    playerMatPresetSize = 'A4';
+    playerMatOrientation = 'Portrait';
+    playerMatCustomWidth = '210';
+    playerMatCustomHeight = '297';
+    errorMessage = '';
   }
 
   function navigateToExport() {
-    const componentIds = exportableComponents.map((c) => c.id).join(",");
+    const componentIds = exportableComponents.map((c) => c.id).join(',');
     goto(`/projects/${data.project.id}/export?components=${componentIds}`);
   }
 
   function closeModal() {
     showModal = false;
     selectedType = null;
-    componentName = "";
+    componentName = '';
     editingComponent = null;
-    errorMessage = "";
+    errorMessage = '';
   }
 
-  function selectType(type: "card" | "dice" | "playermat") {
+  function selectType(type: 'card' | 'dice' | 'playermat') {
     selectedType = type;
-    errorMessage = "";
+    errorMessage = '';
   }
 
   /**
    * Populate form fields from a card component
    */
   function populateCardForm(card: Extract<GameComponent, { type: 'Card' }>) {
-    selectedType = "card";
+    selectedType = 'card';
     cardSize = card.size;
   }
 
@@ -115,7 +115,7 @@
    * Populate form fields from a dice component
    */
   function populateDiceForm(dice: Extract<GameComponent, { type: 'Dice' }>) {
-    selectedType = "dice";
+    selectedType = 'dice';
     diceType = dice.diceType;
     diceStyle = dice.style;
     diceColor = dice.baseColor;
@@ -126,7 +126,7 @@
    * Populate form fields from a player mat component
    */
   function populatePlayerMatForm(mat: Extract<GameComponent, { type: 'PlayerMat' }>) {
-    selectedType = "playermat";
+    selectedType = 'playermat';
     if (mat.presetSize) {
       playerMatSizeMode = 'preset';
       playerMatPresetSize = mat.presetSize;
@@ -161,7 +161,7 @@
     editingComponent = component;
     populateFormFromComponent(component);
     showModal = true;
-    errorMessage = "";
+    errorMessage = '';
   }
 
   function handleDeleteClick(component: GameComponent) {
@@ -178,7 +178,7 @@
       showDeleteConfirm = false;
       componentToDelete = null;
     } catch (err) {
-      console.error("Error deleting component:", err);
+      console.error('Error deleting component:', err);
       showDeleteConfirm = false;
       componentToDelete = null;
     }
@@ -203,15 +203,11 @@
     if (!componentToLink) return;
 
     try {
-      await componentsApi.updateDataSource(
-        data.project.id,
-        componentToLink.id,
-        dataSourceId
-      );
+      await componentsApi.updateDataSource(data.project.id, componentToLink.id, dataSourceId);
       await invalidateAll();
       closeLinkDataSourceModal();
     } catch (err) {
-      console.error("Error updating data source:", err);
+      console.error('Error updating data source:', err);
       // Could add error handling UI here
     }
   }
@@ -222,7 +218,7 @@
   async function createCard() {
     await componentsApi.createCard(data.project.id, {
       name: componentName,
-      size: cardSize,
+      size: cardSize
     });
   }
 
@@ -232,7 +228,7 @@
   async function updateCard(componentId: string) {
     await componentsApi.updateCard(data.project.id, componentId, {
       name: componentName,
-      size: cardSize,
+      size: cardSize
     });
   }
 
@@ -245,7 +241,7 @@
       type: diceType,
       style: diceStyle,
       baseColor: diceColor,
-      number: Number(diceNumber),
+      number: Number(diceNumber)
     });
   }
 
@@ -258,7 +254,7 @@
       type: diceType,
       style: diceStyle,
       baseColor: diceColor,
-      number: Number(diceNumber),
+      number: Number(diceNumber)
     });
   }
 
@@ -271,7 +267,7 @@
       presetSize: playerMatSizeMode === 'preset' ? playerMatPresetSize : null,
       orientation: playerMatOrientation,
       customWidthMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomWidth) : null,
-      customHeightMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomHeight) : null,
+      customHeightMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomHeight) : null
     });
   }
 
@@ -284,7 +280,7 @@
       presetSize: playerMatSizeMode === 'preset' ? playerMatPresetSize : null,
       orientation: playerMatOrientation,
       customWidthMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomWidth) : null,
-      customHeightMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomHeight) : null,
+      customHeightMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomHeight) : null
     });
   }
 
@@ -319,28 +315,28 @@
 
   async function handleSubmit() {
     if (!componentName.trim()) {
-      errorMessage = "Please enter a component name";
+      errorMessage = 'Please enter a component name';
       return;
     }
 
     if (!selectedType) {
-      errorMessage = "Please select a component type";
+      errorMessage = 'Please select a component type';
       return;
     }
 
     isSubmitting = true;
-    errorMessage = "";
+    errorMessage = '';
 
     try {
       await saveComponent();
       await invalidateAll();
       closeModal();
     } catch (err) {
-      console.error("Error saving component:", err);
+      console.error('Error saving component:', err);
       if (err instanceof ApiError) {
         errorMessage = err.message;
       } else {
-        errorMessage = `Failed to ${editingComponent ? "update" : "create"} component. Please try again.`;
+        errorMessage = `Failed to ${editingComponent ? 'update' : 'create'} component. Please try again.`;
       }
     } finally {
       isSubmitting = false;
@@ -360,14 +356,10 @@
 {#if canEdit || hasExportableComponents}
   <div class="actions">
     {#if hasExportableComponents}
-      <Button variant="secondary" size="sm" onclick={navigateToExport}>
-        Export
-      </Button>
+      <Button variant="secondary" size="sm" onclick={navigateToExport}>Export</Button>
     {/if}
     {#if canEdit}
-      <Button variant="primary" size="sm" onclick={openModal}>
-        + Add Component
-      </Button>
+      <Button variant="primary" size="sm" onclick={openModal}>+ Add Component</Button>
     {/if}
   </div>
 {/if}
@@ -393,7 +385,7 @@
 
 <Dialog
   bind:show={showModal}
-  title={editingComponent ? "Edit Component" : "New Component"}
+  title={editingComponent ? 'Edit Component' : 'New Component'}
   maxWidth="600px"
   onclose={closeModal}
 >
@@ -406,9 +398,9 @@
       </Button>
     {/if}
 
-    {#if selectedType === "card"}
+    {#if selectedType === 'card'}
       <CardConfigForm bind:cardSize bind:componentName />
-    {:else if selectedType === "dice"}
+    {:else if selectedType === 'dice'}
       <DiceConfigForm
         bind:diceType
         bind:diceStyle
@@ -416,7 +408,7 @@
         bind:componentName
         bind:diceNumber
       />
-    {:else if selectedType === "playermat"}
+    {:else if selectedType === 'playermat'}
       <PlayerMatConfigForm
         bind:componentName
         bind:sizeMode={playerMatSizeMode}
@@ -434,14 +426,12 @@
 
   {#snippet actions()}
     {#if selectedType}
-      <Button variant="secondary" onclick={closeModal} disabled={isSubmitting}>
-        Cancel
-      </Button>
+      <Button variant="secondary" onclick={closeModal} disabled={isSubmitting}>Cancel</Button>
       <Button variant="primary" onclick={handleSubmit} disabled={isSubmitting}>
         {#if isSubmitting}
-          {editingComponent ? "Updating..." : "Adding..."}
+          {editingComponent ? 'Updating...' : 'Adding...'}
         {:else}
-          {editingComponent ? "Update Component" : "Add Component"}
+          {editingComponent ? 'Update Component' : 'Add Component'}
         {/if}
       </Button>
     {/if}
@@ -462,7 +452,9 @@
 <LinkDataSourceModal
   bind:show={showLinkDataSourceModal}
   dataSources={data.dataSources || []}
-  currentDataSourceId={(componentToLink?.type === "Card" || componentToLink?.type === "PlayerMat") ? componentToLink.dataSource?.id : null}
+  currentDataSourceId={componentToLink?.type === 'Card' || componentToLink?.type === 'PlayerMat'
+    ? componentToLink.dataSource?.id
+    : null}
   onConfirm={handleConfirmLinkDataSource}
   onClose={closeLinkDataSourceModal}
 />

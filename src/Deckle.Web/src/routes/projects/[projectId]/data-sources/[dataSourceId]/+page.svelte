@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { PageData } from "./$types";
-  import { config } from "$lib/config";
-  import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
-  import { buildDataSourceBreadcrumbs } from "$lib/utils/breadcrumbs";
-  import { setBreadcrumbs } from "$lib/stores/breadcrumb";
-  import { Button, DataTable } from "$lib/components";
+  import type { PageData } from './$types';
+  import { config } from '$lib/config';
+  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { buildDataSourceBreadcrumbs } from '$lib/utils/breadcrumbs';
+  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { Button, DataTable } from '$lib/components';
 
   let { data }: { data: PageData } = $props();
 
@@ -25,11 +25,11 @@
   let dataSource = $state<DataSource | null>(null);
   let spreadsheetData = $state<string[][] | null>(null);
   let loading = $state(true);
-  let errorMessage = $state("");
+  let errorMessage = $state('');
 
   // Name editing state
   let isEditingName = $state(false);
-  let editedName = $state("");
+  let editedName = $state('');
   let savingName = $state(false);
 
   // Update breadcrumbs when dataSource is loaded
@@ -52,67 +52,58 @@
   async function loadDataSource() {
     try {
       loading = true;
-      errorMessage = "";
+      errorMessage = '';
 
       // Get data source details
-      const dsResponse = await fetch(
-        `${config.apiUrl}/data-sources/${data.dataSourceId}`,
-        {
-          credentials: "include",
-        }
-      );
+      const dsResponse = await fetch(`${config.apiUrl}/data-sources/${data.dataSourceId}`, {
+        credentials: 'include'
+      });
 
       if (!dsResponse.ok) {
         if (dsResponse.status === 404) {
-          errorMessage = "Data source not found";
+          errorMessage = 'Data source not found';
           return;
         }
-        throw new Error("Failed to load data source");
+        throw new Error('Failed to load data source');
       }
 
       dataSource = await dsResponse.json();
 
       // Get spreadsheet data
-      const dataResponse = await fetch(
-        `${config.apiUrl}/data-sources/${data.dataSourceId}/data`,
-        {
-          credentials: "include",
-        }
-      );
+      const dataResponse = await fetch(`${config.apiUrl}/data-sources/${data.dataSourceId}/data`, {
+        credentials: 'include'
+      });
 
       if (dataResponse.ok) {
         const result = await dataResponse.json();
         spreadsheetData = result.data;
       } else {
-        errorMessage = "Failed to load spreadsheet data. Please try syncing the data source.";
+        errorMessage = 'Failed to load spreadsheet data. Please try syncing the data source.';
       }
     } catch (error) {
-      console.error("Failed to load data source:", error);
-      errorMessage = "Failed to load data source. Please try again.";
+      console.error('Failed to load data source:', error);
+      errorMessage = 'Failed to load data source. Please try again.';
     } finally {
       loading = false;
     }
   }
 
   async function deleteDataSource() {
-    if (!confirm("Are you sure you want to delete this data source?")) {
+    if (!confirm('Are you sure you want to delete this data source?')) {
       return;
     }
 
     try {
-      const response = await fetch(
-        `${config.apiUrl}/data-sources/${data.dataSourceId}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`${config.apiUrl}/data-sources/${data.dataSourceId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
 
       if (response.ok) {
         goto(`/projects/${data.projectId}/data-sources`);
       }
     } catch (error) {
-      console.error("Failed to delete data source:", error);
+      console.error('Failed to delete data source:', error);
     }
   }
 
@@ -125,7 +116,7 @@
 
   function cancelEditingName() {
     isEditingName = false;
-    editedName = "";
+    editedName = '';
   }
 
   async function saveName() {
@@ -135,29 +126,26 @@
 
     try {
       savingName = true;
-      const response = await fetch(
-        `${config.apiUrl}/data-sources/${data.dataSourceId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ name: editedName.trim() }),
-        }
-      );
+      const response = await fetch(`${config.apiUrl}/data-sources/${data.dataSourceId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name: editedName.trim() })
+      });
 
       if (response.ok) {
         const updated = await response.json();
         dataSource = updated;
         isEditingName = false;
-        editedName = "";
+        editedName = '';
       } else {
-        errorMessage = "Failed to update name";
+        errorMessage = 'Failed to update name';
       }
     } catch (error) {
-      console.error("Failed to update name:", error);
-      errorMessage = "Failed to update name";
+      console.error('Failed to update name:', error);
+      errorMessage = 'Failed to update name';
     } finally {
       savingName = false;
     }
@@ -166,9 +154,7 @@
 
 <svelte:head>
   {#if dataSource}
-    <title
-      >{dataSource.name} · Data Sources · {data.project.name} · Deckle</title
-    >
+    <title>{dataSource.name} · Data Sources · {data.project.name} · Deckle</title>
     <meta
       name="description"
       content="View and manage {dataSource.name} data source for {data.project
@@ -176,10 +162,7 @@
     />
   {:else}
     <title>Data Source · {data.project.name} · Deckle</title>
-    <meta
-      name="description"
-      content="View data source details for {data.project.name}."
-    />
+    <meta name="description" content="View data source details for {data.project.name}." />
   {/if}
 </svelte:head>
 
@@ -188,9 +171,7 @@
 {:else if errorMessage}
   <div class="error">
     <p>{errorMessage}</p>
-    <a href={`/projects/${data.projectId}/data-sources`}
-      >Back to Data Sources</a
-    >
+    <a href={`/projects/${data.projectId}/data-sources`}>Back to Data Sources</a>
   </div>
 {:else if dataSource}
   <div class="header">
@@ -210,13 +191,9 @@
               onclick={saveName}
               disabled={savingName || !editedName.trim()}
             >
-              {savingName ? "Saving..." : "Save"}
+              {savingName ? 'Saving...' : 'Save'}
             </button>
-            <button
-              class="cancel-button"
-              onclick={cancelEditingName}
-              disabled={savingName}
-            >
+            <button class="cancel-button" onclick={cancelEditingName} disabled={savingName}>
               Cancel
             </button>
           </div>
@@ -225,7 +202,17 @@
         <div class="name-display">
           <h1>{dataSource.name}</h1>
           <button class="edit-icon-button" onclick={startEditingName} title="Edit name">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
@@ -237,19 +224,11 @@
 
     <div class="actions">
       {#if dataSource.googleSheetsUrl}
-        <a
-          href={dataSource.googleSheetsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Button variant="secondary" size="sm">
-            Open in Google Sheets
-          </Button>
+        <a href={dataSource.googleSheetsUrl} target="_blank" rel="noopener noreferrer">
+          <Button variant="secondary" size="sm">Open in Google Sheets</Button>
         </a>
       {/if}
-      <Button variant="danger" size="sm" onclick={deleteDataSource}>
-        Delete
-      </Button>
+      <Button variant="danger" size="sm" onclick={deleteDataSource}>Delete</Button>
     </div>
   </div>
 
@@ -267,8 +246,8 @@
     <div class="empty-state">
       <p>No data available</p>
       <p class="empty-subtitle">
-        Sync this data source from the{" "}
-        <a href={`/projects/${data.projectId}/data-sources`}>Data Sources page</a>{" "}
+        Sync this data source from the{' '}
+        <a href={`/projects/${data.projectId}/data-sources`}>Data Sources page</a>{' '}
         to load spreadsheet data.
       </p>
     </div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import type { Snippet } from 'svelte';
 
   interface Props {
     /** Optional snippet for header actions (e.g., buttons) */
@@ -24,11 +24,7 @@
 
 <style>
   .page-header {
-    background: linear-gradient(
-      135deg,
-      var(--color-teal-grey) 0%,
-      var(--color-muted-teal) 100%
-    );
+    background: linear-gradient(135deg, var(--color-teal-grey) 0%, var(--color-muted-teal) 100%);
     padding: 1rem 2rem;
     border-bottom: 1px solid var(--color-border);
   }

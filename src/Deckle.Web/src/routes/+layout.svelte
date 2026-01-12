@@ -1,15 +1,15 @@
 <script lang="ts">
-  import type { Snippet } from "svelte";
-  import favicon from "$lib/assets/favicon.svg";
-  import { page } from "$app/stores";
-  import TopBar from "$lib/components/TopBar.svelte";
-  import type { LayoutData } from "./$types";
-  import "../app.css";
+  import type { Snippet } from 'svelte';
+  import favicon from '$lib/assets/favicon.svg';
+  import { page } from '$app/stores';
+  import TopBar from '$lib/components/TopBar.svelte';
+  import type { LayoutData } from './$types';
+  import '../app.css';
 
   let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
   // Determine if we should show the dashboard layout (topbar)
-  const isAuthPage = $derived($page.url.pathname === "/" && !data.user);
+  const isAuthPage = $derived($page.url.pathname === '/' && !data.user);
 </script>
 
 <svelte:head>

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { Card, Button, Input, TextArea } from "$lib/components";
-  import type { Project } from "$lib/types";
+  import { Card, Button, Input, TextArea } from '$lib/components';
+  import type { Project } from '$lib/types';
 
   let {
     project,
     canEdit,
-    onSave,
+    onSave
   }: {
     project: Project;
     canEdit: boolean;
@@ -14,38 +14,38 @@
 
   let isEditing = $state(false);
   let projectName = $state(project.name);
-  let projectDescription = $state(project.description || "");
+  let projectDescription = $state(project.description || '');
   let isSaving = $state(false);
-  let errorMessage = $state("");
+  let errorMessage = $state('');
 
   function startEditing() {
     isEditing = true;
     projectName = project.name;
-    projectDescription = project.description || "";
-    errorMessage = "";
+    projectDescription = project.description || '';
+    errorMessage = '';
   }
 
   function cancelEditing() {
     isEditing = false;
     projectName = project.name;
-    projectDescription = project.description || "";
-    errorMessage = "";
+    projectDescription = project.description || '';
+    errorMessage = '';
   }
 
   async function handleSave() {
     if (!projectName.trim()) {
-      errorMessage = "Project name is required";
+      errorMessage = 'Project name is required';
       return;
     }
 
     isSaving = true;
-    errorMessage = "";
+    errorMessage = '';
 
     try {
       await onSave(projectName, projectDescription || undefined);
       isEditing = false;
     } catch (err) {
-      errorMessage = err instanceof Error ? err.message : "Failed to update project";
+      errorMessage = err instanceof Error ? err.message : 'Failed to update project';
     } finally {
       isSaving = false;
     }
@@ -80,11 +80,9 @@
     {/if}
 
     <div class="form-actions">
-      <Button variant="secondary" onclick={cancelEditing} disabled={isSaving}>
-        Cancel
-      </Button>
+      <Button variant="secondary" onclick={cancelEditing} disabled={isSaving}>Cancel</Button>
       <Button variant="primary" onclick={handleSave} disabled={isSaving}>
-        {isSaving ? "Saving..." : "Save Changes"}
+        {isSaving ? 'Saving...' : 'Save Changes'}
       </Button>
     </div>
   {:else}
@@ -95,15 +93,13 @@
       </div>
       <div class="info-row">
         <span class="info-label">Description:</span>
-        <span class="info-value">{project.description || "No description"}</span>
+        <span class="info-value">{project.description || 'No description'}</span>
       </div>
     </div>
 
     {#if canEdit}
       <div class="card-actions">
-        <Button variant="primary" size="sm" onclick={startEditing}>
-          Edit Details
-        </Button>
+        <Button variant="primary" size="sm" onclick={startEditing}>Edit Details</Button>
       </div>
     {/if}
   {/if}

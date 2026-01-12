@@ -37,7 +37,7 @@ export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
       size: 35,
       minSize: 20,
       maxSize: 60,
-      visible: true,
+      visible: true
     },
     editor: {
       id: 'editor',
@@ -45,7 +45,7 @@ export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
       position: 'right',
       size: 65,
       minSize: 40,
-      visible: true,
+      visible: true
     },
     dataSource: {
       id: 'dataSource',
@@ -54,12 +54,12 @@ export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
       size: 30,
       minSize: 15,
       maxSize: 60,
-      visible: true,
-    },
+      visible: true
+    }
   },
   tabGroups: [],
   splitSizes: {
     horizontal: [35, 65],
-    vertical: [70, 30],
-  },
+    vertical: [70, 30]
+  }
 };

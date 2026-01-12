@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { PageData } from "./$types";
-  import { projectsApi, ApiError } from "$lib/api";
-  import { goto, invalidateAll } from "$app/navigation";
-  import { DeleteConfirmationDialog, ConfirmDialog } from "$lib/components";
-  import { setBreadcrumbs } from "$lib/stores/breadcrumb";
-  import { buildSettingsBreadcrumbs } from "$lib/utils/breadcrumbs";
-  import ProjectDetailsCard from "./_components/ProjectDetailsCard.svelte";
-  import UserListCard from "./_components/UserListCard.svelte";
-  import DangerZoneCard from "./_components/DangerZoneCard.svelte";
-  import InviteUserDialog from "./_components/InviteUserDialog.svelte";
+  import type { PageData } from './$types';
+  import { projectsApi, ApiError } from '$lib/api';
+  import { goto, invalidateAll } from '$app/navigation';
+  import { DeleteConfirmationDialog, ConfirmDialog } from '$lib/components';
+  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { buildSettingsBreadcrumbs } from '$lib/utils/breadcrumbs';
+  import ProjectDetailsCard from './_components/ProjectDetailsCard.svelte';
+  import UserListCard from './_components/UserListCard.svelte';
+  import DangerZoneCard from './_components/DangerZoneCard.svelte';
+  import InviteUserDialog from './_components/InviteUserDialog.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -29,22 +29,16 @@
   let userToRemove = $state<{ userId: string; userName: string; role: string } | null>(null);
   let isRemovingUser = $state(false);
 
-  const isOwner = $derived(data.project.role === "Owner");
-  const canEditProject = $derived(
-    data.project.role === "Owner" || data.project.role === "Admin"
-  );
-  const canInviteUsers = $derived(
-    data.project.role === "Owner" || data.project.role === "Admin"
-  );
-  const canEditRoles = $derived(
-    data.project.role === "Owner" || data.project.role === "Admin"
-  );
+  const isOwner = $derived(data.project.role === 'Owner');
+  const canEditProject = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
+  const canInviteUsers = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
+  const canEditRoles = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
   const currentUserId = $derived(data.user?.id);
 
   async function saveProjectDetails(name: string, description?: string) {
     await projectsApi.update(data.project.id, {
       name,
-      description,
+      description
     });
     await invalidateAll();
   }
@@ -55,11 +49,11 @@
       await invalidateAll();
     } catch (err) {
       if (err instanceof ApiError) {
-        console.error("Failed to update user role:", err.message);
+        console.error('Failed to update user role:', err.message);
         alert(`Failed to update user role: ${err.message}`);
       } else {
-        console.error("Failed to update user role:", err);
-        alert("Failed to update user role. Please try again.");
+        console.error('Failed to update user role:', err);
+        alert('Failed to update user role. Please try again.');
       }
     }
   }
@@ -79,7 +73,7 @@
 
       // If current user removed themselves, redirect to projects list
       if (userToRemove.userId === currentUserId) {
-        goto("/projects");
+        goto('/projects');
       } else {
         // Otherwise just refresh the user list
         await invalidateAll();
@@ -88,11 +82,11 @@
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        console.error("Failed to remove user:", err.message);
+        console.error('Failed to remove user:', err.message);
         alert(`Failed to remove user: ${err.message}`);
       } else {
-        console.error("Failed to remove user:", err);
-        alert("Failed to remove user. Please try again.");
+        console.error('Failed to remove user:', err);
+        alert('Failed to remove user. Please try again.');
       }
     } finally {
       isRemovingUser = false;
@@ -109,9 +103,9 @@
 
     try {
       await projectsApi.delete(data.project.id);
-      goto("/projects");
+      goto('/projects');
     } catch (err) {
-      console.error("Error deleting project:", err);
+      console.error('Error deleting project:', err);
       isDeletingProject = false;
       // Re-throw to let the dialog handle the error display if needed
       throw err;
@@ -142,9 +136,9 @@
     <h2>Project Users</h2>
     <UserListCard
       users={data.users}
-      currentUserId={currentUserId}
+      {currentUserId}
       canInvite={canInviteUsers}
-      canEditRoles={canEditRoles}
+      {canEditRoles}
       onInviteClick={() => (showInviteDialog = true)}
       onRoleChange={handleRoleChange}
       onRemoveUser={handleRemoveUserClick}
@@ -167,20 +161,17 @@
   isDeleting={isDeletingProject}
 />
 
-<InviteUserDialog
-  bind:show={showInviteDialog}
-  projectId={data.project.id}
-/>
+<InviteUserDialog bind:show={showInviteDialog} projectId={data.project.id} />
 
 <ConfirmDialog
   bind:show={showRemoveDialog}
-  title={userToRemove?.userId === currentUserId ? "Leave Project" : "Remove User"}
+  title={userToRemove?.userId === currentUserId ? 'Leave Project' : 'Remove User'}
   message={userToRemove?.userId === currentUserId
-    ? "Are you sure you want to leave this project? You will lose access to all project data."
+    ? 'Are you sure you want to leave this project? You will lose access to all project data.'
     : `Are you sure you want to remove ${userToRemove?.userName} from this project?${
-        userToRemove?.role === "Admin" ? " This user is an Admin and will lose all access." : ""
+        userToRemove?.role === 'Admin' ? ' This user is an Admin and will lose all access.' : ''
       }`}
-  confirmText={userToRemove?.userId === currentUserId ? "Leave" : "Remove"}
+  confirmText={userToRemove?.userId === currentUserId ? 'Leave' : 'Remove'}
   cancelText="Cancel"
   confirmVariant="danger"
   onconfirm={handleRemoveUserConfirm}

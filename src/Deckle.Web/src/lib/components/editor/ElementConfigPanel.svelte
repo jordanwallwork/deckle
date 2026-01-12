@@ -1,15 +1,18 @@
 <script lang="ts">
-  import Panel from "./_components/Panel.svelte";
-  import ContainerConfig from "./_components/configuration/ContainerConfig.svelte";
-  import TextConfig from "./_components/configuration/TextConfig.svelte";
-  import ImageConfig from "./_components/configuration/ImageConfig.svelte";
-  import ComponentConfig from "./_components/configuration/ComponentConfig.svelte";
-  import { templateStore } from "$lib/stores/templateElements";
-  import type { ContainerElement, TextElement, ImageElement } from "./types";
-  import type { EditableComponent } from "$lib/types";
+  import Panel from './_components/Panel.svelte';
+  import ContainerConfig from './_components/configuration/ContainerConfig.svelte';
+  import TextConfig from './_components/configuration/TextConfig.svelte';
+  import ImageConfig from './_components/configuration/ImageConfig.svelte';
+  import ComponentConfig from './_components/configuration/ComponentConfig.svelte';
+  import { templateStore } from '$lib/stores/templateElements';
+  import type { ContainerElement, TextElement, ImageElement } from './types';
+  import type { EditableComponent } from '$lib/types';
 
-  let { component, part }: { component: EditableComponent; part?: string } =
-    $props();
+  let {
+    component,
+    part,
+    readOnly = false
+  }: { component: EditableComponent; part?: string; readOnly?: boolean } = $props();
 
   const selectedElement = $derived(
     $templateStore.selectedElementId
@@ -17,7 +20,7 @@
       : null
   );
 
-  const isRootSelected = $derived($templateStore.selectedElementId === "root");
+  const isRootSelected = $derived($templateStore.selectedElementId === 'root');
 </script>
 
 <Panel noheader>
@@ -25,19 +28,17 @@
     {#if isRootSelected}
       <ComponentConfig {component} {part} />
     {:else if selectedElement}
-      {#if selectedElement.type === "container"}
+      {#if selectedElement.type === 'container'}
         <ContainerConfig element={selectedElement as ContainerElement} />
-      {:else if selectedElement.type === "text"}
+      {:else if selectedElement.type === 'text'}
         <TextConfig element={selectedElement as TextElement} />
-      {:else if selectedElement.type === "image"}
+      {:else if selectedElement.type === 'image'}
         <ImageConfig element={selectedElement as ImageElement} />
       {/if}
     {:else}
       <div class="empty-state">
         <p>No element selected</p>
-        <p class="hint">
-          Select an element from the structure tree to edit its properties
-        </p>
+        <p class="hint">Select an element from the structure tree to edit its properties</p>
       </div>
     {/if}
   {/snippet}

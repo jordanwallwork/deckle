@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { GameComponent } from "$lib/types";
-  import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import type { GameComponent } from '$lib/types';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
 
   let {
     components,
-    selectedComponentIds = [],
+    selectedComponentIds = []
   }: {
     components: GameComponent[];
     selectedComponentIds?: string[];
@@ -39,14 +39,14 @@
   function updateUrl(componentIds: string[]) {
     const url = new URL($page.url);
     if (componentIds.length > 0) {
-      url.searchParams.set("components", componentIds.join(","));
+      url.searchParams.set('components', componentIds.join(','));
     } else {
-      url.searchParams.delete("components");
+      url.searchParams.delete('components');
     }
     goto(url.toString(), {
       replaceState: true,
       noScroll: true,
-      keepFocus: true,
+      keepFocus: true
     });
   }
 
@@ -182,7 +182,7 @@
     background-color: #f5f5f5;
   }
 
-  .component-item input[type="checkbox"] {
+  .component-item input[type='checkbox'] {
     cursor: pointer;
     width: 16px;
     height: 16px;

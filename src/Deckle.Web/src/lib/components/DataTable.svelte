@@ -91,7 +91,7 @@
           <th
             class:sortable
             onclick={() => handleSort(index)}
-            role={sortable ? "button" : undefined}
+            role={sortable ? 'button' : undefined}
             tabindex={sortable ? 0 : undefined}
           >
             <div class="header-content">
@@ -216,7 +216,7 @@
     padding: 0.5rem !important;
   }
 
-  .radio-column input[type="radio"] {
+  .radio-column input[type='radio'] {
     cursor: pointer;
     margin: 0;
   }

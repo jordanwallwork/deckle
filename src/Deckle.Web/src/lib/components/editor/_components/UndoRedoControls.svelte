@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { templateStore } from "$lib/stores/templateElements";
+  import { templateStore } from '$lib/stores/templateElements';
 
   function undo() {
     templateStore.undo();

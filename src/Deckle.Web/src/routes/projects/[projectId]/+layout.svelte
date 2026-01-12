@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { LayoutData } from "./$types";
-  import { initBreadcrumbs } from "$lib/stores/breadcrumb";
-  import { buildProjectBreadcrumbs } from "$lib/utils/breadcrumbs";
-  import { page } from "$app/stores";
-  import { Breadcrumb, Tabs } from "$lib/components";
-  import PageHeader from "$lib/components/layout/PageHeader.svelte";
+  import type { LayoutData } from './$types';
+  import { initBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { buildProjectBreadcrumbs } from '$lib/utils/breadcrumbs';
+  import { page } from '$app/stores';
+  import { Breadcrumb, Tabs } from '$lib/components';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
   let { data, children }: { data: LayoutData; children: any } = $props();
 
@@ -12,37 +12,33 @@
   // Viewers: only Components
   // Collaborators: Components, Data Sources, Image Library
   // Admins/Owners: All tabs including Settings
-  const tabs = $derived(
-    [
-      { name: "Components", path: `/projects/${data.project.id}/components` },
-      ...(data.project.role !== "Viewer"
-        ? [
-            { name: "Data Sources", path: `/projects/${data.project.id}/data-sources` },
-            {
-              name: "Image Library",
-              path: `/projects/${data.project.id}/image-library`,
-            },
-          ]
-        : []),
-      ...(data.project.role === "Owner" || data.project.role === "Admin"
-        ? [
-            {
-              name: "Settings",
-              path: `/projects/${data.project.id}/settings`,
-            },
-          ]
-        : []),
-    ]
-  );
+  const tabs = $derived([
+    { name: 'Components', path: `/projects/${data.project.id}/components` },
+    ...(data.project.role !== 'Viewer'
+      ? [
+          { name: 'Data Sources', path: `/projects/${data.project.id}/data-sources` },
+          {
+            name: 'Image Library',
+            path: `/projects/${data.project.id}/image-library`
+          }
+        ]
+      : []),
+    ...(data.project.role === 'Owner' || data.project.role === 'Admin'
+      ? [
+          {
+            name: 'Settings',
+            path: `/projects/${data.project.id}/settings`
+          }
+        ]
+      : [])
+  ]);
 
   // Initialize breadcrumbs context
   const breadcrumbs = initBreadcrumbs(buildProjectBreadcrumbs(data.project));
 
   // Check if we're on the editor or export page (hide tabs on editor and export)
   const isEditorPage = $derived(
-    /\/projects\/[^/]+\/(components\/[^/]+\/(front|back|export)|export)/.test(
-      $page.url.pathname
-    )
+    /\/projects\/[^/]+\/(components\/[^/]+\/(front|back|export)|export)/.test($page.url.pathname)
   );
 </script>
 

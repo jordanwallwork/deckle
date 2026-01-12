@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { Border, BorderStyle } from "../../types";
-  import BorderSideControl from "./BorderSideControl.svelte";
-  import DimensionInput from "./DimensionInput.svelte";
+  import type { Border, BorderStyle } from '../../types';
+  import BorderSideControl from './BorderSideControl.svelte';
+  import DimensionInput from './DimensionInput.svelte';
 
   let {
     border,
-    onchange,
+    onchange
   }: {
     border?: Border;
     onchange: (newBorder: Border) => void;
@@ -19,17 +19,14 @@
   }
 
   // Track whether we're in "separate sides" mode
-  let separateSides = $state(
-    !!(border?.top || border?.right || border?.bottom || border?.left)
-  );
+  let separateSides = $state(!!(border?.top || border?.right || border?.bottom || border?.left));
 
   function toggleSeparateSides() {
     separateSides = !separateSides;
 
     if (!separateSides) {
       // Switching to "all sides" mode - use first defined side or defaults
-      const firstSide =
-        border?.top || border?.right || border?.bottom || border?.left;
+      const firstSide = border?.top || border?.right || border?.bottom || border?.left;
       onchange({
         ...border,
         width: firstSide?.width ?? border?.width,
@@ -38,7 +35,7 @@
         top: undefined,
         right: undefined,
         bottom: undefined,
-        left: undefined,
+        left: undefined
       });
     } else {
       // Switching to "separate sides" mode - copy from main properties to all sides
@@ -54,61 +51,53 @@
         top: { width, style, color },
         right: { width, style, color },
         bottom: { width, style, color },
-        left: { width, style, color },
+        left: { width, style, color }
       });
     }
   }
 
-  function updateAllSides(updates: {
-    width?: number;
-    style?: BorderStyle;
-    color?: string;
-  }) {
+  function updateAllSides(updates: { width?: number; style?: BorderStyle; color?: string }) {
     // Ensure style defaults to "solid" if not already set
-    const style = updates.style ?? border?.style ?? "solid";
+    const style = updates.style ?? border?.style ?? 'solid';
 
     onchange({
       ...border,
       ...updates,
-      style,
+      style
     });
   }
 
   function updateSide(
-    side: "top" | "right" | "bottom" | "left",
+    side: 'top' | 'right' | 'bottom' | 'left',
     updates: { width?: number; style?: BorderStyle; color?: string }
   ) {
     // Ensure style defaults to "solid" if not already set
-    const style = updates.style ?? border?.[side]?.style ?? "solid";
+    const style = updates.style ?? border?.[side]?.style ?? 'solid';
 
     onchange({
       ...border,
       [side]: {
         ...border?.[side],
         ...updates,
-        style,
-      },
+        style
+      }
     });
   }
 
   function updateRadius(radius: number | string | undefined) {
     onchange({
       ...border,
-      radius,
+      radius
     });
   }
 </script>
 
 <div class="border-config">
   <div class="header">
-    <label class="section-label">Border:</label>
+    <span class="section-label">Border:</span>
     <label class="toggle-label">
       <span>Separate sides</span>
-      <input
-        type="checkbox"
-        checked={separateSides}
-        onchange={toggleSeparateSides}
-      />
+      <input type="checkbox" checked={separateSides} onchange={toggleSeparateSides} />
     </label>
   </div>
 
@@ -123,7 +112,7 @@
     />
   {:else}
     <!-- Separate sides mode -->
-    {#each [{ key: "top", label: "Top" }, { key: "right", label: "Right" }, { key: "bottom", label: "Bottom" }, { key: "left", label: "Left" }] as { key, label }}
+    {#each [{ key: 'top' as const, label: 'Top' }, { key: 'right' as const, label: 'Right' }, { key: 'bottom' as const, label: 'Bottom' }, { key: 'left' as const, label: 'Left' }] as { key, label }}
       <BorderSideControl
         {label}
         width={border?.[key]?.width}
@@ -171,7 +160,7 @@
     cursor: pointer;
   }
 
-  .toggle-label input[type="checkbox"] {
+  .toggle-label input[type='checkbox'] {
     cursor: pointer;
     width: 36px;
     height: 20px;
@@ -182,12 +171,12 @@
     transition: background 0.2s;
   }
 
-  .toggle-label input[type="checkbox"]:checked {
+  .toggle-label input[type='checkbox']:checked {
     background: #0066cc;
   }
 
-  .toggle-label input[type="checkbox"]::before {
-    content: "";
+  .toggle-label input[type='checkbox']::before {
+    content: '';
     position: absolute;
     width: 16px;
     height: 16px;
@@ -198,7 +187,7 @@
     transition: left 0.2s;
   }
 
-  .toggle-label input[type="checkbox"]:checked::before {
+  .toggle-label input[type='checkbox']:checked::before {
     left: 18px;
   }
 </style>

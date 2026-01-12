@@ -1,7 +1,7 @@
 <script lang="ts">
   let {
     value = 0,
-    onchange,
+    onchange
   }: {
     value?: number;
     onchange: (gap: number) => void;
@@ -34,7 +34,7 @@
     gap: 0.5rem;
   }
 
-  .gap-control input[type="range"] {
+  .gap-control input[type='range'] {
     flex: 1;
     height: 4px;
     background: #d1d5db;
@@ -44,7 +44,7 @@
     appearance: none;
   }
 
-  .gap-control input[type="range"]::-webkit-slider-thumb {
+  .gap-control input[type='range']::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 16px;
@@ -54,7 +54,7 @@
     cursor: pointer;
   }
 
-  .gap-control input[type="range"]::-moz-range-thumb {
+  .gap-control input[type='range']::-moz-range-thumb {
     width: 16px;
     height: 16px;
     background: #0066cc;

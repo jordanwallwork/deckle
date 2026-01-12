@@ -25,9 +25,9 @@
     margin-bottom: 0.25rem;
   }
 
-  :global(.field input[type="text"]),
-  :global(.field input[type="number"]),
-  :global(.field input[type="range"]),
+  :global(.field input[type='text']),
+  :global(.field input[type='number']),
+  :global(.field input[type='range']),
   :global(.field select),
   :global(.field textarea) {
     width: 100%;
@@ -41,8 +41,8 @@
     box-sizing: border-box;
   }
 
-  :global(.field input[type="text"]),
-  :global(.field input[type="number"]),
+  :global(.field input[type='text']),
+  :global(.field input[type='number']),
   :global(.field select) {
     height: 2.125rem;
   }
@@ -51,8 +51,8 @@
     resize: vertical;
   }
 
-  :global(.field input[type="text"]:focus),
-  :global(.field input[type="number"]:focus),
+  :global(.field input[type='text']:focus),
+  :global(.field input[type='number']:focus),
   :global(.field select:focus),
   :global(.field textarea:focus) {
     outline: none;

@@ -1,19 +1,16 @@
 <script lang="ts">
-  import { Card, Button } from "$lib/components";
-  import type { GameComponent } from "$lib/types";
-  import {
-    isEditableComponent,
-    hasDataSource,
-  } from "$lib/utils/componentTypes";
-  import EditableComponentActions from "./ComponentCard/EditableComponentActions.svelte";
-  import DataSourceIndicator from "./ComponentCard/DataSourceIndicator.svelte";
-  import ComponentTypeInfo from "./ComponentCard/ComponentTypeInfo.svelte";
+  import { Card, Button } from '$lib/components';
+  import type { GameComponent } from '$lib/types';
+  import { isEditableComponent, hasDataSource } from '$lib/utils/componentTypes';
+  import EditableComponentActions from './ComponentCard/EditableComponentActions.svelte';
+  import DataSourceIndicator from './ComponentCard/DataSourceIndicator.svelte';
+  import ComponentTypeInfo from './ComponentCard/ComponentTypeInfo.svelte';
 
   let {
     component,
     onEdit,
     onDelete,
-    onLinkDataSource,
+    onLinkDataSource
   }: {
     component: GameComponent;
     onEdit?: (component: GameComponent) => void;
@@ -30,11 +27,7 @@
     <h3>{component.name}</h3>
     <div class="card-actions">
       {#if onEdit}
-        <Button
-          variant="icon"
-          class="edit-button"
-          onclick={() => onEdit(component)}
-        >
+        <Button variant="icon" class="edit-button" onclick={() => onEdit(component)}>
           {#snippet icon()}
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -54,11 +47,7 @@
         </Button>
       {/if}
       {#if onDelete}
-        <Button
-          variant="icon"
-          class="delete-button"
-          onclick={() => onDelete(component)}
-        >
+        <Button variant="icon" class="delete-button" onclick={() => onDelete(component)}>
           {#snippet icon()}
             <svg
               xmlns="http://www.w3.org/2000/svg"

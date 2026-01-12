@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { TextElement } from "../../types";
-  import { templateStore } from "$lib/stores/templateElements";
-  import BaseElementConfig from "./BaseElementConfig.svelte";
-  import ColorPicker from "../config-controls/ColorPicker.svelte";
-  import PaddingControls from "../config-controls/PaddingControls.svelte";
-  import TextAreaField from "../config-controls/TextAreaField.svelte";
-  import TextField from "../config-controls/TextField.svelte";
-  import NumberField from "../config-controls/NumberField.svelte";
-  import SelectField from "../config-controls/SelectField.svelte";
-  import Fields from "../config-controls/Fields.svelte";
+  import type { BaseElement, TextElement } from '../../types';
+  import { templateStore } from '$lib/stores/templateElements';
+  import BaseElementConfig from './BaseElementConfig.svelte';
+  import ColorPicker from '../config-controls/ColorPicker.svelte';
+  import PaddingControls from '../config-controls/PaddingControls.svelte';
+  import TextAreaField from '../config-controls/TextAreaField.svelte';
+  import TextField from '../config-controls/TextField.svelte';
+  import NumberField from '../config-controls/NumberField.svelte';
+  import SelectField from '../config-controls/SelectField.svelte';
+  import Fields from '../config-controls/Fields.svelte';
 
   let { element }: { element: TextElement } = $props();
 
@@ -17,7 +17,10 @@
   }
 </script>
 
-<BaseElementConfig {element} {updateElement}>
+<BaseElementConfig
+  {element}
+  updateElement={updateElement as (updates: Partial<BaseElement>) => void}
+>
   <label class="markdown-toggle">
     <input
       type="checkbox"
@@ -40,27 +43,26 @@
       label="Font Size (px)"
       id="font-size"
       value={element.fontSize || 16}
-      oninput={(e) =>
-        updateElement({ fontSize: parseInt(e.currentTarget.value) || 16 })}
+      oninput={(e) => updateElement({ fontSize: parseInt(e.currentTarget.value) || 16 })}
     />
 
     <SelectField
       label="Font Weight"
       id="font-weight"
-      value={element.fontWeight?.toString() || "normal"}
+      value={element.fontWeight?.toString() || 'normal'}
       options={[
-        { value: "normal", label: "Normal" },
-        { value: "bold", label: "Bold" },
-        { value: "300", label: "Light (300)" },
-        { value: "400", label: "Regular (400)" },
-        { value: "500", label: "Medium (500)" },
-        { value: "600", label: "Semi-Bold (600)" },
-        { value: "700", label: "Bold (700)" },
-        { value: "800", label: "Extra-Bold (800)" },
+        { value: 'normal', label: 'Normal' },
+        { value: 'bold', label: 'Bold' },
+        { value: '300', label: 'Light (300)' },
+        { value: '400', label: 'Regular (400)' },
+        { value: '500', label: 'Medium (500)' },
+        { value: '600', label: 'Semi-Bold (600)' },
+        { value: '700', label: 'Bold (700)' },
+        { value: '800', label: 'Extra-Bold (800)' }
       ]}
       onchange={(val) => {
         updateElement({
-          fontWeight: isNaN(Number(val)) ? (val as any) : parseInt(val),
+          fontWeight: isNaN(Number(val)) ? (val as any) : parseInt(val)
         });
       }}
     />
@@ -68,12 +70,12 @@
     <SelectField
       label="Text Align"
       id="text-align"
-      value={element.textAlign || "left"}
+      value={element.textAlign || 'left'}
       options={[
-        { value: "left", label: "Left" },
-        { value: "center", label: "Center" },
-        { value: "right", label: "Right" },
-        { value: "justify", label: "Justify" },
+        { value: 'left', label: 'Left' },
+        { value: 'center', label: 'Center' },
+        { value: 'right', label: 'Right' },
+        { value: 'justify', label: 'Justify' }
       ]}
       onchange={(value) => updateElement({ textAlign: value as any })}
     />
@@ -83,14 +85,14 @@
     <ColorPicker
       label="Text Color"
       id="color"
-      value={element.color || "#000000"}
+      value={element.color || '#000000'}
       onchange={(color) => updateElement({ color })}
     />
 
     <ColorPicker
       label="Background Color"
       id="bg-color"
-      value={element.backgroundColor || "#ffffff"}
+      value={element.backgroundColor || '#ffffff'}
       onchange={(backgroundColor) => updateElement({ backgroundColor })}
     />
   </Fields>
@@ -100,11 +102,11 @@
       label="Line Height"
       id="line-height"
       placeholder="1.5 or 24px"
-      value={element.lineHeight?.toString() ?? ""}
+      value={element.lineHeight?.toString() ?? ''}
       oninput={(e) => {
         const val = e.currentTarget.value;
         updateElement({
-          lineHeight: isNaN(Number(val)) ? val : parseFloat(val),
+          lineHeight: isNaN(Number(val)) ? val : parseFloat(val)
         });
       }}
     />
@@ -113,10 +115,10 @@
       label="Letter Spacing (px)"
       id="letter-spacing"
       step="0.1"
-      value={element.letterSpacing ?? ""}
+      value={element.letterSpacing ?? ''}
       oninput={(e) =>
         updateElement({
-          letterSpacing: parseFloat(e.currentTarget.value) || undefined,
+          letterSpacing: parseFloat(e.currentTarget.value) || undefined
         })}
     />
   </Fields>
@@ -125,12 +127,12 @@
     <SelectField
       label="Text Decoration"
       id="text-decoration"
-      value={element.textDecoration || "none"}
+      value={element.textDecoration || 'none'}
       options={[
-        { value: "none", label: "None" },
-        { value: "underline", label: "Underline" },
-        { value: "overline", label: "Overline" },
-        { value: "line-through", label: "Line Through" },
+        { value: 'none', label: 'None' },
+        { value: 'underline', label: 'Underline' },
+        { value: 'overline', label: 'Overline' },
+        { value: 'line-through', label: 'Line Through' }
       ]}
       onchange={(value) => updateElement({ textDecoration: value as any })}
     />
@@ -138,21 +140,18 @@
     <SelectField
       label="Text Transform"
       id="text-transform"
-      value={element.textTransform || "none"}
+      value={element.textTransform || 'none'}
       options={[
-        { value: "none", label: "None" },
-        { value: "uppercase", label: "Uppercase" },
-        { value: "lowercase", label: "Lowercase" },
-        { value: "capitalize", label: "Capitalize" },
+        { value: 'none', label: 'None' },
+        { value: 'uppercase', label: 'Uppercase' },
+        { value: 'lowercase', label: 'Lowercase' },
+        { value: 'capitalize', label: 'Capitalize' }
       ]}
       onchange={(value) => updateElement({ textTransform: value as any })}
     />
   </Fields>
 
-  <PaddingControls
-    padding={element.padding}
-    onchange={(padding) => updateElement({ padding })}
-  />
+  <PaddingControls padding={element.padding} onchange={(padding) => updateElement({ padding })} />
 </BaseElementConfig>
 
 <style>
@@ -165,7 +164,7 @@
     font-size: 0.875rem;
   }
 
-  .markdown-toggle input[type="checkbox"] {
+  .markdown-toggle input[type='checkbox'] {
     cursor: pointer;
   }
 

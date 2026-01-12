@@ -9,7 +9,7 @@
     placeholder,
     onchange,
     disabled = false,
-    class: className = ""
+    class: className = ''
   }: {
     id?: string;
     value?: number | string;

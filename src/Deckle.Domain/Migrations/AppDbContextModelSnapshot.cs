@@ -123,6 +123,56 @@ namespace Deckle.Domain.Migrations
                     b.ToTable("DataSources");
                 });
 
+            modelBuilder.Entity("Deckle.Domain.Entities.File", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.HasIndex("Status", "UploadedAt");
+
+                    b.ToTable("Files");
+                });
+
             modelBuilder.Entity("Deckle.Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -195,6 +245,16 @@ namespace Deckle.Domain.Migrations
                     b.Property<string>("PictureUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<int>("StorageQuotaMb")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(50);
+
+                    b.Property<long>("StorageUsedBytes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -355,6 +415,25 @@ namespace Deckle.Domain.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("Deckle.Domain.Entities.File", b =>
+                {
+                    b.HasOne("Deckle.Domain.Entities.Project", "Project")
+                        .WithMany("Files")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Deckle.Domain.Entities.User", "UploadedBy")
+                        .WithMany("UploadedFiles")
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("UploadedBy");
+                });
+
             modelBuilder.Entity("Deckle.Domain.Entities.UserProject", b =>
                 {
                     b.HasOne("Deckle.Domain.Entities.Project", "Project")
@@ -400,11 +479,15 @@ namespace Deckle.Domain.Migrations
 
                     b.Navigation("DataSources");
 
+                    b.Navigation("Files");
+
                     b.Navigation("UserProjects");
                 });
 
             modelBuilder.Entity("Deckle.Domain.Entities.User", b =>
                 {
+                    b.Navigation("UploadedFiles");
+
                     b.Navigation("UserProjects");
                 });
 #pragma warning restore 612, 618

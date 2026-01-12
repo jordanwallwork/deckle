@@ -13,22 +13,26 @@ export const projectsApi = {
   /**
    * Get a single project by ID
    */
-  getById: (id: string, fetchFn?: typeof fetch) => api.get<Project>(`/projects/${id}`, undefined, fetchFn),
+  getById: (id: string, fetchFn?: typeof fetch) =>
+    api.get<Project>(`/projects/${id}`, undefined, fetchFn),
 
   /**
    * Create a new project
    */
-  create: (data: CreateProjectDto, fetchFn?: typeof fetch) => api.post<Project>('/projects', data, undefined, fetchFn),
+  create: (data: CreateProjectDto, fetchFn?: typeof fetch) =>
+    api.post<Project>('/projects', data, undefined, fetchFn),
 
   /**
    * Update a project
    */
-  update: (id: string, data: UpdateProjectDto, fetchFn?: typeof fetch) => api.put<Project>(`/projects/${id}`, data, undefined, fetchFn),
+  update: (id: string, data: UpdateProjectDto, fetchFn?: typeof fetch) =>
+    api.put<Project>(`/projects/${id}`, data, undefined, fetchFn),
 
   /**
    * Get all users for a project
    */
-  getUsers: (id: string, fetchFn?: typeof fetch) => api.get<ProjectUser[]>(`/projects/${id}/users`, undefined, fetchFn),
+  getUsers: (id: string, fetchFn?: typeof fetch) =>
+    api.get<ProjectUser[]>(`/projects/${id}/users`, undefined, fetchFn),
 
   /**
    * Invite a user to a project
@@ -40,7 +44,12 @@ export const projectsApi = {
    * Update a user's role in a project
    */
   updateUserRole: (projectId: string, userId: string, role: string, fetchFn?: typeof fetch) =>
-    api.put<ProjectUser>(`/projects/${projectId}/users/${userId}/role`, { role }, undefined, fetchFn),
+    api.put<ProjectUser>(
+      `/projects/${projectId}/users/${userId}/role`,
+      { role },
+      undefined,
+      fetchFn
+    ),
 
   /**
    * Remove a user from a project
@@ -51,5 +60,5 @@ export const projectsApi = {
   /**
    * Delete a project
    */
-  delete: (id: string, fetchFn?: typeof fetch) => api.delete(`/projects/${id}`, undefined, fetchFn),
+  delete: (id: string, fetchFn?: typeof fetch) => api.delete(`/projects/${id}`, undefined, fetchFn)
 };

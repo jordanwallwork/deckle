@@ -1,5 +1,6 @@
 <script lang="ts">
-  let { visible = true, onchange }: { visible?: boolean; onchange: (visible: boolean) => void } = $props();
+  let { visible = true, onchange }: { visible?: boolean; onchange: (visible: boolean) => void } =
+    $props();
 
   function toggleVisible() {
     onchange(!visible);
@@ -16,14 +17,41 @@
 >
   {#if visible}
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-      <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
+      <path
+        d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z"
+        stroke="currentColor"
+        stroke-width="1.5"
+        fill="none"
+      />
+      <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5" fill="none" />
     </svg>
   {:else}
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.4"/>
-      <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.4"/>
-      <line x1="2" y1="2" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <path
+        d="M1 8C1 8 3.5 3 8 3C12.5 3 15 8 15 8C15 8 12.5 13 8 13C3.5 13 1 8 1 8Z"
+        stroke="currentColor"
+        stroke-width="1.5"
+        fill="none"
+        opacity="0.4"
+      />
+      <circle
+        cx="8"
+        cy="8"
+        r="2"
+        stroke="currentColor"
+        stroke-width="1.5"
+        fill="none"
+        opacity="0.4"
+      />
+      <line
+        x1="2"
+        y1="2"
+        x2="14"
+        y2="14"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+      />
     </svg>
   {/if}
 </button>

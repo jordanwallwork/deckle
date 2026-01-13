@@ -11,8 +11,12 @@
   import { saveActionStore } from '$lib/stores/saveAction';
   import { get } from 'svelte/store';
   import { isEditableComponent } from '$lib/utils/componentTypes';
+  import { setContext } from 'svelte';
 
   let { data, readOnly = false }: { data: PageData; readOnly?: boolean } = $props();
+
+  // Provide projectId through context for child components
+  setContext('projectId', data.component.projectId);
 
   // Capitalize the part name for display (e.g., "front" -> "Front")
   const partLabel = $derived(data.part.charAt(0).toUpperCase() + data.part.slice(1));

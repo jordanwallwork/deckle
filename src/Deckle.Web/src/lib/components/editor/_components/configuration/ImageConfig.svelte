@@ -30,7 +30,7 @@
 >
   <div class="image-url-field">
     <div class="field-header">
-      <label for="image-url">Image URL</label>
+      <label for="image-url">Image</label>
       <button type="button" class="placeholder-link" onclick={() => (showPlaceholderModal = true)}>
         Use Placeholder
       </button>
@@ -38,10 +38,11 @@
     <input
       type="text"
       id="image-url"
-      placeholder="https://example.com/image.jpg"
+      placeholder="URL, filename (hero.png), or merge field syntax"
       value={element.imageId}
       oninput={(e) => updateElement({ imageId: e.currentTarget.value })}
     />
+    <p class="helper-text">Tip: Use merge field syntax like <code>{'{'}{'{'} ImageUrl {'}'}{'}' }</code> to load from data source</p>
   </div>
 
   <SelectField
@@ -124,6 +125,21 @@
   .image-url-field input[type='text']:focus {
     outline: none;
     border-color: #0066cc;
+  }
+
+  .helper-text {
+    margin: 0.375rem 0 0 0;
+    font-size: 0.688rem;
+    color: #6b7280;
+    line-height: 1.2;
+  }
+
+  .helper-text code {
+    background: #f3f4f6;
+    padding: 0.125rem 0.25rem;
+    border-radius: 2px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.688rem;
   }
 
   .object-position-section {

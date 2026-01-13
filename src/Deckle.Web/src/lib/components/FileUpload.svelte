@@ -105,6 +105,9 @@
   async function uploadFile() {
     if (!selectedFile) return;
 
+    // Capture selectedFile in a non-nullable variable for use in callbacks
+    const fileToUpload = selectedFile;
+
     uploading = true;
     error = null;
     uploadProgress = 0;
@@ -112,9 +115,9 @@
     try {
       // Phase 1: Request upload URL
       const { fileId, uploadUrl } = await filesApi.requestUploadUrl(projectId, {
-        fileName: selectedFile.name,
-        contentType: selectedFile.type,
-        fileSizeBytes: selectedFile.size,
+        fileName: fileToUpload.name,
+        contentType: fileToUpload.type,
+        fileSizeBytes: fileToUpload.size,
         tags: selectedTags
       });
 
@@ -139,9 +142,9 @@
         xhr.onerror = () => reject(new Error('Network error'));
 
         xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', selectedFile.type);
-        xhr.setRequestHeader('x-amz-meta-filesize', selectedFile.size.toString());
-        xhr.send(selectedFile);
+        xhr.setRequestHeader('Content-Type', fileToUpload.type);
+        xhr.setRequestHeader('x-amz-meta-filesize', fileToUpload.size.toString());
+        xhr.send(fileToUpload);
       });
 
       // Phase 3: Confirm upload

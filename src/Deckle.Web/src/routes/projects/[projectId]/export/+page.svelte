@@ -127,6 +127,7 @@
         components={data.components}
         bind:pageElements
         bind:paperDimensions
+        projectId={data.project.id}
       />
     {:else}
       <div class="error-message">

@@ -207,6 +207,39 @@ public static class FileEndpoints
         .WithName("GetUserStorageQuota")
         .WithDescription("Get the current user's storage quota information");
 
+        // File redirect endpoint - GET /api/file/{projectId}?filename={filename}
+        var fileRedirectGroup = routes.MapGroup("/file")
+            .WithTags("Files")
+            .RequireAuthorization()
+            .RequireUserId();
+
+        fileRedirectGroup.MapGet("/{projectId:guid}", async (
+            Guid projectId,
+            string filename,
+            HttpContext httpContext,
+            FileService fileService,
+            CloudflareR2Service r2Service) =>
+        {
+            var userId = httpContext.GetUserId();
+
+            // Get file with authorization check
+            var file = await fileService.GetFileByProjectAndFilenameAsync(userId, projectId, filename);
+
+            // Return 404 if file not found or user doesn't have access
+            if (file == null)
+            {
+                return Results.NotFound();
+            }
+
+            // Generate pre-signed URL
+            var downloadUrl = r2Service.GenerateDownloadUrl(file.StorageKey, file.FileName);
+
+            // Return 302 redirect
+            return Results.Redirect(downloadUrl);
+        })
+        .WithName("GetFileByProjectAndFilename")
+        .WithDescription("Get a file by project ID and filename, returning a 302 redirect to a pre-signed download URL");
+
         return projectFilesGroup;
     }
 }

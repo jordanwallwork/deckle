@@ -281,6 +281,31 @@ public class FileService
     }
 
     /// <summary>
+    /// Get file by project ID and filename, with authorization check.
+    /// Returns null if file not found or user doesn't have access.
+    /// </summary>
+    public async Task<Domain.Entities.File?> GetFileByProjectAndFilenameAsync(
+        Guid userId,
+        Guid projectId,
+        string fileName)
+    {
+        // Check authorization first
+        if (!await _authService.HasProjectAccessAsync(userId, projectId))
+        {
+            return null;
+        }
+
+        // Find the file
+        var file = await _context.Files
+            .FirstOrDefaultAsync(f =>
+                f.ProjectId == projectId &&
+                f.FileName == fileName &&
+                f.Status == FileStatus.Confirmed);
+
+        return file;
+    }
+
+    /// <summary>
     /// Delete a file
     /// </summary>
     public async Task<bool> DeleteFileAsync(Guid userId, Guid fileId)

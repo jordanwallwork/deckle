@@ -14,12 +14,14 @@
     pageSetup,
     components,
     pageElements = $bindable([]),
-    paperDimensions = $bindable({ width: 0, height: 0 })
+    paperDimensions = $bindable({ width: 0, height: 0 }),
+    projectId
   }: {
     pageSetup: PageSetup;
     components: ComponentWithData[];
     pageElements?: HTMLElement[];
     paperDimensions?: { width: number; height: number };
+    projectId?: string;
   } = $props();
 
   // Array to store refs to page elements - using a map for better reactivity
@@ -134,11 +136,6 @@
 
   // Calculate zoom percentage for display
   const zoomPercentage = $derived(Math.round(userZoomMultiplier * 100));
-
-  // Calculate total number of component instances across all pages
-  const totalInstances = $derived.by(() => {
-    return allPages.reduce((sum, { page }) => sum + page.instances.length, 0);
-  });
 
   // Calculate scaled dimensions for layout
   const scaledDimensions = $derived.by(() => ({
@@ -393,6 +390,11 @@
     return result;
   });
 
+  // Calculate total number of component instances across all pages
+  const totalInstances = $derived.by(() => {
+    return allPages.reduce((sum, { page }) => sum + page.instances.length, 0);
+  });
+
   // Calculate bounding box for instances on each page
   const pageInstanceBounds = $derived.by(() => {
     return allPages.map(({ page }) => {
@@ -535,6 +537,7 @@
                           dimensions={component.dimensions}
                           shape={component.shape}
                           mergeData={instance.mergeData}
+                          {projectId}
                         />
                       </div>
                     </div>

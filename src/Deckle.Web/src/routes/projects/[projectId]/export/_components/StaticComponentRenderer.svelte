@@ -3,18 +3,28 @@
   import type { ContainerElement } from '$lib/components/editor/types';
   import { mmToPx } from '$lib/utils/size.utils';
   import StaticTemplateRenderer from './StaticTemplateRenderer.svelte';
+  import { setContext } from 'svelte';
+  import { initDataSourceRow } from '$lib/stores/dataSourceRow';
 
   let {
     design,
     dimensions,
     shape,
-    mergeData = null
+    mergeData = null,
+    projectId
   }: {
     design: ContainerElement;
     dimensions: Dimensions;
     shape?: ComponentShape;
     mergeData?: Record<string, string> | null;
+    projectId?: string;
   } = $props();
+
+  // Set projectId context for child element components
+  setContext('projectId', projectId);
+
+  // Initialize dataSourceRow context with mergeData for export/preview
+  initDataSourceRow(mergeData);
 
   // Calculate border radius for rectangle shapes
   let borderRadius = $derived(
@@ -45,7 +55,7 @@
     2 * dimensions.bleedPx}px; border-radius: {borderRadius}px"
 >
   {#each design.children as child (child.id)}
-    <StaticTemplateRenderer element={child} dpi={dimensions.dpi} {mergeData} />
+    <StaticTemplateRenderer element={child} dpi={dimensions.dpi} {mergeData} {projectId} />
   {/each}
 </div>
 

@@ -145,6 +145,14 @@
 <TabContent>
   {#snippet actions()}
     <button class="add-button" onclick={openUploadModal}>+ Upload Images</button>
+    {#if data.quota}
+      <div class="quota-info">
+        <p>
+          Storage: {formatBytes(data.quota.usedBytes)} / {data.quota.quotaMb}MB
+          ({data.quota.usedPercentage.toFixed(1)}% used)
+        </p>
+      </div>
+    {/if}
   {/snippet}
 
   <div
@@ -157,16 +165,6 @@
     {#if isDraggingOverPage}
     <div class="drag-overlay">
       <p>Drop images here to upload</p>
-    </div>
-  {/if}
-
-  {#if data.quota}
-    <div class="quota-info">
-      <p>
-        Storage: {formatBytes(data.quota.usedBytes)} / {data.quota.quotaMb}MB ({data.quota.usedPercentage.toFixed(
-          1
-        )}% used)
-      </p>
     </div>
   {/if}
 
@@ -258,6 +256,7 @@
   }
 
   .quota-info {
+    flex: 1;
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;
     border-radius: 8px;

@@ -14,7 +14,8 @@ var postgres = builder.AddPostgres("postgres")
 
 // Configure pgAdmin with health check
 postgres.WithPgAdmin(configureContainer: container => container
-    .WithHttpHealthCheck("/browser/"));
+    .WithHttpHealthCheck("/browser/"))
+    .WithLifetime(ContainerLifetime.Persistent);
 
 var database = postgres.AddDatabase("deckledb");
 

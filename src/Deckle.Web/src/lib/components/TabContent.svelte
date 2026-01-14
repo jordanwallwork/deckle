@@ -27,8 +27,10 @@
 
   .tab-actions {
     display: flex;
-    justify-content: flex-end;
+    flex-direction: row-reverse;
+    justify-content: space-between;
     gap: 0.75rem;
     margin-bottom: 1.5rem;
+    width: 100%;
   }
 </style>

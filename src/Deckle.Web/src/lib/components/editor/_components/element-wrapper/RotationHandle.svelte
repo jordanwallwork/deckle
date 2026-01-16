@@ -75,9 +75,14 @@
     while (newRotation > 360) newRotation -= 360;
     while (newRotation < -360) newRotation += 360;
 
+		// Snap to 5-degree increments unless Shift key is held
+    const snappedRotation = e.shiftKey
+			? Math.round(newRotation)  // Free rotation with Shift
+			: Math.round(newRotation / 5) * 5;  // Snap to 5 degrees
+
     // Update element without adding to history (for smooth rotation)
     templateStore.updateElementWithoutHistory(element.id, {
-      rotation: Math.round(newRotation)
+      rotation: snappedRotation
     });
   }
 

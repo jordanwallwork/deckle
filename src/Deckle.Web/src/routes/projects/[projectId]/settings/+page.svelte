@@ -32,7 +32,7 @@
   const isOwner = $derived(data.project.role === 'Owner');
   const canEditProject = $derived(data.project.role === 'Owner');
   const canInviteUsers = $derived(data.project.role === 'Owner');
-  const canEditRoles = $derived(data.project.role === 'Owner');
+  const canManageUsers = $derived(data.project.role === 'Owner');
   const currentUserId = $derived(data.user?.id);
 
   async function saveProjectDetails(name: string, description?: string) {
@@ -41,21 +41,6 @@
       description
     });
     await invalidateAll();
-  }
-
-  async function handleRoleChange(userId: string, newRole: string) {
-    try {
-      await projectsApi.updateUserRole(data.project.id, userId, newRole);
-      await invalidateAll();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        console.error('Failed to update user role:', err.message);
-        alert(`Failed to update user role: ${err.message}`);
-      } else {
-        console.error('Failed to update user role:', err);
-        alert('Failed to update user role. Please try again.');
-      }
-    }
   }
 
   async function handleRemoveUserClick(userId: string, userName: string, role: string) {
@@ -138,9 +123,8 @@
       users={data.users}
       {currentUserId}
       canInvite={canInviteUsers}
-      {canEditRoles}
+      {canManageUsers}
       onInviteClick={() => (showInviteDialog = true)}
-      onRoleChange={handleRoleChange}
       onRemoveUser={handleRemoveUserClick}
     />
   </div>

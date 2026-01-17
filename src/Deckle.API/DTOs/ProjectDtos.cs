@@ -16,8 +16,6 @@ public record UpdateProjectRequest(string Name, string? Description);
 
 public record InviteUserRequest(string Email, string Role);
 
-public record UpdateUserRoleRequest(string Role);
-
 public record ProjectUserDto
 {
     public required Guid UserId { get; init; }

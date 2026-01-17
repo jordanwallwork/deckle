@@ -47,3 +47,7 @@ export interface UpdateFileTagsRequest {
 export interface FileTagsResponse {
   tags: string[];
 }
+
+export interface RenameFileRequest {
+  newFileName: string;
+}

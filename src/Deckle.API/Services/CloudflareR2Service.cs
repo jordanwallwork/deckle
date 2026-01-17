@@ -28,13 +28,10 @@ public class CloudflareR2Service
         _options = options.Value;
         _logger = logger;
 
-        AWSConfigsS3.UseSignatureVersion4 = true;
-
         // Configure S3 client for R2
         var config = new AmazonS3Config
         {
             ServiceURL = $"https://{_options.AccountId}.r2.cloudflarestorage.com",
-            SignatureVersion = "v4",
             ForcePathStyle = true
         };
 
@@ -112,6 +109,33 @@ public class CloudflareR2Service
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to generate download URL for key: {StorageKey}", storageKey);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Copy a file within R2 (used for renaming)
+    /// </summary>
+    public async Task CopyFileAsync(string sourceStorageKey, string destinationStorageKey)
+    {
+        try
+        {
+            var copyRequest = new CopyObjectRequest
+            {
+                SourceBucket = _options.BucketName,
+                SourceKey = sourceStorageKey,
+                DestinationBucket = _options.BucketName,
+                DestinationKey = destinationStorageKey
+            };
+
+            await _s3Client.CopyObjectAsync(copyRequest);
+            _logger.LogInformation("Copied file in R2 from {SourceKey} to {DestinationKey}",
+                sourceStorageKey, destinationStorageKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to copy file in R2 from {SourceKey} to {DestinationKey}",
+                sourceStorageKey, destinationStorageKey);
             throw;
         }
     }

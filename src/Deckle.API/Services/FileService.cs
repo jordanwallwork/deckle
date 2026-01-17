@@ -105,7 +105,10 @@ public class FileService
             ValidateTags(tags);
         }
 
-        // 7. Create pending File record
+        // 7. Ensure unique filename by appending number if needed
+        fileName = await EnsureUniqueFileNameAsync(projectId, fileName);
+
+        // 8. Create pending File record
         var fileId = Guid.NewGuid();
         var storageKey = CloudflareR2Service.GenerateStorageKey(projectId, fileId, fileName);
 
@@ -126,7 +129,7 @@ public class FileService
         _context.Files.Add(file);
         await _context.SaveChangesAsync();
 
-        // 8. Generate presigned upload URL
+        // 9. Generate presigned upload URL
         var uploadUrl = _r2Service.GenerateUploadUrl(
             storageKey,
             contentType,
@@ -438,6 +441,103 @@ public class FileService
             .Distinct()
             .OrderBy(tag => tag)
             .ToList();
+    }
+
+    /// <summary>
+    /// Rename a file while preserving its extension
+    /// </summary>
+    public async Task<FileDto> RenameFileAsync(Guid userId, Guid fileId, string newFileName)
+    {
+        var file = await _context.Files
+            .Include(f => f.UploadedBy)
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed);
+
+        if (file == null)
+            throw new KeyNotFoundException("File not found");
+
+        // Authorization: User must have CanModifyResources permission
+        await _authService.EnsureCanModifyResourcesAsync(userId, file.ProjectId);
+
+        // Validate new filename
+        if (string.IsNullOrWhiteSpace(newFileName))
+            throw new ArgumentException("New filename cannot be empty");
+
+        // Preserve the original file extension
+        var originalExtension = Path.GetExtension(file.FileName);
+        var newFileNameWithoutExtension = Path.GetFileNameWithoutExtension(newFileName);
+
+        // Remove any extension from the provided new filename and add the original extension
+        var finalFileName = newFileNameWithoutExtension + originalExtension;
+
+        // Check if filename is actually changing
+        if (finalFileName.Equals(file.FileName, StringComparison.OrdinalIgnoreCase))
+        {
+            // No change needed, return current file
+            return MapToDto(file);
+        }
+
+        // Check if a file with the new name already exists in the project
+        var existingFile = await _context.Files
+            .FirstOrDefaultAsync(f =>
+                f.ProjectId == file.ProjectId &&
+                f.FileName == finalFileName &&
+                f.Id != fileId &&
+                f.Status == FileStatus.Confirmed);
+
+        if (existingFile != null)
+            throw new ArgumentException($"A file with the name '{finalFileName}' already exists in this project");
+
+        // Generate new storage key
+        var oldStorageKey = file.StorageKey;
+        var newStorageKey = CloudflareR2Service.GenerateStorageKey(file.ProjectId, file.Id, finalFileName);
+
+        // Copy file to new location in R2
+        await _r2Service.CopyFileAsync(oldStorageKey, newStorageKey);
+
+        // Delete old file from R2
+        await _r2Service.DeleteFileAsync(oldStorageKey);
+
+        // Update database record
+        file.FileName = finalFileName;
+        file.StorageKey = newStorageKey;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Renamed file {FileId} from '{OldFileName}' to '{NewFileName}' by user {UserId}",
+            fileId, Path.GetFileName(oldStorageKey), finalFileName, userId);
+
+        return MapToDto(file);
+    }
+
+    /// <summary>
+    /// Ensure unique filename by appending a number if a file with the same name exists
+    /// </summary>
+    private async Task<string> EnsureUniqueFileNameAsync(Guid projectId, string fileName)
+    {
+        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+        var extension = Path.GetExtension(fileName);
+        var uniqueFileName = fileName;
+        var counter = 1;
+
+        // Check if file exists and generate unique name if needed
+        while (await _context.Files.AnyAsync(f =>
+            f.ProjectId == projectId &&
+            f.FileName == uniqueFileName &&
+            f.Status == FileStatus.Confirmed))
+        {
+            uniqueFileName = $"{fileNameWithoutExtension} ({counter}){extension}";
+            counter++;
+        }
+
+        if (uniqueFileName != fileName)
+        {
+            _logger.LogInformation(
+                "Renamed file from '{OriginalFileName}' to '{UniqueFileName}' to ensure uniqueness in project {ProjectId}",
+                fileName, uniqueFileName, projectId);
+        }
+
+        return uniqueFileName;
     }
 
     /// <summary>

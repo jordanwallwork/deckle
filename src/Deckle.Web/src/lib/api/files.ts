@@ -6,6 +6,7 @@ import type {
   GenerateDownloadUrlResponse,
   UserStorageQuota,
   UpdateFileTagsRequest,
+  RenameFileRequest,
   FileTagsResponse
 } from '$lib/types';
 
@@ -57,6 +58,12 @@ export const filesApi = {
    */
   updateTags: (fileId: string, data: UpdateFileTagsRequest, fetchFn?: typeof fetch) =>
     api.patch<File>(`/files/${fileId}/tags`, data, undefined, fetchFn),
+
+  /**
+   * Rename a file while preserving its extension
+   */
+  rename: (fileId: string, data: RenameFileRequest, fetchFn?: typeof fetch) =>
+    api.patch<File>(`/files/${fileId}/rename`, data, undefined, fetchFn),
 
   /**
    * Generate a presigned URL for downloading a file

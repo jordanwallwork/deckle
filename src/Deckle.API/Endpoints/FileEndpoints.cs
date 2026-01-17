@@ -164,6 +164,44 @@ public static class FileEndpoints
         .WithName("UpdateFileTags")
         .WithDescription("Update tags for a file");
 
+        // Rename file
+        filesGroup.MapPatch("/{fileId:guid}/rename", async (
+            Guid fileId,
+            HttpContext httpContext,
+            FileService fileService,
+            ILogger<FileService> logger,
+            RenameFileRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+
+            try
+            {
+                var file = await fileService.RenameFileAsync(userId, fileId, request.NewFileName);
+                return Results.Ok(file);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Unauthorized();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to rename file {FileId}", fileId);
+                return Results.Problem(
+                    detail: "Failed to rename file. The file may have been moved or deleted.",
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+        })
+        .WithName("RenameFile")
+        .WithDescription("Rename a file while preserving its extension");
+
         // Delete file
         filesGroup.MapDelete("/{fileId:guid}", async (
             Guid fileId,

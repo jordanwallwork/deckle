@@ -27,14 +27,19 @@
   let editingTags = $state<string[]>([]);
   let availableTags = $state<string[]>([]);
   let savingTags = $state(false);
+  let editingFileName = $state<string>('');
+  let savingFileName = $state(false);
+  let fileNameError = $state<string | null>(null);
 
   async function openLightbox(file: File) {
     try {
       error = null;
+      fileNameError = null;
       const { downloadUrl } = await filesApi.generateDownloadUrl(file.id);
       lightboxImageUrl = downloadUrl;
       selectedFile = file;
       editingTags = [...file.tags];
+      editingFileName = file.fileName.substring(0, file.fileName.lastIndexOf('.')) || file.fileName;
       lightboxOpen = true;
 
       // Load available tags for autocomplete
@@ -58,7 +63,10 @@
     lightboxImageUrl = null;
     selectedFile = null;
     editingTags = [];
+    editingFileName = '';
     savingTags = false;
+    savingFileName = false;
+    fileNameError = null;
   }
 
   async function saveTags() {
@@ -85,6 +93,44 @@
       }
     } finally {
       savingTags = false;
+    }
+  }
+
+  async function saveFileName() {
+    if (!selectedFile) return;
+
+    savingFileName = true;
+    error = null;
+    fileNameError = null;
+
+    try {
+      const updatedFile = await filesApi.rename(selectedFile.id, {
+        newFileName: editingFileName
+      });
+
+      // Update selectedFile with new filename
+      selectedFile = updatedFile;
+      editingFileName = updatedFile.fileName.substring(0, updatedFile.fileName.lastIndexOf('.')) || updatedFile.fileName;
+
+      // Notify parent to refresh
+      onFileUpdated?.();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 400) {
+          // Validation error - show inline with input
+          fileNameError = err.message;
+        } else if (err.status === 404) {
+          error = 'File not found. It may have been deleted.';
+        } else if (err.status === 500) {
+          error = err.message || 'A server error occurred while renaming the file.';
+        } else {
+          error = err.message;
+        }
+      } else {
+        error = 'Failed to rename file';
+      }
+    } finally {
+      savingFileName = false;
     }
   }
 
@@ -267,6 +313,29 @@
             selectedFile.uploadedAt
           )} by {selectedFile.uploadedBy.name || selectedFile.uploadedBy.email}
         </p>
+
+        <div class="lightbox-filename-section">
+          <label for="lightbox-filename" class="filename-label">File Name</label>
+          <div class="filename-input-group" class:has-error={fileNameError}>
+            <input
+              id="lightbox-filename"
+              type="text"
+              class="filename-input"
+              class:invalid={fileNameError}
+              bind:value={editingFileName}
+              placeholder="Enter file name"
+            />
+            <span class="filename-extension">{selectedFile.fileName.substring(selectedFile.fileName.lastIndexOf('.'))}</span>
+          </div>
+          {#if fileNameError}
+            <div class="filename-error">{fileNameError}</div>
+          {/if}
+          <div class="filename-actions">
+            <Button variant="primary" size="sm" onclick={saveFileName} disabled={savingFileName}>
+              {savingFileName ? 'Saving...' : 'Rename'}
+            </Button>
+          </div>
+        </div>
 
         <div class="lightbox-tags-section">
           <label for="lightbox-tags" class="tags-label">Tags</label>
@@ -511,6 +580,65 @@
     margin: 0;
     color: var(--color-text-muted);
     font-size: 0.875rem;
+  }
+
+  .lightbox-filename-section {
+    margin-top: 1.5rem;
+    text-align: left;
+  }
+
+  .filename-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .filename-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .filename-input-group.has-error {
+    border-color: #e74c3c;
+  }
+
+  .filename-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    background: transparent;
+  }
+
+  .filename-input.invalid {
+    color: #e74c3c;
+  }
+
+  .filename-error {
+    margin-top: 0.5rem;
+    font-size: 0.8125rem;
+    color: #e74c3c;
+  }
+
+  .filename-extension {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  .filename-actions {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: flex-start;
   }
 
   .lightbox-tags-section {

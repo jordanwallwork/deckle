@@ -49,3 +49,7 @@ public record UpdateFileTagsRequest(
 public record FileTagsResponse(
     List<string> Tags
 );
+
+public record RenameFileRequest(
+    string NewFileName
+);

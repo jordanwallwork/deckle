@@ -152,7 +152,7 @@ public class DataSourceService
             return null;
         }
 
-        // Check user's role - Viewers cannot update data sources
+        // Check user's role
         var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId);
         if (role == null)
         {
@@ -201,7 +201,7 @@ public class DataSourceService
             userId,
             dataSource.ProjectId,
             ProjectAuthorizationService.CanModifyResources,
-            "Viewers do not have permission to sync data sources");
+            "User does not have permission to sync data sources");
 
         // Update metadata
         dataSource.Headers = headers;
@@ -237,7 +237,7 @@ public class DataSourceService
             return false;
         }
 
-        // Check user's role - Viewers cannot delete data sources
+        // Check user's role
         var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId);
         if (role == null)
         {

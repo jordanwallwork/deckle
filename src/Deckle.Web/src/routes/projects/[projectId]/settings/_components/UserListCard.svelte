@@ -7,7 +7,7 @@
     name?: string;
     email: string;
     pictureUrl?: string;
-    role: 'Owner' | 'Admin' | 'Collaborator' | 'Viewer';
+    role: 'Owner' | 'Collaborator';
     isPending: boolean;
   }
 
@@ -29,14 +29,12 @@
     onRemoveUser?: (userId: string, userName: string, role: string) => Promise<void>;
   } = $props();
 
-  const availableRoles = ['Admin', 'Collaborator', 'Viewer'];
+  const availableRoles = ['Collaborator'];
 
   function getRoleBadgeVariant(role: string): 'default' | 'success' | 'warning' | 'danger' {
     switch (role) {
       case 'Owner':
         return 'danger';
-      case 'Admin':
-        return 'warning';
       case 'Collaborator':
         return 'success';
       default:

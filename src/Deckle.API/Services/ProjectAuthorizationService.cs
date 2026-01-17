@@ -91,43 +91,43 @@ public class ProjectAuthorizationService
     #region Permission Predicates
 
     /// <summary>
-    /// Checks if the role has permission to modify project settings (Owner or Admin).
+    /// Checks if the role has permission to modify project settings (Owner only).
     /// </summary>
     public static bool CanModifyProject(ProjectRole role)
     {
-        return role is ProjectRole.Owner or ProjectRole.Admin;
+        return role == ProjectRole.Owner;
     }
 
     /// <summary>
-    /// Checks if the role has permission to create or update resources (not Viewer).
+    /// Checks if the role has permission to create or update resources (Owner and Collaborator).
     /// </summary>
     public static bool CanModifyResources(ProjectRole role)
     {
-        return role != ProjectRole.Viewer;
+        return true; // Both Owner and Collaborator can modify resources
     }
 
     /// <summary>
-    /// Checks if the role has permission to delete resources (Owner or Admin).
+    /// Checks if the role has permission to delete resources (Owner only).
     /// </summary>
     public static bool CanDeleteResources(ProjectRole role)
     {
-        return role is ProjectRole.Owner or ProjectRole.Admin;
+        return role == ProjectRole.Owner;
     }
 
     /// <summary>
-    /// Checks if the role has permission to manage data sources (Owner or Admin).
+    /// Checks if the role has permission to manage data sources (Owner only).
     /// </summary>
     public static bool CanManageDataSources(ProjectRole role)
     {
-        return role is ProjectRole.Owner or ProjectRole.Admin;
+        return role == ProjectRole.Owner;
     }
 
     /// <summary>
-    /// Checks if the role has permission to invite and manage users (Owner or Admin).
+    /// Checks if the role has permission to invite and manage users (Owner only).
     /// </summary>
     public static bool CanManageUsers(ProjectRole role)
     {
-        return role is ProjectRole.Owner or ProjectRole.Admin;
+        return role == ProjectRole.Owner;
     }
 
     /// <summary>
@@ -151,7 +151,7 @@ public class ProjectAuthorizationService
             userId,
             projectId,
             CanModifyResources,
-            "Viewers do not have permission to create or modify resources");
+            "User does not have permission to create or modify resources");
     }
 
     /// <summary>
@@ -163,7 +163,7 @@ public class ProjectAuthorizationService
             userId,
             projectId,
             CanDeleteResources,
-            "Only Owners and Admins can delete resources");
+            "Only the Owner can delete resources");
     }
 
     /// <summary>
@@ -175,7 +175,7 @@ public class ProjectAuthorizationService
             userId,
             projectId,
             CanManageDataSources,
-            "Only Owners and Admins can manage data sources");
+            "Only the Owner can manage data sources");
     }
 
     /// <summary>
@@ -187,7 +187,7 @@ public class ProjectAuthorizationService
             userId,
             projectId,
             CanModifyProject,
-            "Only Owners and Admins can modify project settings");
+            "Only the Owner can modify project settings");
     }
 
     /// <summary>
@@ -199,7 +199,7 @@ public class ProjectAuthorizationService
             userId,
             projectId,
             CanManageUsers,
-            "Only Owners and Admins can manage users");
+            "Only the Owner can manage users");
     }
 
     /// <summary>

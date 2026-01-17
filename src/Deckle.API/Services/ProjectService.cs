@@ -99,7 +99,7 @@ public class ProjectService
             return null;
         }
 
-        // Only Owner and Admin can update project details
+        // Only Owner can update project details
         if (!ProjectAuthorizationService.CanModifyProject(userProject.Role))
         {
             return null;
@@ -144,7 +144,7 @@ public class ProjectService
             })
             .ToListAsync();
 
-        // Order by role priority: Owner, Admin, Collaborator, Viewer
+        // Order by role priority: Owner, Collaborator
         users = users
             .OrderBy(u => GetRolePriority(u.Role))
             .ThenBy(u => u.Email)
@@ -159,7 +159,7 @@ public class ProjectService
         string email,
         string roleString)
     {
-        // 1. Verify user has Owner or Admin role on this project
+        // 1. Verify user has Owner role on this project
         var userProject = await _authService.GetUserProjectAsync(userId, projectId);
 
         if (userProject == null || !ProjectAuthorizationService.CanManageUsers(userProject.Role))
@@ -242,7 +242,7 @@ public class ProjectService
         Guid targetUserId,
         string roleString)
     {
-        // 1. Verify requesting user has Owner or Admin role on this project
+        // 1. Verify requesting user has Owner role on this project
         var requestingUserRole = await _authService.GetUserProjectRoleAsync(requestingUserId, projectId);
 
         if (requestingUserRole == null || !ProjectAuthorizationService.CanManageUsers(requestingUserRole.Value))
@@ -326,9 +326,7 @@ public class ProjectService
         if (isSelfRemoval)
         {
             // Self-removal rules:
-            // - Admin can remove themselves
             // - Collaborator can remove themselves
-            // - Viewer can remove themselves
             // - Owner CANNOT remove themselves if they are the last owner
 
             if (targetUserProject.Role == ProjectRole.Owner)
@@ -351,7 +349,7 @@ public class ProjectService
         }
         else
         {
-            // Removing another user - need Owner or Admin permission
+            // Removing another user - need Owner permission
             if (!ProjectAuthorizationService.CanManageUsers(requestingUserRole.Value))
             {
                 return false; // Not authorized to remove others
@@ -399,9 +397,7 @@ public class ProjectService
         return role switch
         {
             "Owner" => 0,
-            "Admin" => 1,
-            "Collaborator" => 2,
-            "Viewer" => 3,
+            "Collaborator" => 1,
             _ => 999 // Unknown roles go last
         };
     }

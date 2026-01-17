@@ -30,9 +30,9 @@
   let isRemovingUser = $state(false);
 
   const isOwner = $derived(data.project.role === 'Owner');
-  const canEditProject = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
-  const canInviteUsers = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
-  const canEditRoles = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
+  const canEditProject = $derived(data.project.role === 'Owner');
+  const canInviteUsers = $derived(data.project.role === 'Owner');
+  const canEditRoles = $derived(data.project.role === 'Owner');
   const currentUserId = $derived(data.user?.id);
 
   async function saveProjectDetails(name: string, description?: string) {
@@ -168,9 +168,7 @@
   title={userToRemove?.userId === currentUserId ? 'Leave Project' : 'Remove User'}
   message={userToRemove?.userId === currentUserId
     ? 'Are you sure you want to leave this project? You will lose access to all project data.'
-    : `Are you sure you want to remove ${userToRemove?.userName} from this project?${
-        userToRemove?.role === 'Admin' ? ' This user is an Admin and will lose all access.' : ''
-      }`}
+    : `Are you sure you want to remove ${userToRemove?.userName} from this project?`}
   confirmText={userToRemove?.userId === currentUserId ? 'Leave' : 'Remove'}
   cancelText="Cancel"
   confirmVariant="danger"

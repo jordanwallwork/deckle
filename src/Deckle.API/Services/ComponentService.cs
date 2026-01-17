@@ -154,7 +154,7 @@ public class ComponentService
             return false;
         }
 
-        // Check user's role - Only Owners and Admins can delete components
+        // Check user's role - Only Owner can delete components
         var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId);
         if (role == null || !ProjectAuthorizationService.CanDeleteResources(role.Value))
         {
@@ -370,7 +370,7 @@ public class ComponentService
     {
         if (component == null) return false;
 
-        // Check user's role - Only Owners and Admins can update data source links
+        // Check user's role - Only Owner can update data source links
         var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId);
         if (role == null || !ProjectAuthorizationService.CanManageDataSources(role.Value))
         {

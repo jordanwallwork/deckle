@@ -258,65 +258,10 @@ public class FileServiceTests
         Assert.Contains("contains invalid characters", exception.Message);
     }
 
-    [Fact]
-    public async Task RequestUploadUrlAsync_UserWithoutModifyPermission_ThrowsUnauthorizedException()
-    {
-        // Arrange
-        var userId = Guid.NewGuid();
-        var projectId = Guid.NewGuid();
-        var ownerId = Guid.NewGuid();
-
-        // Create owner
-        var owner = new User
-        {
-            Id = ownerId,
-            Email = "owner@example.com",
-            Name = "Owner",
-            StorageQuotaMb = 100,
-            StorageUsedBytes = 0
-        };
-        _context.Users.Add(owner);
-
-        // Create viewer user (no modify permission)
-        var viewer = new User
-        {
-            Id = userId,
-            Email = "viewer@example.com",
-            Name = "Viewer",
-            StorageQuotaMb = 100,
-            StorageUsedBytes = 0
-        };
-        _context.Users.Add(viewer);
-
-        var project = new Project
-        {
-            Id = projectId,
-            Name = "Test Project"
-        };
-        _context.Projects.Add(project);
-
-        _context.UserProjects.Add(new UserProject
-        {
-            UserId = ownerId,
-            ProjectId = projectId,
-            Role = ProjectRole.Owner
-        });
-
-        // Add user as Viewer (cannot modify resources)
-        _context.UserProjects.Add(new UserProject
-        {
-            UserId = userId,
-            ProjectId = projectId,
-            Role = ProjectRole.Viewer
-        });
-
-        await _context.SaveChangesAsync();
-
-        // Act & Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(
-            () => _fileService.RequestUploadUrlAsync(
-                userId, projectId, "test.jpg", "image/jpeg", 1024));
-    }
+    // Note: RequestUploadUrlAsync_UserWithoutModifyPermission test was removed because
+    // with the simplified role system (Owner/Collaborator), all project members can modify resources.
+    // The test for users without project access (RequestUploadUrlAsync_UserWithoutProjectAccess_ThrowsUnauthorizedException)
+    // still covers the unauthorized access scenario.
 
     #endregion
 

@@ -41,17 +41,6 @@ export const projectsApi = {
     api.post<ProjectUser>(`/projects/${id}/users/invite`, data, undefined, fetchFn),
 
   /**
-   * Update a user's role in a project
-   */
-  updateUserRole: (projectId: string, userId: string, role: string, fetchFn?: typeof fetch) =>
-    api.put<ProjectUser>(
-      `/projects/${projectId}/users/${userId}/role`,
-      { role },
-      undefined,
-      fetchFn
-    ),
-
-  /**
    * Remove a user from a project
    */
   removeUser: (projectId: string, userId: string, fetchFn?: typeof fetch) =>

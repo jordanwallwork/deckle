@@ -3,7 +3,6 @@
   import Button from '$lib/components/Button.svelte';
   import FormField from '$lib/components/forms/FormField.svelte';
   import Input from '$lib/components/forms/Input.svelte';
-  import Select from '$lib/components/forms/Select.svelte';
   import { projectsApi, ApiError } from '$lib/api';
   import { invalidateAll } from '$app/navigation';
 
@@ -18,21 +17,14 @@
   } = $props();
 
   let email = $state('');
-  let role = $state('Collaborator');
+  const role = 'Collaborator'; // Only Collaborator role is available for invites
   let isSubmitting = $state(false);
   let error = $state<string | undefined>(undefined);
-
-  const roleDescriptions = {
-    Admin: 'Can manage project settings, invite users, and delete components',
-    Collaborator: 'Can view, create, and edit components',
-    Viewer: 'Can only view components (read-only access)'
-  };
 
   $effect(() => {
     if (!show) {
       // Reset state when dialog closes
       email = '';
-      role = 'Collaborator';
       error = undefined;
     }
   });
@@ -100,18 +92,7 @@
         />
       </FormField>
 
-      <FormField label="Role" name="role" required>
-        <Select bind:value={role} id="role" disabled={isSubmitting}>
-          <option value="Admin">Admin</option>
-          <option value="Collaborator">Collaborator</option>
-          <option value="Viewer">Viewer</option>
-        </Select>
-      </FormField>
-
-      <div class="role-description">
-        <strong>{role}:</strong>
-        {roleDescriptions[role as keyof typeof roleDescriptions]}
-      </div>
+      <!-- Only Collaborator role is available for invites (Owner is the project creator) -->
     </form>
   {/snippet}
 
@@ -123,18 +104,3 @@
   {/snippet}
 </Dialog>
 
-<style>
-  .role-description {
-    padding: 0.75rem;
-    background: var(--color-background-secondary);
-    border-radius: 6px;
-    font-size: 0.875rem;
-    color: var(--color-text-secondary);
-    margin-top: -0.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .role-description strong {
-    color: var(--color-text);
-  }
-</style>

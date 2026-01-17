@@ -99,7 +99,7 @@ public class ProjectService
             return null;
         }
 
-        // Only Owner and Admin can update project details
+        // Only Owner can update project details
         if (!ProjectAuthorizationService.CanModifyProject(userProject.Role))
         {
             return null;
@@ -144,7 +144,7 @@ public class ProjectService
             })
             .ToListAsync();
 
-        // Order by role priority: Owner, Admin, Collaborator, Viewer
+        // Order by role priority: Owner, Collaborator
         users = users
             .OrderBy(u => GetRolePriority(u.Role))
             .ThenBy(u => u.Email)
@@ -159,7 +159,7 @@ public class ProjectService
         string email,
         string roleString)
     {
-        // 1. Verify user has Owner or Admin role on this project
+        // 1. Verify user has Owner role on this project
         var userProject = await _authService.GetUserProjectAsync(userId, projectId);
 
         if (userProject == null || !ProjectAuthorizationService.CanManageUsers(userProject.Role))
@@ -236,66 +236,6 @@ public class ProjectService
         }, userProject.User.Name ?? userProject.User.Email);
     }
 
-    public async Task<ProjectUserDto?> UpdateUserRoleAsync(
-        Guid requestingUserId,
-        Guid projectId,
-        Guid targetUserId,
-        string roleString)
-    {
-        // 1. Verify requesting user has Owner or Admin role on this project
-        var requestingUserRole = await _authService.GetUserProjectRoleAsync(requestingUserId, projectId);
-
-        if (requestingUserRole == null || !ProjectAuthorizationService.CanManageUsers(requestingUserRole.Value))
-        {
-            return null; // Unauthorized
-        }
-
-        // 2. Validate role
-        if (!Enum.TryParse<ProjectRole>(roleString, out var newRole))
-        {
-            throw new ArgumentException("Invalid role");
-        }
-
-        // 3. Cannot change to Owner role
-        if (newRole == ProjectRole.Owner)
-        {
-            throw new ArgumentException("Cannot assign Owner role");
-        }
-
-        // 4. Get the target user's project membership
-        var targetUserProject = await _dbContext.UserProjects
-            .Where(up => up.UserId == targetUserId && up.ProjectId == projectId)
-            .Include(up => up.User)
-            .FirstOrDefaultAsync();
-
-        if (targetUserProject == null)
-        {
-            return null; // User not found in project
-        }
-
-        // 5. Cannot change Owner's role
-        if (targetUserProject.Role == ProjectRole.Owner)
-        {
-            throw new InvalidOperationException("Cannot change the role of the project Owner");
-        }
-
-        // 6. Update the role
-        targetUserProject.Role = newRole;
-        await _dbContext.SaveChangesAsync();
-
-        // 7. Return updated user details
-        return new ProjectUserDto
-        {
-            UserId = targetUserProject.UserId,
-            Email = targetUserProject.User.Email,
-            Name = targetUserProject.User.Name,
-            PictureUrl = targetUserProject.User.PictureUrl,
-            Role = newRole.ToString(),
-            JoinedAt = targetUserProject.JoinedAt,
-            IsPending = targetUserProject.User.GoogleId == null
-        };
-    }
-
     public async Task<bool> RemoveUserFromProjectAsync(
         Guid requestingUserId,
         Guid projectId,
@@ -326,9 +266,7 @@ public class ProjectService
         if (isSelfRemoval)
         {
             // Self-removal rules:
-            // - Admin can remove themselves
             // - Collaborator can remove themselves
-            // - Viewer can remove themselves
             // - Owner CANNOT remove themselves if they are the last owner
 
             if (targetUserProject.Role == ProjectRole.Owner)
@@ -351,7 +289,7 @@ public class ProjectService
         }
         else
         {
-            // Removing another user - need Owner or Admin permission
+            // Removing another user - need Owner permission
             if (!ProjectAuthorizationService.CanManageUsers(requestingUserRole.Value))
             {
                 return false; // Not authorized to remove others
@@ -399,9 +337,7 @@ public class ProjectService
         return role switch
         {
             "Owner" => 0,
-            "Admin" => 1,
-            "Collaborator" => 2,
-            "Viewer" => 3,
+            "Collaborator" => 1,
             _ => 999 // Unknown roles go last
         };
     }

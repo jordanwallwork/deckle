@@ -25,20 +25,23 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package.json') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('docs/package.json') }}
 
       - name: Persist Eleventy .cache
         uses: actions/cache@v3
         with:
-          path: ./.cache
+          path: ./docs/.cache
           key: ${{ runner.os }}-eleventy-fetch-cache
 
       - run: npm install
+        working-directory: ./docs
+
       - run: npm run build-ghpages
+        working-directory: ./docs
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_site
+          publish_dir: ./docs/_site

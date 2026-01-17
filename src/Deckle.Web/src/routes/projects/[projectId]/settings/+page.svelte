@@ -30,9 +30,9 @@
   let isRemovingUser = $state(false);
 
   const isOwner = $derived(data.project.role === 'Owner');
-  const canEditProject = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
-  const canInviteUsers = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
-  const canEditRoles = $derived(data.project.role === 'Owner' || data.project.role === 'Admin');
+  const canEditProject = $derived(data.project.role === 'Owner');
+  const canInviteUsers = $derived(data.project.role === 'Owner');
+  const canManageUsers = $derived(data.project.role === 'Owner');
   const currentUserId = $derived(data.user?.id);
 
   async function saveProjectDetails(name: string, description?: string) {
@@ -41,21 +41,6 @@
       description
     });
     await invalidateAll();
-  }
-
-  async function handleRoleChange(userId: string, newRole: string) {
-    try {
-      await projectsApi.updateUserRole(data.project.id, userId, newRole);
-      await invalidateAll();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        console.error('Failed to update user role:', err.message);
-        alert(`Failed to update user role: ${err.message}`);
-      } else {
-        console.error('Failed to update user role:', err);
-        alert('Failed to update user role. Please try again.');
-      }
-    }
   }
 
   async function handleRemoveUserClick(userId: string, userName: string, role: string) {
@@ -138,9 +123,8 @@
       users={data.users}
       {currentUserId}
       canInvite={canInviteUsers}
-      {canEditRoles}
+      {canManageUsers}
       onInviteClick={() => (showInviteDialog = true)}
-      onRoleChange={handleRoleChange}
       onRemoveUser={handleRemoveUserClick}
     />
   </div>
@@ -168,9 +152,7 @@
   title={userToRemove?.userId === currentUserId ? 'Leave Project' : 'Remove User'}
   message={userToRemove?.userId === currentUserId
     ? 'Are you sure you want to leave this project? You will lose access to all project data.'
-    : `Are you sure you want to remove ${userToRemove?.userName} from this project?${
-        userToRemove?.role === 'Admin' ? ' This user is an Admin and will lose all access.' : ''
-      }`}
+    : `Are you sure you want to remove ${userToRemove?.userName} from this project?`}
   confirmText={userToRemove?.userId === currentUserId ? 'Leave' : 'Remove'}
   cancelText="Cancel"
   confirmVariant="danger"

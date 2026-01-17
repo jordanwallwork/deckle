@@ -1,52 +1,39 @@
 <script lang="ts">
   import { Card, Badge, Button } from '$lib/components';
-  import { Select } from '$lib/components/forms';
 
   interface User {
     userId: string;
     name?: string;
     email: string;
     pictureUrl?: string;
-    role: 'Owner' | 'Admin' | 'Collaborator' | 'Viewer';
+    role: 'Owner' | 'Collaborator';
     isPending: boolean;
   }
 
   let {
     users,
     canInvite = false,
-    canEditRoles = false,
+    canManageUsers = false,
     currentUserId,
     onInviteClick,
-    onRoleChange,
     onRemoveUser
   }: {
     users: User[];
     canInvite?: boolean;
-    canEditRoles?: boolean;
+    canManageUsers?: boolean;
     currentUserId?: string;
     onInviteClick?: () => void;
-    onRoleChange?: (userId: string, newRole: string) => Promise<void>;
     onRemoveUser?: (userId: string, userName: string, role: string) => Promise<void>;
   } = $props();
-
-  const availableRoles = ['Admin', 'Collaborator', 'Viewer'];
 
   function getRoleBadgeVariant(role: string): 'default' | 'success' | 'warning' | 'danger' {
     switch (role) {
       case 'Owner':
         return 'danger';
-      case 'Admin':
-        return 'warning';
       case 'Collaborator':
         return 'success';
       default:
         return 'default';
-    }
-  }
-
-  async function handleRoleChange(user: User, newRole: string) {
-    if (onRoleChange && newRole !== user.role) {
-      await onRoleChange(user.userId, newRole);
     }
   }
 
@@ -64,7 +51,7 @@
     }
 
     // Can remove others if we have permission
-    return canEditRoles;
+    return canManageUsers;
   }
 
   function getRevokeButtonText(user: User): string {
@@ -99,18 +86,7 @@
           </div>
         </div>
         <div class="badges">
-          {#if canEditRoles && user.role !== 'Owner'}
-            <Select
-              value={user.role}
-              onchange={(e) => handleRoleChange(user, e.currentTarget.value)}
-            >
-              {#each availableRoles as role}
-                <option value={role}>{role}</option>
-              {/each}
-            </Select>
-          {:else}
-            <Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge>
-          {/if}
+          <Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge>
           {#if user.isPending}
             <Badge variant="default">Pending</Badge>
           {/if}

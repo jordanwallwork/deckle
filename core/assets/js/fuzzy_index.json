@@ -1,66 +1,66 @@
 [
         {
-            "url": "/deckle/development/",
+            "url": "/development/",
             "title": "Local Hosting / Development",
             "description": "Guidance for running Deckle locally and contributing "
         },
         {
-            "url": "/deckle/development/authentication-setup/",
+            "url": "/development/authentication-setup/",
             "title": "Authentication Setup",
             "description": " "
         },
         {
-            "url": "/deckle/development/railway-deployment/",
+            "url": "/development/railway-deployment/",
             "title": "Railway Deployment Guide",
             "description": " "
         },
         {
-            "url": "/deckle/development/railway-configuration/",
+            "url": "/development/railway-configuration/",
             "title": "Railway Configuration",
             "description": " "
         },
         {
-            "url": "/deckle/development/user-secrets/",
+            "url": "/development/user-secrets/",
             "title": "Local User Secrets",
             "description": " "
         },
         {
-            "url": "/deckle/user-guide/",
+            "url": "/user-guide/",
             "title": "User Guide",
             "description": "Introduction to Deckle features and how to use them "
         },
         {
-            "url": "/deckle/user-guide/components/",
+            "url": "/user-guide/components/",
             "title": "Components",
             "description": " "
         },
         {
-            "url": "/deckle/data-sources/",
+            "url": "/data-sources/",
             "title": "Data Sources",
             "description": " "
         },
         {
-            "url": "/deckle/image-library/",
+            "url": "/image-library/",
             "title": "Image Library",
             "description": " "
         },
         {
-            "url": "/deckle/core/assets/fonts/icomoon/demo/",
+            "url": "/core/assets/fonts/icomoon/demo/",
             "title": "./core/assets/fonts/icomoon/demo.html",
             "description": " "
         },
         {
-            "url": "/deckle/tags/",
+            "url": "/tags/",
             "title": "./core/libdoc_tags.liquid",
             "description": " "
         },
         {
-            "url": "/deckle/user-guide/getting-started/",
+            "url": "/user-guide/getting-started/",
             "title": "Getting Started",
             "description": " "
         },
         {
-            "url": "/deckle/",
+            "url": "/",
             "title": "Welcome to Deckle Docs",
             "description": " "
         }

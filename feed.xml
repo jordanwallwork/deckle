@@ -3,9 +3,9 @@
     <title>Deckle</title>
     <subtitle>Deckle documentation</subtitle>
     <link href="feed.xml" rel="self" />
-    <link href="https://app.deckle.games/feed.xml" />
-    <updated>2026-01-17T02:26:06Z</updated>
-    <id>https://app.deckle.games/feed.xml</id>
+    <link href="https://docs.deckle.games/feed.xml" />
+    <updated>2026-01-17T02:36:18Z</updated>
+    <id>https://docs.deckle.games/feed.xml</id>
     <author>
         <name>11ty LibDoc</name>
     </author>

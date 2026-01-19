@@ -1,4 +1,5 @@
 using Deckle.API.DTOs;
+using Deckle.API.Exceptions;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -318,10 +319,17 @@ public class FileDirectoryService
     /// <summary>
     /// Move a directory to a new parent
     /// </summary>
+    /// <param name="userId">The user performing the operation</param>
+    /// <param name="directoryId">The directory to move</param>
+    /// <param name="newParentDirectoryId">The new parent directory (null for root)</param>
+    /// <param name="merge">If true and a directory with the same name exists, merge contents; otherwise throw conflict</param>
+    /// <returns>The moved or merged directory DTO</returns>
+    /// <exception cref="DirectoryConflictException">Thrown when merge=false and a directory with the same name exists</exception>
     public async Task<FileDirectoryDto> MoveDirectoryAsync(
         Guid userId,
         Guid directoryId,
-        Guid? newParentDirectoryId)
+        Guid? newParentDirectoryId,
+        bool merge = false)
     {
         var directory = await _context.FileDirectories
             .FirstOrDefaultAsync(d => d.Id == directoryId);
@@ -359,7 +367,22 @@ public class FileDirectoryService
                 d.Id != directoryId);
 
         if (existingDirectory != null)
-            throw new ArgumentException($"A directory named '{directory.Name}' already exists in the destination");
+        {
+            if (!merge)
+            {
+                // Return conflict information so the client can ask the user
+                throw new DirectoryConflictException(new DirectoryMoveConflictDto(
+                    directory.Id,
+                    directory.Name,
+                    existingDirectory.Id,
+                    existingDirectory.Name,
+                    $"A directory named '{directory.Name}' already exists in the destination. Would you like to merge the contents?"
+                ));
+            }
+
+            // Merge the directories
+            return await MergeDirectoriesAsync(userId, directory, existingDirectory);
+        }
 
         // Get old path before moving
         var oldPath = await GetDirectoryFullPathAsync(directory);
@@ -380,6 +403,90 @@ public class FileDirectoryService
             directoryId, newParentDirectoryId?.ToString() ?? "root", userId);
 
         return MapToDto(directory);
+    }
+
+    /// <summary>
+    /// Merge the contents of the source directory into the target directory
+    /// </summary>
+    private async Task<FileDirectoryDto> MergeDirectoriesAsync(
+        Guid userId,
+        FileDirectory sourceDirectory,
+        FileDirectory targetDirectory)
+    {
+        _logger.LogInformation(
+            "Merging directory {SourceId} ('{SourceName}') into {TargetId} ('{TargetName}') by user {UserId}",
+            sourceDirectory.Id, sourceDirectory.Name, targetDirectory.Id, targetDirectory.Name, userId);
+
+        // Get the target directory's full path for file path updates
+        var targetPath = await GetDirectoryFullPathAsync(targetDirectory);
+
+        // Move all files from source to target
+        var sourceFiles = await _context.Files
+            .Where(f => f.DirectoryId == sourceDirectory.Id && f.Status == FileStatus.Confirmed)
+            .ToListAsync();
+
+        foreach (var file in sourceFiles)
+        {
+            // Check for filename conflicts in the target directory
+            var existingFile = await _context.Files
+                .FirstOrDefaultAsync(f =>
+                    f.DirectoryId == targetDirectory.Id &&
+                    f.FileName == file.FileName &&
+                    f.Status == FileStatus.Confirmed);
+
+            if (existingFile != null)
+            {
+                // Rename the file to avoid conflict (append timestamp)
+                var extension = System.IO.Path.GetExtension(file.FileName);
+                var nameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(file.FileName);
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+                file.FileName = $"{nameWithoutExtension}_{timestamp}{extension}";
+            }
+
+            file.DirectoryId = targetDirectory.Id;
+            file.Path = string.IsNullOrEmpty(targetPath) ? file.FileName : $"{targetPath}/{file.FileName}";
+        }
+
+        // Recursively handle subdirectories
+        var sourceSubdirectories = await _context.FileDirectories
+            .Where(d => d.ParentDirectoryId == sourceDirectory.Id)
+            .ToListAsync();
+
+        foreach (var sourceSubdir in sourceSubdirectories)
+        {
+            // Check if a directory with the same name exists in the target
+            var existingSubdir = await _context.FileDirectories
+                .FirstOrDefaultAsync(d =>
+                    d.ParentDirectoryId == targetDirectory.Id &&
+                    d.Name == sourceSubdir.Name);
+
+            if (existingSubdir != null)
+            {
+                // Recursively merge the subdirectories
+                await MergeDirectoriesAsync(userId, sourceSubdir, existingSubdir);
+            }
+            else
+            {
+                // Move the subdirectory to the target
+                var oldPath = await GetDirectoryFullPathAsync(sourceSubdir);
+                sourceSubdir.ParentDirectoryId = targetDirectory.Id;
+                sourceSubdir.UpdatedAt = DateTime.UtcNow;
+                var newPath = await GetDirectoryFullPathAsync(sourceSubdir);
+                await UpdateFilePathsInDirectoryTreeAsync(sourceSubdir.Id, oldPath, newPath);
+            }
+        }
+
+        // Delete the now-empty source directory
+        _context.FileDirectories.Remove(sourceDirectory);
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Completed merge of directory {SourceId} into {TargetId}. Source directory deleted.",
+            sourceDirectory.Id, targetDirectory.Id);
+
+        // Return the target directory (which now contains the merged contents)
+        return MapToDto(targetDirectory);
     }
 
     /// <summary>

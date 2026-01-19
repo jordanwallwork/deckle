@@ -85,4 +85,13 @@ export interface RenameFileDirectoryRequest {
 
 export interface MoveFileDirectoryRequest {
   parentDirectoryId: string | null;
+  merge?: boolean;
+}
+
+export interface DirectoryMoveConflict {
+  sourceDirectoryId: string;
+  sourceDirectoryName: string;
+  conflictingDirectoryId: string;
+  conflictingDirectoryName: string;
+  message: string;
 }

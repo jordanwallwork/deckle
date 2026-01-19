@@ -12,8 +12,11 @@ import type {
   FileTagsResponse,
   CreateFileDirectoryRequest,
   RenameFileDirectoryRequest,
-  MoveFileDirectoryRequest
+  MoveFileDirectoryRequest,
+  DirectoryMoveConflict
 } from '$lib/types';
+
+export type { DirectoryMoveConflict };
 
 /**
  * Files API

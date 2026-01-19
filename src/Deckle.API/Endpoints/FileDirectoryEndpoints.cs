@@ -1,4 +1,5 @@
 using Deckle.API.DTOs;
+using Deckle.API.Exceptions;
 using Deckle.API.Filters;
 using Deckle.API.Services;
 
@@ -166,8 +167,16 @@ public static class FileDirectoryEndpoints
 
             try
             {
-                var directory = await directoryService.MoveDirectoryAsync(userId, directoryId, request.ParentDirectoryId);
+                var directory = await directoryService.MoveDirectoryAsync(
+                    userId,
+                    directoryId,
+                    request.ParentDirectoryId,
+                    request.Merge);
                 return Results.Ok(directory);
+            }
+            catch (DirectoryConflictException ex)
+            {
+                return Results.Conflict(ex.Conflict);
             }
             catch (KeyNotFoundException ex)
             {
@@ -183,7 +192,7 @@ public static class FileDirectoryEndpoints
             }
         })
         .WithName("MoveFileDirectory")
-        .WithDescription("Move a directory to a new parent (or to root if ParentDirectoryId is null)");
+        .WithDescription("Move a directory to a new parent (or to root if ParentDirectoryId is null). Set Merge=true to merge contents when a directory with the same name exists.");
 
         // Delete directory
         directoriesGroup.MapDelete("/{directoryId:guid}", async (

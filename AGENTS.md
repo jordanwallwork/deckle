@@ -65,7 +65,7 @@ When creating a new .NET project:
    - Address all warnings before committing
    - Do not suppress warnings without good reason
 
-3. **Tests Pass**: All tests must pass (when tests are present)
+3. **Tests Written + Passing**: Write unit tests to cover new/changed functionality. All tests must pass (when tests are present)
    ```bash
    dotnet test
    ```

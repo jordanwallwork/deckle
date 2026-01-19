@@ -30,5 +30,17 @@ public record RenameFileDirectoryRequest(
 );
 
 public record MoveFileDirectoryRequest(
-    Guid? ParentDirectoryId
+    Guid? ParentDirectoryId,
+    bool Merge = false
+);
+
+/// <summary>
+/// Response returned when a directory move would cause a name conflict
+/// </summary>
+public record DirectoryMoveConflictDto(
+    Guid SourceDirectoryId,
+    string SourceDirectoryName,
+    Guid ConflictingDirectoryId,
+    string ConflictingDirectoryName,
+    string Message
 );

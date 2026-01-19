@@ -3,6 +3,7 @@
   import type { PageData } from './$types';
   import { goto, invalidateAll } from '$app/navigation';
   import { filesApi, directoriesApi, ApiError } from '$lib/api';
+  import type { DirectoryMoveConflict } from '$lib/api';
   import FileUpload from '$lib/components/FileUpload.svelte';
   import FileGallery from '$lib/components/FileGallery.svelte';
   import FolderRow from '$lib/components/FolderRow.svelte';
@@ -26,6 +27,12 @@
   let deleteFolderConfirmOpen = $state(false);
   let folderToDelete = $state<{ id: string; name: string } | null>(null);
   let deletingFolder = $state(false);
+
+  // Merge folder confirmation
+  let mergeConfirmOpen = $state(false);
+  let mergeConflict = $state<DirectoryMoveConflict | null>(null);
+  let pendingMergeTarget = $state<string | null>(null);
+  let mergingFolder = $state(false);
 
   // Page-wide drag-and-drop state
   let isDraggingOverPage = $state(false);
@@ -206,7 +213,14 @@
       }
       await invalidateAll();
     } catch (err) {
-      console.error('Failed to move item:', err);
+      if (err instanceof ApiError && err.status === 409 && dragData.type === 'folder') {
+        // Conflict - directory with same name exists, prompt for merge
+        mergeConflict = err.response as DirectoryMoveConflict;
+        pendingMergeTarget = targetFolderId;
+        mergeConfirmOpen = true;
+      } else {
+        console.error('Failed to move item:', err);
+      }
     }
   }
 
@@ -220,7 +234,14 @@
       }
       await invalidateAll();
     } catch (err) {
-      console.error('Failed to move item to root:', err);
+      if (err instanceof ApiError && err.status === 409 && dragData.type === 'folder') {
+        // Conflict - directory with same name exists at root, prompt for merge
+        mergeConflict = err.response as DirectoryMoveConflict;
+        pendingMergeTarget = null;
+        mergeConfirmOpen = true;
+      } else {
+        console.error('Failed to move item to root:', err);
+      }
     }
   }
 
@@ -235,8 +256,43 @@
       }
       await invalidateAll();
     } catch (err) {
-      console.error('Failed to move item to parent:', err);
+      if (err instanceof ApiError && err.status === 409 && dragData.type === 'folder') {
+        // Conflict - directory with same name exists in parent, prompt for merge
+        mergeConflict = err.response as DirectoryMoveConflict;
+        pendingMergeTarget = parentId;
+        mergeConfirmOpen = true;
+      } else {
+        console.error('Failed to move item to parent:', err);
+      }
     }
+  }
+
+  // Handle merge confirmation
+  async function handleMergeConfirm() {
+    if (!mergeConflict) return;
+
+    mergingFolder = true;
+    try {
+      await directoriesApi.move(mergeConflict.sourceDirectoryId, {
+        parentDirectoryId: pendingMergeTarget,
+        merge: true
+      });
+      mergeConfirmOpen = false;
+      mergeConflict = null;
+      pendingMergeTarget = null;
+      await invalidateAll();
+    } catch (err) {
+      console.error('Failed to merge folders:', err);
+    } finally {
+      mergingFolder = false;
+    }
+  }
+
+  // Handle merge cancellation
+  function handleMergeCancel() {
+    mergeConfirmOpen = false;
+    mergeConflict = null;
+    pendingMergeTarget = null;
   }
 
   // Root drop zone handlers
@@ -538,6 +594,16 @@
     deleteFolderConfirmOpen = false;
     folderToDelete = null;
   }}
+/>
+
+<ConfirmDialog
+  show={mergeConfirmOpen}
+  title="Merge Folders"
+  message={mergeConflict?.message ?? ''}
+  confirmText={mergingFolder ? 'Merging...' : 'Merge'}
+  cancelText="Cancel"
+  onconfirm={handleMergeConfirm}
+  oncancel={handleMergeCancel}
 />
 
 <style>

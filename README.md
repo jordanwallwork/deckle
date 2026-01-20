@@ -4,6 +4,8 @@ A modern tool for designing and managing tabletop game components. Create cards,
 
 **-- Note: Very much a work in progress! --**
 
+Docs: [docs.deckle.games](https://docs.deckle.games)
+
 ## What is Deckle?
 
 Deckle helps board game designers and hobbyists create game components quickly and easily. Whether you're prototyping a new game or preparing files for print-on-demand services, Deckle streamlines the design process.

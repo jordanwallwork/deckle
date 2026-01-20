@@ -10,14 +10,15 @@
 
   // Determine if we should show the dashboard layout (topbar)
   const isAuthPage = $derived($page.url.pathname === '/' && !data.user);
+  const isSetupPage = $derived($page.url.pathname === '/account/setup');
 </script>
 
 <svelte:head>
   <link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if isAuthPage}
-  <!-- Landing page layout (no topbar) -->
+{#if isAuthPage || isSetupPage}
+  <!-- Landing page or setup page layout (no topbar) -->
   <main class="landing-content">
     {@render children()}
   </main>

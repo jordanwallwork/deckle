@@ -17,6 +17,12 @@ export const projectsApi = {
     api.get<Project>(`/projects/${id}`, undefined, fetchFn),
 
   /**
+   * Get a single project by owner username and project code
+   */
+  getByUsernameAndCode: (username: string, code: string, fetchFn?: typeof fetch) =>
+    api.get<Project>(`/projects/${username}/${code}`, undefined, fetchFn),
+
+  /**
    * Create a new project
    */
   create: (data: CreateProjectDto, fetchFn?: typeof fetch) =>

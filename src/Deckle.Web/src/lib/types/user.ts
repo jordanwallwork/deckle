@@ -18,6 +18,23 @@ export interface User {
 export interface CurrentUser {
   id?: string;
   email?: string;
+  username?: string;
   name?: string;
   picture?: string;
+}
+
+// Username availability response
+export interface UsernameAvailabilityResponse {
+  available: boolean;
+  error?: string;
+}
+
+// Set username request
+export interface SetUsernameRequest {
+  username: string;
+}
+
+// Set username response
+export interface SetUsernameResponse {
+  username: string;
 }

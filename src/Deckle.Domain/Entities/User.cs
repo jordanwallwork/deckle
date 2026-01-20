@@ -8,6 +8,8 @@ public class User
 
     public string Email { get; set; } = string.Empty;
 
+    public string? Username { get; set; }
+
     public string? Name { get; set; }
 
     public string? GivenName { get; set; }

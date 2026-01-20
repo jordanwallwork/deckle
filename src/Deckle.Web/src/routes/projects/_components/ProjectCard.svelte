@@ -9,7 +9,7 @@
   } = $props();
 </script>
 
-<Card href="/projects/{project.id}">
+<Card href="/projects/{project.ownerUsername}/{project.code}">
   <div class="project-header">
     <h2>{project.name}</h2>
     <Badge variant="default">{project.role}</Badge>

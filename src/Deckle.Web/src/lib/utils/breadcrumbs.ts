@@ -1,8 +1,12 @@
 import type { Component, Project, GameComponent } from '$lib/types';
 import type { BreadcrumbItem } from '$lib/types/breadcrumb';
 
-type ProjectIdName = Project | { id: string; name: string };
+type ProjectIdName = Project | { id: string; name: string; ownerUsername: string; code: string };
 type ComponentIdName = Component | { id: string; name: string };
+
+function getProjectUrl(project: ProjectIdName): string {
+  return `/projects/${project.ownerUsername}/${project.code}`;
+}
 
 function extend(breadcrumbs: BreadcrumbItem[], additions: BreadcrumbItem[]): BreadcrumbItem[] {
   return [...breadcrumbs.map((x) => ({ ...x, isActive: false })), ...additions];
@@ -11,19 +15,19 @@ function extend(breadcrumbs: BreadcrumbItem[], additions: BreadcrumbItem[]): Bre
 export function buildProjectBreadcrumbs(project: ProjectIdName): BreadcrumbItem[] {
   return [
     { label: 'Projects', href: '/projects' },
-    { label: project.name, href: `/projects/${project.id}`, isActive: true }
+    { label: project.name, href: getProjectUrl(project), isActive: true }
   ];
 }
 
 export function buildComponentsBreadcrumbs(project: ProjectIdName): BreadcrumbItem[] {
   return extend(buildProjectBreadcrumbs(project), [
-    { label: 'Components', href: `/projects/${project.id}/components`, isActive: true }
+    { label: 'Components', href: `${getProjectUrl(project)}/components`, isActive: true }
   ]);
 }
 
 export function buildSettingsBreadcrumbs(project: ProjectIdName): BreadcrumbItem[] {
   return extend(buildProjectBreadcrumbs(project), [
-    { label: 'Settings', href: `/projects/${project.id}/settings`, isActive: true }
+    { label: 'Settings', href: `${getProjectUrl(project)}/settings`, isActive: true }
   ]);
 }
 
@@ -32,10 +36,11 @@ export function buildEditorBreadcrumbs(
   component: GameComponent,
   part?: string
 ): BreadcrumbItem[] {
+  const projectUrl = getProjectUrl(project);
   const breadcrumbs: BreadcrumbItem[] = [
     {
       label: component.name,
-      href: `/projects/${project.id}/components/${component.id}/front`,
+      href: `${projectUrl}/components/${component.id}/front`,
       isActive: !part
     }
   ];
@@ -43,7 +48,7 @@ export function buildEditorBreadcrumbs(
   if (part) {
     const partItem: BreadcrumbItem = {
       label: part,
-      href: `/projects/${project.id}/components/${component.id}/${part.toLowerCase()}`,
+      href: `${projectUrl}/components/${component.id}/${part.toLowerCase()}`,
       isActive: true
     };
 
@@ -53,12 +58,12 @@ export function buildEditorBreadcrumbs(
         {
           label: 'Front',
           value: 'front',
-          href: `/projects/${project.id}/components/${component.id}/front`
+          href: `${projectUrl}/components/${component.id}/front`
         },
         {
           label: 'Back',
           value: 'back',
-          href: `/projects/${project.id}/components/${component.id}/back`
+          href: `${projectUrl}/components/${component.id}/back`
         }
       ];
     }
@@ -70,14 +75,15 @@ export function buildEditorBreadcrumbs(
 }
 
 export function buildComponentExportBreadcrumbs(project: ProjectIdName, component: GameComponent) {
+  const projectUrl = getProjectUrl(project);
   return extend(buildComponentsBreadcrumbs(project), [
     {
       label: component.name,
-      href: `/projects/${project.id}/components/${component.id}/front`
+      href: `${projectUrl}/components/${component.id}/front`
     },
     {
       label: 'Export',
-      href: `/projects/${project.id}/components/${component.id}/export`,
+      href: `${projectUrl}/components/${component.id}/export`,
       isActive: true
     }
   ]);
@@ -85,7 +91,7 @@ export function buildComponentExportBreadcrumbs(project: ProjectIdName, componen
 
 export function buildDataSourcesBreadcrumbs(project: ProjectIdName): BreadcrumbItem[] {
   return extend(buildProjectBreadcrumbs(project), [
-    { label: 'Data Sources', href: `/projects/${project.id}/data-sources`, isActive: true }
+    { label: 'Data Sources', href: `${getProjectUrl(project)}/data-sources`, isActive: true }
   ]);
 }
 
@@ -97,7 +103,7 @@ export function buildDataSourceBreadcrumbs(
   return extend(buildProjectBreadcrumbs(project), [
     {
       label: dataSourceName,
-      href: `/projects/${project.id}/data-sources/${dataSourceId}`,
+      href: `${getProjectUrl(project)}/data-sources/${dataSourceId}`,
       isActive: true
     }
   ]);

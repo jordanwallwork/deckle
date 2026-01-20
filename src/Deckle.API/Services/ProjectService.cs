@@ -1,4 +1,6 @@
+using System.Text.RegularExpressions;
 using Deckle.API.DTOs;
+using Deckle.API.Exceptions;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -25,10 +27,15 @@ public class ProjectService
             {
                 Id = up.Project.Id,
                 Name = up.Project.Name,
+                Code = up.Project.Code,
                 Description = up.Project.Description,
                 CreatedAt = up.Project.CreatedAt,
                 UpdatedAt = up.Project.UpdatedAt,
-                Role = up.Role.ToString()
+                Role = up.Role.ToString(),
+                OwnerUsername = _dbContext.UserProjects
+                    .Where(ownerUp => ownerUp.ProjectId == up.ProjectId && ownerUp.Role == ProjectRole.Owner)
+                    .Select(ownerUp => ownerUp.User.Username!)
+                    .FirstOrDefault() ?? ""
             })
             .ToListAsync();
 
@@ -44,22 +51,113 @@ public class ProjectService
             {
                 Id = up.Project.Id,
                 Name = up.Project.Name,
+                Code = up.Project.Code,
                 Description = up.Project.Description,
                 CreatedAt = up.Project.CreatedAt,
                 UpdatedAt = up.Project.UpdatedAt,
-                Role = up.Role.ToString()
+                Role = up.Role.ToString(),
+                OwnerUsername = _dbContext.UserProjects
+                    .Where(ownerUp => ownerUp.ProjectId == up.ProjectId && ownerUp.Role == ProjectRole.Owner)
+                    .Select(ownerUp => ownerUp.User.Username!)
+                    .FirstOrDefault() ?? ""
             })
             .FirstOrDefaultAsync();
 
         return project;
     }
 
-    public async Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string? description)
+    public async Task<ProjectDto?> GetProjectByUsernameAndCodeAsync(Guid requestingUserId, string ownerUsername, string projectCode)
     {
+        // Find the project by owner username and code
+        var project = await _dbContext.UserProjects
+            .Where(up => up.Role == ProjectRole.Owner && up.User.Username == ownerUsername && up.Project.Code == projectCode)
+            .Select(up => up.Project)
+            .FirstOrDefaultAsync();
+
+        if (project == null)
+        {
+            return null;
+        }
+
+        // Check if the requesting user has access to this project
+        var userProject = await _dbContext.UserProjects
+            .Where(up => up.UserId == requestingUserId && up.ProjectId == project.Id)
+            .FirstOrDefaultAsync();
+
+        if (userProject == null)
+        {
+            return null;
+        }
+
+        return new ProjectDto
+        {
+            Id = project.Id,
+            Name = project.Name,
+            Code = project.Code,
+            Description = project.Description,
+            CreatedAt = project.CreatedAt,
+            UpdatedAt = project.UpdatedAt,
+            Role = userProject.Role.ToString(),
+            OwnerUsername = ownerUsername
+        };
+    }
+
+    private static readonly Regex ProjectCodePattern = new("^[a-z0-9-]+$", RegexOptions.Compiled);
+
+    public async Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string code, string? description)
+    {
+        var validationErrors = new ValidationErrorBuilder();
+
+        // Validate name
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            validationErrors.AddError("name", "Project name is required");
+        }
+        else if (name.Length > 100)
+        {
+            validationErrors.AddError("name", "Project name must be 100 characters or less");
+        }
+
+        // Validate code format
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            validationErrors.AddError("code", "Project code is required");
+        }
+        else if (!ProjectCodePattern.IsMatch(code))
+        {
+            validationErrors.AddError("code", "Project code can only contain lowercase letters, numbers, and dashes");
+        }
+        else if (code.Length > 50)
+        {
+            validationErrors.AddError("code", "Project code must be 50 characters or less");
+        }
+        else
+        {
+            // Only check uniqueness if format is valid
+            var codeExists = await _dbContext.UserProjects
+                .Where(up => up.UserId == userId && up.Role == ProjectRole.Owner)
+                .AnyAsync(up => up.Project.Code == code);
+
+            if (codeExists)
+            {
+                validationErrors.AddError("code", "You already have a project with this code");
+            }
+        }
+
+        if (validationErrors.HasErrors)
+        {
+            throw ValidationException.FromBuilder(validationErrors);
+        }
+
+        // Get the user's username (they will be the owner)
+        var user = await _dbContext.Users.FindAsync(userId);
+        var ownerUsername = user?.Username ?? "";
+
         var project = new Project
         {
             Id = Guid.NewGuid(),
             Name = name,
+            Code = code,
             Description = description,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -83,10 +181,12 @@ public class ProjectService
         {
             Id = project.Id,
             Name = project.Name,
+            Code = project.Code,
             Description = project.Description,
             CreatedAt = project.CreatedAt,
             UpdatedAt = project.UpdatedAt,
-            Role = userProject.Role.ToString()
+            Role = userProject.Role.ToString(),
+            OwnerUsername = ownerUsername
         };
     }
 
@@ -111,14 +211,22 @@ public class ProjectService
 
         await _dbContext.SaveChangesAsync();
 
+        // Get the owner's username
+        var ownerUsername = await _dbContext.UserProjects
+            .Where(up => up.ProjectId == projectId && up.Role == ProjectRole.Owner)
+            .Select(up => up.User.Username!)
+            .FirstOrDefaultAsync() ?? "";
+
         return new ProjectDto
         {
             Id = userProject.Project.Id,
             Name = userProject.Project.Name,
+            Code = userProject.Project.Code,
             Description = userProject.Project.Description,
             CreatedAt = userProject.Project.CreatedAt,
             UpdatedAt = userProject.Project.UpdatedAt,
-            Role = userProject.Role.ToString()
+            Role = userProject.Role.ToString(),
+            OwnerUsername = ownerUsername
         };
     }
 

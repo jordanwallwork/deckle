@@ -1,3 +1,4 @@
+using Deckle.API.DTOs;
 using Deckle.API.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -72,6 +73,56 @@ public static class AuthEndpoints
         })
         .RequireAuthorization()
         .WithName("GetCurrentUser");
+
+        group.MapGet("/username/check/{username}", async (string username, ClaimsPrincipal user, UserService userService) =>
+        {
+            var userId = UserService.GetUserIdFromClaims(user);
+            if (userId == null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var isAvailable = await userService.IsUsernameAvailableAsync(username, userId);
+            return Results.Ok(new UsernameAvailabilityResponse(isAvailable));
+        })
+        .RequireAuthorization()
+        .WithName("CheckUsernameAvailability");
+
+        group.MapPost("/username", async (SetUsernameRequest request, ClaimsPrincipal user, UserService userService, HttpContext context) =>
+        {
+            var userId = UserService.GetUserIdFromClaims(user);
+            if (userId == null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var (success, error) = await userService.SetUsernameAsync(userId.Value, request.Username);
+
+            if (!success)
+            {
+                return Results.BadRequest(new { error });
+            }
+
+            // Update the user's claims to include the new username
+            var identity = user.Identity as ClaimsIdentity;
+            if (identity != null)
+            {
+                // Remove old username claim if exists
+                var existingClaim = identity.FindFirst("username");
+                if (existingClaim != null)
+                {
+                    identity.RemoveClaim(existingClaim);
+                }
+                identity.AddClaim(new Claim("username", request.Username.Trim()));
+
+                // Re-sign in to update the cookie
+                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+            }
+
+            return Results.Ok(new { username = request.Username.Trim() });
+        })
+        .RequireAuthorization()
+        .WithName("SetUsername");
 
         return group;
     }

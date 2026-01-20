@@ -36,12 +36,19 @@ public class AppDbContext : DbContext
 
             entity.HasIndex(u => u.Email);
 
+            entity.HasIndex(u => u.Username)
+                .IsUnique()
+                .HasFilter("\"Username\" IS NOT NULL");
+
             entity.Property(u => u.GoogleId)
                 .HasMaxLength(255);
 
             entity.Property(u => u.Email)
                 .IsRequired()
                 .HasMaxLength(255);
+
+            entity.Property(u => u.Username)
+                .HasMaxLength(100);
 
             entity.Property(u => u.Name)
                 .HasMaxLength(255);
@@ -82,6 +89,14 @@ public class AppDbContext : DbContext
             entity.Property(p => p.Name)
                 .IsRequired()
                 .HasMaxLength(255);
+
+            entity.Property(p => p.Code)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.ToTable(t => t.HasCheckConstraint(
+                "CK_Projects_Code_Format",
+                "\"Code\" ~ '^[a-zA-Z0-9-]+$'"));
 
             entity.Property(p => p.Description)
                 .HasMaxLength(1000);

@@ -5,12 +5,14 @@
     label,
     name,
     error,
+    hint,
     required = false,
     children
   }: {
     label: string;
     name: string;
     error?: string;
+    hint?: string;
     required?: boolean;
     children: Snippet;
   } = $props();
@@ -22,6 +24,9 @@
     {#if required}<span class="required">*</span>{/if}
   </label>
   {@render children()}
+  {#if hint && !error}
+    <span class="field-hint">{hint}</span>
+  {/if}
   {#if error}
     <span class="field-error">{error}</span>
   {/if}
@@ -44,6 +49,12 @@
   .required {
     color: #d32f2f;
     margin-left: 0.25rem;
+  }
+
+  .field-hint {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted, #888);
+    margin-top: -0.25rem;
   }
 
   .field-error {

@@ -102,6 +102,7 @@ public class UserService
 
         var userId = user.FindFirst("user_id")?.Value;
         var email = user.FindFirst(ClaimTypes.Email)?.Value;
+        var username = user.FindFirst("username")?.Value;
         var name = user.FindFirst(ClaimTypes.Name)?.Value;
         var picture = user.FindFirst("picture")?.Value;
 
@@ -109,8 +110,73 @@ public class UserService
         {
             Id = userId,
             Email = email,
+            Username = username,
             Name = name,
             Picture = picture
         };
+    }
+
+    public async Task<bool> IsUsernameAvailableAsync(string username, Guid? excludeUserId = null)
+    {
+        var normalizedUsername = username.ToLower();
+
+        var query = _dbContext.Users.Where(u => u.Username != null && u.Username.ToLower() == normalizedUsername);
+
+        if (excludeUserId.HasValue)
+        {
+            query = query.Where(u => u.Id != excludeUserId.Value);
+        }
+
+        return !await query.AnyAsync();
+    }
+
+    public async Task<(bool Success, string? Error)> SetUsernameAsync(Guid userId, string username)
+    {
+        // Validate username format
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return (false, "Username cannot be empty");
+        }
+
+        username = username.Trim();
+
+        if (username.Length < 3)
+        {
+            return (false, "Username must be at least 3 characters");
+        }
+
+        if (username.Length > 30)
+        {
+            return (false, "Username must be 30 characters or less");
+        }
+
+        // Only allow alphanumeric characters and underscores
+        if (!System.Text.RegularExpressions.Regex.IsMatch(username, @"^[a-zA-Z0-9_]+$"))
+        {
+            return (false, "Username can only contain letters, numbers, and underscores");
+        }
+
+        // Check availability
+        if (!await IsUsernameAvailableAsync(username, userId))
+        {
+            return (false, "Username is already taken");
+        }
+
+        var user = await _dbContext.Users.FindAsync(userId);
+        if (user == null)
+        {
+            return (false, "User not found");
+        }
+
+        user.Username = username;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
+        return (true, null);
+    }
+
+    public async Task<User?> GetUserByIdAsync(Guid userId)
+    {
+        return await _dbContext.Users.FindAsync(userId);
     }
 }

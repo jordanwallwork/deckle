@@ -9,3 +9,4 @@ export * from './badge';
 export * from './breadcrumb';
 export * from './export';
 export * from './file';
+export * from './validation';

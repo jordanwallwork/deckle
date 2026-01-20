@@ -1,7 +1,7 @@
 <script lang="ts">
   import ResizablePanelContainer from '$lib/components/ResizablePanelContainer.svelte';
   import DataSourcePanel from './DataSourcePanel.svelte';
-  import type { PageData } from '../../../routes/projects/[projectId]/components/[componentId]/[part]/$types';
+  import type { PageData } from '../../../routes/projects/[username]/[projectCode]/components/[componentId]/[part]/$types';
   import ElementConfigPanel from './ElementConfigPanel.svelte';
   import PreviewPanel from './PreviewPanel.svelte';
   import StructureTreePanel from './StructureTreePanel.svelte';
@@ -15,6 +15,9 @@
   import { setContext } from 'svelte';
 
   let { data, readOnly = false }: { data: PageData; readOnly?: boolean } = $props();
+
+  // Compute the project URL base for navigation
+  const projectUrlBase = `/projects/${data.project.ownerUsername}/${data.project.code}`;
 
   // Provide projectId through context for child components
   setContext('projectId', data.component.projectId);
@@ -175,7 +178,7 @@
       {#snippet rightOrBottom()}
         <ResizablePanelContainer initialSplit={100 - (sidebarWidth / (100 - sidebarWidth)) * 100}>
           {#snippet leftOrTop()}
-            <PreviewPanel component={data.component} projectId={data.project.id} part={data.part} />
+            <PreviewPanel component={data.component} {projectUrlBase} projectId={data.project.id} part={data.part} />
           {/snippet}
           {#snippet rightOrBottom()}
             <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />

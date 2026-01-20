@@ -243,6 +243,11 @@ namespace Deckle.Domain.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -264,7 +269,10 @@ namespace Deckle.Domain.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Projects");
+                    b.ToTable("Projects", t =>
+                        {
+                            t.HasCheckConstraint("CK_Projects_Code_Format", "\"Code\" ~ '^[a-zA-Z0-9-]+$'");
+                        });
                 });
 
             modelBuilder.Entity("Deckle.Domain.Entities.User", b =>
@@ -325,6 +333,10 @@ namespace Deckle.Domain.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("Username")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email");
@@ -332,6 +344,10 @@ namespace Deckle.Domain.Migrations
                     b.HasIndex("GoogleId")
                         .IsUnique()
                         .HasFilter("\"GoogleId\" IS NOT NULL");
+
+                    b.HasIndex("Username")
+                        .IsUnique()
+                        .HasFilter("\"Username\" IS NOT NULL");
 
                     b.ToTable("Users");
                 });

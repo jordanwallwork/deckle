@@ -13,9 +13,10 @@
 
   let {
     component,
+    projectUrlBase,
     projectId,
     part
-  }: { component: EditableComponent; projectId: string; part: string } = $props();
+  }: { component: EditableComponent; projectUrlBase: string; projectId: string; part: string } = $props();
   let dimensions = component.dimensions;
   // Extract shape if this is a CardComponent
   let shape = $derived<ComponentShape | undefined>(
@@ -58,7 +59,7 @@
     }
 
     // Navigate to export page with component ID in query string
-    goto(`/projects/${projectId}/export?components=${component.id}`);
+    goto(`${projectUrlBase}/export?components=${component.id}`);
   }
 
   async function handleSave() {

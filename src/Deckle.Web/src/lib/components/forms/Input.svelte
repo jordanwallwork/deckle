@@ -10,6 +10,7 @@
     min,
     max,
     step,
+    pattern,
     onchange,
     oninput
   }: {
@@ -23,6 +24,7 @@
     min?: string;
     max?: string;
     step?: string;
+    pattern?: string;
     onchange?: (value: string) => void;
     oninput?: (value: string) => void;
   } = $props();
@@ -38,6 +40,7 @@
   {min}
   {max}
   {step}
+  {pattern}
   class="base-input"
   class:error
   onchange={(e) => onchange?.(e.currentTarget.value)}

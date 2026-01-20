@@ -153,6 +153,12 @@ builder.Services.AddAuthentication(options =>
             {
                 identity.AddClaim(new Claim("picture", picture));
             }
+
+            // Add username claim if user has one set
+            if (!string.IsNullOrEmpty(user.Username) && !identity.HasClaim(c => c.Type == "username"))
+            {
+                identity.AddClaim(new Claim("username", user.Username));
+            }
         }
     };
 });

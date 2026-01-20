@@ -1,48 +1,75 @@
 <script lang="ts">
   import { projectsApi, ApiError } from '$lib/api';
   import type { PageData } from './$types';
-  import { Button, EmptyState, Dialog, ErrorDisplay } from '$lib/components';
+  import { Button, EmptyState, Dialog } from '$lib/components';
   import { FormField, Input, TextArea } from '$lib/components/forms';
   import ProjectCard from './_components/ProjectCard.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
-  import { invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
+  import { type ValidationErrorResponse, getValidationErrors, getFieldValidation, getGeneralErrors } from '$lib/types';
 
   let { data }: { data: PageData } = $props();
 
-  const projectCount = $derived(data.projects.length);
-
   let showCreateDialog = $state(false);
   let projectName = $state('');
+  let projectCode = $state('');
   let projectDescription = $state('');
   let isCreating = $state(false);
-  let createError = $state<ApiError | null>(null);
+  let validationErrors = $state<ValidationErrorResponse | null>(null);
+  let generalError = $state<string | null>(null);
+  let isProjectCodePristine = $state(true);
+
+  // Derived field validation states
+  const nameValidation = $derived(getFieldValidation(validationErrors, 'name'));
+  const codeValidation = $derived(getFieldValidation(validationErrors, 'code'));
+  const generalErrors = $derived(getGeneralErrors(validationErrors));
+
+  function generateCodeFromName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/&/g, 'and')
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+  }
+
+  function handleProjectNameInput(value: string): void {
+    if (isProjectCodePristine) {
+      projectCode = generateCodeFromName(value);
+    }
+  }
+
+  function handleProjectCodeInput(): void {
+    isProjectCodePristine = false;
+  }
 
   function openCreateDialog(): void {
     showCreateDialog = true;
   }
 
   async function createProject(): Promise<void> {
-    if (!projectName.trim()) return;
+    if (!projectName.trim() || !projectCode.trim()) return;
 
     isCreating = true;
-    createError = null;
+    validationErrors = null;
+    generalError = null;
     try {
-      await projectsApi.create({
+      const project = await projectsApi.create({
         name: projectName,
+        code: projectCode,
         description: projectDescription
       });
 
-      // Refresh data from server
-      await invalidateAll();
-
-      // Close dialog and reset form
-      closeDialog();
+      // Navigate to the newly created project
+      await goto(`/projects/${project.ownerUsername}/${project.code}`);
     } catch (error) {
       console.error('Failed to create project:', error);
-      if (error instanceof ApiError) {
-        createError = error;
+      const validation = getValidationErrors(error);
+      if (validation) {
+        validationErrors = validation;
+      } else if (error instanceof ApiError) {
+        generalError = error.message;
       } else {
-        createError = new ApiError(500, 'Failed to create project. Please try again.');
+        generalError = 'Failed to create project. Please try again.';
       }
     } finally {
       isCreating = false;
@@ -52,8 +79,11 @@
   function closeDialog(): void {
     showCreateDialog = false;
     projectName = '';
+    projectCode = '';
     projectDescription = '';
-    createError = null;
+    validationErrors = null;
+    generalError = null;
+    isProjectCodePristine = true;
   }
 </script>
 
@@ -117,8 +147,12 @@
       createProject();
     }}
   >
-    <FormField label="Project Name" name="name" required>
-      <Input id="name" bind:value={projectName} placeholder="My Game Project" required />
+    <FormField label="Project Name" name="name" required error={nameValidation.messages[0]}>
+      <Input id="name" bind:value={projectName} placeholder="My Game Project" required error={nameValidation.invalid} oninput={handleProjectNameInput} />
+    </FormField>
+
+    <FormField label="Project Code" name="code" required hint={codeValidation.invalid ? undefined : 'Only lowercase letters, numbers, and dashes allowed'} error={codeValidation.messages[0]}>
+      <Input id="code" bind:value={projectCode} placeholder="my-game-project" pattern="^[a-z0-9-]+$" required error={codeValidation.invalid} oninput={handleProjectCodeInput} />
     </FormField>
 
     <FormField label="Description (optional)" name="description">
@@ -130,12 +164,17 @@
       />
     </FormField>
 
-    <ErrorDisplay error={createError} />
+    {#if generalError}
+      <div class="general-error">{generalError}</div>
+    {/if}
+    {#each generalErrors as error}
+      <div class="general-error">{error}</div>
+    {/each}
   </form>
 
   {#snippet actions()}
     <Button variant="secondary" onclick={closeDialog}>Cancel</Button>
-    <Button variant="primary" disabled={isCreating || !projectName.trim()} onclick={createProject}>
+    <Button variant="primary" disabled={isCreating || !projectName.trim() || !projectCode.trim()} onclick={createProject}>
       {isCreating ? 'Creating...' : 'Create Project'}
     </Button>
   {/snippet}
@@ -152,5 +191,15 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.25rem;
+  }
+
+  .general-error {
+    padding: 0.75rem 1rem;
+    background-color: rgba(211, 47, 47, 0.1);
+    border: 1px solid rgba(211, 47, 47, 0.3);
+    border-radius: 6px;
+    color: #d32f2f;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
   }
 </style>

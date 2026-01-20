@@ -1,5 +1,6 @@
 using Deckle.API.DTOs;
 using Deckle.API.EmailTemplates;
+using Deckle.API.Exceptions;
 using Deckle.API.Filters;
 using Deckle.API.Services;
 using Deckle.Email.Abstractions;
@@ -37,11 +38,32 @@ public static class ProjectEndpoints
         })
         .WithName("GetProjectById");
 
+        group.MapGet("{username}/{code}", async (string username, string code, HttpContext httpContext, ProjectService projectService) =>
+        {
+            var userId = httpContext.GetUserId();
+            var project = await projectService.GetProjectByUsernameAndCodeAsync(userId, username, code);
+
+            if (project == null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(project);
+        })
+        .WithName("GetProjectByUsernameAndCode");
+
         group.MapPost("", async (HttpContext httpContext, ProjectService projectService, CreateProjectRequest request) =>
         {
             var userId = httpContext.GetUserId();
-            var project = await projectService.CreateProjectAsync(userId, request.Name, request.Description);
-            return Results.Created($"/projects/{project.Id}", project);
+            try
+            {
+                var project = await projectService.CreateProjectAsync(userId, request.Name, request.Code, request.Description);
+                return Results.Created($"/projects/{project.Id}", project);
+            }
+            catch (ValidationException ex)
+            {
+                return Results.BadRequest(ex.ErrorResponse);
+            }
         })
         .WithName("CreateProject");
 
@@ -104,9 +126,9 @@ public static class ProjectEndpoints
                     return Results.NotFound();
                 }
 
-                // Construct invitation URL
+                // Construct invitation URL using the new username/code format
                 var frontendUrl = configuration["FrontendUrl"] ?? "http://localhost:5173";
-                var invitationUrl = $"{frontendUrl}/projects/{id}";
+                var invitationUrl = $"{frontendUrl}/projects/{project.OwnerUsername}/{project.Code}";
 
                 // Send email
                 var emailTemplate = new NewUserInviteEmail

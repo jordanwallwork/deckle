@@ -9,7 +9,10 @@
     onclick,
     onrename,
     ondelete,
-    onItemDropped
+    onItemDropped,
+    selectable = false,
+    isSelected = false,
+    onSelectionChange
   }: {
     directory: FileDirectory;
     itemCount?: number;
@@ -17,6 +20,9 @@
     onrename?: (name: string) => void;
     ondelete?: () => void;
     onItemDropped?: (data: DragItemData) => void;
+    selectable?: boolean;
+    isSelected?: boolean;
+    onSelectionChange?: (selected: boolean, shiftKey: boolean) => void;
   } = $props();
 
   let rowRef: LibraryRow | undefined = $state();
@@ -76,6 +82,9 @@
   isDropTarget={true}
   {canAcceptDrop}
   onDrop={onItemDropped}
+  {selectable}
+  {isSelected}
+  {onSelectionChange}
 >
   {#snippet thumbnail()}
     <div class="folder-icon">

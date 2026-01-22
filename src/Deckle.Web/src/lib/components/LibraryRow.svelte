@@ -23,7 +23,11 @@
     dragData,
     isDropTarget = false,
     onDrop,
-    canAcceptDrop
+    canAcceptDrop,
+    // Selection props
+    selectable = false,
+    isSelected = false,
+    onSelectionChange
   }: {
     name?: string;
     metadata?: string;
@@ -41,6 +45,10 @@
     isDropTarget?: boolean;
     onDrop?: (data: DragItemData) => void;
     canAcceptDrop?: (data: DragItemData) => boolean;
+    // Selection props
+    selectable?: boolean;
+    isSelected?: boolean;
+    onSelectionChange?: (selected: boolean, shiftKey: boolean) => void;
   } = $props();
 
   let contextMenuState = $state<{ x: number; y: number } | null>(null);
@@ -158,6 +166,11 @@
     }
   }
 
+  function handleCheckboxClick(event: MouseEvent) {
+    event.stopPropagation();
+    onSelectionChange?.(!isSelected, event.shiftKey);
+  }
+
 </script>
 
 <div
@@ -165,6 +178,7 @@
   class:disabled={isDisabled}
   class:clickable={!!onRowClick}
   class:drag-over={isDragOver}
+  class:selected={isSelected}
   onclick={handleRowClick}
   oncontextmenu={handleContextMenu}
   ondragover={handleDragOver}
@@ -174,6 +188,22 @@
   tabindex={onRowClick ? 0 : undefined}
   onkeydown={onRowClick ? (e) => e.key === 'Enter' && onRowClick() : undefined}
 >
+  {#if selectable}
+    <button
+      class="row-checkbox"
+      type="button"
+      onclick={handleCheckboxClick}
+      aria-label={isSelected ? 'Deselect item' : 'Select item'}
+    >
+      <div class="checkbox" class:checked={isSelected}>
+        {#if isSelected}
+          <svg viewBox="0 0 16 16" fill="currentColor">
+            <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
+          </svg>
+        {/if}
+      </div>
+    </button>
+  {/if}
   {#if dragData}
     <div
       class="drag-handle"
@@ -278,6 +308,54 @@
   .library-row.drag-over {
     background-color: rgba(120, 160, 131, 0.15);
     box-shadow: inset 0 0 0 2px var(--color-sage);
+  }
+
+  .library-row.selected {
+    background-color: rgba(120, 160, 131, 0.12);
+  }
+
+  .library-row.selected:hover {
+    background-color: rgba(120, 160, 131, 0.16);
+  }
+
+  .row-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+  }
+
+  .checkbox {
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 2px solid #bbb;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    background: white;
+  }
+
+  .checkbox:hover {
+    border-color: var(--color-sage);
+  }
+
+  .checkbox.checked {
+    background-color: var(--color-sage);
+    border-color: var(--color-sage);
+    color: white;
+  }
+
+  .checkbox svg {
+    width: 0.75rem;
+    height: 0.75rem;
   }
 
   .drag-handle {

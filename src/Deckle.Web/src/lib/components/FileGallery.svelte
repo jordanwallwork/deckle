@@ -9,11 +9,17 @@
   let {
     files = [],
     onFileDeleted,
-    onFileUpdated
+    onFileUpdated,
+    selectable = false,
+    selectedIds = [],
+    onSelectionChange
   }: {
     files: File[];
     onFileDeleted?: (fileId: string) => void;
     onFileUpdated?: () => void;
+    selectable?: boolean;
+    selectedIds?: string[];
+    onSelectionChange?: (fileId: string, selected: boolean, shiftKey: boolean) => void;
   } = $props();
 
   // Lightbox state
@@ -85,6 +91,9 @@
           onDeleteClick={() => openDeleteConfirm(file)}
           onFileRenamed={onFileUpdated}
           onError={handleError}
+          {selectable}
+          isSelected={selectedIds.includes(file.id)}
+          onSelectionChange={(selected, shiftKey) => onSelectionChange?.(file.id, selected, shiftKey)}
         />
       {/each}
     </div>

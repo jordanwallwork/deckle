@@ -46,10 +46,28 @@
   // Drag and drop state
   let isRootDropTarget = $state(false);
 
+  // Multi-select state
+  let selectedIds = $state<Set<string>>(new Set());
+  let lastSelectedId = $state<string | null>(null);
+
   // Computed values
   let files = $derived(data.directoryContents?.files ?? []);
   let directories = $derived(data.directoryContents?.childDirectories ?? []);
   let isEmpty = $derived(files.length === 0 && directories.length === 0);
+
+  // Combined list of all items in display order (for shift+click selection)
+  let allItems = $derived([
+    ...directories.map((d) => ({ type: 'folder' as const, id: d.id })),
+    ...files.map((f) => ({ type: 'file' as const, id: f.id }))
+  ]);
+
+  // Helper to check if an item is selected
+  function isItemSelected(id: string): boolean {
+    return selectedIds.has(id);
+  }
+
+  // Get array of selected IDs for components that need it
+  let selectedIdsArray = $derived(Array.from(selectedIds));
   // Current directory ID for API operations (empty string for root)
   let currentDirectoryId = $derived(data.directoryContents?.id || null);
 
@@ -66,6 +84,54 @@
       console.error('Failed to load tags:', err);
     }
   });
+
+  // Clear selection when navigating to a different directory
+  $effect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    data.currentPath;
+    selectedIds = new Set();
+    lastSelectedId = null;
+  });
+
+  // Handle selection change for an item
+  function handleSelectionChange(itemId: string, selected: boolean, shiftKey: boolean) {
+    if (shiftKey && lastSelectedId && lastSelectedId !== itemId) {
+      // Shift+click: select range from last selected to current
+      const lastIndex = allItems.findIndex((item) => item.id === lastSelectedId);
+      const currentIndex = allItems.findIndex((item) => item.id === itemId);
+
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+
+        const newSelection = new Set(selectedIds);
+        for (let i = start; i <= end; i++) {
+          newSelection.add(allItems[i].id);
+        }
+        selectedIds = newSelection;
+      }
+    } else {
+      // Regular click: toggle single item
+      const newSelection = new Set(selectedIds);
+      if (selected) {
+        newSelection.add(itemId);
+      } else {
+        newSelection.delete(itemId);
+      }
+      selectedIds = newSelection;
+    }
+    lastSelectedId = itemId;
+  }
+
+  // Handle folder selection change
+  function handleFolderSelectionChange(folderId: string, selected: boolean, shiftKey: boolean) {
+    handleSelectionChange(folderId, selected, shiftKey);
+  }
+
+  // Handle file selection change
+  function handleFileSelectionChange(fileId: string, selected: boolean, shiftKey: boolean) {
+    handleSelectionChange(fileId, selected, shiftKey);
+  }
 
   // Navigate to a directory by path
   function navigateToPath(path: string) {
@@ -528,6 +594,9 @@
             onrename={(name) => handleRenameFolder(directory.id, name, directory.name)}
             ondelete={() => confirmDeleteFolder(directory)}
             onItemDropped={(dragData) => handleMoveToFolder(directory.id, dragData)}
+            selectable={true}
+            isSelected={isItemSelected(directory.id)}
+            onSelectionChange={(selected, shiftKey) => handleFolderSelectionChange(directory.id, selected, shiftKey)}
           />
         {/each}
 
@@ -537,6 +606,9 @@
             {files}
             onFileDeleted={handleFileDeleted}
             onFileUpdated={handleFileUpdated}
+            selectable={true}
+            selectedIds={selectedIdsArray}
+            onSelectionChange={handleFileSelectionChange}
           />
         {/if}
       </div>

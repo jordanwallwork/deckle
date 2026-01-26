@@ -1,10 +1,13 @@
 <script lang="ts">
-  import type { TemplateElement } from '../../types';
+  import type { TemplateElement, ElementType } from '../../types';
   import ResizeHandles from './ResizeHandles.svelte';
   import DragHandles from './DragHandles.svelte';
   import RotationHandle from './RotationHandle.svelte';
   import { templateStore } from '$lib/stores/templateElements';
   import { spacingToCss, dimensionValue } from '../../utils';
+  import { createElementOfType } from '../../elementFactory';
+  import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
+  import Portal from '$lib/components/Portal.svelte';
 
   let {
     element,
@@ -18,6 +21,11 @@
 
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
   const isSelected = $derived($templateStore.selectedElementId === element.id);
+
+  // Context menu state
+  let showContextMenu = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
 
   // Derived style properties for granular reactivity
   const position = $derived(element.position === 'absolute' ? 'absolute' : 'relative');
@@ -64,6 +72,98 @@
     e.stopPropagation();
     templateStore.selectElement(element.id);
   }
+
+  // Context menu handlers
+  function handleContextMenu(e: MouseEvent) {
+    // Don't show context menu for locked elements - let right-clicks pass through
+    if (element.locked) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+
+    contextMenuX = e.clientX;
+    contextMenuY = e.clientY;
+    showContextMenu = true;
+
+    // Select the element when showing context menu
+    templateStore.selectElement(element.id);
+  }
+
+  function handleDuplicate() {
+    templateStore.duplicateElement(element.id);
+  }
+
+  function handleAddElement(type: ElementType) {
+    const newElement = createElementOfType(type);
+    templateStore.addElement(newElement, element.id);
+  }
+
+  function handleToggleVisibility() {
+    templateStore.updateElement(element.id, { visible: !element.visible });
+  }
+
+  function handleToggleLock() {
+    templateStore.updateElement(element.id, { locked: !element.locked });
+  }
+
+  function handleDelete() {
+    templateStore.removeElement(element.id);
+  }
+
+  function getContextMenuItems(): ContextMenuItem[] {
+    const items: ContextMenuItem[] = [];
+
+    // Duplicate action
+    items.push({
+      label: 'Duplicate',
+      action: handleDuplicate
+    });
+
+    // Add submenu for container elements
+    if (element.type === 'container') {
+      items.push({
+        label: 'Add...',
+        submenu: [
+          {
+            label: 'Container',
+            action: () => handleAddElement('container')
+          },
+          {
+            label: 'Text',
+            action: () => handleAddElement('text')
+          },
+          {
+            label: 'Image',
+            action: () => handleAddElement('image')
+          }
+        ]
+      });
+    }
+
+    // Visibility toggle
+    items.push({ divider: true });
+    items.push({
+      label: element.visible === false ? 'Show' : 'Hide',
+      action: handleToggleVisibility
+    });
+
+    // Lock toggle
+    items.push({
+      label: element.locked === true ? 'Unlock' : 'Lock',
+      action: handleToggleLock
+    });
+
+    // Delete action
+    items.push({ divider: true });
+    items.push({
+      label: 'Delete',
+      variant: 'danger',
+      action: handleDelete
+    });
+
+    return items;
+  }
 </script>
 
 <div
@@ -89,6 +189,7 @@
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
   onclick={handleClick}
+  oncontextmenu={handleContextMenu}
   role="button"
   tabindex="0"
 >
@@ -102,6 +203,17 @@
     {/if}
   {/if}
 </div>
+
+{#if showContextMenu}
+  <Portal>
+    <ContextMenu
+      x={contextMenuX}
+      y={contextMenuY}
+      items={getContextMenuItems()}
+      onClose={() => (showContextMenu = false)}
+    />
+  </Portal>
+{/if}
 
 <style>
   .editable-element {

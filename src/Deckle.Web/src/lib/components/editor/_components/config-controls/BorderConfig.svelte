@@ -5,10 +5,12 @@
 
   let {
     border,
-    onchange
+    onchange,
+    radiusLabel = 'Border radius'
   }: {
     border?: Border;
     onchange: (newBorder: Border) => void;
+    radiusLabel?: string;
   } = $props();
 
   // Convert number to string format for DimensionInput
@@ -56,7 +58,11 @@
     }
   }
 
-  function updateAllSides(updates: { width?: number; style?: BorderStyle; color?: string }) {
+  function updateAllSides(updates: {
+    width?: number | string;
+    style?: BorderStyle;
+    color?: string;
+  }) {
     // Ensure style defaults to "solid" if not already set
     const style = updates.style ?? border?.style ?? 'solid';
 
@@ -69,7 +75,7 @@
 
   function updateSide(
     side: 'top' | 'right' | 'bottom' | 'left',
-    updates: { width?: number; style?: BorderStyle; color?: string }
+    updates: { width?: number | string; style?: BorderStyle; color?: string }
   ) {
     // Ensure style defaults to "solid" if not already set
     const style = updates.style ?? border?.[side]?.style ?? 'solid';
@@ -90,6 +96,37 @@
       radius
     });
   }
+
+  // Helper to check if a width value is effectively zero
+  function isWidthZero(width: number | string | undefined): boolean {
+    if (width === undefined) return true;
+    if (typeof width === 'number') return width === 0;
+    const parsed = parseFloat(width);
+    return isNaN(parsed) || parsed === 0;
+  }
+
+  // Determine if radius should be shown
+  const showRadius = $derived(() => {
+    if (!separateSides) {
+      // All sides mode: hide if style is "none" or width is 0
+      const style = border?.style ?? 'solid';
+      if (style === 'none') return false;
+      if (isWidthZero(border?.width)) return false;
+      return true;
+    } else {
+      // Separate sides mode: hide if all sides are none/0
+      const sides = ['top', 'right', 'bottom', 'left'] as const;
+      const hasAnyVisibleBorder = sides.some((side) => {
+        const sideProps = border?.[side];
+        if (!sideProps) return false;
+        const style = sideProps.style ?? 'solid';
+        if (style === 'none') return false;
+        if (isWidthZero(sideProps.width)) return false;
+        return true;
+      });
+      return hasAnyVisibleBorder;
+    }
+  });
 </script>
 
 <div class="border-config">
@@ -108,7 +145,7 @@
       width={border?.width}
       style={border?.style}
       color={border?.color}
-      onchange={updateAllSides}
+      onUpdate={updateAllSides}
     />
   {:else}
     <!-- Separate sides mode -->
@@ -118,18 +155,20 @@
         width={border?.[key]?.width}
         style={border?.[key]?.style}
         color={border?.[key]?.color}
-        onchange={(updates) => updateSide(key, updates)}
+        onUpdate={(updates) => updateSide(key, updates)}
       />
     {/each}
   {/if}
 
-  <!-- Border radius -->
-  <DimensionInput
-    label="Border radius"
-    id="border-radius"
-    value={toStringValue(typeof border?.radius === 'object' ? undefined : border?.radius)}
-    onchange={(value) => updateRadius(value)}
-  />
+  <!-- Border radius (hidden when no visible border) -->
+  {#if showRadius()}
+    <DimensionInput
+      label={radiusLabel}
+      id="border-radius"
+      value={toStringValue(typeof border?.radius === 'object' ? undefined : border?.radius)}
+      onchange={(value) => updateRadius(value)}
+    />
+  {/if}
 </div>
 
 <style>

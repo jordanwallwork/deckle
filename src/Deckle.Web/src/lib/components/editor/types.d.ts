@@ -161,6 +161,15 @@ export interface ContainerElement extends BaseElement {
   bleedAreaColor?: string; // Color for bleed area marking
   safeAreaColor?: string; // Color for safe area marking
   fonts?: FontMetadata[]; // Track fonts used in this design
+  innerBorderRadius?:
+    | number
+    | string
+    | {
+        topLeft?: number | string;
+        topRight?: number | string;
+        bottomRight?: number | string;
+        bottomLeft?: number | string;
+      };
 }
 
 // ============================================================================

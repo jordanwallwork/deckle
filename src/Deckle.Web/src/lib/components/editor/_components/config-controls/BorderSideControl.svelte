@@ -1,28 +1,27 @@
 <script lang="ts">
   import type { BorderStyle } from '../../types';
-  import { ColorInput, NumberInput } from '$lib/components/forms';
+  import { ColorInput } from '$lib/components/forms';
+  import DimensionInput from './DimensionInput.svelte';
 
   let {
     label,
     width,
     style,
     color,
-    onchange
+    onUpdate
   }: {
     label: string;
     width?: number | string;
     style?: BorderStyle;
     color?: string;
-    onchange: (updates: { width?: number; style?: BorderStyle; color?: string }) => void;
+    onUpdate: (updates: { width?: number | string; style?: BorderStyle; color?: string }) => void;
   } = $props();
 
-  // Convert width to number if it's a string (e.g., "2px" -> 2)
-  const numericWidth = $derived(() => {
+  // Convert width to string format for DimensionInput
+  const widthString = $derived(() => {
     if (width === undefined) return undefined;
-    if (typeof width === 'number') return width;
-    // Parse numeric value from string like "2px"
-    const parsed = parseFloat(width);
-    return isNaN(parsed) ? undefined : parsed;
+    if (typeof width === 'string') return width;
+    return `${width}px`;
   });
 
   const borderStyleOptions: Array<{ value: BorderStyle; label: string }> = [
@@ -32,41 +31,50 @@
     { value: 'dotted', label: 'Dotted' },
     { value: 'double', label: 'Double' }
   ];
+
+  const effectiveStyle = $derived(style ?? 'solid');
+  const isNone = $derived(effectiveStyle === 'none');
 </script>
 
-<div class="border-row">
+<div class="border-row" class:is-none={isNone}>
   <span class="side-label">{label}</span>
-  <ColorInput value={color ?? '#000000'} onchange={(newColor) => onchange({ color: newColor })} />
-  <NumberInput
-    value={numericWidth()}
-    min={0}
-    placeholder="0"
-    unit="px"
-    onchange={(newWidth) => onchange({ width: newWidth })}
-  />
   <select
-    value={style ?? 'solid'}
-    onchange={(e) => onchange({ style: e.currentTarget.value as BorderStyle })}
+    value={effectiveStyle}
+    onchange={(e) => onUpdate({ style: e.currentTarget.value as BorderStyle })}
   >
     {#each borderStyleOptions as option}
       <option value={option.value}>{option.label}</option>
     {/each}
   </select>
+  {#if !isNone}
+    <DimensionInput
+      label="Width"
+      id="border-width-{label.toLowerCase()}"
+      value={widthString()}
+      onchange={(newWidth) => onUpdate({ width: newWidth })}
+      hideLabel
+      inline
+    />
+    <ColorInput value={color ?? '#000000'} onchange={(newColor) => onUpdate({ color: newColor })} />
+  {/if}
 </div>
 
 <style>
   .border-row {
     display: grid;
-    grid-template-columns: auto 50px 80px 1fr;
+    grid-template-columns: 60px 1fr 120px 50px;
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
   }
 
+  .border-row.is-none {
+    grid-template-columns: 60px 1fr;
+  }
+
   .side-label {
     font-size: 0.75rem;
     color: #666;
-    min-width: 60px;
   }
 
   select {

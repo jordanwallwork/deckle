@@ -39,6 +39,27 @@ export function dimensionValue(
 }
 
 /**
+ * Converts a dimension value to a numeric pixel value.
+ * Returns 0 if the value is undefined or cannot be parsed.
+ */
+export function dimensionToPx(value: number | string | undefined, dpi?: number): number {
+  if (value === undefined) return 0;
+  if (typeof value === 'number') return value;
+
+  // Handle mm unit - convert to px
+  if (typeof value === 'string' && value.includes('mm') && dpi !== undefined) {
+    const numericValue = parseFloat(value);
+    if (!isNaN(numericValue)) {
+      return mmToPx(numericValue, dpi);
+    }
+  }
+
+  // Try to parse numeric value from string (e.g., "10px" -> 10)
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
  * Converts spacing object to CSS string.
  * Handles undefined, so callers can pass optional spacing objects directly.
  */
@@ -123,6 +144,69 @@ export function borderStyle(border: any | undefined, dpi?: number): string | und
   }
 
   return styles.length > 0 ? styles.join('; ') : undefined;
+}
+
+/**
+ * Checks if any border radius value is non-zero.
+ * Handles simple values (number/string) and individual corner values.
+ */
+export function hasAnyBorderRadiusSet(
+  radius:
+    | number
+    | string
+    | {
+        topLeft?: number | string;
+        topRight?: number | string;
+        bottomRight?: number | string;
+        bottomLeft?: number | string;
+      }
+    | undefined,
+  dpi?: number
+): boolean {
+  if (radius === undefined) return false;
+
+  if (typeof radius === 'object') {
+    // Check each corner - return true if any corner has a non-zero value
+    return (
+      dimensionToPx(radius.topLeft, dpi) !== 0 ||
+      dimensionToPx(radius.topRight, dpi) !== 0 ||
+      dimensionToPx(radius.bottomRight, dpi) !== 0 ||
+      dimensionToPx(radius.bottomLeft, dpi) !== 0
+    );
+  }
+
+  // Simple value - check if it converts to a non-zero pixel value
+  return dimensionToPx(radius, dpi) !== 0;
+}
+
+/**
+ * Builds border-radius CSS string.
+ * Handles undefined, so callers can pass optional border radius values directly.
+ */
+export function borderRadiusStyle(
+  radius:
+    | number
+    | string
+    | {
+        topLeft?: number | string;
+        topRight?: number | string;
+        bottomRight?: number | string;
+        bottomLeft?: number | string;
+      }
+    | undefined,
+  dpi?: number
+): string | undefined {
+  if (radius === undefined) return undefined;
+
+  if (typeof radius === 'object') {
+    const tl = dimensionValue(radius.topLeft ?? 0, dpi) ?? '0';
+    const tr = dimensionValue(radius.topRight ?? 0, dpi) ?? '0';
+    const br = dimensionValue(radius.bottomRight ?? 0, dpi) ?? '0';
+    const bl = dimensionValue(radius.bottomLeft ?? 0, dpi) ?? '0';
+    return `${tl} ${tr} ${br} ${bl}`;
+  }
+
+  return dimensionValue(radius, dpi);
 }
 
 /**

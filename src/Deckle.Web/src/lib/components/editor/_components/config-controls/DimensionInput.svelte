@@ -3,12 +3,20 @@
     label,
     id,
     value,
-    onchange
+    onchange,
+    disabled = false,
+    disabledMessage,
+    hideLabel = false,
+    inline = false
   }: {
     label: string;
     id: string;
     value?: string;
     onchange: (newValue: string | undefined) => void;
+    disabled?: boolean;
+    disabledMessage?: string;
+    hideLabel?: boolean;
+    inline?: boolean;
   } = $props();
 
   // Extract numeric value from dimension string
@@ -19,12 +27,12 @@
     return match ? match[1] : '';
   });
 
-  // Extract unit from dimension string
+  // Extract unit from dimension string (default to 'mm')
   const unit = $derived(() => {
     const dimStr = String(value ?? '');
     if (dimStr.includes('%')) return '%';
-    if (dimStr.includes('mm')) return 'mm';
-    return 'px';
+    if (dimStr.includes('px')) return 'px';
+    return 'mm';
   });
 
   function handleValueChange(newNumericValue: string) {
@@ -40,8 +48,10 @@
   }
 </script>
 
-<div class="field">
-  <label for={id}>{label}</label>
+<div class="field" class:disabled class:inline>
+  {#if !hideLabel}
+    <label for={id}>{label}</label>
+  {/if}
   <div class="dimension-input">
     <input
       type="number"
@@ -49,23 +59,32 @@
       placeholder="auto"
       value={numericValue()}
       oninput={(e) => handleValueChange(e.currentTarget.value)}
+      {disabled}
     />
     <select
       class="unit-select"
       class:disabled-unit={!value}
       value={unit()}
       onchange={(e) => handleUnitChange(e.currentTarget.value)}
+      {disabled}
     >
-      <option value="px">px</option>
       <option value="mm">mm</option>
+      <option value="px">px</option>
       <option value="%">%</option>
     </select>
   </div>
+  {#if disabled && disabledMessage}
+    <span class="disabled-message">{disabledMessage}</span>
+  {/if}
 </div>
 
 <style>
   .field {
     margin-bottom: 1rem;
+  }
+
+  .field.inline {
+    margin-bottom: 0;
   }
 
   .field label {
@@ -123,5 +142,24 @@
   .dimension-input .unit-select:focus {
     outline: none;
     border-color: #0066cc;
+  }
+
+  .field.disabled label {
+    color: #999;
+  }
+
+  .field.disabled input,
+  .field.disabled select {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+  }
+
+  .disabled-message {
+    display: block;
+    font-size: 0.688rem;
+    color: #888;
+    margin-top: 0.25rem;
+    font-style: italic;
   }
 </style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Badge, Button } from '$lib/components';
+  import { Avatar, Card, Badge, Button } from '$lib/components';
 
   interface User {
     userId: string;
@@ -71,13 +71,7 @@
     {#each users as user}
       <div class="user-item">
         <div class="user-info">
-          {#if user.pictureUrl}
-            <img src={user.pictureUrl} alt={user.name || user.email} class="user-avatar" />
-          {:else}
-            <div class="user-avatar-placeholder">
-              {(user.name || user.email).charAt(0).toUpperCase()}
-            </div>
-          {/if}
+          <Avatar src={user.pictureUrl} name={user.name || user.email} size="md" />
           <div class="user-details">
             <div class="user-name">{user.name || user.email}</div>
             {#if user.name}
@@ -141,26 +135,6 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-  }
-
-  .user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-  }
-
-  .user-avatar-placeholder {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 1.125rem;
   }
 
   .user-details {

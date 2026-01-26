@@ -5,6 +5,7 @@
   import Input from '$lib/components/forms/Input.svelte';
   import { projectsApi, ApiError } from '$lib/api';
   import { invalidateAll } from '$app/navigation';
+  import { EMAIL_RULES } from '$lib/constants';
 
   let {
     show = $bindable(),
@@ -33,14 +34,12 @@
     error = undefined;
 
     if (!email.trim()) {
-      error = 'Email is required';
+      error = EMAIL_RULES.messages.required;
       return;
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      error = 'Please enter a valid email address';
+    if (!EMAIL_RULES.pattern.test(email)) {
+      error = EMAIL_RULES.messages.invalid;
       return;
     }
 

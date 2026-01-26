@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import type { AdminUser } from '$lib/types';
 	import { adminApi, ApiError } from '$lib/api';
+	import { Avatar, ArrowLeftIcon } from '$lib/components';
 	import { goto, invalidateAll } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
@@ -90,20 +91,7 @@
 	<div class="users-header">
 		<div class="header-left">
 			<a href="/admin" class="back-link">
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="20"
-					height="20"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M19 12H5"></path>
-					<path d="M12 19l-7-7 7-7"></path>
-				</svg>
+				<ArrowLeftIcon size={20} />
 				Back to Dashboard
 			</a>
 			<h1>User Management</h1>
@@ -146,13 +134,7 @@
 					<tr>
 						<td class="user-cell">
 							<div class="user-info">
-								{#if user.pictureUrl}
-									<img src={user.pictureUrl} alt={user.name || user.email} class="user-avatar" />
-								{:else}
-									<div class="user-avatar-placeholder">
-										{(user.name || user.email).charAt(0).toUpperCase()}
-									</div>
-								{/if}
+								<Avatar src={user.pictureUrl} name={user.name || user.email} size="md" class="user-avatar" />
 								<div class="user-details">
 									<span class="user-name">{user.name || 'No name'}</span>
 									<span class="user-email">{user.email}</span>
@@ -376,24 +358,8 @@
 		gap: 0.75rem;
 	}
 
-	.user-avatar {
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		object-fit: cover;
-	}
-
-	.user-avatar-placeholder {
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		color: white;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-weight: 600;
-		font-size: 1rem;
+	.user-info :global(.user-avatar) {
+		--avatar-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 	}
 
 	.user-details {

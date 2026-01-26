@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { Avatar } from '$lib/components';
   import PageLayout from '$lib/components/layout/PageLayout.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
 
@@ -18,13 +19,7 @@
 
       <div class="profile-card">
         <div class="profile-avatar-section">
-          {#if data.user.picture}
-            <img src={data.user.picture} alt={data.user.name || 'User'} class="profile-avatar" />
-          {:else}
-            <div class="profile-avatar-placeholder">
-              {data.user.name?.charAt(0).toUpperCase() || 'U'}
-            </div>
-          {/if}
+          <Avatar src={data.user.picture} name={data.user.name} size="xl" class="profile-avatar" />
         </div>
 
         <dl class="profile-fields">
@@ -82,26 +77,8 @@
     justify-content: center;
   }
 
-  .profile-avatar {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 4px solid var(--color-sage);
-  }
-
-  .profile-avatar-placeholder {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    background-color: var(--color-muted-teal);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 3rem;
-    border: 4px solid var(--color-sage);
+  .profile-avatar-section :global(.profile-avatar) {
+    --avatar-border: 4px solid var(--color-sage);
   }
 
   .profile-fields {

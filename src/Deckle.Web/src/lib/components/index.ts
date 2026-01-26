@@ -1,4 +1,5 @@
 // Re-export all components
+export { default as Avatar } from './Avatar.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Badge } from './Badge.svelte';
 export { default as Breadcrumb } from './Breadcrumb.svelte';
@@ -18,3 +19,6 @@ export { default as TopBar } from './TopBar.svelte';
 
 // Form components
 export * from './forms';
+
+// Icons
+export * from './icons';

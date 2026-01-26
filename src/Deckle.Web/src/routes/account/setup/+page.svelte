@@ -1,6 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { authApi, ApiError } from '$lib/api';
+  import { Avatar, LoadingSpinner, CheckIcon, ErrorIcon } from '$lib/components';
+  import { USERNAME_RULES } from '$lib/constants/validation';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
@@ -15,19 +17,26 @@
   // Debounce timer for username availability check
   let checkTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Cleanup timer on component unmount
+  $effect(() => {
+    return () => {
+      if (checkTimer) clearTimeout(checkTimer);
+    };
+  });
+
   // Validate username format
   function validateUsername(value: string): string | null {
     if (value.length === 0) {
       return null; // Empty is not an error, just idle
     }
-    if (value.length < 3) {
-      return 'Username must be at least 3 characters';
+    if (value.length < USERNAME_RULES.minLength) {
+      return USERNAME_RULES.messages.tooShort;
     }
-    if (value.length > 30) {
-      return 'Username must be 30 characters or less';
+    if (value.length > USERNAME_RULES.maxLength) {
+      return USERNAME_RULES.messages.tooLong;
     }
-    if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-      return 'Username can only contain letters, numbers, and underscores';
+    if (!USERNAME_RULES.pattern.test(value)) {
+      return USERNAME_RULES.messages.invalidChars;
     }
     return null;
   }
@@ -65,7 +74,7 @@
           availabilityStatus = 'available';
         } else {
           availabilityStatus = 'taken';
-          validationError = 'Username is already taken';
+          validationError = USERNAME_RULES.messages.taken;
         }
       } catch (err) {
         console.error('Failed to check username availability:', err);
@@ -79,7 +88,7 @@
   // Handle input change
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement;
-    username = target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    username = target.value.toLowerCase().replace(USERNAME_RULES.inputPattern, '');
     submitError = null;
     checkAvailability(username);
   }
@@ -123,30 +132,27 @@
 
   // Computed properties for button state
   const canSubmit = $derived(
-    username.length >= 3 && availabilityStatus === 'available' && !isSubmitting && !isChecking
+    username.length >= USERNAME_RULES.minLength &&
+      availabilityStatus === 'available' &&
+      !isSubmitting &&
+      !isChecking
   );
 
-  const statusIcon = $derived(
-    availabilityStatus === 'checking'
-      ? 'loading'
-      : availabilityStatus === 'available'
-        ? 'check'
-        : availabilityStatus === 'taken' || availabilityStatus === 'invalid'
-          ? 'error'
-          : null
-  );
+  const STATUS_ICON_MAP = {
+    idle: null,
+    checking: 'loading',
+    available: 'check',
+    taken: 'error',
+    invalid: 'error'
+  } as const;
+
+  const statusIcon = $derived(STATUS_ICON_MAP[availabilityStatus]);
 </script>
 
 <div class="setup-container">
   <div class="setup-card">
     <div class="welcome-section">
-      {#if data.user.picture}
-        <img src={data.user.picture} alt={data.user.name || 'User'} class="avatar" />
-      {:else}
-        <div class="avatar-placeholder">
-          {data.user.name?.charAt(0).toUpperCase() || 'U'}
-        </div>
-      {/if}
+      <Avatar src={data.user.picture} name={data.user.name} size="lg" class="welcome-avatar" />
 
       <h1>Welcome to Deckle!</h1>
       <p class="welcome-text">
@@ -169,46 +175,20 @@
             autocomplete="off"
             autocapitalize="off"
             spellcheck="false"
-            maxlength="30"
+            maxlength={USERNAME_RULES.maxLength}
             disabled={isSubmitting}
           />
           {#if statusIcon === 'loading'}
             <span class="input-status loading">
-              <svg viewBox="0 0 24 24" width="20" height="20">
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="3"
-                  fill="none"
-                  stroke-linecap="round"
-                  stroke-dasharray="31.4 31.4"
-                >
-                  <animateTransform
-                    attributeName="transform"
-                    type="rotate"
-                    from="0 12 12"
-                    to="360 12 12"
-                    dur="1s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-              </svg>
+              <LoadingSpinner size={20} />
             </span>
           {:else if statusIcon === 'check'}
             <span class="input-status success">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
+              <CheckIcon size={20} />
             </span>
           {:else if statusIcon === 'error'}
             <span class="input-status error">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="15" y1="9" x2="9" y2="15" />
-                <line x1="9" y1="9" x2="15" y2="15" />
-              </svg>
+              <ErrorIcon size={20} />
             </span>
           {/if}
         </div>
@@ -263,28 +243,9 @@
     margin-bottom: 2.5rem;
   }
 
-  .avatar,
-  .avatar-placeholder {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
+  .welcome-section :global(.welcome-avatar) {
     margin: 0 auto 1.5rem;
-  }
-
-  .avatar {
-    object-fit: cover;
-    border: 3px solid var(--color-sage);
-  }
-
-  .avatar-placeholder {
-    background-color: var(--color-muted-teal);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 2rem;
-    border: 3px solid var(--color-sage);
+    --avatar-border: 3px solid var(--color-sage);
   }
 
   h1 {

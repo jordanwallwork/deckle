@@ -1,12 +1,21 @@
 <script lang="ts">
   import { projectsApi, ApiError } from '$lib/api';
   import type { PageData } from './$types';
-  import { Button, EmptyState, Dialog } from '$lib/components';
+  import { Button, EmptyState, Dialog, PlusIcon } from '$lib/components';
   import { FormField, Input, TextArea } from '$lib/components/forms';
   import ProjectCard from './_components/ProjectCard.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { goto } from '$app/navigation';
   import { type ValidationErrorResponse, getValidationErrors, getFieldValidation, getGeneralErrors } from '$lib/types';
+
+  // Validation constants
+  const PROJECT_CODE_RULES = {
+    pattern: /^[a-z0-9-]+$/,
+    filterPattern: /[^a-z0-9-]/g,
+    messages: {
+      hint: 'Only lowercase letters, numbers, and dashes allowed'
+    }
+  } as const;
 
   let { data }: { data: PageData } = $props();
 
@@ -29,7 +38,7 @@
       .toLowerCase()
       .replace(/&/g, 'and')
       .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '');
+      .replace(PROJECT_CODE_RULES.filterPattern, '');
   }
 
   function handleProjectNameInput(value: string): void {
@@ -104,13 +113,7 @@
   {#snippet headerActions()}
     <Button variant="primary" onclick={() => (showCreateDialog = true)} class="header-button">
       {#snippet icon()}
-        <svg viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fill-rule="evenodd"
-            d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-            clip-rule="evenodd"
-          />
-        </svg>
+        <PlusIcon />
       {/snippet}
       New Project
     </Button>
@@ -151,8 +154,8 @@
       <Input id="name" bind:value={projectName} placeholder="My Game Project" required error={nameValidation.invalid} oninput={handleProjectNameInput} />
     </FormField>
 
-    <FormField label="Project Code" name="code" required hint={codeValidation.invalid ? undefined : 'Only lowercase letters, numbers, and dashes allowed'} error={codeValidation.messages[0]}>
-      <Input id="code" bind:value={projectCode} placeholder="my-game-project" pattern="^[a-z0-9-]+$" required error={codeValidation.invalid} oninput={handleProjectCodeInput} />
+    <FormField label="Project Code" name="code" required hint={codeValidation.invalid ? undefined : PROJECT_CODE_RULES.messages.hint} error={codeValidation.messages[0]}>
+      <Input id="code" bind:value={projectCode} placeholder="my-game-project" pattern={PROJECT_CODE_RULES.pattern.source} required error={codeValidation.invalid} oninput={handleProjectCodeInput} />
     </FormField>
 
     <FormField label="Description (optional)" name="description">

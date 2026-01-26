@@ -9,6 +9,15 @@
   import { syncDataSource } from '$lib/utils/dataSource.utils';
   import { invalidateAll } from '$app/navigation';
 
+  // Validation constants
+  const GOOGLE_SHEETS_URL_RULES = {
+    pattern: /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+/,
+    messages: {
+      required: 'Please enter a Google Sheets URL',
+      invalid: 'Please enter a valid Google Sheets URL'
+    }
+  } as const;
+
   let { data }: { data: PageData } = $props();
 
   // Helper to build project URL base
@@ -36,7 +45,12 @@
 
   async function addDataSource(): Promise<void> {
     if (!newSourceUrl.trim()) {
-      errorMessage = 'Please enter a Google Sheets URL';
+      errorMessage = GOOGLE_SHEETS_URL_RULES.messages.required;
+      return;
+    }
+
+    if (!GOOGLE_SHEETS_URL_RULES.pattern.test(newSourceUrl.trim())) {
+      errorMessage = GOOGLE_SHEETS_URL_RULES.messages.invalid;
       return;
     }
 

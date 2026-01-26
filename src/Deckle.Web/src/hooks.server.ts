@@ -1,5 +1,16 @@
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
+import { env as privateEnv } from '$env/dynamic/private';
+import { Exceptionless, toError } from '@exceptionless/node';
+
+// Initialize Exceptionless for error tracking
+const exceptionlessKey = privateEnv.EXCEPTIONLESS__KEY;
+if (exceptionlessKey) {
+  Exceptionless.startup((c) => {
+    c.apiKey = exceptionlessKey;
+    c.defaultTags.push('Deckle', 'svelte-kit', 'server');
+  });
+}
 
 /**
  * SvelteKit server hooks
@@ -37,4 +48,19 @@ export const handle: Handle = async ({ event, resolve }) => {
   };
 
   return resolve(event);
+};
+
+/**
+ * Handle server errors by logging them to Exceptionless
+ */
+export const handleError: HandleServerError = async ({ error, event }) => {
+  if (exceptionlessKey) {
+    await Exceptionless.submitException(toError(error));
+  }
+
+  console.error('Server error:', error);
+
+  return {
+    message: 'An unexpected error occurred'
+  };
 };

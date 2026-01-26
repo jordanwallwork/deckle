@@ -3,6 +3,7 @@ using Deckle.API.Endpoints;
 using Deckle.API.Services;
 using Deckle.Domain.Data;
 using Deckle.Email;
+using Exceptionless;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
@@ -166,6 +167,8 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddExceptionless(builder.Configuration["Exceptionless:Key"]);
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy =>
@@ -249,6 +252,8 @@ builder.Services.AddScoped<FileDirectoryService>();
 builder.Services.AddScoped<AdminService>();
 
 var app = builder.Build();
+
+app.UseExceptionless();
 
 // Apply database migrations
 using (var scope = app.Services.CreateScope())

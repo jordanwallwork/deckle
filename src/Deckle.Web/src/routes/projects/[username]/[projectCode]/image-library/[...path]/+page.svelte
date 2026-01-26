@@ -46,12 +46,38 @@
   // Drag and drop state
   let isRootDropTarget = $state(false);
 
+  // Multi-select state
+  let selectedIds = $state<Set<string>>(new Set());
+  let lastSelectedId = $state<string | null>(null);
+
   // Computed values
   let files = $derived(data.directoryContents?.files ?? []);
   let directories = $derived(data.directoryContents?.childDirectories ?? []);
   let isEmpty = $derived(files.length === 0 && directories.length === 0);
-  // Current directory ID for API operations (empty string for root)
-  let currentDirectoryId = $derived(data.directoryContents?.id || null);
+
+  // Combined list of all items in display order (for shift+click selection)
+  let allItems = $derived([
+    ...directories.map((d) => ({ type: 'folder' as const, id: d.id })),
+    ...files.map((f) => ({ type: 'file' as const, id: f.id }))
+  ]);
+
+  // Helper to check if an item is selected
+  function isItemSelected(id: string): boolean {
+    return selectedIds.has(id);
+  }
+
+  // Get array of selected IDs for components that need it
+  let selectedIdsArray = $derived(Array.from(selectedIds));
+  // Empty GUID string that represents root directory
+  const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+
+  // Current directory ID for API operations (null for root)
+  // The API returns Guid.Empty for root, so we need to treat it as null
+  let currentDirectoryId = $derived.by(() => {
+    const id = data.directoryContents?.id;
+    if (!id || id === '' || id === EMPTY_GUID) return null;
+    return id;
+  });
 
   // Base URL for project and image library
   let projectUrlBase = $derived(`/projects/${data.project.ownerUsername}/${data.project.code}`);
@@ -66,6 +92,54 @@
       console.error('Failed to load tags:', err);
     }
   });
+
+  // Clear selection when navigating to a different directory
+  $effect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    data.currentPath;
+    selectedIds = new Set();
+    lastSelectedId = null;
+  });
+
+  // Handle selection change for an item
+  function handleSelectionChange(itemId: string, selected: boolean, shiftKey: boolean) {
+    if (shiftKey && lastSelectedId && lastSelectedId !== itemId) {
+      // Shift+click: select range from last selected to current
+      const lastIndex = allItems.findIndex((item) => item.id === lastSelectedId);
+      const currentIndex = allItems.findIndex((item) => item.id === itemId);
+
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+
+        const newSelection = new Set(selectedIds);
+        for (let i = start; i <= end; i++) {
+          newSelection.add(allItems[i].id);
+        }
+        selectedIds = newSelection;
+      }
+    } else {
+      // Regular click: toggle single item
+      const newSelection = new Set(selectedIds);
+      if (selected) {
+        newSelection.add(itemId);
+      } else {
+        newSelection.delete(itemId);
+      }
+      selectedIds = newSelection;
+    }
+    lastSelectedId = itemId;
+  }
+
+  // Handle folder selection change
+  function handleFolderSelectionChange(folderId: string, selected: boolean, shiftKey: boolean) {
+    handleSelectionChange(folderId, selected, shiftKey);
+  }
+
+  // Handle file selection change
+  function handleFileSelectionChange(fileId: string, selected: boolean, shiftKey: boolean) {
+    handleSelectionChange(fileId, selected, shiftKey);
+  }
 
   // Navigate to a directory by path
   function navigateToPath(path: string) {
@@ -149,11 +223,9 @@
     newFolderError = null;
 
     try {
-      // Use directoryContents.id for parent (empty string means root, which the API handles as null)
-      const parentId = currentDirectoryId && currentDirectoryId !== '' ? currentDirectoryId : null;
       await directoriesApi.create(data.project.id, {
         name: newFolderName.trim(),
-        parentDirectoryId: parentId
+        parentDirectoryId: currentDirectoryId
       });
       showNewFolderModal = false;
       await invalidateAll();
@@ -204,68 +276,89 @@
     }
   }
 
-  // Move item to a folder
-  async function handleMoveToFolder(targetFolderId: string, dragData: DragItemData) {
+  // Move a single item to a folder
+  async function moveSingleItem(
+    item: { type: 'file' | 'folder'; id: string },
+    targetFolderId: string | null
+  ): Promise<{ success: boolean; conflict?: DirectoryMoveConflict }> {
     try {
-      if (dragData.type === 'file') {
-        await filesApi.move(dragData.id, { directoryId: targetFolderId });
+      if (item.type === 'file') {
+        await filesApi.move(item.id, { directoryId: targetFolderId });
       } else {
-        await directoriesApi.move(dragData.id, { parentDirectoryId: targetFolderId });
+        await directoriesApi.move(item.id, { parentDirectoryId: targetFolderId });
       }
-      await invalidateAll();
+      return { success: true };
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409 && dragData.type === 'folder') {
+      if (err instanceof ApiError && err.status === 409 && item.type === 'folder') {
+        return { success: false, conflict: err.response as DirectoryMoveConflict };
+      }
+      console.error('Failed to move item:', err);
+      return { success: false };
+    }
+  }
+
+  // Move item(s) to a folder
+  async function handleMoveToFolder(targetFolderId: string, dragData: DragItemData) {
+    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
+
+    for (const item of itemsToMove) {
+      const result = await moveSingleItem(item, targetFolderId);
+      if (!result.success && result.conflict) {
         // Conflict - directory with same name exists, prompt for merge
-        mergeConflict = err.response as DirectoryMoveConflict;
+        mergeConflict = result.conflict;
         pendingMergeTarget = targetFolderId;
         mergeConfirmOpen = true;
-      } else {
-        console.error('Failed to move item:', err);
+        // Stop processing remaining items on conflict
+        break;
       }
     }
+
+    // Clear selection after moving
+    selectedIds = new Set();
+    await invalidateAll();
   }
 
-  // Move item to root (null directory)
+  // Move item(s) to root (null directory)
   async function handleMoveToRoot(dragData: DragItemData) {
-    try {
-      if (dragData.type === 'file') {
-        await filesApi.move(dragData.id, { directoryId: null });
-      } else {
-        await directoriesApi.move(dragData.id, { parentDirectoryId: null });
-      }
-      await invalidateAll();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409 && dragData.type === 'folder') {
+    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
+
+    for (const item of itemsToMove) {
+      const result = await moveSingleItem(item, null);
+      if (!result.success && result.conflict) {
         // Conflict - directory with same name exists at root, prompt for merge
-        mergeConflict = err.response as DirectoryMoveConflict;
+        mergeConflict = result.conflict;
         pendingMergeTarget = null;
         mergeConfirmOpen = true;
-      } else {
-        console.error('Failed to move item to root:', err);
+        // Stop processing remaining items on conflict
+        break;
       }
     }
+
+    // Clear selection after moving
+    selectedIds = new Set();
+    await invalidateAll();
   }
 
-  // Move item to parent directory
+  // Move item(s) to parent directory
   async function handleMoveToParent(dragData: DragItemData) {
     const parentId = data.directoryContents?.parentDirectoryId ?? null;
-    try {
-      if (dragData.type === 'file') {
-        await filesApi.move(dragData.id, { directoryId: parentId });
-      } else {
-        await directoriesApi.move(dragData.id, { parentDirectoryId: parentId });
-      }
-      await invalidateAll();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409 && dragData.type === 'folder') {
+    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
+
+    for (const item of itemsToMove) {
+      const result = await moveSingleItem(item, parentId);
+      if (!result.success && result.conflict) {
         // Conflict - directory with same name exists in parent, prompt for merge
-        mergeConflict = err.response as DirectoryMoveConflict;
+        mergeConflict = result.conflict;
         pendingMergeTarget = parentId;
         mergeConfirmOpen = true;
-      } else {
-        console.error('Failed to move item to parent:', err);
+        // Stop processing remaining items on conflict
+        break;
       }
     }
+
+    // Clear selection after moving
+    selectedIds = new Set();
+    await invalidateAll();
   }
 
   // Handle merge confirmation
@@ -528,6 +621,11 @@
             onrename={(name) => handleRenameFolder(directory.id, name, directory.name)}
             ondelete={() => confirmDeleteFolder(directory)}
             onItemDropped={(dragData) => handleMoveToFolder(directory.id, dragData)}
+            selectable={true}
+            isSelected={isItemSelected(directory.id)}
+            onSelectionChange={(selected, shiftKey) => handleFolderSelectionChange(directory.id, selected, shiftKey)}
+            selectedIds={selectedIdsArray}
+            {allItems}
           />
         {/each}
 
@@ -537,6 +635,10 @@
             {files}
             onFileDeleted={handleFileDeleted}
             onFileUpdated={handleFileUpdated}
+            selectable={true}
+            selectedIds={selectedIdsArray}
+            onSelectionChange={handleFileSelectionChange}
+            {allItems}
           />
         {/if}
       </div>
@@ -547,7 +649,7 @@
 <Dialog bind:show={showUploadModal} title="Upload Images" maxWidth="700px">
   <FileUpload
     projectId={data.project.id}
-    directoryId={currentDirectoryId && currentDirectoryId !== '' ? currentDirectoryId : null}
+    directoryId={currentDirectoryId}
     onUploadComplete={handleUploadComplete}
   />
 </Dialog>

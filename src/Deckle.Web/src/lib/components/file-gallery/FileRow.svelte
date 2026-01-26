@@ -13,7 +13,12 @@
     onThumbnailClick,
     onDeleteClick,
     onFileRenamed,
-    onError
+    onError,
+    selectable = false,
+    isSelected = false,
+    onSelectionChange,
+    selectedIds = [],
+    allItems = []
   }: {
     file: File;
     isDeleting?: boolean;
@@ -21,6 +26,11 @@
     onDeleteClick: () => void;
     onFileRenamed?: () => void;
     onError?: (message: string) => void;
+    selectable?: boolean;
+    isSelected?: boolean;
+    onSelectionChange?: (selected: boolean, shiftKey: boolean) => void;
+    selectedIds?: string[];
+    allItems?: Array<{ type: 'file' | 'folder'; id: string }>;
   } = $props();
 
   // Drag data for this file
@@ -56,6 +66,11 @@
   metadata="{formatFileSize(file.fileSizeBytes)} &bull; {formatShortDate(file.uploadedAt)}"
   {contextMenuItems}
   {dragData}
+  {selectable}
+  {isSelected}
+  {onSelectionChange}
+  {selectedIds}
+  {allItems}
 >
   {#snippet thumbnail()}
     <FileThumbnail

@@ -13,7 +13,7 @@ The Licensed Work is (c) 2025 Jordan Wallwork
 
 For clarity, you MAY use the Licensed Work to design board games that you sell commercially. You may NOT offer the Licensed Work itself as a hosted service to others.
 
-**Change Date:** 2027-01-03 (2 years from the date of release)
+**Change Date:** 2028-01-03 (2 years from the date of release)
 
 **Change License:** Apache License, Version 2.0
 

@@ -152,7 +152,7 @@ csharp_style_throw_expression = true:warning
 csharp_style_conditional_delegate_call = true:warning
 
 # Code block preferences (IDE0011, IDE0063)
-csharp_prefer_braces = true:warning
+csharp_prefer_braces = when_multiline:warning
 csharp_prefer_simple_using_statement = true:warning
 
 # using directive placement (IDE0065)
@@ -306,7 +306,7 @@ dotnet_naming_rule.local_functions_should_be_pascal_case.symbols = local_functio
 dotnet_naming_rule.local_functions_should_be_pascal_case.style = pascal_case
 
 # Async methods must end with Async
-dotnet_naming_rule.async_methods_should_end_with_async.severity = warning
+dotnet_naming_rule.async_methods_should_end_with_async.severity = none
 dotnet_naming_rule.async_methods_should_end_with_async.symbols = async_methods
 dotnet_naming_rule.async_methods_should_end_with_async.style = async_suffix
 
@@ -736,7 +736,7 @@ dotnet_diagnostic.CA2000.severity = warning
 dotnet_diagnostic.CA2002.severity = error
 
 # CA2007: Do not directly await a Task
-dotnet_diagnostic.CA2007.severity = suggestion
+dotnet_diagnostic.CA2007.severity = none
 
 # CA2008: Do not create tasks without passing a TaskScheduler
 dotnet_diagnostic.CA2008.severity = warning

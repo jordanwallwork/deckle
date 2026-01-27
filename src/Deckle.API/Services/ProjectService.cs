@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
-public class ProjectService
+public partial class ProjectService
 {
     private readonly AppDbContext _dbContext;
     private readonly ProjectAuthorizationService _authService;
@@ -102,7 +102,7 @@ public class ProjectService
         };
     }
 
-    private static readonly Regex _ProjectCodePattern = new("^[a-z0-9-]+$", RegexOptions.Compiled);
+    private static readonly Regex _projectCodePattern = ProjectCodePatternRegex();
 
     public async Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string code, string? description)
     {
@@ -123,7 +123,7 @@ public class ProjectService
         {
             validationErrors.AddError("code", "Project code is required");
         }
-        else if (!_ProjectCodePattern.IsMatch(code))
+        else if (!_projectCodePattern.IsMatch(code))
         {
             validationErrors.AddError("code", "Project code can only contain lowercase letters, numbers, and dashes");
         }
@@ -253,10 +253,9 @@ public class ProjectService
             .ToListAsync();
 
         // Order by role priority: Owner, Collaborator
-        users = users
+        users = [.. users
             .OrderBy(u => GetRolePriority(u.Role))
-            .ThenBy(u => u.Email)
-            .ToList();
+            .ThenBy(u => u.Email)];
 
         return users;
     }
@@ -368,7 +367,7 @@ public class ProjectService
             return false; // Target user not found in project
         }
 
-        bool isSelfRemoval = requestingUserId == targetUserId;
+        var isSelfRemoval = requestingUserId == targetUserId;
 
         // 3. Authorization checks
         if (isSelfRemoval)
@@ -454,4 +453,7 @@ public class ProjectService
             _ => 999 // Unknown roles go last
         };
     }
+
+    [GeneratedRegex("^[a-z0-9-]+$", RegexOptions.Compiled)]
+    private static partial Regex ProjectCodePatternRegex();
 }

@@ -22,15 +22,17 @@ public record FieldError(string Field, string Message);
 /// </summary>
 public class ValidationErrorBuilder
 {
-    private readonly Dictionary<string, List<string>> _errors = new();
+    private readonly Dictionary<string, List<string>> _errors = [];
 
     public ValidationErrorBuilder AddError(string field, string message)
     {
-        if (!_errors.ContainsKey(field))
+        if (!_errors.TryGetValue(field, out var value))
         {
-            _errors[field] = [];
+            value = [];
+            _errors[field] = value;
         }
-        _errors[field].Add(message);
+
+        value.Add(message);
         return this;
     }
 

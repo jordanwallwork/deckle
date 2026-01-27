@@ -55,15 +55,10 @@ public class ProjectAuthorizationService
     /// </summary>
     public async Task<ProjectRole> RequireProjectAccessAsync(Guid userId, Guid projectId, string? customMessage = null)
     {
-        var role = await GetUserProjectRoleAsync(userId, projectId);
-
-        if (role == null)
-        {
-            throw new UnauthorizedAccessException(
-                customMessage ?? "User does not have access to this project");
-        }
-
-        return role.Value;
+        var role = (await GetUserProjectRoleAsync(userId, projectId))
+            ?? throw new UnauthorizedAccessException(customMessage ?? "User does not have access to this project");
+        
+        return role;
     }
 
     /// <summary>

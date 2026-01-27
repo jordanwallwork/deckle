@@ -103,8 +103,8 @@ public class FileServiceTests : IDisposable
             () => _fileService.RequestUploadUrlAsync(
                 userId, projectId, "test.exe", "application/exe", 1024));
 
-        Assert.Contains("Content type", exception.Message);
-        Assert.Contains("not allowed", exception.Message);
+        Assert.Contains("Content type", exception.Message, StringComparison.InvariantCulture);
+        Assert.Contains("not allowed", exception.Message, StringComparison.InvariantCulture);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class FileServiceTests : IDisposable
             () => _fileService.RequestUploadUrlAsync(
                 userId, projectId, "test.jpg", "image/jpeg", 0));
 
-        Assert.Contains("File size must be greater than 0", exception.Message);
+        Assert.Contains("File size must be greater than 0", exception.Message, StringComparison.InvariantCulture);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class FileServiceTests : IDisposable
             () => _fileService.RequestUploadUrlAsync(
                 userId, projectId, "test.jpg", "image/jpeg", fileSizeBytes));
 
-        Assert.Contains("exceeds maximum allowed size", exception.Message);
+        Assert.Contains("exceeds maximum allowed size", exception.Message, StringComparison.InvariantCulture);
     }
 
     [Fact]
@@ -192,9 +192,9 @@ public class FileServiceTests : IDisposable
             () => _fileService.RequestUploadUrlAsync(
                 userId, projectId, "test.jpg", "image/jpeg", fileSizeBytes));
 
-        Assert.Contains("storage quota exceeded", exception.Message);
-        Assert.Contains("Available:", exception.Message);
-        Assert.Contains("Required:", exception.Message);
+        Assert.Contains("storage quota exceeded", exception.Message, StringComparison.InvariantCulture);
+        Assert.Contains("Available:", exception.Message, StringComparison.InvariantCulture);
+        Assert.Contains("Required:", exception.Message, StringComparison.InvariantCulture);
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public class FileServiceTests : IDisposable
             () => _fileService.RequestUploadUrlAsync(
                 userId, projectId, "test.jpg", "image/jpeg", 1024, tags));
 
-        Assert.Contains("Maximum 20 tags allowed", exception.Message);
+        Assert.Contains("Maximum 20 tags allowed", exception.Message, StringComparison.InvariantCulture);
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public class FileServiceTests : IDisposable
             () => _fileService.RequestUploadUrlAsync(
                 userId, projectId, "test.jpg", "image/jpeg", 1024, tags));
 
-        Assert.Contains("contains invalid characters", exception.Message);
+        Assert.Contains("contains invalid characters", exception.Message, StringComparison.InvariantCulture);
     }
 
     // Note: RequestUploadUrlAsync_UserWithoutModifyPermission test was removed because
@@ -304,15 +304,15 @@ public class FileServiceTests : IDisposable
 
         await SeedProjectWithOwner(projectId, ownerId, userId);
 
-        var file1 = CreateConfirmedFile(projectId, userId, "file1.jpg", new[] { "character", "hero" });
-        var file2 = CreateConfirmedFile(projectId, userId, "file2.jpg", new[] { "background" });
-        var file3 = CreateConfirmedFile(projectId, userId, "file3.jpg", new[] { "character", "villain" });
+        var file1 = CreateConfirmedFile(projectId, userId, "file1.jpg", ["character", "hero"]);
+        var file2 = CreateConfirmedFile(projectId, userId, "file2.jpg", ["background"]);
+        var file3 = CreateConfirmedFile(projectId, userId, "file3.jpg", ["character", "villain"]);
         _context.Files.AddRange(file1, file2, file3);
         await _context.SaveChangesAsync();
 
         // Act - Filter for "character" OR "background"
         var result = await _fileService.GetProjectFilesAsync(
-            userId, projectId, new List<string> { "character", "background" }, useAndLogic: false);
+            userId, projectId, ["character", "background"], useAndLogic: false);
 
         // Assert - Should return all three files (all have either character OR background)
         Assert.Equal(3, result.Count);
@@ -328,15 +328,15 @@ public class FileServiceTests : IDisposable
 
         await SeedProjectWithOwner(projectId, ownerId, userId);
 
-        var file1 = CreateConfirmedFile(projectId, userId, "file1.jpg", new[] { "character", "hero" });
-        var file2 = CreateConfirmedFile(projectId, userId, "file2.jpg", new[] { "character" });
-        var file3 = CreateConfirmedFile(projectId, userId, "file3.jpg", new[] { "character", "hero", "main" });
+        var file1 = CreateConfirmedFile(projectId, userId, "file1.jpg", ["character", "hero"]);
+        var file2 = CreateConfirmedFile(projectId, userId, "file2.jpg", ["character"]);
+        var file3 = CreateConfirmedFile(projectId, userId, "file3.jpg", ["character", "hero", "main"]);
         _context.Files.AddRange(file1, file2, file3);
         await _context.SaveChangesAsync();
 
         // Act - Filter for "character" AND "hero"
         var result = await _fileService.GetProjectFilesAsync(
-            userId, projectId, new List<string> { "character", "hero" }, useAndLogic: true);
+            userId, projectId, ["character", "hero"], useAndLogic: true);
 
         // Assert - Should return only file1 and file3 (both have character AND hero)
         Assert.Equal(2, result.Count);
@@ -399,7 +399,7 @@ public class FileServiceTests : IDisposable
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _fileService.GetUserQuotaAsync(userId));
 
-        Assert.Contains("User not found", exception.Message);
+        Assert.Contains("User not found", exception.Message, StringComparison.InvariantCulture);
     }
 
     #endregion
@@ -417,7 +417,7 @@ public class FileServiceTests : IDisposable
 
         await SeedProjectWithOwner(projectId, ownerId, userId);
 
-        var file = CreateConfirmedFile(projectId, userId, "test.jpg", new[] { "old-tag" });
+        var file = CreateConfirmedFile(projectId, userId, "test.jpg", ["old-tag"]);
         file.Id = fileId;
         _context.Files.Add(file);
         await _context.SaveChangesAsync();
@@ -504,9 +504,9 @@ public class FileServiceTests : IDisposable
 
         await SeedProjectWithOwner(projectId, ownerId, userId);
 
-        var file1 = CreateConfirmedFile(projectId, userId, "file1.jpg", new[] { "zebra", "apple" });
-        var file2 = CreateConfirmedFile(projectId, userId, "file2.jpg", new[] { "banana", "apple" });
-        var file3 = CreateConfirmedFile(projectId, userId, "file3.jpg", new[] { "cherry" });
+        var file1 = CreateConfirmedFile(projectId, userId, "file1.jpg", ["zebra", "apple"]);
+        var file2 = CreateConfirmedFile(projectId, userId, "file2.jpg", ["banana", "apple"]);
+        var file3 = CreateConfirmedFile(projectId, userId, "file3.jpg", ["cherry"]);
         _context.Files.AddRange(file1, file2, file3);
         await _context.SaveChangesAsync();
 
@@ -602,7 +602,7 @@ public class FileServiceTests : IDisposable
             StorageKey = $"{projectId}/{Guid.NewGuid()}/{fileName}",
             Status = FileStatus.Confirmed,
             UploadedAt = DateTime.UtcNow,
-            Tags = tags?.ToList() ?? new List<string>()
+            Tags = tags?.ToList() ?? []
         };
     }
 
@@ -619,7 +619,7 @@ public class FileServiceTests : IDisposable
             StorageKey = $"{projectId}/{Guid.NewGuid()}/{fileName}",
             Status = FileStatus.Pending,
             UploadedAt = DateTime.UtcNow,
-            Tags = new List<string>()
+            Tags = []
         };
     }
 

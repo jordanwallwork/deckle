@@ -1,3 +1,4 @@
+using System.Globalization;
 using Deckle.API.DTOs;
 using Deckle.API.Exceptions;
 using Deckle.Domain.Data;
@@ -198,9 +199,9 @@ public class FileDirectoryService
             return null;
 
         // Build path from root to this directory
-        var pathSegments = new List<string>();
+        List<string> pathSegments = [];
         var currentDirectory = directory;
-        var visitedIds = new HashSet<Guid>();
+        HashSet<Guid> visitedIds = [];
 
         while (currentDirectory != null)
         {
@@ -439,7 +440,7 @@ public class FileDirectoryService
                 // Rename the file to avoid conflict (append timestamp)
                 var extension = System.IO.Path.GetExtension(file.FileName);
                 var nameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(file.FileName);
-                var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
                 file.FileName = $"{nameWithoutExtension}_{timestamp}{extension}";
             }
 
@@ -525,7 +526,7 @@ public class FileDirectoryService
     private async Task<bool> IsDescendantAsync(Guid ancestorId, Guid targetId)
     {
         var currentId = targetId;
-        var visitedIds = new HashSet<Guid>();
+        HashSet<Guid> visitedIds = [];
 
         while (currentId != Guid.Empty)
         {
@@ -598,9 +599,9 @@ public class FileDirectoryService
     /// </summary>
     private async Task<string> GetDirectoryFullPathAsync(FileDirectory directory)
     {
-        var pathSegments = new List<string>();
+        List<string> pathSegments = [];
         var currentDirectory = directory;
-        var visitedIds = new HashSet<Guid>();
+        HashSet<Guid> visitedIds = [];
 
         while (currentDirectory != null)
         {
@@ -626,7 +627,7 @@ public class FileDirectoryService
     {
         // Update all files in this directory and its descendants
         // Get all directories in the tree (including the starting directory)
-        var directoryIds = new List<Guid> { directoryId };
+        List<Guid> directoryIds = [directoryId];
         var queue = new Queue<Guid>();
         queue.Enqueue(directoryId);
 
@@ -653,15 +654,15 @@ public class FileDirectoryService
         // Update each file's path
         foreach (var file in files)
         {
-            if (file.Path.StartsWith(oldPath + "/"))
+            if (file.Path.StartsWith(oldPath + "/", StringComparison.Ordinal))
             {
                 // Replace the old path prefix with the new one
-                file.Path = newPath + file.Path.Substring(oldPath.Length);
+                file.Path = newPath + file.Path[oldPath.Length..];
             }
-            else if (file.Path.StartsWith(oldPath))
+            else if (file.Path.StartsWith(oldPath, StringComparison.Ordinal))
             {
                 // Handle case where file is directly in the renamed directory
-                file.Path = newPath + file.Path.Substring(oldPath.Length);
+                file.Path = newPath + file.Path[oldPath.Length..];
             }
         }
 

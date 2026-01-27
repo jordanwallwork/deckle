@@ -34,4 +34,4 @@ await app.ConfigurePipelineAsync();
 // Map all endpoints
 app.MapDeckleEndpoints();
 
-app.Run();
+await app.RunAsync();

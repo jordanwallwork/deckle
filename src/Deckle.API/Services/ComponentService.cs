@@ -37,7 +37,7 @@ public class ComponentService
                 .LoadAsync();
         }
 
-        return components.Select(c => c.ToComponentDto()).ToList();
+        return [.. components.Select(c => c.ToComponentDto())];
     }
 
     public async Task<ComponentDto?> GetComponentByIdAsync(Guid userId, Guid componentId)
@@ -147,12 +147,7 @@ public class ComponentService
     {
         var component = await _context.Components
             .Where(c => c.Id == componentId)
-            .FirstOrDefaultAsync();
-
-        if (component == null)
-        {
-            throw new KeyNotFoundException("Component not found");
-        }
+            .FirstOrDefaultAsync() ?? throw new KeyNotFoundException("Component not found");
 
         // Authorization check
         await _authService.EnsureCanDeleteResourcesAsync(userId, component.ProjectId);
@@ -213,11 +208,11 @@ public class ComponentService
         // Validate custom dimensions if provided
         if (customWidthMm.HasValue || customHeightMm.HasValue)
         {
-            if (customWidthMm < 63m || customWidthMm > 297m)
+            if (customWidthMm is < 63m or > 297m)
             {
                 throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
             }
-            if (customHeightMm < 63m || customHeightMm > 297m)
+            if (customHeightMm is < 63m or > 297m)
             {
                 throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
             }
@@ -268,11 +263,11 @@ public class ComponentService
         // Validate custom dimensions if provided
         if (customWidthMm.HasValue || customHeightMm.HasValue)
         {
-            if (customWidthMm < 63m || customWidthMm > 297m)
+            if (customWidthMm is < 63m or > 297m)
             {
                 throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
             }
-            if (customHeightMm < 63m || customHeightMm > 297m)
+            if (customHeightMm is < 63m or > 297m)
             {
                 throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
             }

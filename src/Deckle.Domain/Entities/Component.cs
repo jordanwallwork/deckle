@@ -95,7 +95,7 @@ public abstract class EditableComponent : Component, IEditableComponent
     protected abstract string ComponentTypeName { get; }
 
     // Concrete implementation of GetDesign
-    public string? GetDesign(string part) => part.ToLower() switch
+    public string? GetDesign(string part) => part.ToLowerInvariant() switch
     {
         "front" => FrontDesign,
         "back" => BackDesign,
@@ -105,7 +105,7 @@ public abstract class EditableComponent : Component, IEditableComponent
     // Concrete implementation of SetDesign
     public void SetDesign(string part, string? design)
     {
-        switch (part.ToLower())
+        switch (part.ToLowerInvariant())
         {
             case "front": FrontDesign = design; break;
             case "back": BackDesign = design; break;

@@ -27,8 +27,7 @@ public class NewUserInviteEmail : EmailTemplateBase
     /// </summary>
     public string? InvitationUrl { get; init; }
 
-    public override IReadOnlyList<EmailAddress> To =>
-        new[] { EmailAddress.From(RecipientEmail) };
+    public override IReadOnlyList<EmailAddress> To => [EmailAddress.From(RecipientEmail)];
 
     public override string Subject =>
         $"{InviterName} invited you to collaborate on \"{ProjectName}\"";

@@ -6,17 +6,17 @@ using System.Text.RegularExpressions;
 
 namespace Deckle.API.Services;
 
-public class FileService
+public partial class FileService
 {
     private readonly AppDbContext _context;
     private readonly ProjectAuthorizationService _authService;
     private readonly CloudflareR2Service _r2Service;
     private readonly ILogger<FileService> _logger;
 
-    private const long MaxFileSizeBytes = 50 * 1024 * 1024; // 50MB
-    private const int MaxTagLength = 50;
-    private const int MaxTagsPerFile = 20;
-    private static readonly Regex TagPattern = new(@"^[a-z0-9\-_]+$", RegexOptions.Compiled);
+    private const long _maxFileSizeBytes = 50 * 1024 * 1024; // 50MB
+    private const int _maxTagLength = 50;
+    private const int _maxTagsPerFile = 20;
+    private static readonly Regex _tagPattern = TagPatternRegex();
 
     public FileService(
         AppDbContext context,
@@ -57,36 +57,22 @@ public class FileService
             throw new ArgumentException("File size must be greater than 0");
         }
 
-        if (fileSizeBytes > MaxFileSizeBytes)
+        if (fileSizeBytes > _maxFileSizeBytes)
         {
-            var maxMb = MaxFileSizeBytes / (1024.0 * 1024.0);
+            var maxMb = _maxFileSizeBytes / (1024.0 * 1024.0);
             throw new ArgumentException($"File size exceeds maximum allowed size of {maxMb:F0}MB");
         }
 
         // 4. Get project with owner to check quota
         var project = await _context.Projects
             .Include(p => p.UserProjects)
-            .FirstOrDefaultAsync(p => p.Id == projectId);
-
-        if (project == null)
-        {
-            throw new InvalidOperationException("Project not found");
-        }
+            .FirstOrDefaultAsync(p => p.Id == projectId) ?? throw new InvalidOperationException("Project not found");
 
         var ownerUserProject = project.UserProjects
-            .FirstOrDefault(up => up.Role == ProjectRole.Owner);
-
-        if (ownerUserProject == null)
-        {
-            throw new InvalidOperationException("Project has no owner");
-        }
+            .FirstOrDefault(up => up.Role == ProjectRole.Owner) ?? throw new InvalidOperationException("Project has no owner");
 
         // 5. Check owner's quota
-        var ownerUser = await _context.Users.FindAsync(ownerUserProject.UserId);
-        if (ownerUser == null)
-        {
-            throw new InvalidOperationException("Project owner not found");
-        }
+        var ownerUser = await _context.Users.FindAsync(ownerUserProject.UserId) ?? throw new InvalidOperationException("Project owner not found");
 
         var quotaBytes = ownerUser.StorageQuotaMb * 1024L * 1024L;
         var projectedUsage = ownerUser.StorageUsedBytes + fileSizeBytes;
@@ -110,10 +96,7 @@ public class FileService
         if (directoryId.HasValue)
         {
             var directory = await _context.FileDirectories
-                .FirstOrDefaultAsync(d => d.Id == directoryId.Value && d.ProjectId == projectId);
-
-            if (directory == null)
-                throw new KeyNotFoundException("Directory not found or doesn't belong to this project");
+                .FirstOrDefaultAsync(d => d.Id == directoryId.Value && d.ProjectId == projectId) ?? throw new KeyNotFoundException("Directory not found or doesn't belong to this project");
         }
 
         // 8. Sanitize filename (replace invalid characters with underscores)
@@ -145,7 +128,7 @@ public class FileService
             StorageKey = storageKey,
             Status = FileStatus.Pending,
             UploadedAt = DateTime.UtcNow,
-            Tags = tags?.Select(t => t.Trim().ToLowerInvariant()).Where(t => !string.IsNullOrEmpty(t)).ToList() ?? new()
+            Tags = tags?.Select(t => t.Trim().ToLowerInvariant()).Where(t => !string.IsNullOrEmpty(t)).ToList() ?? []
         };
 
         _context.Files.Add(file);
@@ -179,12 +162,7 @@ public class FileService
             .Include(f => f.Project)
                 .ThenInclude(p => p.UserProjects)
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId);
-
-        if (file == null)
-        {
-            throw new InvalidOperationException("File not found");
-        }
+            .FirstOrDefaultAsync(f => f.Id == fileId) ?? throw new InvalidOperationException("File not found");
 
         // Authorization: User must have access to the project
         await _authService.RequireProjectAccessAsync(userId, file.ProjectId);
@@ -280,7 +258,7 @@ public class FileService
             .OrderByDescending(f => f.UploadedAt)
             .ToListAsync();
 
-        return files.Select(MapToDto).ToList();
+        return [.. files.Select(MapToDto)];
     }
 
     /// <summary>
@@ -320,12 +298,7 @@ public class FileService
             .Include(f => f.Project)
                 .ThenInclude(p => p.UserProjects)
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId);
-
-        if (file == null)
-        {
-            throw new KeyNotFoundException("File not found");
-        }
+            .FirstOrDefaultAsync(f => f.Id == fileId) ?? throw new KeyNotFoundException("File not found");
 
         // Authorization: User must have CanDeleteResources permission
         await _authService.EnsureCanDeleteResourcesAsync(userId, file.ProjectId);
@@ -350,10 +323,7 @@ public class FileService
             if (ownerUserProject != null)
             {
                 var ownerUser = await _context.Users.FindAsync(ownerUserProject.UserId);
-                if (ownerUser != null)
-                {
-                    ownerUser.StorageUsedBytes = Math.Max(0, ownerUser.StorageUsedBytes - file.FileSizeBytes);
-                }
+                ownerUser?.StorageUsedBytes = Math.Max(0, ownerUser.StorageUsedBytes - file.FileSizeBytes);
             }
         }
 
@@ -369,11 +339,7 @@ public class FileService
     /// </summary>
     public async Task<UserStorageQuotaDto> GetUserQuotaAsync(Guid userId)
     {
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null)
-        {
-            throw new InvalidOperationException("User not found");
-        }
+        var user = await _context.Users.FindAsync(userId) ?? throw new InvalidOperationException("User not found");
 
         var quotaBytes = user.StorageQuotaMb * 1024L * 1024L;
         var usedBytes = user.StorageUsedBytes;
@@ -395,10 +361,7 @@ public class FileService
     {
         var file = await _context.Files
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed);
-
-        if (file == null)
-            throw new InvalidOperationException("File not found");
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new InvalidOperationException("File not found");
 
         // Authorization: User must have CanModifyResources permission
         await _authService.EnsureCanModifyResourcesAsync(userId, file.ProjectId);
@@ -407,11 +370,10 @@ public class FileService
         ValidateTags(tags);
 
         // Normalize tags: trim, lowercase, remove empty, remove duplicates
-        file.Tags = tags
+        file.Tags = [.. tags
             .Select(t => t.Trim().ToLowerInvariant())
             .Where(t => !string.IsNullOrEmpty(t))
-            .Distinct()
-            .ToList();
+            .Distinct()];
 
         await _context.SaveChangesAsync();
 
@@ -429,7 +391,7 @@ public class FileService
     {
         // Authorization: User must have project access
         if (!await _authService.HasProjectAccessAsync(userId, projectId))
-            return new List<string>();
+            return [];
 
         var allTags = await _context.Files
             .Where(f => f.ProjectId == projectId && f.Status == FileStatus.Confirmed)
@@ -437,11 +399,10 @@ public class FileService
             .ToListAsync();
 
         // Flatten, get distinct, and sort alphabetically
-        return allTags
+        return [.. allTags
             .SelectMany(tags => tags)
             .Distinct()
-            .OrderBy(tag => tag)
-            .ToList();
+            .OrderBy(tag => tag)];
     }
 
     /// <summary>
@@ -451,10 +412,7 @@ public class FileService
     {
         var file = await _context.Files
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed);
-
-        if (file == null)
-            throw new KeyNotFoundException("File not found");
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new KeyNotFoundException("File not found");
 
         // Authorization: User must have CanModifyResources permission
         await _authService.EnsureCanModifyResourcesAsync(userId, file.ProjectId);
@@ -562,20 +520,20 @@ public class FileService
         // Filter out null/whitespace before validation
         var validTags = tags.Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
 
-        if (validTags.Count > MaxTagsPerFile)
+        if (validTags.Count > _maxTagsPerFile)
         {
-            throw new ArgumentException($"Maximum {MaxTagsPerFile} tags allowed per file");
+            throw new ArgumentException($"Maximum {_maxTagsPerFile} tags allowed per file");
         }
 
         foreach (var tag in validTags)
         {
-            if (tag.Length > MaxTagLength)
+            if (tag.Length > _maxTagLength)
             {
-                throw new ArgumentException($"Tag '{tag}' exceeds maximum length of {MaxTagLength} characters");
+                throw new ArgumentException($"Tag '{tag}' exceeds maximum length of {_maxTagLength} characters");
             }
 
             var normalized = tag.Trim().ToLowerInvariant();
-            if (!TagPattern.IsMatch(normalized))
+            if (!_tagPattern.IsMatch(normalized))
             {
                 throw new ArgumentException($"Tag '{tag}' contains invalid characters. Only lowercase letters, numbers, hyphens, and underscores are allowed");
             }
@@ -589,10 +547,7 @@ public class FileService
     {
         var file = await _context.Files
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed);
-
-        if (file == null)
-            throw new KeyNotFoundException("File not found");
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new KeyNotFoundException("File not found");
 
         // Authorization: User must have CanModifyResources permission
         await _authService.EnsureCanModifyResourcesAsync(userId, file.ProjectId);
@@ -601,10 +556,7 @@ public class FileService
         if (directoryId.HasValue)
         {
             var directory = await _context.FileDirectories
-                .FirstOrDefaultAsync(d => d.Id == directoryId.Value && d.ProjectId == file.ProjectId);
-
-            if (directory == null)
-                throw new KeyNotFoundException("Directory not found or doesn't belong to the same project");
+                .FirstOrDefaultAsync(d => d.Id == directoryId.Value && d.ProjectId == file.ProjectId) ?? throw new KeyNotFoundException("Directory not found or doesn't belong to the same project");
         }
 
         // Build new path and check for conflicts at destination
@@ -645,9 +597,9 @@ public class FileService
         if (!directoryId.HasValue)
             return string.Empty;
 
-        var pathSegments = new List<string>();
+        List<string> pathSegments = [];
         var currentId = directoryId.Value;
-        var visitedIds = new HashSet<Guid>();
+        HashSet<Guid> visitedIds = [];
 
         while (true)
         {
@@ -690,4 +642,7 @@ public class FileService
             file.Tags
         );
     }
+
+    [GeneratedRegex(@"^[a-z0-9\-_]+$", RegexOptions.Compiled)]
+    private static partial Regex TagPatternRegex();
 }

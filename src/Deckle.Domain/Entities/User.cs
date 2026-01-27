@@ -30,7 +30,7 @@ public class User
 
     // Storage quota tracking
     public int StorageQuotaMb { get; set; } = 10;
-    public long StorageUsedBytes { get; set; } = 0;
+    public long StorageUsedBytes { get; set; }
 
     public ICollection<Project> Projects { get; set; } = [];
     public ICollection<UserProject> UserProjects { get; set; } = [];

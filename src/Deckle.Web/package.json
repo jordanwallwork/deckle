@@ -34,6 +34,7 @@
     "convert-csv-to-json": "^3.20.0",
     "html-to-image": "^1.11.13",
     "jspdf": "^3.0.4",
-    "marked": "^17.0.1"
+    "marked": "^17.0.1",
+    "posthog-js": "^1.335.3"
   }
 }

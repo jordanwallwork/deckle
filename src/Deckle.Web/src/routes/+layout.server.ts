@@ -1,5 +1,6 @@
 import { authApi } from '$lib/api';
 import { redirect } from '@sveltejs/kit';
+import { env } from '$env/dynamic/public';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ fetch, url }) => {
@@ -15,12 +16,18 @@ export const load: LayoutServerLoad = async ({ fetch, url }) => {
       throw redirect(302, '/account/setup');
     }
 
-    return { user };
+    return {
+      user,
+      posthogKey: env.PUBLIC_POSTHOG_KEY
+    };
   } catch (error) {
     // Re-throw redirects
     if ((error as any)?.status === 302) {
       throw error;
     }
-    return { user: null };
+    return {
+      user: null,
+      posthogKey: env.PUBLIC_POSTHOG_KEY
+    };
   }
 };

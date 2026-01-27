@@ -3,10 +3,27 @@
   import favicon from '$lib/assets/favicon.svg';
   import { page } from '$app/stores';
   import TopBar from '$lib/components/TopBar.svelte';
+  import { initPostHog, identifyUser, resetUser } from '$lib/analytics';
   import type { LayoutData } from './$types';
   import '../app.css';
 
   let { children, data }: { children: Snippet; data: LayoutData } = $props();
+
+  // Initialize PostHog analytics (cookieless EU configuration)
+  $effect(() => {
+    initPostHog(data.posthogKey);
+  });
+
+  // Identify/reset user when authentication state changes
+  $effect(() => {
+    if (data.user?.id) {
+      identifyUser(data.user.id, {
+        username: data.user.username ?? undefined
+      });
+    } else {
+      resetUser();
+    }
+  });
 
   // Determine if we should show the dashboard layout (topbar)
   const isAuthPage = $derived($page.url.pathname === '/' && !data.user);

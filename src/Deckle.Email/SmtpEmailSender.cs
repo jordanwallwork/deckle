@@ -9,14 +9,14 @@ using MimeKit.Text;
 namespace Deckle.Email;
 
 /// <summary>
-/// Email sender implementation using MailKit.
+/// Email sender implementation using SMTP via MailKit.
 /// </summary>
-public class EmailSender : IEmailSender
+public class SmtpEmailSender : IEmailSender
 {
     private readonly EmailOptions _options;
-    private readonly ILogger<EmailSender> _logger;
+    private readonly ILogger<SmtpEmailSender> _logger;
 
-    public EmailSender(IOptions<EmailOptions> options, ILogger<EmailSender> logger)
+    public SmtpEmailSender(IOptions<EmailOptions> options, ILogger<SmtpEmailSender> logger)
     {
         _options = options.Value;
         _logger = logger;

@@ -6,15 +6,15 @@ namespace Deckle.Domain.Entities;
 /// </summary>
 public interface IComponent
 {
-    Guid Id { get; }
+    public Guid Id { get; }
 
-    Guid ProjectId { get; }
+    public Guid ProjectId { get; }
 
-    string Name { get; }
+    public string Name { get; }
 
-    DateTime CreatedAt { get; }
+    public DateTime CreatedAt { get; }
 
-    DateTime UpdatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
 /// <summary>
@@ -27,12 +27,12 @@ public interface IEditableComponent : IComponent
     /// <summary>
     /// Gets the dimensions of this component for rendering and export.
     /// </summary>
-    Dimensions GetDimensions();
+    public Dimensions GetDimensions();
 
     /// <summary>
     /// The shape of this component (Rectangle, Circle, etc.).
     /// </summary>
-    ComponentShape Shape { get; set; }
+    public ComponentShape Shape { get; set; }
 
     /// <summary>
     /// Gets the design JSON for a specific part (e.g., "front", "back").
@@ -40,7 +40,7 @@ public interface IEditableComponent : IComponent
     /// <param name="part">The part name (case-insensitive).</param>
     /// <returns>The design JSON, or null if not set.</returns>
     /// <exception cref="ArgumentException">Thrown if the part name is invalid for this component type.</exception>
-    string? GetDesign(string part);
+    public string? GetDesign(string part);
 
     /// <summary>
     /// Sets the design JSON for a specific part.
@@ -49,7 +49,7 @@ public interface IEditableComponent : IComponent
     /// <param name="part">The part name (case-insensitive).</param>
     /// <param name="design">The design JSON to save.</param>
     /// <exception cref="ArgumentException">Thrown if the part name is invalid for this component type.</exception>
-    void SetDesign(string part, string? design);
+    public void SetDesign(string part, string? design);
 
 }
 
@@ -63,7 +63,7 @@ public interface IDataSourceComponent : IComponent
     /// <summary>
     /// The linked data source, or null if not linked.
     /// </summary>
-    DataSource? DataSource { get; set; }
+    public DataSource? DataSource { get; set; }
 }
 
 public abstract class Component : IComponent

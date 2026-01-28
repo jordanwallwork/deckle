@@ -1,6 +1,7 @@
 using Deckle.API.Endpoints;
 using Deckle.Domain.Data;
 using Exceptionless;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -19,6 +20,7 @@ public static class WebApplicationExtensions
         {
             app.MapOpenApi();
             app.MapScalarApiReference();
+            app.UseHangfireDashboard();
         }
 
         if (!app.Environment.IsDevelopment())

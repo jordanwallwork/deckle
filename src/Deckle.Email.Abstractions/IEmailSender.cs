@@ -11,7 +11,7 @@ public interface IEmailSender
     /// <param name="template">The email template to send.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SendAsync(IEmailTemplate template, CancellationToken cancellationToken = default);
+    public Task SendAsync(IEmailTemplate template, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sends multiple emails using the provided templates.
@@ -19,5 +19,5 @@ public interface IEmailSender
     /// <param name="templates">The email templates to send.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SendBatchAsync(IEnumerable<IEmailTemplate> templates, CancellationToken cancellationToken = default);
+    public Task SendBatchAsync(IEnumerable<IEmailTemplate> templates, CancellationToken cancellationToken = default);
 }

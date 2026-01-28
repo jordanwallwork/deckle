@@ -1,41 +1,47 @@
 using Deckle.API.EmailTemplates.Admin;
+using Deckle.Domain.Data;
+using Deckle.Domain.Entities;
 using Deckle.Email.Abstractions;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Events.NewUserRegistration;
 
 /// <summary>
-/// Handles the NewUserRegistrationEvent by sending an email notification to the site administrator.
+/// Handles the NewUserRegistrationEvent by sending an email notification to site administrators.
 /// </summary>
 public class NewUserRegistrationHandler : INotificationHandler<NewUserRegistrationEvent>
 {
     private readonly IEmailSender _emailSender;
-    private readonly IConfiguration _configuration;
+    private readonly AppDbContext _dbContext;
     private readonly ILogger<NewUserRegistrationHandler> _logger;
 
     public NewUserRegistrationHandler(
         IEmailSender emailSender,
-        IConfiguration configuration,
+        AppDbContext dbContext,
         ILogger<NewUserRegistrationHandler> logger)
     {
         _emailSender = emailSender;
-        _configuration = configuration;
+        _dbContext = dbContext;
         _logger = logger;
     }
 
     public async Task Handle(NewUserRegistrationEvent notification, CancellationToken cancellationToken)
     {
-        var adminEmail = _configuration["AdminNotificationEmail"];
+        var adminEmails = await _dbContext.Users
+            .Where(u => u.Role == UserRole.Administrator)
+            .Select(u => u.Email)
+            .ToListAsync(cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(adminEmail))
+        if (adminEmails.Count == 0)
         {
-            _logger.LogWarning("AdminNotificationEmail is not configured. Skipping new user registration notification for {Username}", notification.Username);
+            _logger.LogWarning("No administrators found. Skipping new user registration notification for {Username}", notification.Username);
             return;
         }
 
         var template = new NewUserRegisteredTemplate
         {
-            AdminEmail = adminEmail,
+            AdminEmails = adminEmails,
             UserName = notification.Name,
             UserEmail = notification.Email,
             Username = notification.Username,
@@ -45,7 +51,7 @@ public class NewUserRegistrationHandler : INotificationHandler<NewUserRegistrati
         try
         {
             await _emailSender.SendAsync(template, cancellationToken);
-            _logger.LogInformation("Sent new user registration notification for {Username} to admin", notification.Username);
+            _logger.LogInformation("Sent new user registration notification for {Username} to {AdminCount} administrator(s)", notification.Username, adminEmails.Count);
         }
         catch (Exception ex)
         {

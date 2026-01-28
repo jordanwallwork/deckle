@@ -3,17 +3,17 @@ using Deckle.Email.Abstractions;
 namespace Deckle.API.EmailTemplates.Admin;
 
 /// <summary>
-/// Email template to notify the site administrator when a new user registers.
+/// Email template to notify site administrators when a new user registers.
 /// </summary>
 public class NewUserRegisteredTemplate : EmailTemplateBase
 {
-    public required string AdminEmail { get; init; }
+    public required IReadOnlyList<string> AdminEmails { get; init; }
     public required string UserName { get; init; }
     public required string UserEmail { get; init; }
     public required string Username { get; init; }
     public required DateTime SignupDate { get; init; }
 
-    public override IReadOnlyList<EmailAddress> To => [EmailAddress.From(AdminEmail)];
+    public override IReadOnlyList<EmailAddress> To => AdminEmails.Select(EmailAddress.From).ToList();
 
     public override string Subject => $"New user registered: {Username}";
 

@@ -10,7 +10,7 @@ namespace Deckle.Email;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds SMTP-based email sending services to the dependency injection container.
+    /// Adds SMTP-based email sending services as a keyed service with key "Smtp".
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration to bind EmailOptions from.</param>
@@ -20,12 +20,12 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));
-        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddKeyedScoped<IEmailSender, SmtpEmailSender>("Smtp");
         return services;
     }
 
     /// <summary>
-    /// Adds SMTP-based email sending services with explicit options.
+    /// Adds SMTP-based email sending services as a keyed service with key "Smtp".
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureOptions">Action to configure email options.</param>
@@ -35,12 +35,13 @@ public static class ServiceCollectionExtensions
         Action<EmailOptions> configureOptions)
     {
         services.Configure(configureOptions);
-        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddKeyedScoped<IEmailSender, SmtpEmailSender>("Smtp");
         return services;
     }
 
     /// <summary>
-    /// Adds Brevo-based email sending services to the dependency injection container.
+    /// Adds Brevo-based email sending services as a keyed service with key "Brevo".
+    /// Uses <see cref="IHttpClientFactory"/> to manage the underlying HttpClient.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration to bind BrevoOptions from.</param>
@@ -50,12 +51,15 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         services.Configure<BrevoOptions>(configuration.GetSection(BrevoOptions.SectionName));
-        services.AddHttpClient<IEmailSender, BrevoEmailSender>();
+        services.AddHttpClient<BrevoEmailSender>();
+        services.AddKeyedScoped<IEmailSender>("Brevo",
+            (sp, _) => sp.GetRequiredService<BrevoEmailSender>());
         return services;
     }
 
     /// <summary>
-    /// Adds Brevo-based email sending services with explicit options.
+    /// Adds Brevo-based email sending services as a keyed service with key "Brevo".
+    /// Uses <see cref="IHttpClientFactory"/> to manage the underlying HttpClient.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configureOptions">Action to configure Brevo options.</param>
@@ -65,13 +69,16 @@ public static class ServiceCollectionExtensions
         Action<BrevoOptions> configureOptions)
     {
         services.Configure(configureOptions);
-        services.AddHttpClient<IEmailSender, BrevoEmailSender>();
+        services.AddHttpClient<BrevoEmailSender>();
+        services.AddKeyedScoped<IEmailSender>("Brevo",
+            (sp, _) => sp.GetRequiredService<BrevoEmailSender>());
         return services;
     }
 
     /// <summary>
-    /// Adds email sending services based on the "Email:Provider" configuration value.
-    /// Supported providers: "Smtp" (default), "Brevo".
+    /// Adds all email sending provider services as keyed services.
+    /// Both SMTP and Brevo senders are registered; the active provider
+    /// is selected at runtime via the "Email:Provider" configuration value.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration.</param>
@@ -80,13 +87,8 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var provider = configuration.GetSection("Email")["Provider"];
-
-        if (string.Equals(provider, "Brevo", StringComparison.OrdinalIgnoreCase))
-        {
-            return services.AddBrevoEmailServices(configuration);
-        }
-
-        return services.AddSmtpEmailServices(configuration);
+        services.AddSmtpEmailServices(configuration);
+        services.AddBrevoEmailServices(configuration);
+        return services;
     }
 }

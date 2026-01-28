@@ -1,7 +1,11 @@
 using System.Text.Json.Serialization;
 using Deckle.API.Services;
+using Deckle.API.Services.Email;
 using Deckle.Email;
+using Deckle.Email.Abstractions;
 using Exceptionless;
+using Hangfire;
+using Hangfire.InMemory;
 
 namespace Deckle.API.Extensions;
 
@@ -29,8 +33,19 @@ public static class ServiceCollectionExtensions
         // HttpClient for external API calls
         services.AddHttpClient();
 
-        // Email services
+        // Hangfire background job processing
+        services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseInMemoryStorage());
+        services.AddHangfireServer();
+
+        // Email services: register provider-specific senders as keyed services,
+        // then register BackgroundEmailSender as the primary IEmailSender
         services.AddEmailServices(configuration);
+        services.AddScoped<EmailJobProcessor>();
+        services.AddScoped<IEmailSender, BackgroundEmailSender>();
 
         // Cloudflare R2 storage
         services.Configure<CloudflareR2Options>(configuration.GetSection("CloudflareR2"));

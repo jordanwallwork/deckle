@@ -88,7 +88,7 @@
   .dialog {
     background-color: white;
     border-radius: 12px;
-    padding: 2rem;
+    padding: var(--pad-content);
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;

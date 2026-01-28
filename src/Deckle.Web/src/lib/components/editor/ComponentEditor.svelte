@@ -1,7 +1,7 @@
 <script lang="ts">
   import ResizablePanelContainer from '$lib/components/ResizablePanelContainer.svelte';
   import DataSourcePanel from './DataSourcePanel.svelte';
-  import type { PageData } from '../../../routes/projects/[username]/[projectCode]/components/[componentId]/[part]/$types';
+  import type { PageData } from '../../../routes/(authenticated)/projects/[username]/[projectCode]/components/[componentId]/[part]/$types';
   import ElementConfigPanel from './ElementConfigPanel.svelte';
   import PreviewPanel from './PreviewPanel.svelte';
   import StructureTreePanel from './StructureTreePanel.svelte';

@@ -24,8 +24,8 @@
 
 <style>
   .page-header {
-    background: linear-gradient(135deg, var(--color-teal-grey) 0%, var(--color-muted-teal) 100%);
-    padding: 1rem 2rem;
+    background: var(--bg-teal);
+    padding: var(--pad-content);
     border-bottom: 1px solid var(--color-border);
   }
 

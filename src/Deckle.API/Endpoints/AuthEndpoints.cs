@@ -14,7 +14,7 @@ public static class AuthEndpoints
         var group = routes.MapGroup("/auth")
             .WithTags("Authentication");
 
-        group.MapGet("/login", (IConfiguration configuration, ILogger<Program> logger, HttpContext context) =>
+        group.MapGet("/login", (IConfiguration configuration, ILogger<Program> logger, HttpContext context, string? returnUrl) =>
         {
             var frontendUrl = configuration["FrontendUrl"];
 
@@ -35,14 +35,23 @@ public static class AuthEndpoints
             }
 
             // Validate that frontendUrl is an absolute URL
-            if (!Uri.TryCreate(frontendUrl, UriKind.Absolute, out var _))
+            if (!Uri.TryCreate(frontendUrl, UriKind.Absolute, out var frontendUri))
             {
                 logger.LogError("Invalid FrontendUrl configuration: {FrontendUrl}", frontendUrl);
                 return Results.Problem("Invalid FrontendUrl configuration", statusCode: 500);
             }
 
-            // Redirect to frontend root, which will handle role-based routing
-            var redirectUri = $"{frontendUrl.TrimEnd('/')}";
+            // Build redirect URI, appending returnUrl path if provided and valid
+            var redirectUri = frontendUrl.TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(returnUrl))
+            {
+                // Ensure returnUrl is a relative path to prevent open redirect attacks
+                if (returnUrl.StartsWith('/') && !returnUrl.StartsWith("//"))
+                {
+                    redirectUri += returnUrl;
+                }
+            }
+
             logger.LogInformation("Auth login initiated. Redirecting to: {RedirectUri}", redirectUri);
 
             return Results.Challenge(

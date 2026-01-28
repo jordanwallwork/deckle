@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { setMaxScreen } from '$lib/stores/maxScreen';
   import { buildEditorBreadcrumbs } from '$lib/utils/breadcrumbs';
   import ComponentEditor from '$lib/components/editor/ComponentEditor.svelte';
 
@@ -12,6 +13,12 @@
   // Update breadcrumbs for this page
   $effect(() => {
     setBreadcrumbs(buildEditorBreadcrumbs(data.project, data.component, partLabel));
+  });
+
+  // Enable max screen mode (hides tabs, footer, removes padding)
+  $effect(() => {
+    setMaxScreen(true);
+    return () => setMaxScreen(false);
   });
 </script>
 

@@ -1,13 +1,15 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import favicon from '$lib/assets/favicon.svg';
-  import { page } from '$app/stores';
   import TopBar from '$lib/components/TopBar.svelte';
   import { initPostHog, identifyUser, resetUser } from '$lib/analytics';
+  import { initMaxScreen } from '$lib/stores/maxScreen';
   import type { LayoutData } from './$types';
   import '../app.css';
 
   let { children, data }: { children: Snippet; data: LayoutData } = $props();
+
+  const maxScreen = initMaxScreen();
 
   // Initialize PostHog analytics (cookieless EU configuration)
   $effect(() => {
@@ -24,52 +26,55 @@
       resetUser();
     }
   });
-
-  // Determine if we should show the dashboard layout (topbar)
-  const isAuthPage = $derived($page.url.pathname === '/' && !data.user);
-  const isSetupPage = $derived($page.url.pathname === '/account/setup');
 </script>
 
 <svelte:head>
   <link rel="icon" href={favicon} />
 </svelte:head>
 
-{#if isAuthPage || isSetupPage}
-  <!-- Landing page or setup page layout (no topbar) -->
-  <main class="landing-content">
+<div class="layout">
+  <TopBar user={data.user} />
+  <div class="main-content">
     {@render children()}
-  </main>
-{:else}
-  <!-- Dashboard layout (topbar + content) -->
-
-  <div class="dashboard-layout">
-    {#if data.user}
-      <TopBar user={data.user} />
-    {/if}
-    <main class="main-content">
-      {@render children()}
-    </main>
   </div>
-{/if}
+  {#if !$maxScreen}
+    <footer>
+      <a href="/privacy">Privacy</a>
+      <a href="https://docs.deckle.games">Docs</a>
+      <a href="https://github.com/jordanwallwork/deckle">GitHub</a>
+    </footer>
+  {/if}
+</div>
 
 <style>
-  .landing-content {
+  .layout {
     min-height: 100vh;
-  }
-
-  .dashboard-layout {
-    height: 100vh;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
   }
 
   .main-content {
     flex: 1;
-    background-color: #f8f9fa;
     display: flex;
     flex-direction: column;
     min-height: 0;
     overflow: auto;
+  }
+
+  footer {
+    padding: var(--pad-content);
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+  }
+
+  footer a {
+    color: var(--color-muted-teal);
+    font-size: 0.8rem;
+    text-decoration: none;
+  }
+
+  footer a:hover {
+    text-decoration: underline;
   }
 </style>

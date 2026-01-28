@@ -1,14 +1,22 @@
 <script lang="ts">
   type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  type Variant = 'default' | 'light';
 
   interface AvatarProps {
     src?: string | null;
     name?: string | null;
     size?: AvatarSize;
+    variant?: Variant;
     class?: string;
   }
 
-  let { src, name, size = 'md', class: className = '' }: AvatarProps = $props();
+  let {
+    src,
+    name,
+    size = 'md',
+    variant = 'default',
+    class: className = ''
+  }: AvatarProps = $props();
 
   const sizeClasses: Record<AvatarSize, string> = {
     xs: 'avatar-xs',
@@ -18,13 +26,22 @@
     xl: 'avatar-xl'
   };
 
+  const variantClasses: Record<Variant, string> = {
+    default: '',
+    light: 'var-light'
+  };
+
   const initial = $derived((name?.charAt(0) || 'U').toUpperCase());
 </script>
 
 {#if src}
-  <img {src} alt={name || 'User'} class="avatar {sizeClasses[size]} {className}" />
+  <img
+    {src}
+    alt={name || 'User'}
+    class="avatar {sizeClasses[size]} {variantClasses[variant]} {className}"
+  />
 {:else}
-  <div class="avatar-placeholder {sizeClasses[size]} {className}">
+  <div class="avatar-placeholder {sizeClasses[size]} {variantClasses[variant]} {className}">
     {initial}
   </div>
 {/if}
@@ -45,9 +62,8 @@
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    background: var(--avatar-bg, var(--color-muted-teal));
-    color: var(--avatar-color, white);
-    border: var(--avatar-border, none);
+    color: var(--bg-light);
+    background: var(--bg-teal);
   }
 
   /* Size variants */
@@ -79,5 +95,10 @@
     width: 120px;
     height: 120px;
     font-size: 3rem;
+  }
+
+  /* Variants */
+  .var-light {
+    background: rgba(255, 255, 255, 0.2);
   }
 </style>

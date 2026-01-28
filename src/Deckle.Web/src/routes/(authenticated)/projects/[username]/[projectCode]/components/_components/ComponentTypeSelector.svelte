@@ -33,7 +33,7 @@
 
   .type-card {
     background-color: white;
-    border: 2px solid var(--color-teal-grey-light);
+    border: 2px solid var(--color-muted-teal);
     border-radius: 8px;
     padding: 2rem 1.5rem;
     text-align: center;

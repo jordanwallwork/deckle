@@ -3,6 +3,7 @@
   import type { PageSetup } from '$lib/types';
   import { DEFAULT_PAGE_SETUP } from '$lib/types';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { setMaxScreen } from '$lib/stores/maxScreen';
   import { page } from '$app/stores';
   import { browser } from '$app/environment';
   import ResizablePanelContainer from '$lib/components/ResizablePanelContainer.svelte';
@@ -70,6 +71,12 @@
       { label: data.project.name, href: projectUrlBase },
       { label: 'Export', href: `${projectUrlBase}/export` }
     ]);
+  });
+
+  // Enable max screen mode (hides tabs, footer, removes padding)
+  $effect(() => {
+    setMaxScreen(true);
+    return () => setMaxScreen(false);
   });
 
   // Check if all components are exportable (Card or PlayerMat)

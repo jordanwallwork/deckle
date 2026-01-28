@@ -1,7 +1,8 @@
 <script lang="ts">
   import { config } from '$lib/config';
   import { goto } from '$app/navigation';
-  import { authApi, ApiError } from '$lib/api';
+  import { authApi } from '$lib/api';
+  import { Button } from '$lib/components';
 
   $effect(() => {
     checkAuth();
@@ -24,35 +25,34 @@
 </script>
 
 <svelte:head>
-  <title>Deckle - Open Source Game Component Design</title>
+  <title>Deckle - Effortless Game Design</title>
   <meta
     name="description"
-    content="Create game components from spreadsheets in minutes. Deckle is an open source tool for designing cards, tokens, and game pieces for playtesting."
+    content="Create game components from spreadsheets in minutes. Deckle is a tool for designing cards, tokens, and game pieces for playtesting."
   />
 </svelte:head>
 
 <div class="container">
   <main>
     <h1>Deckle</h1>
-    <p class="subtitle">
-      Open source game component design - From spreadsheet to playtest in minutes
-    </p>
-    <button class="google-signin" onclick={handleSignIn}>Sign In with Google</button>
+    <p class="subtitle">Effortless game design - From spreadsheet to playtest in minutes</p>
+    <Button size="lg" onclick={handleSignIn}>Sign In with Google</Button>
   </main>
 </div>
 
 <style>
   .container {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
     padding: 2rem;
   }
 
   main {
     text-align: center;
     max-width: 600px;
+    min-height: 0;
   }
 
   h1 {
@@ -68,28 +68,5 @@
     color: var(--color-muted-teal);
     margin-bottom: 3rem;
     line-height: 1.6;
-  }
-
-  .google-signin {
-    background-color: var(--color-teal-grey);
-    color: var(--color-sage);
-    border: 2px solid var(--color-muted-teal);
-    padding: 1rem 2.5rem;
-    font-size: 1.125rem;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .google-signin:hover {
-    background-color: var(--color-muted-teal);
-    border-color: var(--color-sage);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(120, 160, 131, 0.2);
-  }
-
-  .google-signin:active {
-    transform: translateY(0);
   }
 </style>

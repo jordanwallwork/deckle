@@ -292,7 +292,7 @@
   .drop-zone {
     border: 2px dashed var(--color-border);
     border-radius: var(--radius-lg);
-    padding: 2rem;
+    padding: var(--pad-content);
     text-align: center;
     transition: all 0.2s ease;
     background-color: var(--color-background);

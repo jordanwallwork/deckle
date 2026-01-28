@@ -1,7 +1,7 @@
 <script lang="ts">
   import Panel from './_components/Panel.svelte';
   import { Button, DataTable } from '$lib/components';
-  import LinkDataSourceModal from '../../../routes/projects/[username]/[projectCode]/components/_components/LinkDataSourceModal.svelte';
+  import LinkDataSourceModal from '../../../routes/(authenticated)/projects/[username]/[projectCode]/components/_components/LinkDataSourceModal.svelte';
   import { componentsApi, dataSourcesApi } from '$lib/api';
   import { invalidateAll } from '$app/navigation';
   import type { DataSource } from '$lib/types';

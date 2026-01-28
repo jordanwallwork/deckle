@@ -226,7 +226,7 @@
     align-items: center;
     justify-content: center;
     padding: 2rem;
-    background: linear-gradient(135deg, var(--color-teal-grey) 0%, var(--color-muted-teal) 100%);
+    background: var(--bg-teal);
   }
 
   .setup-card {

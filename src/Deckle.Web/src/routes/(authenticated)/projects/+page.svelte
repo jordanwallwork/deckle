@@ -6,7 +6,12 @@
   import ProjectCard from './_components/ProjectCard.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { goto } from '$app/navigation';
-  import { type ValidationErrorResponse, getValidationErrors, getFieldValidation, getGeneralErrors } from '$lib/types';
+  import {
+    type ValidationErrorResponse,
+    getValidationErrors,
+    getFieldValidation,
+    getGeneralErrors
+  } from '$lib/types';
 
   // Validation constants
   const PROJECT_CODE_RULES = {
@@ -105,10 +110,7 @@
 </svelte:head>
 
 <PageHeader>
-  <div>
-    <h1>Projects</h1>
-    <p class="subtitle">Manage your game design projects</p>
-  </div>
+  <h1>Projects</h1>
 
   {#snippet headerActions()}
     <Button variant="primary" onclick={() => (showCreateDialog = true)} class="header-button">
@@ -151,11 +153,32 @@
     }}
   >
     <FormField label="Project Name" name="name" required error={nameValidation.messages[0]}>
-      <Input id="name" bind:value={projectName} placeholder="My Game Project" required error={nameValidation.invalid} oninput={handleProjectNameInput} />
+      <Input
+        id="name"
+        bind:value={projectName}
+        placeholder="My Game Project"
+        required
+        error={nameValidation.invalid}
+        oninput={handleProjectNameInput}
+      />
     </FormField>
 
-    <FormField label="Project Code" name="code" required hint={codeValidation.invalid ? undefined : PROJECT_CODE_RULES.messages.hint} error={codeValidation.messages[0]}>
-      <Input id="code" bind:value={projectCode} placeholder="my-game-project" pattern={PROJECT_CODE_RULES.pattern.source} required error={codeValidation.invalid} oninput={handleProjectCodeInput} />
+    <FormField
+      label="Project Code"
+      name="code"
+      required
+      hint={codeValidation.invalid ? undefined : PROJECT_CODE_RULES.messages.hint}
+      error={codeValidation.messages[0]}
+    >
+      <Input
+        id="code"
+        bind:value={projectCode}
+        placeholder="my-game-project"
+        pattern={PROJECT_CODE_RULES.pattern.source}
+        required
+        error={codeValidation.invalid}
+        oninput={handleProjectCodeInput}
+      />
     </FormField>
 
     <FormField label="Description (optional)" name="description">
@@ -177,18 +200,17 @@
 
   {#snippet actions()}
     <Button variant="secondary" onclick={closeDialog}>Cancel</Button>
-    <Button variant="primary" disabled={isCreating || !projectName.trim() || !projectCode.trim()} onclick={createProject}>
+    <Button
+      variant="primary"
+      disabled={isCreating || !projectName.trim() || !projectCode.trim()}
+      onclick={createProject}
+    >
       {isCreating ? 'Creating...' : 'Create Project'}
     </Button>
   {/snippet}
 </Dialog>
 
 <style>
-  .subtitle {
-    font-size: 0.9375rem;
-    color: rgba(255, 255, 255, 0.9);
-  }
-
   .projects-grid {
     padding: 2rem;
     display: grid;

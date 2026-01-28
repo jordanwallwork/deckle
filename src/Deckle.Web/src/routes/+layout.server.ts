@@ -26,7 +26,7 @@ export const load: LayoutServerLoad = async ({ fetch, url }) => {
       throw error;
     }
     return {
-      user: null,
+      user: undefined,
       posthogKey: env.PUBLIC_POSTHOG_KEY
     };
   }

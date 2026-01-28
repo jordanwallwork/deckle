@@ -5,7 +5,7 @@
   import LogoMark from './LogoMark.svelte';
   import { ChevronDownIcon, SettingsIcon, LogoutIcon } from './icons';
 
-  let { user }: { user: CurrentUser } = $props();
+  let { user }: { user: CurrentUser | null } = $props();
   let showDropdown = $state(false);
 
   function toggleDropdown(): void {
@@ -32,7 +32,7 @@
 <header class="topbar">
   <div class="topbar-content">
     <div class="topbar-left">
-      <a href="/projects" class="logo-link">
+      <a href={user ? '/projects' : '/'} class="logo-link">
         <LogoMark width="28" height="28" class="logomark" />
         <span class="brand-name">Deckle</span>
       </a>
@@ -42,7 +42,13 @@
       {#if user}
         <div class="user-menu">
           <button class="user-info" onclick={toggleDropdown}>
-            <Avatar src={user.picture} name={user.name} size="sm" class="user-avatar" />
+            <Avatar
+              src={user.picture}
+              name={user.name}
+              size="sm"
+              variant="light"
+              class="user-avatar"
+            />
             <div class="user-details">
               <span class="user-name">{user.name}</span>
             </div>
@@ -142,11 +148,6 @@
 
   .user-info:hover {
     background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .user-info :global(.user-avatar) {
-    --avatar-bg: rgba(255, 255, 255, 0.2);
-    --avatar-border: 2px solid rgba(255, 255, 255, 0.3);
   }
 
   .user-details {

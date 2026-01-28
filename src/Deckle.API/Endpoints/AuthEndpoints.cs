@@ -1,5 +1,7 @@
 using Deckle.API.DTOs;
+using Deckle.API.Events.NewUserRegistration;
 using Deckle.API.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -98,7 +100,7 @@ public static class AuthEndpoints
         .RequireAuthorization()
         .WithName("CheckUsernameAvailability");
 
-        group.MapPost("/username", async (SetUsernameRequest request, ClaimsPrincipal user, UserService userService, HttpContext context) =>
+        group.MapPost("/username", async (SetUsernameRequest request, ClaimsPrincipal user, UserService userService, IPublisher publisher, HttpContext context) =>
         {
             var userId = UserService.GetUserIdFromClaims(user);
             if (userId == null)
@@ -106,7 +108,7 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
-            var (success, error) = await userService.SetUsernameAsync(userId.Value, request.Username);
+            var (success, error, isNewRegistration) = await userService.SetUsernameAsync(userId.Value, request.Username);
 
             if (!success)
             {
@@ -126,6 +128,21 @@ public static class AuthEndpoints
 
                 // Re-sign in to update the cookie
                 await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+            }
+
+            if (isNewRegistration)
+            {
+                var email = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+                var name = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
+
+                await publisher.Publish(new NewUserRegistrationEvent
+                {
+                    UserId = userId.Value,
+                    Username = request.Username.Trim(),
+                    Name = name,
+                    Email = email,
+                    SignupDate = DateTime.UtcNow
+                });
             }
 
             return Results.Ok(new { username = request.Username.Trim() });

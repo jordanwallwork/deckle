@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Deckle.API.Services;
 using Deckle.Email;
 using Exceptionless;
+using MediatR;
 
 namespace Deckle.API.Extensions;
 
@@ -18,6 +19,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<FileService>();
         services.AddScoped<FileDirectoryService>();
         services.AddScoped<AdminService>();
+
+        // MediatR
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
 
         return services;
     }

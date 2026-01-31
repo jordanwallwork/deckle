@@ -224,6 +224,7 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            // ProjectId is nullable - shared sample components may not be associated with a project
             entity.HasOne(c => c.Project)
                 .WithMany(p => p.Components)
                 .HasForeignKey(c => c.ProjectId)

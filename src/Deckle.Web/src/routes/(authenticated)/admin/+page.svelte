@@ -21,9 +21,8 @@
       </a>
 
       <div class="admin-card">
-        <h3>System Analytics</h3>
-        <p>Monitor system usage, performance metrics, and statistics.</p>
-        <span class="badge">Coming Soon</span>
+        <h3>Samples</h3>
+        <p>View and manage sample components and data sources</p>
       </div>
 
       <div class="admin-card">

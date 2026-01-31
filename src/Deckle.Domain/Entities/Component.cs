@@ -8,7 +8,10 @@ public interface IComponent
 {
     public Guid Id { get; }
 
-    public Guid ProjectId { get; }
+    /// <summary>
+    /// The project this component belongs to, or null for shared sample components.
+    /// </summary>
+    public Guid? ProjectId { get; }
 
     public string Name { get; }
 
@@ -70,7 +73,10 @@ public abstract class Component : IComponent
 {
     public Guid Id { get; set; }
 
-    public Guid ProjectId { get; set; }
+    /// <summary>
+    /// The project this component belongs to, or null for shared sample components.
+    /// </summary>
+    public Guid? ProjectId { get; set; }
 
     public string Name { get; set; } = string.Empty;
 
@@ -78,7 +84,10 @@ public abstract class Component : IComponent
 
     public DateTime UpdatedAt { get; set; }
 
-    public Project Project { get; set; } = null!;
+    /// <summary>
+    /// The project this component belongs to, or null for shared sample components.
+    /// </summary>
+    public Project? Project { get; set; }
 }
 
 public abstract class EditableComponent : Component, IEditableComponent

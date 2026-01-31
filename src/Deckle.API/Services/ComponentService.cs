@@ -44,7 +44,7 @@ public class ComponentService
     {
         var component = await _context.Components
             .Where(c => c.Id == componentId &&
-                        c.Project.Users.Any(u => u.Id == userId))
+                        (c.ProjectId == null || c.Project!.Users.Any(u => u.Id == userId)))
             .FirstOrDefaultAsync();
 
         if (component == null)
@@ -151,8 +151,14 @@ public class ComponentService
             .Where(c => c.Id == componentId)
             .FirstOrDefaultAsync() ?? throw new KeyNotFoundException("Component not found");
 
+        // Shared sample components (no project) cannot be deleted through this endpoint
+        if (component.ProjectId == null)
+        {
+            throw new UnauthorizedAccessException("Cannot delete shared sample components");
+        }
+
         // Authorization check
-        await _authService.EnsureCanDeleteResourcesAsync(userId, component.ProjectId);
+        await _authService.EnsureCanDeleteResourcesAsync(userId, component.ProjectId.Value);
 
         _context.Components.Remove(component);
         await _context.SaveChangesAsync();
@@ -171,7 +177,7 @@ public class ComponentService
     public async Task<ComponentDto?> UpdateDataSourceAsync(Guid userId, Guid componentId, Guid? dataSourceId)
     {
         var component = await _context.Components
-            .Where(c => c.Id == componentId && c.Project.Users.Any(u => u.Id == userId))
+            .Where(c => c.Id == componentId && c.ProjectId != null && c.Project!.Users.Any(u => u.Id == userId))
             .FirstOrDefaultAsync();
 
         if (component is not IDataSourceComponent dataSourceComponent)
@@ -301,7 +307,7 @@ public class ComponentService
     {
         // Find the component and check if it implements IEditableComponent
         var component = await _context.Components
-            .Where(c => c.Id == componentId && c.Project.Users.Any(u => u.Id == userId))
+            .Where(c => c.Id == componentId && c.ProjectId != null && c.Project!.Users.Any(u => u.Id == userId))
             .FirstOrDefaultAsync();
 
         if (component is not IEditableComponent editableComponent)
@@ -309,8 +315,14 @@ public class ComponentService
             return null;
         }
 
+        // Shared sample components cannot be edited through this endpoint
+        if (component.ProjectId == null)
+        {
+            return null;
+        }
+
         // Check user's role - Only users with modify permissions can save designs
-        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId);
+        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId.Value);
         if (role == null || !ProjectAuthorizationService.CanModifyResources(role.Value))
         {
             return null;
@@ -361,8 +373,14 @@ public class ComponentService
     {
         if (component == null) return false;
 
+        // Shared sample components cannot have their data source updated through this endpoint
+        if (component.ProjectId == null)
+        {
+            return false;
+        }
+
         // Check user's role - Only Owner can update data source links
-        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId);
+        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId.Value);
         if (role == null || !ProjectAuthorizationService.CanManageDataSources(role.Value))
         {
             return false;
@@ -415,7 +433,7 @@ public class ComponentService
         where T : Component
     {
         var query = _context.Set<T>()
-            .Where(c => c.Id == componentId && c.Project.Users.Any(u => u.Id == userId));
+            .Where(c => c.Id == componentId && c.ProjectId != null && c.Project!.Users.Any(u => u.Id == userId));
 
         if (includeFunc != null)
         {
@@ -429,8 +447,14 @@ public class ComponentService
             return null;
         }
 
+        // Shared sample components cannot be modified through this method
+        if (component.ProjectId == null)
+        {
+            return null;
+        }
+
         // Check user's role with the provided authorization check
-        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId);
+        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId.Value);
         if (role == null || !authorizationCheck(role.Value))
         {
             return null;

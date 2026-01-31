@@ -27,6 +27,8 @@ dotnet build
 
 ### Building the Solution
 
+Note: when the app is already running, you do not need to re-build for frontend only changes; these will hot-reload automatically.
+
 ```bash
 dotnet build
 ```

@@ -40,6 +40,7 @@ export interface EditableComponent extends Component {
 export interface CardComponent extends EditableComponent {
   type: 'Card';
   size: string;
+  horizontal: boolean;
   frontDesign?: string | null;
   backDesign?: string | null;
   shape: ComponentShape;
@@ -71,6 +72,7 @@ export type GameComponent = CardComponent | DiceComponent | PlayerMatComponent;
 export interface CreateCardDto {
   name: string;
   size: string;
+  horizontal?: boolean;
 }
 
 export interface CreateDiceDto {
@@ -84,6 +86,7 @@ export interface CreateDiceDto {
 export interface UpdateCardDto {
   name: string;
   size: string;
+  horizontal?: boolean;
 }
 
 export interface UpdateDiceDto {

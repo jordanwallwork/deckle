@@ -5,6 +5,8 @@ public class Card : EditableComponent, IDataSourceComponent
 {
     public CardSize Size { get; set; }
 
+    public bool Horizontal { get; set; }
+
     public override string? FrontDesign { get; set; }
 
     public override string? BackDesign { get; set; }
@@ -15,5 +17,5 @@ public class Card : EditableComponent, IDataSourceComponent
 
     protected override string ComponentTypeName => "card";
 
-    public override Dimensions GetDimensions() => Size.GetDimensions(false);
+    public override Dimensions GetDimensions() => Size.GetDimensions(Horizontal);
 }

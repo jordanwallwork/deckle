@@ -39,7 +39,7 @@ public static class ComponentEndpoints
         {
             var userId = httpContext.GetUserId();
 
-            var card = await componentService.CreateCardAsync(userId, projectId, request.Name, request.Size);
+            var card = await componentService.CreateCardAsync(userId, projectId, request.Name, request.Size, request.Horizontal);
             return Results.Created($"/projects/{projectId}/components/{card.Id}", card);
         })
         .WithName("CreateCard");
@@ -71,7 +71,7 @@ public static class ComponentEndpoints
         group.MapPut("cards/{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateCardRequest request) =>
         {
             var userId = httpContext.GetUserId();
-            var card = await componentService.UpdateCardAsync(userId, id, request.Name, request.Size);
+            var card = await componentService.UpdateCardAsync(userId, id, request.Name, request.Size, request.Horizontal);
 
             if (card == null)
             {

@@ -45,6 +45,7 @@
 
   // Card configuration
   let cardSize = $state('StandardPoker');
+  let cardHorizontal = $state(false);
 
   // Dice configuration
   let diceType = $state('D6');
@@ -76,6 +77,7 @@
     componentName = '';
     editingComponent = null;
     cardSize = 'StandardPoker';
+    cardHorizontal = false;
     diceType = 'D6';
     diceStyle = 'Numbered';
     diceColor = 'EarthGreen';
@@ -112,6 +114,7 @@
   function populateCardForm(card: Extract<GameComponent, { type: 'Card' }>) {
     selectedType = 'card';
     cardSize = card.size;
+    cardHorizontal = card.horizontal;
   }
 
   /**
@@ -221,7 +224,8 @@
   async function createCard() {
     await componentsApi.createCard(data.project.id, {
       name: componentName,
-      size: cardSize
+      size: cardSize,
+      horizontal: cardHorizontal
     });
   }
 
@@ -231,7 +235,8 @@
   async function updateCard(componentId: string) {
     await componentsApi.updateCard(data.project.id, componentId, {
       name: componentName,
-      size: cardSize
+      size: cardSize,
+      horizontal: cardHorizontal
     });
   }
 
@@ -407,7 +412,7 @@
     {/if}
 
     {#if selectedType === 'card'}
-      <CardConfigForm bind:cardSize bind:componentName />
+      <CardConfigForm bind:cardSize bind:cardHorizontal bind:componentName />
     {:else if selectedType === 'dice'}
       <DiceConfigForm
         bind:diceType

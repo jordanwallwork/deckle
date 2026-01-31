@@ -63,7 +63,7 @@ public class ComponentService
         return component.ToComponentDto();
     }
 
-    public async Task<CardDto> CreateCardAsync(Guid userId, Guid projectId, string name, CardSize size)
+    public async Task<CardDto> CreateCardAsync(Guid userId, Guid projectId, string name, CardSize size, bool horizontal)
     {
         var card = new Card
         {
@@ -71,6 +71,7 @@ public class ComponentService
             ProjectId = projectId,
             Name = name,
             Size = size,
+            Horizontal = horizontal,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -98,7 +99,7 @@ public class ComponentService
         return new DiceDto(dice);
     }
 
-    public async Task<CardDto?> UpdateCardAsync(Guid userId, Guid componentId, string name, CardSize size)
+    public async Task<CardDto?> UpdateCardAsync(Guid userId, Guid componentId, string name, CardSize size, bool horizontal)
     {
         var card = await FindAndAuthorizeComponentAsync<Card>(
             userId,
@@ -112,6 +113,7 @@ public class ComponentService
 
         card.Name = name;
         card.Size = size;
+        card.Horizontal = horizontal;
         card.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

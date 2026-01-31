@@ -52,6 +52,7 @@ public record DataSourceInfo(Guid Id, string Name);
 public record CardDto : ComponentDto
 {
     public required string Size { get; init; }
+    public required bool Horizontal { get; init; }
     public required Dimensions Dimensions { get; init; }
     public string? FrontDesign { get; init; }
     public string? BackDesign { get; init; }
@@ -64,7 +65,8 @@ public record CardDto : ComponentDto
     public CardDto(Card card) : base("Card", card)
     {
         Size = card.Size.ToString();
-        Dimensions = card.Size.GetDimensions(false);
+        Horizontal = card.Horizontal;
+        Dimensions = card.GetDimensions();
         FrontDesign = card.FrontDesign;
         BackDesign = card.BackDesign;
         Shape = card.Shape;
@@ -93,11 +95,11 @@ public record DiceDto : ComponentDto
     }
 }
 
-public record CreateCardRequest(string Name, CardSize Size);
+public record CreateCardRequest(string Name, CardSize Size, bool Horizontal = false);
 
 public record CreateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);
 
-public record UpdateCardRequest(string Name, CardSize Size);
+public record UpdateCardRequest(string Name, CardSize Size, bool Horizontal = false);
 
 public record UpdateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);
 

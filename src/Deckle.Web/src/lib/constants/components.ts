@@ -3,6 +3,8 @@
 export interface CardSize {
   value: string;
   label: string;
+  widthMm: number;
+  heightMm: number;
 }
 
 export interface DiceType {
@@ -36,17 +38,17 @@ export interface PlayerMatOrientation {
 
 // Card size options
 export const CARD_SIZES: readonly CardSize[] = [
-  { value: 'MiniAmerican', label: 'Mini American (41mm × 63mm)' },
-  { value: 'MiniEuro', label: 'Mini Euro (44mm × 67mm)' },
-  { value: 'Bridge', label: 'Bridge (57.2mm × 88.9mm)' },
-  { value: 'MetricPoker', label: 'Metric Poker (63mm × 88mm)' },
-  { value: 'StandardPoker', label: 'Standard Poker (63.5mm × 88.9mm)' },
-  { value: 'Tarot', label: 'Tarot (70mm × 120mm)' },
-  { value: 'Jumbo', label: 'Jumbo (88mm × 126mm)' },
-  { value: 'ExtraSmallSquare', label: 'Extra Small Square (55mm × 55mm)' },
-  { value: 'SmallSquare', label: 'Small Square (63.5mm × 63.5mm)' },
-  { value: 'MediumSquare', label: 'Medium Square (70mm × 70mm)' },
-  { value: 'LargeSquare', label: 'Large Square (88.9mm × 88.9mm)' }
+  { value: 'MiniAmerican', label: 'Mini American', widthMm: 41, heightMm: 63 },
+  { value: 'MiniEuro', label: 'Mini Euro', widthMm: 44, heightMm: 67 },
+  { value: 'Bridge', label: 'Bridge', widthMm: 57.2, heightMm: 88.9 },
+  { value: 'MetricPoker', label: 'Metric Poker', widthMm: 63, heightMm: 88 },
+  { value: 'StandardPoker', label: 'Standard Poker', widthMm: 63.5, heightMm: 88.9 },
+  { value: 'Tarot', label: 'Tarot', widthMm: 70, heightMm: 120 },
+  { value: 'Jumbo', label: 'Jumbo', widthMm: 88, heightMm: 126 },
+  { value: 'ExtraSmallSquare', label: 'Extra Small Square', widthMm: 55, heightMm: 55 },
+  { value: 'SmallSquare', label: 'Small Square', widthMm: 63.5, heightMm: 63.5 },
+  { value: 'MediumSquare', label: 'Medium Square', widthMm: 70, heightMm: 70 },
+  { value: 'LargeSquare', label: 'Large Square', widthMm: 88.9, heightMm: 88.9 }
 ] as const;
 
 // Dice type options

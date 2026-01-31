@@ -1,14 +1,22 @@
 <script lang="ts">
-  import { CARD_SIZES } from '$lib/constants';
+  import { CARD_SIZES, type CardSize } from '$lib/constants';
   import { FormField, Input, Select } from '$lib/components/forms';
 
   let {
     cardSize = $bindable(),
+    cardHorizontal = $bindable(),
     componentName = $bindable()
   }: {
     cardSize: string;
+    cardHorizontal: boolean;
     componentName: string;
   } = $props();
+
+  function getCardSizeLabel(size: CardSize, horizontal: boolean): string {
+    const width = horizontal ? size.heightMm : size.widthMm;
+    const height = horizontal ? size.widthMm : size.heightMm;
+    return `${size.label} (${width}mm × ${height}mm)`;
+  }
 </script>
 
 <div class="configuration-form">
@@ -19,10 +27,15 @@
   <FormField label="Card Size" name="card-size">
     <Select id="card-size" bind:value={cardSize}>
       {#each CARD_SIZES as size}
-        <option value={size.value}>{size.label}</option>
+        <option value={size.value}>{getCardSizeLabel(size, cardHorizontal)}</option>
       {/each}
     </Select>
   </FormField>
+
+  <label class="horizontal-toggle">
+    <input type="checkbox" bind:checked={cardHorizontal} />
+    <span>Horizontal (landscape orientation)</span>
+  </label>
 </div>
 
 <style>
@@ -30,5 +43,25 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+  }
+
+  .horizontal-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+  }
+
+  .horizontal-toggle input[type='checkbox'] {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+  }
+
+  .horizontal-toggle span {
+    user-select: none;
   }
 </style>

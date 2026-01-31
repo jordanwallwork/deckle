@@ -25,7 +25,7 @@
 <style>
   .page-header {
     background: var(--bg-teal);
-    padding: var(--pad-content);
+    padding: calc(var(--pad-content) / 2) var(--pad-content);
     border-bottom: 1px solid var(--color-border);
   }
 
@@ -56,10 +56,6 @@
   }
 
   @media (max-width: 768px) {
-    .page-header {
-      padding: 1.5rem 1rem;
-    }
-
     .header-content {
       flex-direction: column;
       align-items: stretch;

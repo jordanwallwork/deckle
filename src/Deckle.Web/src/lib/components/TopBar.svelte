@@ -258,4 +258,14 @@
       max-width: 120px;
     }
   }
+
+  @media (max-width: 480px) {
+    .user-details {
+      display: none;
+    }
+
+    .user-info {
+      padding: 0.5rem;
+    }
+  }
 </style>

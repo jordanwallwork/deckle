@@ -8,6 +8,7 @@
   import { formatRelativeTime } from '$lib/utils/date.utils';
   import { syncDataSource } from '$lib/utils/dataSource.utils';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
+  import { ChevronLeftIcon, MaximizeIcon, MinimizeIcon } from '$lib/components/icons';
 
   interface Props {
     dataSource: DataSource | null;
@@ -186,15 +187,7 @@
               title="Previous row"
               aria-label="Previous row"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M10 12L6 8L10 4"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <ChevronLeftIcon size={16} />
             </button>
             <button
               class="nav-button"
@@ -202,15 +195,7 @@
               title="Next row"
               aria-label="Next row"
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M6 4L10 8L6 12"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <ChevronLeftIcon size={16} class="rotate-180" />
             </button>
           </div>
         {/if}
@@ -243,37 +228,7 @@
         title="Maximize panel"
         aria-label="Maximize panel"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <!-- Arrows pointing outward -->
-          <path
-            d="M2 6L2 2L6 2"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M10 2L14 2L14 6"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M14 10L14 14L10 14"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M6 14L2 14L2 10"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <MaximizeIcon size={16} />
       </button>
       <button
         class="icon-button"
@@ -281,37 +236,7 @@
         title="Minimize panel"
         aria-label="Minimize panel"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <!-- Arrows pointing inward -->
-          <path
-            d="M6 2L6 6L2 6"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M10 2L10 6L14 6"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M14 10L10 10L10 14"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M2 10L6 10L6 14"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <MinimizeIcon size={16} />
       </button>
     </div>
   {/snippet}
@@ -399,6 +324,10 @@
   .navigation-buttons {
     display: flex;
     gap: 0.25rem;
+  }
+
+  :global(.rotate-180) {
+    transform: rotate(180deg);
   }
 
   .nav-button {

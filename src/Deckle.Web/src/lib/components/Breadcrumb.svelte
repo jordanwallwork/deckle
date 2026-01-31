@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { BreadcrumbItem } from '$lib/types/breadcrumb';
   import { goto } from '$app/navigation';
+  import { ChevronRightIcon } from '$lib/components/icons';
 
   let { items = [] }: { items: BreadcrumbItem[] } = $props();
 
@@ -39,13 +40,7 @@
         </li>
         {#if index < items.length - 1}
           <li class="separator" aria-hidden="true">
-            <svg viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fill-rule="evenodd"
-                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                clip-rule="evenodd"
-              />
-            </svg>
+            <ChevronRightIcon size={14} />
           </li>
         {/if}
       {/each}
@@ -82,11 +77,8 @@
     color: white;
   }
 
-  .separator svg {
-    width: 14px;
-    height: 14px;
+  .separator {
     color: rgba(255, 255, 255, 0.6);
-    flex-shrink: 0;
   }
 
   .current {

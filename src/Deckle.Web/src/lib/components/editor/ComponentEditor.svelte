@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ResizablePanelContainer from '$lib/components/ResizablePanelContainer.svelte';
   import DataSourcePanel from './DataSourcePanel.svelte';
   import type { PageData } from '../../../routes/(authenticated)/projects/[username]/[projectCode]/components/[componentId]/[part]/$types';
   import ElementConfigPanel from './ElementConfigPanel.svelte';
@@ -13,6 +12,8 @@
   import { get } from 'svelte/store';
   import { isEditableComponent } from '$lib/utils/componentTypes';
   import { setContext } from 'svelte';
+  import ReadOnlyBanner from './_components/ReadOnlyBanner.svelte';
+  import { MenuIcon, GearIcon } from '$lib/components/icons';
 
   let { data, readOnly = false }: { data: PageData; readOnly?: boolean } = $props();
 
@@ -25,22 +26,32 @@
   // Capitalize the part name for display (e.g., "front" -> "Front")
   const partLabel = $derived(data.part.charAt(0).toUpperCase() + data.part.slice(1));
 
-  const sidebarWidth = 20;
-
   // Initialize the data source row store for merge field functionality
   initDataSourceRow();
 
-  // Panel size control
-  let dataSourcePanelSplit = $state(80); // Start at 80% for the main editor area
-  const MINIMIZED_HEIGHT = 10; // Minimal height for data source panel
-  const MAXIMIZED_HEIGHT = 50; // 50% split
+  // Side panel visibility (for mobile)
+  let structurePanelOpen = $state(false);
+  let configPanelOpen = $state(false);
+
+  // Data source panel expansion state
+  let dataSourceExpanded = $state(false);
+
+  function toggleStructurePanel() {
+    structurePanelOpen = !structurePanelOpen;
+    if (structurePanelOpen) configPanelOpen = false; // Close other panel
+  }
+
+  function toggleConfigPanel() {
+    configPanelOpen = !configPanelOpen;
+    if (configPanelOpen) structurePanelOpen = false; // Close other panel
+  }
 
   function minimizeDataSourcePanel() {
-    dataSourcePanelSplit = 100 - MINIMIZED_HEIGHT;
+    dataSourceExpanded = false;
   }
 
   function maximizeDataSourcePanel() {
-    dataSourcePanelSplit = MAXIMIZED_HEIGHT;
+    dataSourceExpanded = true;
   }
 
   // Load the saved design when the editor initializes
@@ -149,45 +160,78 @@
 
 <svelte:window onkeydown={handleKeydown} onbeforeunload={handleBeforeUnload} />
 
-{#if readOnly}
-  <div class="read-only-banner">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-    <span>Read-only mode: You have view-only access to this component</span>
-  </div>
-{/if}
+<div class="component-editor">
+  <!-- Read-only banner -->
+  {#if readOnly}
+    <ReadOnlyBanner />
+  {/if}
 
-<ResizablePanelContainer orientation="vertical" bind:splitPercentage={dataSourcePanelSplit}>
-  {#snippet leftOrTop()}
-    <ResizablePanelContainer initialSplit={sidebarWidth}>
-      {#snippet leftOrTop()}
-        <StructureTreePanel component={data.component} part={partLabel} {readOnly} />
-      {/snippet}
-      {#snippet rightOrBottom()}
-        <ResizablePanelContainer initialSplit={100 - (sidebarWidth / (100 - sidebarWidth)) * 100}>
-          {#snippet leftOrTop()}
-            <PreviewPanel component={data.component} {projectUrlBase} projectId={data.project.id} part={data.part} />
-          {/snippet}
-          {#snippet rightOrBottom()}
-            <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />
-          {/snippet}
-        </ResizablePanelContainer>
-      {/snippet}
-    </ResizablePanelContainer>
-  {/snippet}
-  {#snippet rightOrBottom()}
+  <!-- Main editor area -->
+  <div class="editor-main">
+    <!-- Mobile toggle buttons -->
+    <div class="mobile-toggles">
+      <button
+        class="panel-toggle"
+        class:active={structurePanelOpen}
+        onclick={toggleStructurePanel}
+        aria-label="Toggle structure panel"
+      >
+        <MenuIcon size={20} />
+        <span>Structure</span>
+      </button>
+      <button
+        class="panel-toggle"
+        class:active={configPanelOpen}
+        onclick={toggleConfigPanel}
+        aria-label="Toggle config panel"
+      >
+        <GearIcon size={20} />
+        <span>Config</span>
+      </button>
+    </div>
+
+    <!-- Panels container -->
+    <div class="panels-container">
+      <!-- Structure Tree Panel (left) -->
+      <aside class="side-panel structure-panel" class:open={structurePanelOpen}>
+        <div class="side-panel-content">
+          <StructureTreePanel component={data.component} part={partLabel} {readOnly} />
+        </div>
+      </aside>
+
+      <!-- Overlay for mobile when side panel is open -->
+      {#if structurePanelOpen || configPanelOpen}
+        <button
+          class="panel-overlay"
+          onclick={() => {
+            structurePanelOpen = false;
+            configPanelOpen = false;
+          }}
+          aria-label="Close panel"
+        ></button>
+      {/if}
+
+      <!-- Main Preview Panel (center) -->
+      <main class="main-panel">
+        <PreviewPanel
+          component={data.component}
+          {projectUrlBase}
+          projectId={data.project.id}
+          part={data.part}
+        />
+      </main>
+
+      <!-- Config Panel (right) -->
+      <aside class="side-panel config-panel" class:open={configPanelOpen}>
+        <div class="side-panel-content">
+          <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Data Source Panel (bottom) -->
+  <div class="data-source-container" class:expanded={dataSourceExpanded}>
     <DataSourcePanel
       dataSource={data.dataSource}
       dataSources={data.dataSources}
@@ -197,23 +241,216 @@
       onMaximize={maximizeDataSourcePanel}
       {readOnly}
     />
-  {/snippet}
-</ResizablePanelContainer>
+  </div>
+</div>
 
 <style>
-  .read-only-banner {
+  .component-editor {
+    /* Fill parent flex container exactly - don't grow beyond */
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: 100%;
+
+    /* Internal flex layout */
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background-color: #fff3cd;
-    border-bottom: 1px solid #ffc107;
-    color: #856404;
-    font-size: 0.875rem;
-    font-weight: 500;
+    flex-direction: column;
+    overflow: hidden;
+    background: #f5f5f5;
   }
 
-  .read-only-banner svg {
+  /* Main editor area (between readonly banner and data source) */
+  .editor-main {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Mobile toggle buttons - hidden on desktop */
+  .mobile-toggles {
+    display: none;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    background: white;
+    border-bottom: 1px solid #e5e5e7;
+    flex: 0 0 auto;
+  }
+
+  .panel-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .panel-toggle:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+  }
+
+  .panel-toggle.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+  }
+
+  .panel-toggle svg {
     flex-shrink: 0;
+  }
+
+  /* Panels container - holds side panels and main panel */
+  .panels-container {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Side panels (structure tree and config) */
+  .side-panel {
+    width: 300px;
+    flex: 0 0 300px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border: 1px solid #e5e5e7;
+    overflow: hidden;
+  }
+
+  .side-panel-content {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .structure-panel {
+    border-right: none;
+    width: 300px;
+  }
+
+  .config-panel {
+    border-left: none;
+  }
+
+  /* Main preview panel */
+  .main-panel {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: white;
+    border: 1px solid #e5e5e7;
+  }
+
+  /* Overlay for mobile - hidden by default */
+  .panel-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 10;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* Data source panel container */
+  .data-source-container {
+    flex: 0 0 auto;
+    border-top: 1px solid #e5e5e7;
+    background: white;
+    height: 60px;
+    overflow: hidden;
+    transition: height 0.2s ease;
+  }
+
+  .data-source-container.expanded {
+    /* Use flex-basis to set expanded size, capped at 50% of editor or 600px */
+    height: min(600px, 50vh);
+    overflow: hidden;
+  }
+
+  /* Mobile styles */
+  @media (max-width: 1024px) {
+    .mobile-toggles {
+      display: flex;
+    }
+
+    .side-panel {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 300px;
+      max-width: 85vw;
+      flex: none;
+      z-index: 20;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .structure-panel {
+      width: 300px;
+      left: 0;
+      border-right: 1px solid #e5e5e7;
+    }
+
+    .structure-panel.open {
+      transform: translateX(0);
+    }
+
+    .config-panel {
+      right: 0;
+      left: auto;
+      transform: translateX(100%);
+      border-left: 1px solid #e5e5e7;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .config-panel.open {
+      transform: translateX(0);
+    }
+
+    .panel-overlay {
+      display: block;
+    }
+
+    /* Data source panel on mobile can overlap */
+    .data-source-container.expanded {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 15;
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+    }
+  }
+
+  /* Small mobile adjustments */
+  @media (max-width: 640px) {
+    .side-panel {
+      width: 280px;
+    }
+
+    .panel-toggle span {
+      display: none;
+    }
+
+    .panel-toggle {
+      padding: 0.5rem;
+    }
   }
 </style>

@@ -4,6 +4,7 @@
   import TagInput from '../forms/TagInput.svelte';
   import { formatFileSize, formatShortDate, getFileExtension } from '$lib/utils/file.utils';
   import type { File } from '$lib/types';
+  import { CloseIcon, InfoIcon } from '$lib/components/icons';
 
   let {
     file,
@@ -104,14 +105,7 @@
 
 <div class="lightbox" onclick={handleBackdropClick} role="dialog" aria-modal="true">
   <button class="lightbox-close" onclick={onClose} type="button" aria-label="Close">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        d="M6 18L18 6M6 6l12 12"
-      />
-    </svg>
+    <CloseIcon size={24} />
   </button>
 
   <div class="lightbox-content" onclick={handleContentClick}>
@@ -125,20 +119,7 @@
 
       {#if error}
         <div class="error-message">
-          <svg
-            class="error-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
+          <InfoIcon size={20} class="error-icon" />
           <span>{error}</span>
         </div>
       {/if}
@@ -215,11 +196,6 @@
 
   .lightbox-close:hover {
     background: rgba(255, 255, 255, 0.2);
-  }
-
-  .lightbox-close svg {
-    width: 1.5rem;
-    height: 1.5rem;
   }
 
   .lightbox-content {
@@ -338,9 +314,7 @@
     font-size: 0.875rem;
   }
 
-  .error-icon {
-    width: 1.25rem;
-    height: 1.25rem;
+  :global(.error-icon) {
     flex-shrink: 0;
   }
 </style>

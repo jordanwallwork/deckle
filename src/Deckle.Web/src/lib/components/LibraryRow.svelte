@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ContextMenu, { type ContextMenuItem } from './ContextMenu.svelte';
+  import { DragHandleIcon, CheckIcon } from '$lib/components/icons';
 
   export type DragItemData = {
     type: 'file' | 'folder';
@@ -215,9 +216,7 @@
     >
       <div class="checkbox" class:checked={isSelected}>
         {#if isSelected}
-          <svg viewBox="0 0 16 16" fill="currentColor">
-            <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
-          </svg>
+          <CheckIcon size={12} />
         {/if}
       </div>
     </button>
@@ -231,14 +230,7 @@
       tabindex="0"
       aria-label="Drag to reorder"
     >
-      <svg width="12" height="16" viewBox="0 0 12 16" fill="none">
-        <circle cx="3" cy="4" r="1.5" fill="currentColor" />
-        <circle cx="9" cy="4" r="1.5" fill="currentColor" />
-        <circle cx="3" cy="8" r="1.5" fill="currentColor" />
-        <circle cx="9" cy="8" r="1.5" fill="currentColor" />
-        <circle cx="3" cy="12" r="1.5" fill="currentColor" />
-        <circle cx="9" cy="12" r="1.5" fill="currentColor" />
-      </svg>
+      <DragHandleIcon size={16} />
     </div>
   {/if}
   <button
@@ -369,11 +361,6 @@
     background-color: var(--color-sage);
     border-color: var(--color-sage);
     color: white;
-  }
-
-  .checkbox svg {
-    width: 0.75rem;
-    height: 0.75rem;
   }
 
   .drag-handle {

@@ -8,6 +8,7 @@
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
   import TreeNode from './TreeNode.svelte';
   import { getElementLabel } from '../utils';
+  import { DragHandleIcon, LockIcon, PlusIcon, CloseIcon } from '$lib/components/icons';
 
   let {
     element,
@@ -276,21 +277,7 @@
     {/if}
 
     {#if !isRoot}
-      <svg
-        class="drag-handle"
-        width="12"
-        height="16"
-        viewBox="0 0 12 16"
-        fill="none"
-        aria-label="Drag to move"
-      >
-        <circle cx="3" cy="4" r="1.5" fill="currentColor" />
-        <circle cx="9" cy="4" r="1.5" fill="currentColor" />
-        <circle cx="3" cy="8" r="1.5" fill="currentColor" />
-        <circle cx="9" cy="8" r="1.5" fill="currentColor" />
-        <circle cx="3" cy="12" r="1.5" fill="currentColor" />
-        <circle cx="9" cy="12" r="1.5" fill="currentColor" />
-      </svg>
+      <DragHandleIcon size={16} class="drag-handle" />
 
       <svg class="node-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path
@@ -302,31 +289,7 @@
       </svg>
 
       {#if isLocked}
-        <svg
-          class="lock-icon"
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          aria-label="Locked"
-        >
-          <rect
-            x="3"
-            y="5"
-            width="6"
-            height="5"
-            rx="1"
-            stroke="currentColor"
-            stroke-width="1"
-            fill="none"
-          />
-          <path
-            d="M4 5V3.5C4 2.67 4.67 2 5.5 2h1C7.33 2 8 2.67 8 3.5V5"
-            stroke="currentColor"
-            stroke-width="1"
-            fill="none"
-          />
-        </svg>
+        <LockIcon size={12} class="lock-icon" />
       {/if}
 
       {#if isEditingLabel}
@@ -355,25 +318,11 @@
             }}
             aria-label="Add child element"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14">
-              <path
-                d="M7 3v8M3 7h8"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-              />
-            </svg>
+            <PlusIcon size={14} />
           </button>
         {/if}
         <button class="action-button delete" onclick={handleDelete} aria-label="Delete element">
-          <svg width="14" height="14" viewBox="0 0 14 14">
-            <path
-              d="M3 3l8 8M11 3l-8 8"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
+          <CloseIcon size={14} />
         </button>
       </div>
     {:else}
@@ -387,14 +336,7 @@
           }}
           aria-label="Add child element"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14">
-            <path
-              d="M7 3v8M3 7h8"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
+          <PlusIcon size={14} />
         </button>
       </div>
     {/if}
@@ -514,7 +456,7 @@
     height: 1.25rem;
   }
 
-  .drag-handle {
+  :global(.drag-handle) {
     flex-shrink: 0;
     color: #999;
     cursor: grab;
@@ -522,7 +464,7 @@
     transition: opacity 0.15s ease;
   }
 
-  .node-content:hover .drag-handle {
+  .node-content:hover :global(.drag-handle) {
     opacity: 1;
   }
 
@@ -531,7 +473,7 @@
     color: #666;
   }
 
-  .lock-icon {
+  :global(.lock-icon) {
     flex-shrink: 0;
     color: #999;
     margin-left: 0.25rem;

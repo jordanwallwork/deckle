@@ -6,12 +6,23 @@
   import { setMaxScreen } from '$lib/stores/maxScreen';
   import { page } from '$app/stores';
   import { browser } from '$app/environment';
-  import ResizablePanelContainer from '$lib/components/ResizablePanelContainer.svelte';
   import PageSetupPanel from './_components/PageSetupPanel.svelte';
   import PaperPreview from './_components/PaperPreview.svelte';
   import ComponentSelector from './_components/ComponentSelector.svelte';
+  import { GearIcon } from '$lib/components/icons';
 
   let { data }: { data: PageData } = $props();
+
+  // Left panel visibility (for mobile)
+  let leftPanelOpen = $state(false);
+
+  function toggleLeftPanel() {
+    leftPanelOpen = !leftPanelOpen;
+  }
+
+  function closeLeftPanel() {
+    leftPanelOpen = false;
+  }
 
   const STORAGE_KEY = 'deckle-export-page-setup';
 
@@ -105,9 +116,27 @@
   <meta name="description" content="Export components from {data.project.name}." />
 </svelte:head>
 
-<ResizablePanelContainer initialSplit={20}>
-  {#snippet leftOrTop()}
-    <div class="left-panel">
+<div class="export-layout">
+  <!-- Mobile toggle button -->
+  <div class="mobile-toggles">
+    <button
+      class="panel-toggle"
+      class:active={leftPanelOpen}
+      onclick={toggleLeftPanel}
+      aria-label="Toggle export settings panel"
+    >
+      <GearIcon size={20} />
+      <span>Settings</span>
+    </button>
+  </div>
+
+  <div class="panels-container">
+    <!-- Overlay for mobile when panel is open -->
+    {#if leftPanelOpen}
+      <button class="panel-overlay" onclick={closeLeftPanel} aria-label="Close panel"></button>
+    {/if}
+
+    <div class="left-panel" class:open={leftPanelOpen}>
       <div class="component-selector-section">
         <ComponentSelector components={data.allExportableComponents} {selectedComponentIds} />
       </div>
@@ -125,8 +154,8 @@
         </div>
       {/if}
     </div>
-  {/snippet}
-  {#snippet rightOrBottom()}
+
+    <div class="right-panel">
     {#if data.components.length === 0}
       <div class="empty-preview">
         <p>Select components to export from the left panel</p>
@@ -152,13 +181,86 @@
         </div>
       </div>
     {/if}
-  {/snippet}
-</ResizablePanelContainer>
+    </div>
+  </div>
+</div>
 
 <style>
-  .left-panel {
+  .export-layout {
     display: flex;
     flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Mobile toggle buttons - hidden on desktop */
+  .mobile-toggles {
+    display: none;
+    padding: 0.5rem;
+    gap: 0.5rem;
+    background: white;
+    border-bottom: 1px solid #e5e5e7;
+    flex: 0 0 auto;
+  }
+
+  .panel-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .panel-toggle:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+  }
+
+  .panel-toggle.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+  }
+
+  /* Panels container */
+  .panels-container {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Overlay for mobile - hidden by default */
+  .panel-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 10;
+    border: none;
+    cursor: pointer;
+  }
+
+  .left-panel {
+    width: 300px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border-right: 1px solid #e0e0e0;
+    background: white;
+  }
+
+  .right-panel {
+    flex: 1;
     height: 100%;
     overflow: hidden;
   }
@@ -222,5 +324,50 @@
   .error-message li {
     font-weight: 500;
     color: #333;
+  }
+
+  /* Mobile styles */
+  @media (max-width: 768px) {
+    .mobile-toggles {
+      display: flex;
+    }
+
+    .left-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 300px;
+      max-width: 85vw;
+      flex: none;
+      z-index: 20;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+      border-right: 1px solid #e5e5e7;
+    }
+
+    .left-panel.open {
+      transform: translateX(0);
+    }
+
+    .panel-overlay {
+      display: block;
+    }
+  }
+
+  /* Small mobile adjustments */
+  @media (max-width: 640px) {
+    .left-panel {
+      width: 280px;
+    }
+
+    .panel-toggle span {
+      display: none;
+    }
+
+    .panel-toggle {
+      padding: 0.5rem;
+    }
   }
 </style>

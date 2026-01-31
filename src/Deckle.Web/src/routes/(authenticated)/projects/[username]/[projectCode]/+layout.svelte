@@ -40,10 +40,9 @@
 
   // Initialize breadcrumbs context
   const breadcrumbs = initBreadcrumbs(buildProjectBreadcrumbs(data.project));
-
 </script>
 
-<PageHeader>
+<PageHeader overridePadding="0.5rem">
   <Breadcrumb items={$breadcrumbs} />
 </PageHeader>
 

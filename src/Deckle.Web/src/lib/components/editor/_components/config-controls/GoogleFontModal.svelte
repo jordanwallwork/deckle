@@ -8,6 +8,7 @@
     type GoogleFont,
     type FontCategory
   } from '$lib/services/googleFonts';
+  import { CloseIcon, ExternalLinkIcon } from '$lib/components/icons';
 
   const hasApiKey = isGoogleFontsApiConfigured();
 
@@ -146,9 +147,7 @@
       <div class="modal-header">
         <h2 id="modal-title">{hasApiKey ? 'Search Google Fonts' : 'Select a Font'}</h2>
         <button type="button" class="close-button" onclick={onclose} aria-label="Close">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+          <CloseIcon size={20} />
         </button>
       </div>
 
@@ -224,9 +223,7 @@
               class="google-fonts-link"
             >
               Browse fonts.google.com
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M9 3L3 9M9 3H5M9 3V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <ExternalLinkIcon size={12} />
             </a>
           </div>
           <div class="manual-input-row">

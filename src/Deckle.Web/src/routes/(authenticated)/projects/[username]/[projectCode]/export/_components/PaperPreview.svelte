@@ -666,15 +666,14 @@
     {/if}
   </div>
 
-  <!-- Info display -->
-  <div class="info-display">
-    {totalInstances}
-    {totalInstances === 1 ? 'Component' : 'Components'}; {allPages.length}
-    {allPages.length === 1 ? 'Page' : 'Pages'}
-  </div>
-
   <!-- Zoom control -->
   <div class="zoom-control">
+    <div class="info-display">
+      {totalInstances}
+      {totalInstances === 1 ? 'Component' : 'Components'} · {allPages.length}
+      {allPages.length === 1 ? 'Page' : 'Pages'}
+    </div>
+
     <button
       class="zoom-btn"
       onclick={zoomOut}
@@ -699,11 +698,7 @@
 
 <style>
   .paper-preview-container {
-    height: 100%;
-    width: 100%;
     background: #f5f5f5;
-    overflow-y: auto;
-    overflow-x: hidden;
     position: relative;
   }
 
@@ -822,17 +817,10 @@
   }
 
   .info-display {
-    position: sticky;
-    bottom: 1rem;
-    left: 1rem;
-    margin-left: 1rem;
-    margin-bottom: 1rem;
+    line-height: 2rem;
+    margin: 0 1rem;
     width: fit-content;
     align-self: flex-start;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     backdrop-filter: blur(8px);
     z-index: 10;
     font-size: 0.875rem;

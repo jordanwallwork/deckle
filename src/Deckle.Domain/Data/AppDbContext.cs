@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
     public DbSet<Project> Projects { get; set; }
     public DbSet<UserProject> UserProjects { get; set; }
     public DbSet<DataSource> DataSources { get; set; }
+    public DbSet<GoogleSheetsDataSource> GoogleSheetsDataSources { get; set; }
+    public DbSet<SampleDataSource> SampleDataSources { get; set; }
     public DbSet<Component> Components { get; set; }
     public DbSet<Card> Cards { get; set; }
     public DbSet<Dice> Dices { get; set; }
@@ -144,21 +146,6 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasConversion<string>();
 
-            entity.Property(ds => ds.ConnectionString)
-                .IsRequired()
-                .HasMaxLength(1000);
-
-            entity.Property(ds => ds.GoogleSheetsId)
-                .HasMaxLength(255);
-
-            entity.Property(ds => ds.GoogleSheetsUrl)
-                .HasMaxLength(500);
-
-            entity.Property(ds => ds.SheetGid);
-
-            entity.Property(ds => ds.CsvExportUrl)
-                .HasMaxLength(1000);
-
             entity.Property(ds => ds.Headers)
                 .HasColumnType("jsonb")
                 .HasConversion(
@@ -183,10 +170,42 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            // ProjectId is now nullable - SampleDataSources may not be associated with a project
             entity.HasOne(ds => ds.Project)
                 .WithMany(p => p.DataSources)
                 .HasForeignKey(ds => ds.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // TPH discriminator using Type property
+            entity.HasDiscriminator(ds => ds.Type)
+                .HasValue<GoogleSheetsDataSource>(DataSourceType.GoogleSheets)
+                .HasValue<SampleDataSource>(DataSourceType.Sample);
+        });
+
+        modelBuilder.Entity<GoogleSheetsDataSource>(entity =>
+        {
+            entity.Property(ds => ds.GoogleSheetsId)
+                .HasMaxLength(255);
+
+            entity.Property(ds => ds.GoogleSheetsUrl)
+                .HasMaxLength(500)
+                .HasConversion(
+                    v => v != null ? v.ToString() : null,
+                    v => v != null ? new Uri(v) : null);
+
+            entity.Property(ds => ds.SheetGid);
+
+            entity.Property(ds => ds.CsvExportUrl)
+                .HasMaxLength(1000)
+                .HasConversion(
+                    v => v != null ? v.ToString() : null,
+                    v => v != null ? new Uri(v) : null);
+        });
+
+        modelBuilder.Entity<SampleDataSource>(entity =>
+        {
+            entity.Property(ds => ds.JsonData)
+                .HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<Component>(entity =>

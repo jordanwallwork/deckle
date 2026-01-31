@@ -1,24 +1,21 @@
 namespace Deckle.Domain.Entities;
 
-public class DataSource
+/// <summary>
+/// Base class for all data source types.
+/// Uses TPH (Table Per Hierarchy) inheritance with DataSourceType as discriminator.
+/// </summary>
+public abstract class DataSource
 {
     public Guid Id { get; set; }
 
-    public Guid ProjectId { get; set; }
+    /// <summary>
+    /// Optional project association. SampleDataSources may not be associated with a specific project.
+    /// </summary>
+    public Guid? ProjectId { get; set; }
 
     public string Name { get; set; } = string.Empty;
 
     public DataSourceType Type { get; set; }
-
-    public string ConnectionString { get; set; } = string.Empty;
-
-    public string? GoogleSheetsId { get; set; }
-
-    public string? GoogleSheetsUrl { get; set; }
-
-    public int? SheetGid { get; set; }
-
-    public string? CsvExportUrl { get; set; }
 
     public List<string>? Headers { get; set; }
 
@@ -28,10 +25,11 @@ public class DataSource
 
     public DateTime UpdatedAt { get; set; }
 
-    public Project Project { get; set; } = null!;
+    public Project? Project { get; set; }
 }
 
 public enum DataSourceType
 {
-    GoogleSheets
+    GoogleSheets,
+    Sample
 }

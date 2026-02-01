@@ -5,7 +5,7 @@ using Deckle.Email;
 using Deckle.Email.Abstractions;
 using Exceptionless;
 using Hangfire;
-using Hangfire.InMemory;
+using Hangfire.PostgreSql;
 using MediatR;
 
 namespace Deckle.API.Extensions;
@@ -37,12 +37,14 @@ public static class ServiceCollectionExtensions
         // HttpClient for external API calls
         services.AddHttpClient();
 
-        // Hangfire background job processing
+        // Hangfire background job processing with PostgreSQL storage
+        var hangfireConnectionString = configuration.GetConnectionString("deckledb")
+            ?? throw new InvalidOperationException("Connection string 'deckledb' not found for Hangfire.");
         services.AddHangfire(config => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UseInMemoryStorage());
+            .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(hangfireConnectionString)));
         services.AddHangfireServer();
 
         // Email services: register provider-specific senders as keyed services,

@@ -1,5 +1,14 @@
 import { api } from './client';
-import type { AdminUser, AdminUserListResponse, AdminSampleComponentListResponse } from '$lib/types';
+import type {
+  AdminUser,
+  AdminUserListResponse,
+  AdminSampleComponentListResponse,
+  CreateCardDto,
+  CreatePlayerMatDto,
+  CardComponent,
+  PlayerMatComponent,
+  GameComponent
+} from '$lib/types';
 
 export interface GetUsersParams {
   page?: number;
@@ -65,5 +74,29 @@ export const adminApi = {
     const endpoint = queryString ? `/admin/samples?${queryString}` : '/admin/samples';
 
     return api.get<AdminSampleComponentListResponse>(endpoint, undefined, fetchFn);
-  }
+  },
+
+  /**
+   * Create a sample card component
+   */
+  createSampleCard: (data: CreateCardDto, fetchFn?: typeof fetch) =>
+    api.post<CardComponent>('/admin/samples/cards', data, undefined, fetchFn),
+
+  /**
+   * Create a sample player mat component
+   */
+  createSamplePlayerMat: (data: CreatePlayerMatDto, fetchFn?: typeof fetch) =>
+    api.post<PlayerMatComponent>('/admin/samples/playermats', data, undefined, fetchFn),
+
+  /**
+   * Get a sample component by ID (with full details)
+   */
+  getSample: (id: string, fetchFn?: typeof fetch) =>
+    api.get<GameComponent>(`/admin/samples/${id}`, undefined, fetchFn),
+
+  /**
+   * Save a sample component design
+   */
+  saveSampleDesign: (id: string, part: string, design: string | null, fetchFn?: typeof fetch) =>
+    api.put<GameComponent>(`/admin/samples/${id}/design/${part}`, { design }, undefined, fetchFn)
 };

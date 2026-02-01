@@ -2,7 +2,6 @@ using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
 
 namespace Deckle.API.Services;
 
@@ -204,5 +203,104 @@ public class AdminService
         // Insert spaces before capital letters: "MiniAmerican" -> "Mini American"
         return string.Concat(enumValue.Select((c, i) =>
             i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
+    }
+
+    public async Task<CardDto> CreateSampleCardAsync(string name, CardSize size, bool horizontal)
+    {
+        var card = new Card
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = null, // Sample components have no project
+            Name = name,
+            Size = size,
+            Horizontal = horizontal,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Cards.Add(card);
+        await _dbContext.SaveChangesAsync();
+
+        return new CardDto(card);
+    }
+
+    public async Task<PlayerMatDto> CreateSamplePlayerMatAsync(
+        string name,
+        PlayerMatSize? presetSize,
+        PlayerMatOrientation orientation,
+        decimal? customWidthMm,
+        decimal? customHeightMm)
+    {
+        // Validate that either presetSize is set OR both custom dimensions are set
+        if (!presetSize.HasValue && (!customWidthMm.HasValue || !customHeightMm.HasValue))
+        {
+            throw new ArgumentException("Either PresetSize must be set, or both CustomWidthMm and CustomHeightMm must be provided");
+        }
+
+        // Validate custom dimensions if provided
+        if (customWidthMm.HasValue || customHeightMm.HasValue)
+        {
+            if (customWidthMm is < 63m or > 297m)
+            {
+                throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
+            }
+            if (customHeightMm is < 63m or > 297m)
+            {
+                throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
+            }
+        }
+
+        var playerMat = new PlayerMat
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = null, // Sample components have no project
+            Name = name,
+            PresetSize = presetSize,
+            Orientation = orientation,
+            CustomWidthMm = customWidthMm,
+            CustomHeightMm = customHeightMm,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.PlayerMats.Add(playerMat);
+        await _dbContext.SaveChangesAsync();
+
+        return new PlayerMatDto(playerMat);
+    }
+
+    public async Task<ComponentDto?> GetSampleComponentByIdAsync(Guid componentId)
+    {
+        var component = await _dbContext.Components
+            .Include(c => (c as Card)!.DataSource)
+            .Include(c => (c as PlayerMat)!.DataSource)
+            .Where(c => c.Id == componentId && c.ProjectId == null)
+            .FirstOrDefaultAsync();
+
+        return component?.ToComponentDto();
+    }
+
+    public async Task<ComponentDto?> SaveSampleDesignAsync(Guid componentId, string part, string? design)
+    {
+        var component = await _dbContext.Components
+            .Where(c => c.Id == componentId && c.ProjectId == null)
+            .FirstOrDefaultAsync();
+
+        if (component == null)
+        {
+            return null;
+        }
+
+        if (component is not IEditableComponent editable)
+        {
+            return null;
+        }
+
+        editable.SetDesign(part, design);
+        component.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return component.ToComponentDto();
     }
 }

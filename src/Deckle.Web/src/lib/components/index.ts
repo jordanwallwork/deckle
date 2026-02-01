@@ -20,5 +20,8 @@ export { default as TopBar } from './TopBar.svelte';
 // Form components
 export * from './forms';
 
+// Component creation forms
+export * from './componentForms';
+
 // Icons
 export * from './icons';

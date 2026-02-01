@@ -1,13 +1,111 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { AdminSampleComponent } from '$lib/types';
-	import { ArrowLeftIcon } from '$lib/components';
-	import { goto } from '$app/navigation';
+	import {
+		ArrowLeftIcon,
+		Button,
+		Dialog,
+		CardConfigForm,
+		PlayerMatConfigForm
+	} from '$lib/components';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { adminApi, ApiError } from '$lib/api';
 
 	let { data }: { data: PageData } = $props();
 
 	let searchInput = $state(data.currentSearch);
 	let typeFilter = $state(data.currentType);
+
+	// Modal state
+	let showModal = $state(false);
+	let selectedType: 'card' | 'playermat' | null = $state(null);
+	let componentName = $state('');
+	let isSubmitting = $state(false);
+	let errorMessage = $state('');
+
+	// Card configuration
+	let cardSize = $state('StandardPoker');
+	let cardHorizontal = $state(false);
+
+	// Player Mat configuration
+	let playerMatSizeMode: 'preset' | 'custom' = $state('preset');
+	let playerMatPresetSize = $state<string | null>('A4');
+	let playerMatOrientation = $state('Portrait');
+	let playerMatCustomWidth = $state('210');
+	let playerMatCustomHeight = $state('297');
+
+	function openModal() {
+		showModal = true;
+		selectedType = null;
+		componentName = '';
+		cardSize = 'StandardPoker';
+		cardHorizontal = false;
+		playerMatSizeMode = 'preset';
+		playerMatPresetSize = 'A4';
+		playerMatOrientation = 'Portrait';
+		playerMatCustomWidth = '210';
+		playerMatCustomHeight = '297';
+		errorMessage = '';
+	}
+
+	function closeModal() {
+		showModal = false;
+		selectedType = null;
+		componentName = '';
+		errorMessage = '';
+	}
+
+	function selectType(type: 'card' | 'dice' | 'playermat') {
+		// Only allow card and playermat for samples (not dice)
+		if (type === 'dice') return;
+		selectedType = type;
+		errorMessage = '';
+	}
+
+	async function handleSubmit() {
+		if (!componentName.trim()) {
+			errorMessage = 'Please enter a component name';
+			return;
+		}
+
+		if (!selectedType) {
+			errorMessage = 'Please select a component type';
+			return;
+		}
+
+		isSubmitting = true;
+		errorMessage = '';
+
+		try {
+			if (selectedType === 'card') {
+				await adminApi.createSampleCard({
+					name: componentName,
+					size: cardSize,
+					horizontal: cardHorizontal
+				});
+			} else if (selectedType === 'playermat') {
+				await adminApi.createSamplePlayerMat({
+					name: componentName,
+					presetSize: playerMatSizeMode === 'preset' ? playerMatPresetSize : null,
+					orientation: playerMatOrientation,
+					customWidthMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomWidth) : null,
+					customHeightMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomHeight) : null
+				});
+			}
+
+			await invalidateAll();
+			closeModal();
+		} catch (err) {
+			console.error('Error creating sample component:', err);
+			if (err instanceof ApiError) {
+				errorMessage = err.message;
+			} else {
+				errorMessage = 'Failed to create sample component. Please try again.';
+			}
+		} finally {
+			isSubmitting = false;
+		}
+	}
 
 	const componentTypes = [
 		{ value: '', label: 'All Types' },
@@ -84,6 +182,9 @@
 			<h1>Sample Components</h1>
 			<p class="samples-count">{data.samplesResponse.totalCount} sample components</p>
 		</div>
+		<div class="header-right">
+			<Button variant="primary" onclick={openModal}>+ Add Sample</Button>
+		</div>
 	</div>
 
 	<div class="filters-bar">
@@ -128,6 +229,12 @@
 							</span>
 						{/each}
 					</div>
+					{#if component.type === 'Card' || component.type === 'PlayerMat'}
+						<div class="edit-actions">
+							<a href="/admin/samples/{component.id}/front" class="edit-link">Edit Front</a>
+							<a href="/admin/samples/{component.id}/back" class="edit-link">Edit Back</a>
+						</div>
+					{/if}
 				</div>
 			{/each}
 		</div>
@@ -156,6 +263,58 @@
 	{/if}
 </div>
 
+<Dialog bind:show={showModal} title="New Sample Component" maxWidth="600px" onclose={closeModal}>
+	{#if !selectedType}
+		<p class="type-hint">Select a component type to create a sample template.</p>
+		<div class="type-selection">
+			<button class="type-card" onclick={() => selectType('card')}>
+				<div class="type-icon">🃏</div>
+				<h4>Card</h4>
+				<p>Create a sample card template</p>
+			</button>
+			<button class="type-card" onclick={() => selectType('playermat')}>
+				<div class="type-icon">📋</div>
+				<h4>Player Mat</h4>
+				<p>Create a sample player mat template</p>
+			</button>
+		</div>
+	{:else}
+		<Button variant="text" onclick={() => (selectedType = null)}>
+			← Back to component types
+		</Button>
+
+		{#if selectedType === 'card'}
+			<CardConfigForm bind:cardSize bind:cardHorizontal bind:componentName />
+		{:else if selectedType === 'playermat'}
+			<PlayerMatConfigForm
+				bind:componentName
+				bind:sizeMode={playerMatSizeMode}
+				bind:presetSize={playerMatPresetSize}
+				bind:orientation={playerMatOrientation}
+				bind:customWidthMm={playerMatCustomWidth}
+				bind:customHeightMm={playerMatCustomHeight}
+			/>
+		{/if}
+
+		{#if errorMessage}
+			<p class="error-message">{errorMessage}</p>
+		{/if}
+	{/if}
+
+	{#snippet actions()}
+		{#if selectedType}
+			<Button variant="secondary" onclick={closeModal} disabled={isSubmitting}>Cancel</Button>
+			<Button variant="primary" onclick={handleSubmit} disabled={isSubmitting}>
+				{#if isSubmitting}
+					Adding...
+				{:else}
+					Add Sample
+				{/if}
+			</Button>
+		{/if}
+	{/snippet}
+</Dialog>
+
 <style>
 	.samples-container {
 		max-width: 1400px;
@@ -165,12 +324,19 @@
 
 	.samples-header {
 		margin-bottom: 2rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
 	}
 
 	.header-left {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
+	}
+
+	.header-right {
+		flex-shrink: 0;
 	}
 
 	.back-link {
@@ -357,6 +523,34 @@
 		font-weight: 500;
 	}
 
+	.edit-actions {
+		display: flex;
+		gap: 0.5rem;
+		margin-top: 1rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid #e5e7eb;
+	}
+
+	.edit-link {
+		flex: 1;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: #667eea;
+		background: #f0f4ff;
+		border-radius: 0.375rem;
+		text-decoration: none;
+		transition: all 0.2s ease;
+	}
+
+	.edit-link:hover {
+		background: #667eea;
+		color: white;
+	}
+
 	.pagination {
 		display: flex;
 		justify-content: center;
@@ -395,6 +589,11 @@
 			padding: 1rem;
 		}
 
+		.samples-header {
+			flex-direction: column;
+			gap: 1rem;
+		}
+
 		.filters-bar {
 			flex-direction: column;
 		}
@@ -408,5 +607,63 @@
 		.samples-grid {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	/* Modal styles */
+	.type-hint {
+		color: #666;
+		font-size: 0.875rem;
+		margin: 0 0 1.5rem 0;
+	}
+
+	.type-selection {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: 1rem;
+	}
+
+	.type-card {
+		background-color: white;
+		border: 2px solid #e5e7eb;
+		border-radius: 8px;
+		padding: 2rem 1.5rem;
+		text-align: center;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.type-card:hover {
+		border-color: #667eea;
+		transform: translateY(-4px);
+		box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+	}
+
+	.type-icon {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+	}
+
+	.type-card h4 {
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #1a1a1a;
+		margin: 0 0 0.5rem 0;
+	}
+
+	.type-card p {
+		font-size: 0.875rem;
+		color: #666;
+		margin: 0;
+		line-height: 1.4;
+	}
+
+	.error-message {
+		color: #d32f2f;
+		font-size: 0.875rem;
+		margin: 1rem 0 0 0;
+		padding: 0.75rem;
+		background-color: #ffebee;
+		border-radius: 8px;
+		border: 1px solid #ef9a9a;
 	}
 </style>

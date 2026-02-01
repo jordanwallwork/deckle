@@ -2,12 +2,18 @@
   import type { PageData } from './$types';
   import { componentsApi, ApiError } from '$lib/api';
   import { invalidateAll, goto } from '$app/navigation';
-  import { Button, Dialog, ConfirmDialog, EmptyState, TabContent } from '$lib/components';
+  import {
+    Button,
+    Dialog,
+    ConfirmDialog,
+    EmptyState,
+    TabContent,
+    ComponentTypeSelector,
+    CardConfigForm,
+    DiceConfigForm,
+    PlayerMatConfigForm
+  } from '$lib/components';
   import ComponentCard from './_components/ComponentCard.svelte';
-  import ComponentTypeSelector from './_components/ComponentTypeSelector.svelte';
-  import CardConfigForm from './_components/CardConfigForm.svelte';
-  import DiceConfigForm from './_components/DiceConfigForm.svelte';
-  import PlayerMatConfigForm from './_components/PlayerMatConfigForm.svelte';
   import LinkDataSourceModal from './_components/LinkDataSourceModal.svelte';
   import type { GameComponent } from '$lib/types';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';

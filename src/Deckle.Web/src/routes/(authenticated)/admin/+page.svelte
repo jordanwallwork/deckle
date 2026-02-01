@@ -20,10 +20,10 @@
         <p>View and manage user accounts, roles, and permissions.</p>
       </a>
 
-      <div class="admin-card">
+      <a href="/admin/samples" class="admin-card clickable">
         <h3>Samples</h3>
         <p>View and manage sample components and data sources</p>
-      </div>
+      </a>
 
       <div class="admin-card">
         <h3>Content Moderation</h3>

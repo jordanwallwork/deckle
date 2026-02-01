@@ -1,10 +1,17 @@
 import { api } from './client';
-import type { AdminUser, AdminUserListResponse } from '$lib/types';
+import type { AdminUser, AdminUserListResponse, AdminSampleComponentListResponse } from '$lib/types';
 
 export interface GetUsersParams {
   page?: number;
   pageSize?: number;
   search?: string;
+}
+
+export interface GetSamplesParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  type?: string;
 }
 
 /**
@@ -42,5 +49,21 @@ export const adminApi = {
    * Update user storage quota
    */
   updateUserQuota: (id: string, storageQuotaMb: number, fetchFn?: typeof fetch) =>
-    api.put<AdminUser>(`/admin/users/${id}/quota`, { storageQuotaMb }, undefined, fetchFn)
+    api.put<AdminUser>(`/admin/users/${id}/quota`, { storageQuotaMb }, undefined, fetchFn),
+
+  /**
+   * Get list of sample components with pagination, search, and filtering
+   */
+  getSamples: (params?: GetSamplesParams, fetchFn?: typeof fetch) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString());
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.type) searchParams.set('type', params.type);
+
+    const queryString = searchParams.toString();
+    const endpoint = queryString ? `/admin/samples?${queryString}` : '/admin/samples';
+
+    return api.get<AdminSampleComponentListResponse>(endpoint, undefined, fetchFn);
+  }
 };

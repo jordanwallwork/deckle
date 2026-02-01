@@ -70,6 +70,22 @@ public static class AdminEndpoints
         })
         .WithName("UpdateAdminUserQuota");
 
+        // GET /admin/samples - List all sample components with pagination, search, and filtering
+        group.MapGet("/samples", async (
+            AdminService adminService,
+            int page = 1,
+            int pageSize = 20,
+            string? search = null,
+            string? type = null) =>
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 20;
+
+            var result = await adminService.GetSampleComponentsAsync(page, pageSize, search, type);
+            return Results.Ok(result);
+        })
+        .WithName("GetAdminSamples");
+
         return group;
     }
 }

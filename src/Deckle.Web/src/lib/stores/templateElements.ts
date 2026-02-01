@@ -30,7 +30,7 @@ function createTemplateStore() {
       alignItems: 'flex-start'
     },
     children: [],
-    visible: true,
+    visibilityMode: 'show',
     opacity: 1,
     bleedAreaColor: '#ff0000', // Default red for bleed area
     safeAreaColor: '#00ff00' // Default green for safe area

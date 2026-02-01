@@ -49,7 +49,7 @@
   );
 </script>
 
-{#if element.visible !== false}
+{#if element.visibilityMode !== 'hide'}
   <div
     style:position
     style:left

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { BaseElement, ContainerElement } from '../../types';
+  import type { BaseElement, ContainerElement, VisibilityMode } from '../../types';
   import ConfigSection from '../config-controls/ConfigSection.svelte';
-  import VisibilityCheckbox from '../config-controls/VisibilityCheckbox.svelte';
+  import VisibilityControl from '../config-controls/VisibilityControl.svelte';
   import LockCheckbox from '../config-controls/LockCheckbox.svelte';
   import PositionControls from '../config-controls/PositionControls.svelte';
   import NumberField from '../config-controls/NumberField.svelte';
@@ -101,13 +101,15 @@
       />
     </div>
 
-    <VisibilityCheckbox
-      visible={element.visible}
-      onchange={(visible) => updateElement({ visible })}
-    />
-
     <LockCheckbox locked={element.locked} onchange={(locked) => updateElement({ locked })} />
   </div>
+
+  <VisibilityControl
+    mode={element.visibilityMode ?? 'show'}
+    condition={element.visibilityCondition ?? ''}
+    onModeChange={(mode: VisibilityMode) => updateElement({ visibilityMode: mode })}
+    onConditionChange={(condition: string) => updateElement({ visibilityCondition: condition })}
+  />
 
   {#if element.position === 'absolute'}
     <PositionControls x={element.x} y={element.y} onchange={(updates) => updateElement(updates)} />

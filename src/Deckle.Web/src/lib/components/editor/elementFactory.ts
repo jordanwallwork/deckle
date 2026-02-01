@@ -8,7 +8,7 @@ export function createElementOfType(type: ElementType): TemplateElement {
     return {
       id: crypto.randomUUID(),
       type: 'container',
-      visible: true,
+      visibilityMode: 'show',
       opacity: 1,
       display: 'flex',
       flexConfig: {
@@ -23,7 +23,7 @@ export function createElementOfType(type: ElementType): TemplateElement {
     return {
       id: crypto.randomUUID(),
       type: 'text',
-      visible: true,
+      visibilityMode: 'show',
       opacity: 1,
       content: 'New Text',
       fontSize: 16,
@@ -34,7 +34,7 @@ export function createElementOfType(type: ElementType): TemplateElement {
     return {
       id: crypto.randomUUID(),
       type: 'image',
-      visible: true,
+      visibilityMode: 'show',
       opacity: 1,
       imageId: '',
       dimensions: { width: 100, height: 100 }

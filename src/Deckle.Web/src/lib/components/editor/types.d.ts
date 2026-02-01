@@ -35,6 +35,8 @@ export type BorderStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
 
 export type ImageFit = 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
 
+export type VisibilityMode = 'show' | 'hide' | 'conditional';
+
 // ============================================================================
 // Style Sub-interfaces
 // ============================================================================
@@ -135,7 +137,8 @@ export interface BaseElement {
   y?: number | string; // for absolute positioning - number for px, string for other units (mm, %)
   zIndex?: number;
   opacity?: number;
-  visible?: boolean;
+  visibilityMode?: VisibilityMode; // 'show' (default), 'hide', or 'conditional'
+  visibilityCondition?: string; // Formula for conditional visibility (used when visibilityMode is 'conditional')
   locked?: boolean; // When true, element cannot be selected or edited in preview, but can be edited in structure tree
   rotation?: number; // rotation in degrees
 

@@ -51,7 +51,7 @@
       ? `rotate(${element.rotation}deg)`
       : undefined
   );
-  const display = $derived(element.visible === false ? 'none' : undefined);
+  const display = $derived(element.visibilityMode === 'hide' ? 'none' : undefined);
 
   function handleMouseEnter() {
     // Don't hover locked elements in preview
@@ -100,7 +100,9 @@
   }
 
   function handleToggleVisibility() {
-    templateStore.updateElement(element.id, { visible: !element.visible });
+    // Toggle between 'show' and 'hide' (preserve 'conditional' by not using toggle in context menu when conditional)
+    const newMode = element.visibilityMode === 'hide' ? 'show' : 'hide';
+    templateStore.updateElement(element.id, { visibilityMode: newMode });
   }
 
   function handleToggleLock() {
@@ -141,12 +143,19 @@
       });
     }
 
-    // Visibility toggle
+    // Visibility toggle (only show simple toggle for show/hide, not conditional)
     items.push({ divider: true });
-    items.push({
-      label: element.visible === false ? 'Show' : 'Hide',
-      action: handleToggleVisibility
-    });
+    if (element.visibilityMode === 'conditional') {
+      items.push({
+        label: 'Visibility: Conditional',
+        action: () => {} // No-op, use config panel for conditional
+      });
+    } else {
+      items.push({
+        label: element.visibilityMode === 'hide' ? 'Show' : 'Hide',
+        action: handleToggleVisibility
+      });
+    }
 
     // Lock toggle
     items.push({

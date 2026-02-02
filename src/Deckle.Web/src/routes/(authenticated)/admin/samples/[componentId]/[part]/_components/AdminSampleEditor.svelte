@@ -6,6 +6,7 @@
   import StructureTreePanel from '$lib/components/editor/StructureTreePanel.svelte';
   import { templateStore } from '$lib/stores/templateElements';
   import { fontLoader } from '$lib/stores/fontLoader';
+  import { initDataSourceRow } from '$lib/stores/dataSourceRow';
   import { beforeNavigate } from '$app/navigation';
   import { saveActionStore } from '$lib/stores/saveAction';
   import { get } from 'svelte/store';
@@ -20,6 +21,10 @@
 
   // Provide null projectId through context (sample components have no project)
   setContext('projectId', null);
+
+  // Initialize the data source row store for merge field functionality
+  // (sample components don't have data sources, but child components expect this context)
+  initDataSourceRow();
 
   // Side panel visibility (for mobile)
   let structurePanelOpen = $state(false);

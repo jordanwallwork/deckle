@@ -8,10 +8,12 @@ namespace Deckle.API.Services;
 public class AdminService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ComponentService _componentService;
 
-    public AdminService(AppDbContext dbContext)
+    public AdminService(AppDbContext dbContext, ComponentService componentService)
     {
         _dbContext = dbContext;
+        _componentService = componentService;
     }
 
     public async Task<AdminUserListResponse> GetUsersAsync(int page = 1, int pageSize = 20, string? search = null)
@@ -116,191 +118,27 @@ public class AdminService
         return await GetUserByIdAsync(userId);
     }
 
-    public async Task<AdminSampleComponentListResponse> GetSampleComponentsAsync(
+    public Task<AdminSampleComponentListResponse> GetSampleComponentsAsync(
         int page = 1,
         int pageSize = 20,
         string? search = null,
         string? componentType = null)
-    {
-        // Sample components are those with ProjectId = null and implement IEditableComponent
-        var query = _dbContext.Components
-            .Where(c => c.ProjectId == null)
-            .AsQueryable();
+        => _componentService.GetSampleComponentsAsync(page, pageSize, search, componentType);
 
-        // Filter by component type if specified
-        if (!string.IsNullOrWhiteSpace(componentType))
-        {
-            query = componentType.ToLower() switch
-            {
-                "card" => query.Where(c => c is Card),
-                "playermat" => query.Where(c => c is PlayerMat),
-                _ => query
-            };
-        }
+    public Task<CardDto> CreateSampleCardAsync(string name, CardSize size, bool horizontal)
+        => _componentService.CreateSampleCardAsync(name, size, horizontal);
 
-        // Search by name
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchLower = search.ToLower();
-            query = query.Where(c => c.Name.ToLower().Contains(searchLower));
-        }
-
-        var totalCount = await query.CountAsync();
-
-        var components = await query
-            .OrderByDescending(c => c.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        var dtos = components.Select(c => new AdminSampleComponentDto
-        {
-            Id = c.Id,
-            Type = GetComponentTypeName(c),
-            Name = c.Name,
-            CreatedAt = c.CreatedAt,
-            UpdatedAt = c.UpdatedAt,
-            Stats = GetComponentStats(c)
-        }).ToList();
-
-        return new AdminSampleComponentListResponse
-        {
-            Components = dtos,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize
-        };
-    }
-
-    private static string GetComponentTypeName(Component component) => component switch
-    {
-        Card => "Card",
-        Dice => "Dice",
-        PlayerMat => "PlayerMat",
-        _ => component.GetType().Name
-    };
-
-    private static Dictionary<string, string> GetComponentStats(Component component) => component switch
-    {
-        Card card => new Dictionary<string, string>
-        {
-            ["Size"] = FormatEnumName(card.Size.ToString()),
-            ["Horizontal"] = card.Horizontal ? "Yes" : "No"
-        },
-        PlayerMat mat => new Dictionary<string, string>
-        {
-            ["Size"] = mat.PresetSize?.ToString() ?? "Custom",
-            ["Orientation"] = mat.Orientation.ToString(),
-            ["Dimensions"] = mat.PresetSize.HasValue
-                ? ""
-                : $"{mat.CustomWidthMm}×{mat.CustomHeightMm}mm"
-        },
-        _ => new Dictionary<string, string>()
-    };
-
-    private static string FormatEnumName(string enumValue)
-    {
-        // Insert spaces before capital letters: "MiniAmerican" -> "Mini American"
-        return string.Concat(enumValue.Select((c, i) =>
-            i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
-    }
-
-    public async Task<CardDto> CreateSampleCardAsync(string name, CardSize size, bool horizontal)
-    {
-        var card = new Card
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = null, // Sample components have no project
-            Name = name,
-            Size = size,
-            Horizontal = horizontal,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.Cards.Add(card);
-        await _dbContext.SaveChangesAsync();
-
-        return new CardDto(card);
-    }
-
-    public async Task<PlayerMatDto> CreateSamplePlayerMatAsync(
+    public Task<PlayerMatDto> CreateSamplePlayerMatAsync(
         string name,
         PlayerMatSize? presetSize,
         PlayerMatOrientation orientation,
         decimal? customWidthMm,
         decimal? customHeightMm)
-    {
-        // Validate that either presetSize is set OR both custom dimensions are set
-        if (!presetSize.HasValue && (!customWidthMm.HasValue || !customHeightMm.HasValue))
-        {
-            throw new ArgumentException("Either PresetSize must be set, or both CustomWidthMm and CustomHeightMm must be provided");
-        }
+        => _componentService.CreateSamplePlayerMatAsync(name, presetSize, orientation, customWidthMm, customHeightMm);
 
-        // Validate custom dimensions if provided
-        if (customWidthMm.HasValue || customHeightMm.HasValue)
-        {
-            if (customWidthMm is < 63m or > 297m)
-            {
-                throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
-            }
-            if (customHeightMm is < 63m or > 297m)
-            {
-                throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
-            }
-        }
+    public Task<ComponentDto?> GetSampleComponentByIdAsync(Guid componentId)
+        => _componentService.GetSampleComponentByIdAsync(componentId);
 
-        var playerMat = new PlayerMat
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = null, // Sample components have no project
-            Name = name,
-            PresetSize = presetSize,
-            Orientation = orientation,
-            CustomWidthMm = customWidthMm,
-            CustomHeightMm = customHeightMm,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.PlayerMats.Add(playerMat);
-        await _dbContext.SaveChangesAsync();
-
-        return new PlayerMatDto(playerMat);
-    }
-
-    public async Task<ComponentDto?> GetSampleComponentByIdAsync(Guid componentId)
-    {
-        var component = await _dbContext.Components
-            .Include(c => (c as Card)!.DataSource)
-            .Include(c => (c as PlayerMat)!.DataSource)
-            .Where(c => c.Id == componentId && c.ProjectId == null)
-            .FirstOrDefaultAsync();
-
-        return component?.ToComponentDto();
-    }
-
-    public async Task<ComponentDto?> SaveSampleDesignAsync(Guid componentId, string part, string? design)
-    {
-        var component = await _dbContext.Components
-            .Where(c => c.Id == componentId && c.ProjectId == null)
-            .FirstOrDefaultAsync();
-
-        if (component == null)
-        {
-            return null;
-        }
-
-        if (component is not IEditableComponent editable)
-        {
-            return null;
-        }
-
-        editable.SetDesign(part, design);
-        component.UpdatedAt = DateTime.UtcNow;
-
-        await _dbContext.SaveChangesAsync();
-
-        return component.ToComponentDto();
-    }
+    public Task<ComponentDto?> SaveSampleDesignAsync(Guid componentId, string part, string? design)
+        => _componentService.SaveSampleDesignAsync(componentId, part, design);
 }

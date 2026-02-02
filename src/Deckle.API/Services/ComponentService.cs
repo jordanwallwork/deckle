@@ -2,7 +2,6 @@ using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Deckle.API.Services;
 
@@ -17,6 +16,59 @@ public class ComponentService
         _authService = authService;
     }
 
+    #region Validation Helpers
+
+    private static void ValidatePlayerMatDimensions(
+        PlayerMatSize? presetSize,
+        decimal? customWidthMm,
+        decimal? customHeightMm)
+    {
+        if (!presetSize.HasValue && (!customWidthMm.HasValue || !customHeightMm.HasValue))
+        {
+            throw new ArgumentException("Either PresetSize must be set, or both CustomWidthMm and CustomHeightMm must be provided");
+        }
+
+        if (customWidthMm.HasValue || customHeightMm.HasValue)
+        {
+            if (customWidthMm is < 63m or > 297m)
+            {
+                throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
+            }
+            if (customHeightMm is < 63m or > 297m)
+            {
+                throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
+            }
+        }
+    }
+
+    #endregion
+
+    #region DataSource Helpers
+
+    private async Task LoadDataSourceIfSupportedAsync(Component component)
+    {
+        if (component is IDataSourceComponent)
+        {
+            await _context.Entry(component)
+                .Reference(nameof(IDataSourceComponent.DataSource))
+                .LoadAsync();
+        }
+    }
+
+    private async Task LoadDataSourcesForComponentsAsync(IEnumerable<Component> components)
+    {
+        foreach (var component in components.OfType<IDataSourceComponent>())
+        {
+            await _context.Entry(component)
+                .Reference(c => c.DataSource)
+                .LoadAsync();
+        }
+    }
+
+    #endregion
+
+    #region Read Operations
+
     public async Task<List<ComponentDto>> GetProjectComponentsAsync(Guid userId, Guid projectId)
     {
         if (!await _authService.HasProjectAccessAsync(userId, projectId))
@@ -29,13 +81,7 @@ public class ComponentService
             .OrderBy(c => c.CreatedAt)
             .ToListAsync();
 
-        // Explicitly load DataSource for components that support it
-        foreach (var component in components.OfType<IDataSourceComponent>())
-        {
-            await _context.Entry(component)
-                .Reference(c => c.DataSource)
-                .LoadAsync();
-        }
+        await LoadDataSourcesForComponentsAsync(components);
 
         return [.. components.Select(c => c.ToComponentDto())];
     }
@@ -52,36 +98,26 @@ public class ComponentService
             return null;
         }
 
-        // Explicitly load DataSource if the component supports it
-        if (component is IDataSourceComponent)
-        {
-            await _context.Entry(component)
-                .Reference(nameof(IDataSourceComponent.DataSource))
-                .LoadAsync();
-        }
+        await LoadDataSourceIfSupportedAsync(component);
 
         return component.ToComponentDto();
     }
 
+    #endregion
+
+    #region Create Operations
+
     public async Task<CardDto> CreateCardAsync(Guid userId, Guid projectId, string name, CardSize size, bool horizontal)
     {
-        var card = new Card
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = projectId,
-            Name = name,
-            Size = size,
-            Horizontal = horizontal,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        await CreateAndSaveComponentAsync(userId, projectId, card);
-        return new CardDto(card);
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+        var card = CreateCard(projectId, name, size, horizontal);
+        return await SaveAndReturnAsync(card, c => new CardDto(c));
     }
 
     public async Task<DiceDto> CreateDiceAsync(Guid userId, Guid projectId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
     {
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+
         var dice = new Dice
         {
             Id = Guid.NewGuid(),
@@ -95,21 +131,70 @@ public class ComponentService
             UpdatedAt = DateTime.UtcNow
         };
 
-        await CreateAndSaveComponentAsync(userId, projectId, dice);
-        return new DiceDto(dice);
+        return await SaveAndReturnAsync(dice, d => new DiceDto(d));
     }
+
+    public async Task<PlayerMatDto> CreatePlayerMatAsync(
+        Guid userId,
+        Guid projectId,
+        string name,
+        PlayerMatSize? presetSize,
+        PlayerMatOrientation orientation,
+        decimal? customWidthMm,
+        decimal? customHeightMm)
+    {
+        ValidatePlayerMatDimensions(presetSize, customWidthMm, customHeightMm);
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+        var playerMat = CreatePlayerMat(projectId, name, presetSize, orientation, customWidthMm, customHeightMm);
+        return await SaveAndReturnAsync(playerMat, pm => new PlayerMatDto(pm));
+    }
+
+    private static Card CreateCard(Guid? projectId, string name, CardSize size, bool horizontal) => new()
+    {
+        Id = Guid.NewGuid(),
+        ProjectId = projectId,
+        Name = name,
+        Size = size,
+        Horizontal = horizontal,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
+
+    private static PlayerMat CreatePlayerMat(
+        Guid? projectId,
+        string name,
+        PlayerMatSize? presetSize,
+        PlayerMatOrientation orientation,
+        decimal? customWidthMm,
+        decimal? customHeightMm) => new()
+    {
+        Id = Guid.NewGuid(),
+        ProjectId = projectId,
+        Name = name,
+        PresetSize = presetSize,
+        Orientation = orientation,
+        CustomWidthMm = customWidthMm,
+        CustomHeightMm = customHeightMm,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
+
+    private async Task<TDto> SaveAndReturnAsync<TComponent, TDto>(TComponent component, Func<TComponent, TDto> toDto)
+        where TComponent : Component
+    {
+        _context.Set<TComponent>().Add(component);
+        await _context.SaveChangesAsync();
+        return toDto(component);
+    }
+
+    #endregion
+
+    #region Update Operations
 
     public async Task<CardDto?> UpdateCardAsync(Guid userId, Guid componentId, string name, CardSize size, bool horizontal)
     {
-        var card = await FindAndAuthorizeComponentAsync<Card>(
-            userId,
-            componentId,
-            ProjectAuthorizationService.CanModifyResources);
-
-        if (card == null)
-        {
-            return null;
-        }
+        var card = await FindAndAuthorizeComponentAsync<Card>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
+        if (card == null) return null;
 
         card.Name = name;
         card.Size = size;
@@ -117,21 +202,13 @@ public class ComponentService
         card.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-
         return new CardDto(card);
     }
 
     public async Task<DiceDto?> UpdateDiceAsync(Guid userId, Guid componentId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
     {
-        var dice = await FindAndAuthorizeComponentAsync<Dice>(
-            userId,
-            componentId,
-            ProjectAuthorizationService.CanModifyResources);
-
-        if (dice == null)
-        {
-            return null;
-        }
+        var dice = await FindAndAuthorizeComponentAsync<Dice>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
+        if (dice == null) return null;
 
         dice.Name = name;
         dice.Type = type;
@@ -141,37 +218,32 @@ public class ComponentService
         dice.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-
         return new DiceDto(dice);
     }
 
-    public async Task DeleteComponentAsync(Guid userId, Guid componentId)
+    public async Task<PlayerMatDto?> UpdatePlayerMatAsync(
+        Guid userId,
+        Guid componentId,
+        string name,
+        PlayerMatSize? presetSize,
+        PlayerMatOrientation orientation,
+        decimal? customWidthMm,
+        decimal? customHeightMm)
     {
-        var component = await _context.Components
-            .Where(c => c.Id == componentId)
-            .FirstOrDefaultAsync() ?? throw new KeyNotFoundException("Component not found");
+        var playerMat = await FindAndAuthorizeComponentAsync<PlayerMat>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
+        if (playerMat == null) return null;
 
-        // Shared sample components (no project) cannot be deleted through this endpoint
-        if (component.ProjectId == null)
-        {
-            throw new UnauthorizedAccessException("Cannot delete shared sample components");
-        }
+        ValidatePlayerMatDimensions(presetSize, customWidthMm, customHeightMm);
 
-        // Authorization check
-        await _authService.EnsureCanDeleteResourcesAsync(userId, component.ProjectId.Value);
+        playerMat.Name = name;
+        playerMat.PresetSize = presetSize;
+        playerMat.Orientation = orientation;
+        playerMat.CustomWidthMm = customWidthMm;
+        playerMat.CustomHeightMm = customHeightMm;
+        playerMat.UpdatedAt = DateTime.UtcNow;
 
-        _context.Components.Remove(component);
         await _context.SaveChangesAsync();
-    }
-
-    public async Task<CardDto?> SaveCardDesignAsync(Guid userId, Guid componentId, string part, string? design)
-    {
-        return await SaveDesignAsync<Card, CardDto>(
-            userId,
-            componentId,
-            part,
-            design,
-            card => new CardDto(card));
+        return new PlayerMatDto(playerMat);
     }
 
     public async Task<ComponentDto?> UpdateDataSourceAsync(Guid userId, Guid componentId, Guid? dataSourceId)
@@ -185,208 +257,14 @@ public class ComponentService
             return null;
         }
 
-        // Load the current DataSource if it exists
-        await _context.Entry(component)
-            .Reference(nameof(IDataSourceComponent.DataSource))
-            .LoadAsync();
+        await LoadDataSourceIfSupportedAsync(component);
 
-        if (!await TryUpdateComponentDataSourceAsync(userId, dataSourceComponent, dataSourceId))
-        {
-            return null;
-        }
-
-        return component.ToComponentDto();
-    }
-
-    public async Task<PlayerMatDto> CreatePlayerMatAsync(
-        Guid userId,
-        Guid projectId,
-        string name,
-        PlayerMatSize? presetSize,
-        PlayerMatOrientation orientation,
-        decimal? customWidthMm,
-        decimal? customHeightMm)
-    {
-        // Validate that either presetSize is set OR both custom dimensions are set
-        if (!presetSize.HasValue && (!customWidthMm.HasValue || !customHeightMm.HasValue))
-        {
-            throw new ArgumentException("Either PresetSize must be set, or both CustomWidthMm and CustomHeightMm must be provided");
-        }
-
-        // Validate custom dimensions if provided
-        if (customWidthMm.HasValue || customHeightMm.HasValue)
-        {
-            if (customWidthMm is < 63m or > 297m)
-            {
-                throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
-            }
-            if (customHeightMm is < 63m or > 297m)
-            {
-                throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
-            }
-        }
-
-        var playerMat = new PlayerMat
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = projectId,
-            Name = name,
-            PresetSize = presetSize,
-            Orientation = orientation,
-            CustomWidthMm = customWidthMm,
-            CustomHeightMm = customHeightMm,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        await CreateAndSaveComponentAsync(userId, projectId, playerMat);
-        return new PlayerMatDto(playerMat);
-    }
-
-    public async Task<PlayerMatDto?> UpdatePlayerMatAsync(
-        Guid userId,
-        Guid componentId,
-        string name,
-        PlayerMatSize? presetSize,
-        PlayerMatOrientation orientation,
-        decimal? customWidthMm,
-        decimal? customHeightMm)
-    {
-        var playerMat = await FindAndAuthorizeComponentAsync<PlayerMat>(
-            userId,
-            componentId,
-            ProjectAuthorizationService.CanModifyResources);
-
-        if (playerMat == null)
-        {
-            return null;
-        }
-
-        // Validate that either presetSize is set OR both custom dimensions are set
-        if (!presetSize.HasValue && (!customWidthMm.HasValue || !customHeightMm.HasValue))
-        {
-            throw new ArgumentException("Either PresetSize must be set, or both CustomWidthMm and CustomHeightMm must be provided");
-        }
-
-        // Validate custom dimensions if provided
-        if (customWidthMm.HasValue || customHeightMm.HasValue)
-        {
-            if (customWidthMm is < 63m or > 297m)
-            {
-                throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
-            }
-            if (customHeightMm is < 63m or > 297m)
-            {
-                throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
-            }
-        }
-
-        playerMat.Name = name;
-        playerMat.PresetSize = presetSize;
-        playerMat.Orientation = orientation;
-        playerMat.CustomWidthMm = customWidthMm;
-        playerMat.CustomHeightMm = customHeightMm;
-        playerMat.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return new PlayerMatDto(playerMat);
-    }
-
-    public async Task<PlayerMatDto?> SavePlayerMatDesignAsync(Guid userId, Guid componentId, string part, string? design)
-    {
-        return await SaveDesignAsync<PlayerMat, PlayerMatDto>(
-            userId,
-            componentId,
-            part,
-            design,
-            playerMat => new PlayerMatDto(playerMat));
-    }
-
-    public async Task<ComponentDto?> SaveDesignAsync(Guid userId, Guid componentId, string part, string? design)
-    {
-        // Find the component and check if it implements IEditableComponent
-        var component = await _context.Components
-            .Where(c => c.Id == componentId && c.ProjectId != null && c.Project!.Users.Any(u => u.Id == userId))
-            .FirstOrDefaultAsync();
-
-        if (component is not IEditableComponent editableComponent)
-        {
-            return null;
-        }
-
-        // Shared sample components cannot be edited through this endpoint
-        if (component.ProjectId == null)
-        {
-            return null;
-        }
-
-        // Check user's role - Only users with modify permissions can save designs
-        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId.Value);
-        if (role == null || !ProjectAuthorizationService.CanModifyResources(role.Value))
-        {
-            return null;
-        }
-
-        editableComponent.SetDesign(part, design);
-        component.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        // Load DataSource if the component supports it
-        if (component is IDataSourceComponent)
-        {
-            await _context.Entry(component)
-                .Reference(nameof(IDataSourceComponent.DataSource))
-                .LoadAsync();
-        }
-
-        return component.ToComponentDto();
-    }
-
-    private async Task<TDto?> SaveDesignAsync<TComponent, TDto>(
-        Guid userId,
-        Guid componentId,
-        string part,
-        string? design,
-        Func<TComponent, TDto> toDtoFunc)
-        where TComponent : Component, IEditableComponent
-    {
-        var component = await FindAndAuthorizeComponentAsync<TComponent>(
-            userId,
-            componentId,
-            ProjectAuthorizationService.CanModifyResources);
-
-        if (component == null)
-        {
-            return default;
-        }
-
-        component.SetDesign(part, design);
-
-        await _context.SaveChangesAsync();
-
-        return toDtoFunc(component);
-    }
-
-    private async Task<bool> TryUpdateComponentDataSourceAsync(Guid userId, [NotNullWhen(true)]IDataSourceComponent? component, Guid? dataSourceId)
-    {
-        if (component == null) return false;
-
-        // Shared sample components cannot have their data source updated through this endpoint
-        if (component.ProjectId == null)
-        {
-            return false;
-        }
-
-        // Check user's role - Only Owner can update data source links
-        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId.Value);
+        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId!.Value);
         if (role == null || !ProjectAuthorizationService.CanManageDataSources(role.Value))
         {
-            return false;
+            return null;
         }
 
-        // If dataSourceId is provided, verify it exists and belongs to the same project
         if (dataSourceId.HasValue)
         {
             var dataSourceExists = await _context.DataSources
@@ -397,64 +275,246 @@ public class ComponentService
                 throw new ArgumentException("Data source not found or does not belong to this project");
             }
 
-            // Load the data source to ensure it's available in the response
-            component.DataSource = await _context.DataSources.FindAsync(dataSourceId.Value);
+            dataSourceComponent.DataSource = await _context.DataSources.FindAsync(dataSourceId.Value);
         }
         else
         {
-            // Remove the data source
-            component.DataSource = null;
+            dataSourceComponent.DataSource = null;
         }
 
         component.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        return true;
+        return component.ToComponentDto();
     }
 
-    private async Task<T> CreateAndSaveComponentAsync<T>(
-        Guid userId,
-        Guid projectId,
-        T component) where T : Component
-    {
-        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+    #endregion
 
-        _context.Set<T>().Add(component);
+    #region Design Operations
+
+    public async Task<ComponentDto?> SaveDesignAsync(Guid userId, Guid componentId, string part, string? design)
+    {
+        var component = await FindAndAuthorizeComponentAsync<Component>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
+
+        if (component is not IEditableComponent editableComponent)
+        {
+            return null;
+        }
+
+        editableComponent.SetDesign(part, design);
+        component.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        await LoadDataSourceIfSupportedAsync(component);
+
+        return component.ToComponentDto();
+    }
+
+    // Keep type-specific methods for backwards compatibility - they delegate to the generic version
+    public Task<CardDto?> SaveCardDesignAsync(Guid userId, Guid componentId, string part, string? design)
+        => SaveTypedDesignAsync<Card, CardDto>(userId, componentId, part, design, c => new CardDto(c));
+
+    public Task<PlayerMatDto?> SavePlayerMatDesignAsync(Guid userId, Guid componentId, string part, string? design)
+        => SaveTypedDesignAsync<PlayerMat, PlayerMatDto>(userId, componentId, part, design, pm => new PlayerMatDto(pm));
+
+    private async Task<TDto?> SaveTypedDesignAsync<TComponent, TDto>(
+        Guid userId,
+        Guid componentId,
+        string part,
+        string? design,
+        Func<TComponent, TDto> toDto)
+        where TComponent : Component, IEditableComponent
+    {
+        var component = await FindAndAuthorizeComponentAsync<TComponent>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
+        if (component == null) return default;
+
+        component.SetDesign(part, design);
+        component.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return toDto(component);
+    }
+
+    #endregion
+
+    #region Delete Operations
+
+    public async Task DeleteComponentAsync(Guid userId, Guid componentId)
+    {
+        var component = await _context.Components
+            .Where(c => c.Id == componentId)
+            .FirstOrDefaultAsync() ?? throw new KeyNotFoundException("Component not found");
+
+        if (component.ProjectId == null)
+        {
+            throw new UnauthorizedAccessException("Cannot delete shared sample components");
+        }
+
+        await _authService.EnsureCanDeleteResourcesAsync(userId, component.ProjectId.Value);
+
+        _context.Components.Remove(component);
+        await _context.SaveChangesAsync();
+    }
+
+    #endregion
+
+    #region Sample Component Methods (Admin)
+
+    public async Task<AdminSampleComponentListResponse> GetSampleComponentsAsync(
+        int page = 1,
+        int pageSize = 20,
+        string? search = null,
+        string? componentType = null)
+    {
+        var query = _context.Components
+            .Where(c => c.ProjectId == null)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(componentType))
+        {
+            query = componentType.ToLower() switch
+            {
+                "card" => query.Where(c => c is Card),
+                "playermat" => query.Where(c => c is PlayerMat),
+                _ => query
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
+            query = query.Where(c => c.Name.ToLower().Contains(searchLower));
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var components = await query
+            .OrderByDescending(c => c.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var dtos = components.Select(c => new AdminSampleComponentDto
+        {
+            Id = c.Id,
+            Type = GetComponentTypeName(c),
+            Name = c.Name,
+            CreatedAt = c.CreatedAt,
+            UpdatedAt = c.UpdatedAt,
+            Stats = GetComponentStats(c)
+        }).ToList();
+
+        return new AdminSampleComponentListResponse
+        {
+            Components = dtos,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<ComponentDto?> GetSampleComponentByIdAsync(Guid componentId)
+    {
+        var component = await _context.Components
+            .Include(c => (c as Card)!.DataSource)
+            .Include(c => (c as PlayerMat)!.DataSource)
+            .Where(c => c.Id == componentId && c.ProjectId == null)
+            .FirstOrDefaultAsync();
+
+        return component?.ToComponentDto();
+    }
+
+    public async Task<CardDto> CreateSampleCardAsync(string name, CardSize size, bool horizontal)
+    {
+        var card = CreateCard(null, name, size, horizontal);
+        return await SaveAndReturnAsync(card, c => new CardDto(c));
+    }
+
+    public async Task<PlayerMatDto> CreateSamplePlayerMatAsync(
+        string name,
+        PlayerMatSize? presetSize,
+        PlayerMatOrientation orientation,
+        decimal? customWidthMm,
+        decimal? customHeightMm)
+    {
+        ValidatePlayerMatDimensions(presetSize, customWidthMm, customHeightMm);
+        var playerMat = CreatePlayerMat(null, name, presetSize, orientation, customWidthMm, customHeightMm);
+        return await SaveAndReturnAsync(playerMat, pm => new PlayerMatDto(pm));
+    }
+
+    public async Task<ComponentDto?> SaveSampleDesignAsync(Guid componentId, string part, string? design)
+    {
+        var component = await _context.Components
+            .Where(c => c.Id == componentId && c.ProjectId == null)
+            .FirstOrDefaultAsync();
+
+        if (component is not IEditableComponent editable)
+        {
+            return null;
+        }
+
+        editable.SetDesign(part, design);
+        component.UpdatedAt = DateTime.UtcNow;
+
         await _context.SaveChangesAsync();
 
-        return component;
+        return component.ToComponentDto();
     }
+
+    #endregion
+
+    #region Static Helpers
+
+    public static string GetComponentTypeName(Component component) => component switch
+    {
+        Card => "Card",
+        Dice => "Dice",
+        PlayerMat => "PlayerMat",
+        _ => component.GetType().Name
+    };
+
+    public static Dictionary<string, string> GetComponentStats(Component component) => component switch
+    {
+        Card card => new Dictionary<string, string>
+        {
+            ["Size"] = FormatEnumName(card.Size.ToString()),
+            ["Horizontal"] = card.Horizontal ? "Yes" : "No"
+        },
+        PlayerMat mat => new Dictionary<string, string>
+        {
+            ["Size"] = mat.PresetSize?.ToString() ?? "Custom",
+            ["Orientation"] = mat.Orientation.ToString(),
+            ["Dimensions"] = mat.PresetSize.HasValue ? "" : $"{mat.CustomWidthMm}×{mat.CustomHeightMm}mm"
+        },
+        _ => []
+    };
+
+    private static string FormatEnumName(string enumValue)
+    {
+        return string.Concat(enumValue.Select((c, i) =>
+            i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
+    }
+
+    #endregion
+
+    #region Authorization Helpers
 
     private async Task<T?> FindAndAuthorizeComponentAsync<T>(
         Guid userId,
         Guid componentId,
-        Func<ProjectRole, bool> authorizationCheck,
-        Func<IQueryable<T>, IQueryable<T>>? includeFunc = null)
+        Func<ProjectRole, bool> authorizationCheck)
         where T : Component
     {
-        var query = _context.Set<T>()
-            .Where(c => c.Id == componentId && c.ProjectId != null && c.Project!.Users.Any(u => u.Id == userId));
-
-        if (includeFunc != null)
-        {
-            query = includeFunc(query);
-        }
-
-        var component = await query.FirstOrDefaultAsync();
+        var component = await _context.Set<T>()
+            .Where(c => c.Id == componentId && c.ProjectId != null && c.Project!.Users.Any(u => u.Id == userId))
+            .FirstOrDefaultAsync();
 
         if (component == null)
         {
             return null;
         }
 
-        // Shared sample components cannot be modified through this method
-        if (component.ProjectId == null)
-        {
-            return null;
-        }
-
-        // Check user's role with the provided authorization check
-        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId.Value);
+        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId!.Value);
         if (role == null || !authorizationCheck(role.Value))
         {
             return null;
@@ -462,4 +522,6 @@ public class ComponentService
 
         return component;
     }
+
+    #endregion
 }

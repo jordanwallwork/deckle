@@ -1,6 +1,10 @@
 using Deckle.API.DTOs;
 using Deckle.API.Filters;
 using Deckle.API.Services;
+using Deckle.Domain.Entities;
+using System.ComponentModel;
+using System.Xml.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Deckle.API.Endpoints;
 
@@ -39,8 +43,9 @@ public static class ComponentEndpoints
         {
             var userId = httpContext.GetUserId();
 
-            var card = await componentService.CreateCardAsync(userId, projectId, request.Name, request.Size, request.Horizontal);
-            return Results.Created($"/projects/{projectId}/components/{card.Id}", card);
+            var cardConfig = new CardConfig(request.Name, request.Size, request.Horizontal);
+            var card = await componentService.CreateComponentAsync<Card, CardConfig>(userId, projectId, cardConfig);
+            return Results.Created($"/projects/{projectId}/components/{card.Id}", new CardDto(card));
         })
         .WithName("CreateCard");
 
@@ -48,8 +53,11 @@ public static class ComponentEndpoints
         {
             var userId = httpContext.GetUserId();
 
-            var dice = await componentService.CreateDiceAsync(userId, projectId, request.Name, request.Type, request.Style, request.BaseColor, request.Number);
-            return Results.Created($"/projects/{projectId}/components/{dice.Id}", dice);
+            var dice = await componentService.CreateComponentAsync<Dice, DiceConfig>(
+            userId, projectId,
+            new DiceConfig(request.Name, request.Type, request.Style, request.BaseColor, request.Number));
+            return Results.Created($"/projects/{projectId}/components/{dice.Id}", new DiceDto(dice));
+
         })
         .WithName("CreateDice");
 
@@ -57,42 +65,28 @@ public static class ComponentEndpoints
         {
             var userId = httpContext.GetUserId();
 
-            var playerMat = await componentService.CreatePlayerMatAsync(
-                userId,
-                projectId,
-                request.Name,
-                request.PresetSize,
-                request.Orientation,
-                request.CustomWidthMm,
-                request.CustomHeightMm);
-            return Results.Created($"/projects/{projectId}/components/{playerMat.Id}", playerMat);        })
+            var playerMat = await componentService.CreateComponentAsync<PlayerMat, PlayerMatConfig>(
+                userId, projectId,
+                new PlayerMatConfig(request.Name, request.PresetSize, request.Orientation, request.CustomWidthMm, request.CustomHeightMm));
+            return Results.Created($"/projects/{projectId}/components/{playerMat.Id}", new PlayerMatDto(playerMat));
+        })
         .WithName("CreatePlayerMat");
 
         group.MapPut("cards/{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateCardRequest request) =>
         {
             var userId = httpContext.GetUserId();
-            var card = await componentService.UpdateCardAsync(userId, id, request.Name, request.Size, request.Horizontal);
+            var card = await componentService.UpdateComponentAsync<Card, CardConfig>(userId, id, new(request.Name, request.Size, request.Horizontal));
 
-            if (card == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(card);
+            return card == null ? Results.NotFound() : Results.Ok(new CardDto(card));
         })
         .WithName("UpdateCard");
 
         group.MapPut("dice/{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateDiceRequest request) =>
         {
             var userId = httpContext.GetUserId();
-            var dice = await componentService.UpdateDiceAsync(userId, id, request.Name, request.Type, request.Style, request.BaseColor, request.Number);
+            var dice = await componentService.UpdateComponentAsync<Dice, DiceConfig>(userId, id, new(request.Name, request.Type, request.Style, request.BaseColor, request.Number));
 
-            if (dice == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(dice);
+            return dice == null ? Results.NotFound() : Results.Ok(new DiceDto(dice));
         })
         .WithName("UpdateDice");
 
@@ -100,21 +94,10 @@ public static class ComponentEndpoints
         {
             var userId = httpContext.GetUserId();
 
-            var playerMat = await componentService.UpdatePlayerMatAsync(
-                userId,
-                id,
-                request.Name,
-                request.PresetSize,
-                request.Orientation,
-                request.CustomWidthMm,
-                request.CustomHeightMm);
+            var playerMat = await componentService.UpdateComponentAsync<PlayerMat, PlayerMatConfig>(userId, id, new(request.Name, request.PresetSize, request.Orientation, request.CustomWidthMm, request.CustomHeightMm));
 
-            if (playerMat == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(playerMat);        })
+            return playerMat == null ? Results.NotFound() : Results.Ok(new PlayerMatDto(playerMat));
+        })
         .WithName("UpdatePlayerMat");
 
         group.MapDelete("{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>

@@ -1,5 +1,8 @@
 using Deckle.API.DTOs;
+using Deckle.API.Filters;
 using Deckle.API.Services;
+using Deckle.Domain.Entities;
+using Microsoft.AspNetCore.Http;
 
 namespace Deckle.API.Endpoints;
 
@@ -19,7 +22,7 @@ public static class AdminEndpoints
             string? search = null) =>
         {
             if (page < 1) page = 1;
-            if (pageSize < 1 || pageSize > 100) pageSize = 20;
+            if (pageSize is < 1 or > 100) pageSize = 20;
 
             var result = await adminService.GetUsersAsync(page, pageSize, search);
             return Results.Ok(result);
@@ -72,16 +75,16 @@ public static class AdminEndpoints
 
         // GET /admin/samples - List all sample components with pagination, search, and filtering
         group.MapGet("/samples", async (
-            AdminService adminService,
+            ComponentService componentService,
             int page = 1,
             int pageSize = 20,
             string? search = null,
             string? type = null) =>
         {
             if (page < 1) page = 1;
-            if (pageSize < 1 || pageSize > 100) pageSize = 20;
+            if (pageSize is < 1 or > 100) pageSize = 20;
 
-            var result = await adminService.GetSampleComponentsAsync(page, pageSize, search, type);
+            var result = await componentService.GetSampleComponentsAsync(page, pageSize, search, type);
             return Results.Ok(result);
         })
         .WithName("GetAdminSamples");
@@ -89,34 +92,35 @@ public static class AdminEndpoints
         // POST /admin/samples/cards - Create a sample card
         group.MapPost("/samples/cards", async (
             CreateCardRequest request,
-            AdminService adminService) =>
+            HttpContext httpContext,
+            ComponentService componentService) =>
         {
-            var card = await adminService.CreateSampleCardAsync(request.Name, request.Size, request.Horizontal);
-            return Results.Created($"/admin/samples/{card.Id}", card);
+            var userId = httpContext.GetUserId();
+            var card = await componentService.CreateComponentAsync<Card, CardConfig>(userId, null, new CardConfig(request.Name, request.Size, request.Horizontal));
+            return Results.Created($"/admin/samples/{card.Id}", new CardDto(card));
         })
         .WithName("CreateAdminSampleCard");
 
         // POST /admin/samples/playermats - Create a sample player mat
         group.MapPost("/samples/playermats", async (
             CreatePlayerMatRequest request,
-            AdminService adminService) =>
+            HttpContext httpContext,
+            ComponentService componentService) =>
         {
-            var playerMat = await adminService.CreateSamplePlayerMatAsync(
-                request.Name,
-                request.PresetSize,
-                request.Orientation,
-                request.CustomWidthMm,
-                request.CustomHeightMm);
-            return Results.Created($"/admin/samples/{playerMat.Id}", playerMat);
+            var playerMat = await componentService.CreateComponentAsync<PlayerMat, PlayerMatConfig>(
+                httpContext.GetUserId(), null,
+                new PlayerMatConfig(request.Name, request.PresetSize,  request.Orientation, request.CustomWidthMm, request.CustomHeightMm));
+            return Results.Created($"/admin/samples/{playerMat.Id}", new PlayerMatDto(playerMat));
         })
         .WithName("CreateAdminSamplePlayerMat");
 
         // GET /admin/samples/{id} - Get a sample component by ID
         group.MapGet("/samples/{id:guid}", async (
             Guid id,
-            AdminService adminService) =>
+            HttpContext httpContext,
+            ComponentService componentService) =>
         {
-            var component = await adminService.GetSampleComponentByIdAsync(id);
+            var component = await componentService.GetComponentByIdAsync(httpContext.GetUserId(), id);
             if (component == null)
             {
                 return Results.NotFound(new { error = "Sample component not found" });
@@ -130,19 +134,18 @@ public static class AdminEndpoints
             Guid id,
             string part,
             SaveDesignRequest request,
-            AdminService adminService) =>
+            HttpContext httpContext,
+            ComponentService componentService) =>
         {
-            if (part != "front" && part != "back")
+            if (part is not "front" and not "back")
             {
                 return Results.BadRequest(new { error = "Part must be 'front' or 'back'" });
             }
 
-            var component = await adminService.SaveSampleDesignAsync(id, part, request.Design);
-            if (component == null)
-            {
-                return Results.NotFound(new { error = "Sample component not found or not editable" });
-            }
-            return Results.Ok(component);
+            var component = await componentService.SaveDesignAsync(httpContext.GetUserId(), id, part, request.Design);
+            return component == null
+                ? Results.NotFound(new { error = "Sample component not found or not editable" })
+                : Results.Ok(component);
         })
         .WithName("SaveAdminSampleDesign");
 

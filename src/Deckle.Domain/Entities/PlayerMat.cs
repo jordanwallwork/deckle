@@ -1,6 +1,8 @@
 namespace Deckle.Domain.Entities;
 
-public class PlayerMat : EditableComponent, IDataSourceComponent
+public class PlayerMat : EditableComponent, IDataSourceComponent,
+    ICreatableComponent<PlayerMat, PlayerMatConfig>,
+    IUpdatableComponent<PlayerMat, PlayerMatConfig>
 {
     // If PresetSize is set, use it with Orientation
     // Otherwise, use CustomWidthMm and CustomHeightMm
@@ -38,4 +40,53 @@ public class PlayerMat : EditableComponent, IDataSourceComponent
             };
         }
     }
+
+    #region Factory Methods
+
+    public static PlayerMat Create(PlayerMatConfig config)
+    {
+        Validate(config);
+        return new()
+        {
+            Id = Guid.NewGuid(),
+            Name = config.Name,
+            PresetSize = config.PresetSize,
+            Orientation = config.Orientation,
+            CustomWidthMm = config.CustomWidthMm,
+            CustomHeightMm = config.CustomHeightMm,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+    }
+
+    public static void Validate(PlayerMatConfig config)
+    {
+        if (!config.PresetSize.HasValue &&
+            (!config.CustomWidthMm.HasValue || !config.CustomHeightMm.HasValue))
+        {
+            throw new ArgumentException(
+                "Either PresetSize must be set, or both CustomWidthMm and CustomHeightMm must be provided");
+        }
+
+        if (config.CustomWidthMm.HasValue || config.CustomHeightMm.HasValue)
+        {
+            if (config.CustomWidthMm is < 63m or > 297m)
+                throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
+            if (config.CustomHeightMm is < 63m or > 297m)
+                throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
+        }
+    }
+
+    public static void ApplyUpdate(PlayerMat mat, PlayerMatConfig config)
+    {
+        Validate(config);
+        mat.Name = config.Name;
+        mat.PresetSize = config.PresetSize;
+        mat.Orientation = config.Orientation;
+        mat.CustomWidthMm = config.CustomWidthMm;
+        mat.CustomHeightMm = config.CustomHeightMm;
+        mat.UpdatedAt = DateTime.UtcNow;
+    }
+
+    #endregion
 }

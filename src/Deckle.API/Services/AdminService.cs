@@ -22,10 +22,9 @@ public class AdminService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var searchLower = search.ToLower();
             query = query.Where(u =>
-                u.Email.ToLower().Contains(searchLower) ||
-                (u.Name != null && u.Name.ToLower().Contains(searchLower)));
+                u.Email.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                (u.Name != null && u.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
         }
 
         var totalCount = await query.CountAsync();
@@ -117,28 +116,4 @@ public class AdminService
 
         return await GetUserByIdAsync(userId);
     }
-
-    public Task<AdminSampleComponentListResponse> GetSampleComponentsAsync(
-        int page = 1,
-        int pageSize = 20,
-        string? search = null,
-        string? componentType = null)
-        => _componentService.GetSampleComponentsAsync(page, pageSize, search, componentType);
-
-    public Task<CardDto> CreateSampleCardAsync(string name, CardSize size, bool horizontal)
-        => _componentService.CreateSampleCardAsync(name, size, horizontal);
-
-    public Task<PlayerMatDto> CreateSamplePlayerMatAsync(
-        string name,
-        PlayerMatSize? presetSize,
-        PlayerMatOrientation orientation,
-        decimal? customWidthMm,
-        decimal? customHeightMm)
-        => _componentService.CreateSamplePlayerMatAsync(name, presetSize, orientation, customWidthMm, customHeightMm);
-
-    public Task<ComponentDto?> GetSampleComponentByIdAsync(Guid componentId)
-        => _componentService.GetSampleComponentByIdAsync(componentId);
-
-    public Task<ComponentDto?> SaveSampleDesignAsync(Guid componentId, string part, string? design)
-        => _componentService.SaveSampleDesignAsync(componentId, part, design);
 }

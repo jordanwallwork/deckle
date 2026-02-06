@@ -2,6 +2,7 @@ using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Deckle.API.Services;
 
@@ -16,29 +17,55 @@ public class ComponentService
         _authService = authService;
     }
 
-    #region Validation Helpers
+    #region Generic Factory Methods
 
-    private static void ValidatePlayerMatDimensions(
-        PlayerMatSize? presetSize,
-        decimal? customWidthMm,
-        decimal? customHeightMm)
+    /// <summary>
+    /// Creates a new component using the generic factory pattern.
+    /// </summary>
+    /// <typeparam name="TComponent">The component type to create.</typeparam>
+    /// <typeparam name="TConfig">The configuration type for the component.</typeparam>
+    /// <typeparam name="TDto">The DTO type to return.</typeparam>
+    /// <param name="userId">The user creating the component.</param>
+    /// <param name="config">The configuration for the new component.</param>
+    /// <returns>The created component as a DTO.</returns>
+    public async Task<TComponent> CreateComponentAsync<TComponent, TConfig>(
+        Guid userId,
+        Guid? projectId,
+        TConfig config)
+        where TComponent : Component, ICreatableComponent<TComponent, TConfig>
+        where TConfig : IComponentConfig<TComponent>
     {
-        if (!presetSize.HasValue && (!customWidthMm.HasValue || !customHeightMm.HasValue))
-        {
-            throw new ArgumentException("Either PresetSize must be set, or both CustomWidthMm and CustomHeightMm must be provided");
-        }
+        TComponent.Validate(config);
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+        var component = TComponent.Create(config);
+        component.ProjectId = projectId;
+        return await SaveAndReturnAsync(component);
+    }
 
-        if (customWidthMm.HasValue || customHeightMm.HasValue)
-        {
-            if (customWidthMm is < 63m or > 297m)
-            {
-                throw new ArgumentException("CustomWidthMm must be between 63mm and 297mm");
-            }
-            if (customHeightMm is < 63m or > 297m)
-            {
-                throw new ArgumentException("CustomHeightMm must be between 63mm and 297mm");
-            }
-        }
+    /// <summary>
+    /// Updates an existing component using the generic factory pattern.
+    /// </summary>
+    /// <typeparam name="TComponent">The component type to update.</typeparam>
+    /// <typeparam name="TConfig">The configuration type for the component.</typeparam>
+    /// <typeparam name="TDto">The DTO type to return.</typeparam>
+    /// <param name="userId">The user updating the component.</param>
+    /// <param name="componentId">The ID of the component to update.</param>
+    /// <param name="config">The configuration with update values.</param>
+    /// <returns>The updated component, or null if not found/unauthorized.</returns>
+    public async Task<TComponent?> UpdateComponentAsync<TComponent, TConfig>(
+        Guid userId,
+        Guid componentId,
+        TConfig config)
+        where TComponent : Component, IUpdatableComponent<TComponent, TConfig>
+        where TConfig : IComponentConfig<TComponent>
+    {
+        var component = await FindAndAuthorizeComponentAsync<TComponent>(
+            userId, componentId, ProjectAuthorizationService.CanModifyResources);
+        if (component == null) return default;
+
+        TComponent.ApplyUpdate(component, config);
+        await _context.SaveChangesAsync();
+        return component;
     }
 
     #endregion
@@ -107,144 +134,17 @@ public class ComponentService
 
     #region Create Operations
 
-    public async Task<CardDto> CreateCardAsync(Guid userId, Guid projectId, string name, CardSize size, bool horizontal)
-    {
-        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
-        var card = CreateCard(projectId, name, size, horizontal);
-        return await SaveAndReturnAsync(card, c => new CardDto(c));
-    }
-
-    public async Task<DiceDto> CreateDiceAsync(Guid userId, Guid projectId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
-    {
-        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
-
-        var dice = new Dice
-        {
-            Id = Guid.NewGuid(),
-            ProjectId = projectId,
-            Name = name,
-            Type = type,
-            Style = style,
-            BaseColor = baseColor,
-            Number = number,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        return await SaveAndReturnAsync(dice, d => new DiceDto(d));
-    }
-
-    public async Task<PlayerMatDto> CreatePlayerMatAsync(
-        Guid userId,
-        Guid projectId,
-        string name,
-        PlayerMatSize? presetSize,
-        PlayerMatOrientation orientation,
-        decimal? customWidthMm,
-        decimal? customHeightMm)
-    {
-        ValidatePlayerMatDimensions(presetSize, customWidthMm, customHeightMm);
-        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
-        var playerMat = CreatePlayerMat(projectId, name, presetSize, orientation, customWidthMm, customHeightMm);
-        return await SaveAndReturnAsync(playerMat, pm => new PlayerMatDto(pm));
-    }
-
-    private static Card CreateCard(Guid? projectId, string name, CardSize size, bool horizontal) => new()
-    {
-        Id = Guid.NewGuid(),
-        ProjectId = projectId,
-        Name = name,
-        Size = size,
-        Horizontal = horizontal,
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow
-    };
-
-    private static PlayerMat CreatePlayerMat(
-        Guid? projectId,
-        string name,
-        PlayerMatSize? presetSize,
-        PlayerMatOrientation orientation,
-        decimal? customWidthMm,
-        decimal? customHeightMm) => new()
-    {
-        Id = Guid.NewGuid(),
-        ProjectId = projectId,
-        Name = name,
-        PresetSize = presetSize,
-        Orientation = orientation,
-        CustomWidthMm = customWidthMm,
-        CustomHeightMm = customHeightMm,
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow
-    };
-
-    private async Task<TDto> SaveAndReturnAsync<TComponent, TDto>(TComponent component, Func<TComponent, TDto> toDto)
+    private async Task<TComponent> SaveAndReturnAsync<TComponent>(TComponent component)
         where TComponent : Component
     {
         _context.Set<TComponent>().Add(component);
         await _context.SaveChangesAsync();
-        return toDto(component);
+        return component;
     }
 
     #endregion
 
     #region Update Operations
-
-    public async Task<CardDto?> UpdateCardAsync(Guid userId, Guid componentId, string name, CardSize size, bool horizontal)
-    {
-        var card = await FindAndAuthorizeComponentAsync<Card>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
-        if (card == null) return null;
-
-        card.Name = name;
-        card.Size = size;
-        card.Horizontal = horizontal;
-        card.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        return new CardDto(card);
-    }
-
-    public async Task<DiceDto?> UpdateDiceAsync(Guid userId, Guid componentId, string name, DiceType type, DiceStyle style, DiceColor baseColor, int number)
-    {
-        var dice = await FindAndAuthorizeComponentAsync<Dice>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
-        if (dice == null) return null;
-
-        dice.Name = name;
-        dice.Type = type;
-        dice.Style = style;
-        dice.BaseColor = baseColor;
-        dice.Number = number;
-        dice.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        return new DiceDto(dice);
-    }
-
-    public async Task<PlayerMatDto?> UpdatePlayerMatAsync(
-        Guid userId,
-        Guid componentId,
-        string name,
-        PlayerMatSize? presetSize,
-        PlayerMatOrientation orientation,
-        decimal? customWidthMm,
-        decimal? customHeightMm)
-    {
-        var playerMat = await FindAndAuthorizeComponentAsync<PlayerMat>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
-        if (playerMat == null) return null;
-
-        ValidatePlayerMatDimensions(presetSize, customWidthMm, customHeightMm);
-
-        playerMat.Name = name;
-        playerMat.PresetSize = presetSize;
-        playerMat.Orientation = orientation;
-        playerMat.CustomWidthMm = customWidthMm;
-        playerMat.CustomHeightMm = customHeightMm;
-        playerMat.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        return new PlayerMatDto(playerMat);
-    }
 
     public async Task<ComponentDto?> UpdateDataSourceAsync(Guid userId, Guid componentId, Guid? dataSourceId)
     {
@@ -310,13 +210,6 @@ public class ComponentService
         return component.ToComponentDto();
     }
 
-    // Keep type-specific methods for backwards compatibility - they delegate to the generic version
-    public Task<CardDto?> SaveCardDesignAsync(Guid userId, Guid componentId, string part, string? design)
-        => SaveTypedDesignAsync<Card, CardDto>(userId, componentId, part, design, c => new CardDto(c));
-
-    public Task<PlayerMatDto?> SavePlayerMatDesignAsync(Guid userId, Guid componentId, string part, string? design)
-        => SaveTypedDesignAsync<PlayerMat, PlayerMatDto>(userId, componentId, part, design, pm => new PlayerMatDto(pm));
-
     private async Task<TDto?> SaveTypedDesignAsync<TComponent, TDto>(
         Guid userId,
         Guid componentId,
@@ -372,18 +265,17 @@ public class ComponentService
 
         if (!string.IsNullOrWhiteSpace(componentType))
         {
-            query = componentType.ToLower() switch
+            query = componentType.ToUpperInvariant() switch
             {
-                "card" => query.Where(c => c is Card),
-                "playermat" => query.Where(c => c is PlayerMat),
+                "CARD" => query.Where(c => c is Card),
+                "PLAYERMAT" => query.Where(c => c is PlayerMat),
                 _ => query
             };
         }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var searchLower = search.ToLower();
-            query = query.Where(c => c.Name.ToLower().Contains(searchLower));
+            query = query.Where(c => c.Name.Contains(search, StringComparison.InvariantCultureIgnoreCase));
         }
 
         var totalCount = await query.CountAsync();
@@ -411,35 +303,6 @@ public class ComponentService
             Page = page,
             PageSize = pageSize
         };
-    }
-
-    public async Task<ComponentDto?> GetSampleComponentByIdAsync(Guid componentId)
-    {
-        var component = await _context.Components
-            .Include(c => (c as Card)!.DataSource)
-            .Include(c => (c as PlayerMat)!.DataSource)
-            .Where(c => c.Id == componentId && c.ProjectId == null)
-            .FirstOrDefaultAsync();
-
-        return component?.ToComponentDto();
-    }
-
-    public async Task<CardDto> CreateSampleCardAsync(string name, CardSize size, bool horizontal)
-    {
-        var card = CreateCard(null, name, size, horizontal);
-        return await SaveAndReturnAsync(card, c => new CardDto(c));
-    }
-
-    public async Task<PlayerMatDto> CreateSamplePlayerMatAsync(
-        string name,
-        PlayerMatSize? presetSize,
-        PlayerMatOrientation orientation,
-        decimal? customWidthMm,
-        decimal? customHeightMm)
-    {
-        ValidatePlayerMatDimensions(presetSize, customWidthMm, customHeightMm);
-        var playerMat = CreatePlayerMat(null, name, presetSize, orientation, customWidthMm, customHeightMm);
-        return await SaveAndReturnAsync(playerMat, pm => new PlayerMatDto(pm));
     }
 
     public async Task<ComponentDto?> SaveSampleDesignAsync(Guid componentId, string part, string? design)
@@ -515,12 +378,7 @@ public class ComponentService
         }
 
         var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId!.Value);
-        if (role == null || !authorizationCheck(role.Value))
-        {
-            return null;
-        }
-
-        return component;
+        return role == null || !authorizationCheck(role.Value) ? null : component;
     }
 
     #endregion

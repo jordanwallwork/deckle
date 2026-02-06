@@ -23,12 +23,6 @@ public static class WebApplicationExtensions
             app.MapScalarApiReference();
         }
 
-        // Hangfire dashboard with Administrator-only access
-        app.UseHangfireDashboard("/hangfire", new DashboardOptions
-        {
-            Authorization = [new HangfireDashboardAuthorizationFilter()]
-        });
-
         if (!app.Environment.IsDevelopment())
         {
             app.UseHttpsRedirection();
@@ -37,6 +31,14 @@ public static class WebApplicationExtensions
         app.UseCors();
         app.UseAuthentication();
         app.UseAuthorization();
+
+        // Hangfire dashboard with Administrator-only access
+        // Must be registered after UseAuthentication/UseAuthorization
+        // so that HttpContext.User is populated when the filter runs
+        app.UseHangfireDashboard("/hangfire", new DashboardOptions
+        {
+            Authorization = [new HangfireDashboardAuthorizationFilter()]
+        });
 
         return app;
     }

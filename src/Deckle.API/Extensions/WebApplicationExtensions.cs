@@ -1,4 +1,5 @@
 using Deckle.API.Endpoints;
+using Deckle.API.Filters;
 using Deckle.Domain.Data;
 using Exceptionless;
 using Hangfire;
@@ -20,7 +21,6 @@ public static class WebApplicationExtensions
         {
             app.MapOpenApi();
             app.MapScalarApiReference();
-            app.UseHangfireDashboard();
         }
 
         if (!app.Environment.IsDevelopment())
@@ -31,6 +31,14 @@ public static class WebApplicationExtensions
         app.UseCors();
         app.UseAuthentication();
         app.UseAuthorization();
+
+        // Hangfire dashboard with Administrator-only access
+        // Must be registered after UseAuthentication/UseAuthorization
+        // so that HttpContext.User is populated when the filter runs
+        app.UseHangfireDashboard("/hangfire", new DashboardOptions
+        {
+            Authorization = [new HangfireDashboardAuthorizationFilter()]
+        });
 
         return app;
     }

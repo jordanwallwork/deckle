@@ -12,7 +12,8 @@ public static class AdminEndpoints
     {
         var group = routes.MapGroup("/admin")
             .WithTags("Admin")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("AdminOnly")
+            .RequireUserId();
 
         // GET /admin/users - List all users with pagination and search
         group.MapGet("/users", async (

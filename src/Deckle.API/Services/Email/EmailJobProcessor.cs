@@ -8,7 +8,7 @@ namespace Deckle.API.Services.Email;
 /// Processes background email jobs by dispatching to the configured <see cref="IEmailSender"/> provider.
 /// The provider is determined by the <c>Email:Provider</c> configuration value.
 /// </summary>
-public class EmailJobProcessor
+public partial class EmailJobProcessor
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
@@ -32,10 +32,7 @@ public class EmailJobProcessor
     {
         var provider = _configuration["Email:Provider"] ?? "Smtp";
 
-        _logger.LogInformation(
-            "Processing background email job using provider {Provider} to {Recipients}",
-            provider,
-            string.Join(", ", message.Recipients.Select(r => r.Address)));
+        LogProcessingEmailJob(provider, string.Join(", ", message.Recipients.Select(r => r.Address)));
 
         var sender = _serviceProvider.GetRequiredKeyedService<IEmailSender>(provider);
         await sender.SendAsync(message);
@@ -49,12 +46,15 @@ public class EmailJobProcessor
     {
         var provider = _configuration["Email:Provider"] ?? "Smtp";
 
-        _logger.LogInformation(
-            "Processing background batch email job using provider {Provider} ({Count} emails)",
-            provider,
-            messages.Count);
+        LogProcessingBatchEmailJob(provider, messages.Count);
 
         var sender = _serviceProvider.GetRequiredKeyedService<IEmailSender>(provider);
         await sender.SendBatchAsync(messages);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processing background email job using provider {Provider} to {Recipients}")]
+    private partial void LogProcessingEmailJob(string provider, string recipients);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Processing background batch email job using provider {Provider} ({Count} emails)")]
+    private partial void LogProcessingBatchEmailJob(string provider, int count);
 }

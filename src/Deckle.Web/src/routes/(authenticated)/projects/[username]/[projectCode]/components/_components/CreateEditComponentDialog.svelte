@@ -46,7 +46,7 @@
   // Player Mat form state
   let playerMatSizeMode: 'preset' | 'custom' = $state('preset');
   let playerMatPresetSize = $state<string | null>('A4');
-  let playerMatOrientation = $state('Portrait');
+  let playerMatHorizontal = $state(false);
   let playerMatCustomWidth = $state('210');
   let playerMatCustomHeight = $state('297');
 
@@ -69,7 +69,7 @@
     } else if ('sizeMode' in state) {
       playerMatSizeMode = state.sizeMode;
       playerMatPresetSize = state.presetSize;
-      playerMatOrientation = state.orientation;
+      playerMatHorizontal = state.horizontal;
       playerMatCustomWidth = state.customWidthMm;
       playerMatCustomHeight = state.customHeightMm;
       selectedTemplateId = state.selectedTemplateId;
@@ -98,7 +98,7 @@
           componentName,
           sizeMode: playerMatSizeMode,
           presetSize: playerMatPresetSize,
-          orientation: playerMatOrientation,
+          horizontal: playerMatHorizontal,
           customWidthMm: playerMatCustomWidth,
           customHeightMm: playerMatCustomHeight,
           selectedTemplateId
@@ -128,7 +128,7 @@
     const matDefaults = getHandler('playermat').defaults();
     playerMatSizeMode = (matDefaults as { sizeMode: 'preset' | 'custom' }).sizeMode;
     playerMatPresetSize = (matDefaults as { presetSize: string | null }).presetSize;
-    playerMatOrientation = (matDefaults as { orientation: string }).orientation;
+    playerMatHorizontal = (matDefaults as { horizontal: boolean }).horizontal;
     playerMatCustomWidth = (matDefaults as { customWidthMm: string }).customWidthMm;
     playerMatCustomHeight = (matDefaults as { customHeightMm: string }).customHeightMm;
   }
@@ -234,7 +234,7 @@
         bind:componentName
         bind:sizeMode={playerMatSizeMode}
         bind:presetSize={playerMatPresetSize}
-        bind:orientation={playerMatOrientation}
+        bind:horizontal={playerMatHorizontal}
         bind:customWidthMm={playerMatCustomWidth}
         bind:customHeightMm={playerMatCustomHeight}
         templates={templates as PlayerMatComponent[]}

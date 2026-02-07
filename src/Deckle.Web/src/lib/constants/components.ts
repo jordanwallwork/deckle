@@ -31,11 +31,6 @@ export interface PlayerMatSize {
   heightMm: number;
 }
 
-export interface PlayerMatOrientation {
-  value: string;
-  label: string;
-}
-
 // Card size options
 export const CARD_SIZES: readonly CardSize[] = [
   { value: 'MiniAmerican', label: 'Mini American', widthMm: 41, heightMm: 63 },
@@ -93,8 +88,3 @@ export const PLAYER_MAT_SIZES: readonly PlayerMatSize[] = [
   { value: 'USLetter', label: 'US Letter', widthMm: 215.9, heightMm: 279.4 }
 ] as const;
 
-// Player mat orientation options
-export const PLAYER_MAT_ORIENTATIONS: readonly PlayerMatOrientation[] = [
-  { value: 'Portrait', label: 'Portrait' },
-  { value: 'Landscape', label: 'Landscape' }
-] as const;

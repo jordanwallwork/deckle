@@ -4,11 +4,11 @@ public class PlayerMat : EditableComponent, IDataSourceComponent,
     ICreatableComponent<PlayerMat, PlayerMatConfig>,
     IUpdatableComponent<PlayerMat, PlayerMatConfig>
 {
-    // If PresetSize is set, use it with Orientation
+    // If PresetSize is set, use it with Horizontal
     // Otherwise, use CustomWidthMm and CustomHeightMm
     public PlayerMatSize? PresetSize { get; set; }
 
-    public PlayerMatOrientation Orientation { get; set; } = PlayerMatOrientation.Portrait;
+    public bool Horizontal { get; set; }
 
     public decimal? CustomWidthMm { get; set; }
 
@@ -28,7 +28,7 @@ public class PlayerMat : EditableComponent, IDataSourceComponent,
     {
         if (PresetSize.HasValue)
         {
-            return PresetSize.Value.GetDimensions(Orientation);
+            return PresetSize.Value.GetDimensions(Horizontal);
         }
         else
         {
@@ -51,7 +51,7 @@ public class PlayerMat : EditableComponent, IDataSourceComponent,
             Id = Guid.NewGuid(),
             Name = config.Name,
             PresetSize = config.PresetSize,
-            Orientation = config.Orientation,
+            Horizontal = config.Horizontal,
             CustomWidthMm = config.CustomWidthMm,
             CustomHeightMm = config.CustomHeightMm,
             CreatedAt = DateTime.UtcNow,
@@ -82,7 +82,7 @@ public class PlayerMat : EditableComponent, IDataSourceComponent,
         Validate(config);
         mat.Name = config.Name;
         mat.PresetSize = config.PresetSize;
-        mat.Orientation = config.Orientation;
+        mat.Horizontal = config.Horizontal;
         mat.CustomWidthMm = config.CustomWidthMm;
         mat.CustomHeightMm = config.CustomHeightMm;
         mat.UpdatedAt = DateTime.UtcNow;

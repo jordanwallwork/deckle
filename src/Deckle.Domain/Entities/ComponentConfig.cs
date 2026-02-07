@@ -30,6 +30,6 @@ public record DiceConfig(string Name, DiceType Type, DiceStyle Style, DiceColor 
 public record PlayerMatConfig(
     string Name,
     PlayerMatSize? PresetSize,
-    PlayerMatOrientation Orientation,
+    bool Horizontal,
     decimal? CustomWidthMm,
     decimal? CustomHeightMm) : IComponentConfig<PlayerMat>;

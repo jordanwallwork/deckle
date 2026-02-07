@@ -26,7 +26,7 @@
 	// Player Mat configuration
 	let playerMatSizeMode: 'preset' | 'custom' = $state('preset');
 	let playerMatPresetSize = $state<string | null>('A4');
-	let playerMatOrientation = $state('Portrait');
+	let playerMatHorizontal = $state(false);
 	let playerMatCustomWidth = $state('210');
 	let playerMatCustomHeight = $state('297');
 
@@ -38,7 +38,7 @@
 		cardHorizontal = false;
 		playerMatSizeMode = 'preset';
 		playerMatPresetSize = 'A4';
-		playerMatOrientation = 'Portrait';
+		playerMatHorizontal = false;
 		playerMatCustomWidth = '210';
 		playerMatCustomHeight = '297';
 		errorMessage = '';
@@ -83,7 +83,7 @@
 				await adminApi.createSamplePlayerMat({
 					name: componentName,
 					presetSize: playerMatSizeMode === 'preset' ? playerMatPresetSize : null,
-					orientation: playerMatOrientation,
+					horizontal: playerMatHorizontal,
 					customWidthMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomWidth) : null,
 					customHeightMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomHeight) : null
 				});
@@ -286,7 +286,7 @@
 				bind:componentName
 				bind:sizeMode={playerMatSizeMode}
 				bind:presetSize={playerMatPresetSize}
-				bind:orientation={playerMatOrientation}
+				bind:horizontal={playerMatHorizontal}
 				bind:customWidthMm={playerMatCustomWidth}
 				bind:customHeightMm={playerMatCustomHeight}
 			/>

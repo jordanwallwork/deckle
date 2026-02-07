@@ -10,12 +10,6 @@ public enum PlayerMatSize
     USLetter
 }
 
-public enum PlayerMatOrientation
-{
-    Portrait,
-    Landscape
-}
-
 public static class PlayerMatSizeExtensions
 {
     private static readonly Dictionary<PlayerMatSize, (string Name, decimal WidthMm, decimal HeightMm)> PlayerMatSizeData = new()
@@ -32,14 +26,14 @@ public static class PlayerMatSizeExtensions
     public static decimal GetWidthMm(this PlayerMatSize size) => PlayerMatSizeData[size].WidthMm;
     public static decimal GetHeightMm(this PlayerMatSize size) => PlayerMatSizeData[size].HeightMm;
 
-    public static Dimensions GetDimensions(this PlayerMatSize size, PlayerMatOrientation orientation)
+    public static Dimensions GetDimensions(this PlayerMatSize size, bool horizontal)
     {
         var width = size.GetWidthMm();
         var height = size.GetHeightMm();
         return new()
         {
-            WidthMm = orientation == PlayerMatOrientation.Landscape ? height : width,
-            HeightMm = orientation == PlayerMatOrientation.Landscape ? width : height,
+            WidthMm = horizontal ? height : width,
+            HeightMm = horizontal ? width : height,
             BleedMm = 3
         };
     }

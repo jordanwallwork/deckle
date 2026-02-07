@@ -8,7 +8,7 @@ export const playerMatHandler: ComponentTypeHandler<PlayerMatFormState> = {
 			componentName: '',
 			sizeMode: 'preset',
 			presetSize: 'A4',
-			orientation: 'Portrait',
+			horizontal: false,
 			customWidthMm: '210',
 			customHeightMm: '297',
 			selectedTemplateId: null
@@ -22,7 +22,7 @@ export const playerMatHandler: ComponentTypeHandler<PlayerMatFormState> = {
 				componentName: mat.name,
 				sizeMode: 'preset',
 				presetSize: mat.presetSize,
-				orientation: mat.orientation,
+				horizontal: mat.horizontal,
 				customWidthMm: '210',
 				customHeightMm: '297',
 				selectedTemplateId: null
@@ -32,7 +32,7 @@ export const playerMatHandler: ComponentTypeHandler<PlayerMatFormState> = {
 			componentName: mat.name,
 			sizeMode: 'custom',
 			presetSize: null,
-			orientation: mat.orientation,
+			horizontal: mat.horizontal,
 			customWidthMm: String(mat.customWidthMm || 210),
 			customHeightMm: String(mat.customHeightMm || 297),
 			selectedTemplateId: null
@@ -47,7 +47,7 @@ export const playerMatHandler: ComponentTypeHandler<PlayerMatFormState> = {
 		const created = await componentsApi.createPlayerMat(projectId, {
 			name: state.componentName,
 			presetSize: state.sizeMode === 'preset' ? state.presetSize : null,
-			orientation: state.orientation,
+			horizontal: state.horizontal,
 			customWidthMm: state.sizeMode === 'custom' ? parseFloat(state.customWidthMm) : null,
 			customHeightMm: state.sizeMode === 'custom' ? parseFloat(state.customHeightMm) : null
 		});
@@ -76,7 +76,7 @@ export const playerMatHandler: ComponentTypeHandler<PlayerMatFormState> = {
 		await componentsApi.updatePlayerMat(projectId, componentId, {
 			name: state.componentName,
 			presetSize: state.sizeMode === 'preset' ? state.presetSize : null,
-			orientation: state.orientation,
+			horizontal: state.horizontal,
 			customWidthMm: state.sizeMode === 'custom' ? parseFloat(state.customWidthMm) : null,
 			customHeightMm: state.sizeMode === 'custom' ? parseFloat(state.customHeightMm) : null
 		});

@@ -67,7 +67,7 @@ public static class ComponentEndpoints
 
             var playerMat = await componentService.CreateComponentAsync<PlayerMat, PlayerMatConfig>(
                 userId, projectId,
-                new PlayerMatConfig(request.Name, request.PresetSize, request.Orientation, request.CustomWidthMm, request.CustomHeightMm));
+                new PlayerMatConfig(request.Name, request.PresetSize, request.Horizontal, request.CustomWidthMm, request.CustomHeightMm));
             return Results.Created($"/projects/{projectId}/components/{playerMat.Id}", new PlayerMatDto(playerMat));
         })
         .WithName("CreatePlayerMat");
@@ -94,7 +94,7 @@ public static class ComponentEndpoints
         {
             var userId = httpContext.GetUserId();
 
-            var playerMat = await componentService.UpdateComponentAsync<PlayerMat, PlayerMatConfig>(userId, id, new(request.Name, request.PresetSize, request.Orientation, request.CustomWidthMm, request.CustomHeightMm));
+            var playerMat = await componentService.UpdateComponentAsync<PlayerMat, PlayerMatConfig>(userId, id, new(request.Name, request.PresetSize, request.Horizontal, request.CustomWidthMm, request.CustomHeightMm));
 
             return playerMat == null ? Results.NotFound() : Results.Ok(new PlayerMatDto(playerMat));
         })

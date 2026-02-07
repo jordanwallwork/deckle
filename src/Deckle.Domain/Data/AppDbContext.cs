@@ -238,6 +238,9 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Card>(entity =>
         {
+            entity.Property(c => c.Horizontal)
+                .HasColumnName("Horizontal");
+
             entity.Property(c => c.Size)
                 .IsRequired()
                 .HasConversion<string>();
@@ -279,11 +282,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<PlayerMat>(entity =>
         {
-            entity.Property(pm => pm.PresetSize)
-                .HasConversion<string>();
+            entity.Property(pm => pm.Horizontal)
+                .HasColumnName("Horizontal");
 
-            entity.Property(pm => pm.Orientation)
-                .IsRequired()
+            entity.Property(pm => pm.PresetSize)
                 .HasConversion<string>();
 
             entity.Property(pm => pm.CustomWidthMm)

@@ -328,7 +328,7 @@ public class ComponentService
         PlayerMat mat => new Dictionary<string, string>
         {
             ["Size"] = mat.PresetSize?.ToString() ?? "Custom",
-            ["Orientation"] = mat.Orientation.ToString(),
+            ["Horizontal"] = mat.Horizontal ? "Yes" : "No",
             ["Dimensions"] = mat.PresetSize.HasValue ? "" : $"{mat.CustomWidthMm}×{mat.CustomHeightMm}mm"
         },
         _ => []

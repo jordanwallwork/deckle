@@ -21,7 +21,7 @@ export interface PlayerMatFormState {
 	componentName: string;
 	sizeMode: 'preset' | 'custom';
 	presetSize: string | null;
-	orientation: string;
+	horizontal: boolean;
 	customWidthMm: string;
 	customHeightMm: string;
 	selectedTemplateId: string | null;

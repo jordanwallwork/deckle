@@ -58,7 +58,7 @@ export interface DiceComponent extends Component {
 export interface PlayerMatComponent extends EditableComponent {
   type: 'PlayerMat';
   presetSize?: string | null;
-  orientation: string;
+  horizontal: boolean;
   customWidthMm?: number | null;
   customHeightMm?: number | null;
   frontDesign?: string | null;
@@ -100,7 +100,7 @@ export interface UpdateDiceDto {
 export interface CreatePlayerMatDto {
   name: string;
   presetSize?: string | null;
-  orientation: string;
+  horizontal?: boolean;
   customWidthMm?: number | null;
   customHeightMm?: number | null;
 }
@@ -108,7 +108,7 @@ export interface CreatePlayerMatDto {
 export interface UpdatePlayerMatDto {
   name: string;
   presetSize?: string | null;
-  orientation: string;
+  horizontal?: boolean;
   customWidthMm?: number | null;
   customHeightMm?: number | null;
 }

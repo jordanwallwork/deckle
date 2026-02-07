@@ -109,7 +109,7 @@ public record UpdateDiceRequest(string Name, DiceType Type, DiceStyle Style, Dic
 public record PlayerMatDto : ComponentDto
 {
     public string? PresetSize { get; init; }
-    public required string Orientation { get; init; }
+    public required bool Horizontal { get; init; }
     public decimal? CustomWidthMm { get; init; }
     public decimal? CustomHeightMm { get; init; }
     public required Dimensions Dimensions { get; init; }
@@ -124,7 +124,7 @@ public record PlayerMatDto : ComponentDto
     public PlayerMatDto(PlayerMat playerMat) : base("PlayerMat", playerMat)
     {
         PresetSize = playerMat.PresetSize?.ToString();
-        Orientation = playerMat.Orientation.ToString();
+        Horizontal = playerMat.Horizontal;
         CustomWidthMm = playerMat.CustomWidthMm;
         CustomHeightMm = playerMat.CustomHeightMm;
         Dimensions = playerMat.GetDimensions();
@@ -140,14 +140,14 @@ public record PlayerMatDto : ComponentDto
 public record CreatePlayerMatRequest(
     string Name,
     PlayerMatSize? PresetSize,
-    PlayerMatOrientation Orientation,
-    decimal? CustomWidthMm,
-    decimal? CustomHeightMm);
+    bool Horizontal = false,
+    decimal? CustomWidthMm = null,
+    decimal? CustomHeightMm = null);
 
 public record UpdatePlayerMatRequest(
     string Name,
     PlayerMatSize? PresetSize,
-    PlayerMatOrientation Orientation,
-    decimal? CustomWidthMm,
-    decimal? CustomHeightMm);
+    bool Horizontal = false,
+    decimal? CustomWidthMm = null,
+    decimal? CustomHeightMm = null);
 

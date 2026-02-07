@@ -110,7 +110,7 @@ public static class AdminEndpoints
         {
             var playerMat = await componentService.CreateComponentAsync<PlayerMat, PlayerMatConfig>(
                 httpContext.GetUserId(), null,
-                new PlayerMatConfig(request.Name, request.PresetSize,  request.Orientation, request.CustomWidthMm, request.CustomHeightMm));
+                new PlayerMatConfig(request.Name, request.PresetSize, request.Horizontal, request.CustomWidthMm, request.CustomHeightMm));
             return Results.Created($"/admin/samples/{playerMat.Id}", new PlayerMatDto(playerMat));
         })
         .WithName("CreateAdminSamplePlayerMat");

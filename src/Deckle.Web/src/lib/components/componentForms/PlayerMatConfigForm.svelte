@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PLAYER_MAT_SIZES, PLAYER_MAT_ORIENTATIONS } from '$lib/constants';
+  import { PLAYER_MAT_SIZES, type PlayerMatSize } from '$lib/constants';
   import { FormField, Input, Select } from '$lib/components/forms';
   import type { PlayerMatComponent } from '$lib/types';
 
@@ -7,7 +7,7 @@
     componentName = $bindable(),
     sizeMode = $bindable(),
     presetSize = $bindable(),
-    orientation = $bindable(),
+    horizontal = $bindable(),
     customWidthMm = $bindable(),
     customHeightMm = $bindable(),
     templates = [],
@@ -16,7 +16,7 @@
     componentName: string;
     sizeMode: 'preset' | 'custom';
     presetSize: string | null;
-    orientation: string;
+    horizontal: boolean;
     customWidthMm: string;
     customHeightMm: string;
     templates?: PlayerMatComponent[];
@@ -48,6 +48,12 @@
     const height = parseFloat(customHeightMm);
     return !isNaN(height) && height >= 63 && height <= 297;
   });
+
+  function getMatSizeLabel(size: PlayerMatSize, horiz: boolean): string {
+    const width = horiz ? size.heightMm : size.widthMm;
+    const height = horiz ? size.widthMm : size.heightMm;
+    return `${size.label} (${width}mm × ${height}mm)`;
+  }
 </script>
 
 <div class="configuration-form">
@@ -72,20 +78,15 @@
     <FormField label="Mat Size" name="preset-size">
       <Select id="preset-size" bind:value={presetSize}>
         {#each PLAYER_MAT_SIZES as size}
-          <option value={size.value}>
-            {size.label} ({size.widthMm}mm × {size.heightMm}mm)
-          </option>
+          <option value={size.value}>{getMatSizeLabel(size, horizontal)}</option>
         {/each}
       </Select>
     </FormField>
 
-    <FormField label="Orientation" name="orientation">
-      <Select id="orientation" bind:value={orientation}>
-        {#each PLAYER_MAT_ORIENTATIONS as orient}
-          <option value={orient.value}>{orient.label}</option>
-        {/each}
-      </Select>
-    </FormField>
+    <label class="horizontal-toggle">
+      <input type="checkbox" bind:checked={horizontal} />
+      <span>Horizontal (landscape orientation)</span>
+    </label>
   {:else}
     <FormField label="Width (mm)" name="custom-width">
       <Input
@@ -156,6 +157,26 @@
   .radio-option span {
     font-size: 0.875rem;
     color: var(--color-sage);
+  }
+
+  .horizontal-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #666);
+  }
+
+  .horizontal-toggle input[type='checkbox'] {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+  }
+
+  .horizontal-toggle span {
+    user-select: none;
   }
 
   .field-error {

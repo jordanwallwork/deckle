@@ -25,7 +25,7 @@
 
   const matchingTemplates = $derived(
     sizeMode === 'preset'
-      ? templates.filter((t) => t.presetSize === presetSize)
+      ? templates.filter((t) => t.presetSize === presetSize && t.horizontal === horizontal)
       : []
   );
 

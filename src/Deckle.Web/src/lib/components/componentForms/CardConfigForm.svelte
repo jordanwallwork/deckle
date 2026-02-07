@@ -18,7 +18,7 @@
   } = $props();
 
   const matchingTemplates = $derived(
-    templates.filter((t) => t.size === cardSize)
+    templates.filter((t) => t.size === cardSize && t.horizontal === cardHorizontal)
   );
 
   // Reset selection when card size changes and selected template no longer matches

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import { buildAdminSampleEditorBreadcrumbs } from '$lib/utils/breadcrumbs';
   import { setMaxScreen } from '$lib/stores/maxScreen';
   import AdminSampleEditor from './_components/AdminSampleEditor.svelte';
 
@@ -11,12 +12,7 @@
 
   // Update breadcrumbs for this page
   $effect(() => {
-    setBreadcrumbs([
-      { label: 'Admin', href: '/admin' },
-      { label: 'Samples', href: '/admin/samples' },
-      { label: data.component.name, href: `/admin/samples/${data.component.id}/front` },
-      { label: `${partLabel} Design`, href: `/admin/samples/${data.component.id}/${data.part}`, isActive: true }
-    ]);
+    setBreadcrumbs(buildAdminSampleEditorBreadcrumbs(data.component, data.part, partLabel));
   });
 
   // Enable max screen mode (hides tabs, footer, removes padding)

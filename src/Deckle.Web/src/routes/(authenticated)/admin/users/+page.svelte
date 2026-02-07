@@ -2,8 +2,10 @@
 	import type { PageData } from './$types';
 	import type { AdminUser } from '$lib/types';
 	import { adminApi, ApiError } from '$lib/api';
-	import { Avatar, ArrowLeftIcon } from '$lib/components';
+	import { Avatar } from '$lib/components';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+	import { buildAdminUsersBreadcrumbs } from '$lib/utils/breadcrumbs';
 
 	let { data }: { data: PageData } = $props();
 
@@ -81,6 +83,10 @@
 	}
 
 	const totalPages = $derived(Math.ceil(data.usersResponse.totalCount / data.currentPageSize));
+
+	$effect(() => {
+		setBreadcrumbs(buildAdminUsersBreadcrumbs());
+	});
 </script>
 
 <svelte:head>
@@ -90,10 +96,6 @@
 <div class="users-container">
 	<div class="users-header">
 		<div class="header-left">
-			<a href="/admin" class="back-link">
-				<ArrowLeftIcon size={20} />
-				Back to Dashboard
-			</a>
 			<h1>User Management</h1>
 			<p class="users-count">{data.usersResponse.totalCount} total users</p>
 		</div>
@@ -224,20 +226,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-	}
-
-	.back-link {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: #667eea;
-		text-decoration: none;
-		font-size: 0.875rem;
-		margin-bottom: 0.5rem;
-	}
-
-	.back-link:hover {
-		text-decoration: underline;
 	}
 
 	.users-header h1 {

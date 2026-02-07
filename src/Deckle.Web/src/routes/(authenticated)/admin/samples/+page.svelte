@@ -1,15 +1,11 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { AdminSampleComponent } from '$lib/types';
-	import {
-		ArrowLeftIcon,
-		Button,
-		Dialog,
-		CardConfigForm,
-		PlayerMatConfigForm
-	} from '$lib/components';
+	import { Button, Dialog, CardConfigForm, PlayerMatConfigForm } from '$lib/components';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { adminApi, ApiError } from '$lib/api';
+	import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+	import { buildAdminSamplesBreadcrumbs } from '$lib/utils/breadcrumbs';
 
 	let { data }: { data: PageData } = $props();
 
@@ -166,6 +162,10 @@
 	}
 
 	const totalPages = $derived(Math.ceil(data.samplesResponse.totalCount / data.currentPageSize));
+
+	$effect(() => {
+		setBreadcrumbs(buildAdminSamplesBreadcrumbs());
+	});
 </script>
 
 <svelte:head>
@@ -175,10 +175,6 @@
 <div class="samples-container">
 	<div class="samples-header">
 		<div class="header-left">
-			<a href="/admin" class="back-link">
-				<ArrowLeftIcon size={20} />
-				Back to Dashboard
-			</a>
 			<h1>Sample Components</h1>
 			<p class="samples-count">{data.samplesResponse.totalCount} sample components</p>
 		</div>
@@ -337,20 +333,6 @@
 
 	.header-right {
 		flex-shrink: 0;
-	}
-
-	.back-link {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: #667eea;
-		text-decoration: none;
-		font-size: 0.875rem;
-		margin-bottom: 0.5rem;
-	}
-
-	.back-link:hover {
-		text-decoration: underline;
 	}
 
 	.samples-header h1 {

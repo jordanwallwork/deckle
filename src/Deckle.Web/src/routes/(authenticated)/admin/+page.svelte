@@ -41,10 +41,6 @@
 </div>
 
 <style>
-  .admin-container {
-    padding: 2rem;
-  }
-
   .admin-header h1 {
     color: #1a1a1a;
     margin-bottom: 1rem;
@@ -113,10 +109,6 @@
   }
 
   @media (max-width: 768px) {
-    .admin-container {
-      padding: 1rem;
-    }
-
     .admin-header h1 {
       font-size: 2rem;
     }

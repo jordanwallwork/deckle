@@ -27,6 +27,7 @@
     overflow: auto;
     display: flex;
     flex-direction: column;
+    padding: 2rem;
   }
   .admin-page-content.nopadding {
     padding: 0;

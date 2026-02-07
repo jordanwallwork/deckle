@@ -312,12 +312,6 @@
 </Dialog>
 
 <style>
-	.samples-container {
-		max-width: 1400px;
-		margin: 0 auto;
-		padding: 2rem;
-	}
-
 	.samples-header {
 		margin-bottom: 2rem;
 		display: flex;
@@ -567,10 +561,6 @@
 	}
 
 	@media (max-width: 768px) {
-		.samples-container {
-			padding: 1rem;
-		}
-
 		.samples-header {
 			flex-direction: column;
 			gap: 1rem;

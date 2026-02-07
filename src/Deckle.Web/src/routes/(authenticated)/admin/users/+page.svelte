@@ -212,12 +212,6 @@
 </div>
 
 <style>
-	.users-container {
-		max-width: 1400px;
-		margin: 0 auto;
-		padding: 2rem;
-	}
-
 	.users-header {
 		margin-bottom: 2rem;
 	}
@@ -482,10 +476,6 @@
 	}
 
 	@media (max-width: 1024px) {
-		.users-container {
-			padding: 1rem;
-		}
-
 		.users-table-container {
 			overflow-x: auto;
 		}

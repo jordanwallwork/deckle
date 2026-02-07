@@ -1,6 +1,7 @@
 <script lang="ts">
   import { PLAYER_MAT_SIZES, PLAYER_MAT_ORIENTATIONS } from '$lib/constants';
   import { FormField, Input, Select } from '$lib/components/forms';
+  import type { PlayerMatComponent } from '$lib/types';
 
   let {
     componentName = $bindable(),
@@ -8,7 +9,9 @@
     presetSize = $bindable(),
     orientation = $bindable(),
     customWidthMm = $bindable(),
-    customHeightMm = $bindable()
+    customHeightMm = $bindable(),
+    templates = [],
+    selectedTemplateId = $bindable(null)
   }: {
     componentName: string;
     sizeMode: 'preset' | 'custom';
@@ -16,7 +19,22 @@
     orientation: string;
     customWidthMm: string;
     customHeightMm: string;
+    templates?: PlayerMatComponent[];
+    selectedTemplateId?: string | null;
   } = $props();
+
+  const matchingTemplates = $derived(
+    sizeMode === 'preset'
+      ? templates.filter((t) => t.presetSize === presetSize)
+      : []
+  );
+
+  // Reset selection when size changes and selected template no longer matches
+  $effect(() => {
+    if (selectedTemplateId && !matchingTemplates.some((t) => t.id === selectedTemplateId)) {
+      selectedTemplateId = null;
+    }
+  });
 
   // Validation
   const customWidthValid = $derived(() => {
@@ -97,6 +115,17 @@
       {#if !customHeightValid()}
         <p class="field-error">Height must be between 63mm and 297mm</p>
       {/if}
+    </FormField>
+  {/if}
+
+  {#if matchingTemplates.length > 0}
+    <FormField label="Template" name="template">
+      <Select id="template" bind:value={selectedTemplateId}>
+        <option value={null}>None (blank)</option>
+        {#each matchingTemplates as template}
+          <option value={template.id}>{template.name}</option>
+        {/each}
+      </Select>
     </FormField>
   {/if}
 </div>

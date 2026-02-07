@@ -1,16 +1,32 @@
 <script lang="ts">
   import { CARD_SIZES, type CardSize } from '$lib/constants';
   import { FormField, Input, Select } from '$lib/components/forms';
+  import type { CardComponent } from '$lib/types';
 
   let {
     cardSize = $bindable(),
     cardHorizontal = $bindable(),
-    componentName = $bindable()
+    componentName = $bindable(),
+    templates = [],
+    selectedTemplateId = $bindable(null)
   }: {
     cardSize: string;
     cardHorizontal: boolean;
     componentName: string;
+    templates?: CardComponent[];
+    selectedTemplateId?: string | null;
   } = $props();
+
+  const matchingTemplates = $derived(
+    templates.filter((t) => t.size === cardSize)
+  );
+
+  // Reset selection when card size changes and selected template no longer matches
+  $effect(() => {
+    if (selectedTemplateId && !matchingTemplates.some((t) => t.id === selectedTemplateId)) {
+      selectedTemplateId = null;
+    }
+  });
 
   function getCardSizeLabel(size: CardSize, horizontal: boolean): string {
     const width = horizontal ? size.heightMm : size.widthMm;
@@ -36,6 +52,17 @@
     <input type="checkbox" bind:checked={cardHorizontal} />
     <span>Horizontal (landscape orientation)</span>
   </label>
+
+  {#if matchingTemplates.length > 0}
+    <FormField label="Template" name="template">
+      <Select id="template" bind:value={selectedTemplateId}>
+        <option value={null}>None (blank)</option>
+        {#each matchingTemplates as template}
+          <option value={template.id}>{template.name}</option>
+        {/each}
+      </Select>
+    </FormField>
+  {/if}
 </div>
 
 <style>

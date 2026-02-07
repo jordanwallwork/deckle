@@ -130,6 +130,25 @@ public class ComponentService
         return component.ToComponentDto();
     }
 
+    public async Task<List<ComponentDto>> GetSampleTemplatesAsync(string componentType)
+    {
+        var query = _context.Components
+            .Where(c => c.ProjectId == null);
+
+        query = componentType.ToUpperInvariant() switch
+        {
+            "CARD" => query.Where(c => c is Card),
+            "PLAYERMAT" => query.Where(c => c is PlayerMat),
+            _ => throw new ArgumentException($"Unsupported component type for templates: {componentType}")
+        };
+
+        var components = await query
+            .OrderBy(c => c.Name)
+            .ToListAsync();
+
+        return [.. components.Select(c => c.ToComponentDto())];
+    }
+
     #endregion
 
     #region Create Operations

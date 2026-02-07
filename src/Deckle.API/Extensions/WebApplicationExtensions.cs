@@ -44,6 +44,7 @@ public static class WebApplicationExtensions
         app.MapProjectEndpoints();
         app.MapDataSourceEndpoints();
         app.MapComponentEndpoints();
+        app.MapSampleEndpoints();
         app.MapFileEndpoints();
         app.MapFileDirectoryEndpoints();
         app.MapAdminEndpoints();

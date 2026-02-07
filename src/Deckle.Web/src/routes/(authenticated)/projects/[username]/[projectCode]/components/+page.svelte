@@ -15,7 +15,7 @@
   } from '$lib/components';
   import ComponentCard from './_components/ComponentCard.svelte';
   import LinkDataSourceModal from './_components/LinkDataSourceModal.svelte';
-  import type { GameComponent } from '$lib/types';
+  import type { GameComponent, CardComponent, PlayerMatComponent } from '$lib/types';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { buildComponentsBreadcrumbs } from '$lib/utils/breadcrumbs';
 
@@ -66,6 +66,11 @@
   let playerMatCustomWidth = $state('210');
   let playerMatCustomHeight = $state('297');
 
+  // Template state
+  let cardTemplates: CardComponent[] = $state([]);
+  let playerMatTemplates: PlayerMatComponent[] = $state([]);
+  let selectedTemplateId: string | null = $state(null);
+
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
@@ -93,6 +98,7 @@
     playerMatOrientation = 'Portrait';
     playerMatCustomWidth = '210';
     playerMatCustomHeight = '297';
+    selectedTemplateId = null;
     errorMessage = '';
   }
 
@@ -109,9 +115,25 @@
     errorMessage = '';
   }
 
-  function selectType(type: 'card' | 'dice' | 'playermat') {
+  async function selectType(type: 'card' | 'dice' | 'playermat') {
     selectedType = type;
+    selectedTemplateId = null;
     errorMessage = '';
+
+    if (type === 'card' || type === 'playermat') {
+      try {
+        const templates = await componentsApi.getSampleTemplates(type);
+        if (type === 'card') {
+          cardTemplates = templates.filter((t): t is CardComponent => t.type === 'Card');
+        } else {
+          playerMatTemplates = templates.filter(
+            (t): t is PlayerMatComponent => t.type === 'PlayerMat'
+          );
+        }
+      } catch {
+        // Templates are optional; silently ignore failures
+      }
+    }
   }
 
   /**
@@ -228,11 +250,33 @@
    * Create a new card component
    */
   async function createCard() {
-    await componentsApi.createCard(data.project.id, {
+    const created = await componentsApi.createCard(data.project.id, {
       name: componentName,
       size: cardSize,
       horizontal: cardHorizontal
     });
+
+    if (selectedTemplateId) {
+      const template = cardTemplates.find((t) => t.id === selectedTemplateId);
+      if (template) {
+        if (template.frontDesign) {
+          await componentsApi.saveDesign(
+            data.project.id,
+            created.id,
+            'front',
+            template.frontDesign
+          );
+        }
+        if (template.backDesign) {
+          await componentsApi.saveDesign(
+            data.project.id,
+            created.id,
+            'back',
+            template.backDesign
+          );
+        }
+      }
+    }
   }
 
   /**
@@ -276,13 +320,35 @@
    * Create a new player mat component
    */
   async function createPlayerMat() {
-    await componentsApi.createPlayerMat(data.project.id, {
+    const created = await componentsApi.createPlayerMat(data.project.id, {
       name: componentName,
       presetSize: playerMatSizeMode === 'preset' ? playerMatPresetSize : null,
       orientation: playerMatOrientation,
       customWidthMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomWidth) : null,
       customHeightMm: playerMatSizeMode === 'custom' ? parseFloat(playerMatCustomHeight) : null
     });
+
+    if (selectedTemplateId) {
+      const template = playerMatTemplates.find((t) => t.id === selectedTemplateId);
+      if (template) {
+        if (template.frontDesign) {
+          await componentsApi.saveDesign(
+            data.project.id,
+            created.id,
+            'front',
+            template.frontDesign
+          );
+        }
+        if (template.backDesign) {
+          await componentsApi.saveDesign(
+            data.project.id,
+            created.id,
+            'back',
+            template.backDesign
+          );
+        }
+      }
+    }
   }
 
   /**
@@ -418,7 +484,13 @@
     {/if}
 
     {#if selectedType === 'card'}
-      <CardConfigForm bind:cardSize bind:cardHorizontal bind:componentName />
+      <CardConfigForm
+        bind:cardSize
+        bind:cardHorizontal
+        bind:componentName
+        templates={cardTemplates}
+        bind:selectedTemplateId
+      />
     {:else if selectedType === 'dice'}
       <DiceConfigForm
         bind:diceType
@@ -435,6 +507,8 @@
         bind:orientation={playerMatOrientation}
         bind:customWidthMm={playerMatCustomWidth}
         bind:customHeightMm={playerMatCustomHeight}
+        templates={playerMatTemplates}
+        bind:selectedTemplateId
       />
     {/if}
 

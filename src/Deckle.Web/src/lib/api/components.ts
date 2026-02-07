@@ -120,6 +120,12 @@ export const componentsApi = {
     ),
 
   /**
+   * Get sample design templates for a component type (card, playermat)
+   */
+  getSampleTemplates: (type: string, fetchFn?: typeof fetch) =>
+    api.get<GameComponent[]>(`/samples/templates?type=${type}`, undefined, fetchFn),
+
+  /**
    * Update a player mat component
    */
   updatePlayerMat: (

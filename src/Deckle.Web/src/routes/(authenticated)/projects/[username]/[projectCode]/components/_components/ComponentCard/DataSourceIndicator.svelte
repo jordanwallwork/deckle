@@ -4,9 +4,11 @@
 
   let {
     component,
+    projectUrlBase,
     onLinkDataSource
   }: {
     component: CardComponent | PlayerMatComponent;
+    projectUrlBase: string;
     onLinkDataSource?: (component: CardComponent | PlayerMatComponent) => void;
   } = $props();
 </script>
@@ -15,9 +17,8 @@
   <span class="design-link">
     Data Source:
     {#if component.dataSource}
-      <a
-        href="/projects/{component.projectId}/data-sources/{component.dataSource.id}"
-        class="design-link">{component.dataSource.name}</a
+      <a href="{projectUrlBase}/data-sources/{component.dataSource.id}" class="design-link"
+        >{component.dataSource.name}</a
       >
     {:else}
       None

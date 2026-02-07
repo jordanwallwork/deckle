@@ -81,7 +81,7 @@
   {/if}
 
   {#if hasDataSource(component)}
-    <DataSourceIndicator {component} {onLinkDataSource} />
+    <DataSourceIndicator {component} {onLinkDataSource} {projectUrlBase} />
   {/if}
 </Card>
 

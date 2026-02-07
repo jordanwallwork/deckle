@@ -79,8 +79,6 @@ public class ProjectAuthorizationService
         Func<ProjectRole, bool> permissionCheck,
         string errorMessage)
     {
-
-
         var role = await RequireProjectAccessAsync(userId, projectId);
 
         if (!permissionCheck(role))

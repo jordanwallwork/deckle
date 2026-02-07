@@ -210,24 +210,6 @@ public class ComponentService
         return component.ToComponentDto();
     }
 
-    private async Task<TDto?> SaveTypedDesignAsync<TComponent, TDto>(
-        Guid userId,
-        Guid componentId,
-        string part,
-        string? design,
-        Func<TComponent, TDto> toDto)
-        where TComponent : Component, IEditableComponent
-    {
-        var component = await FindAndAuthorizeComponentAsync<TComponent>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
-        if (component == null) return default;
-
-        component.SetDesign(part, design);
-        component.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        return toDto(component);
-    }
-
     #endregion
 
     #region Delete Operations
@@ -305,25 +287,6 @@ public class ComponentService
         };
     }
 
-    public async Task<ComponentDto?> SaveSampleDesignAsync(Guid componentId, string part, string? design)
-    {
-        var component = await _context.Components
-            .Where(c => c.Id == componentId && c.ProjectId == null)
-            .FirstOrDefaultAsync();
-
-        if (component is not IEditableComponent editable)
-        {
-            return null;
-        }
-
-        editable.SetDesign(part, design);
-        component.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-
-        return component.ToComponentDto();
-    }
-
     #endregion
 
     #region Static Helpers
@@ -368,16 +331,14 @@ public class ComponentService
         Func<ProjectRole, bool> authorizationCheck)
         where T : Component
     {
-        var component = await _context.Set<T>()
-            .Where(c => c.Id == componentId && c.ProjectId != null && c.Project!.Users.Any(u => u.Id == userId))
-            .FirstOrDefaultAsync();
+        var component = await _context.FindAsync<T>(componentId);
 
         if (component == null)
         {
             return null;
         }
 
-        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId!.Value);
+        var role = await _authService.GetUserProjectRoleAsync(userId, component.ProjectId);
         return role == null || !authorizationCheck(role.Value) ? null : component;
     }
 

@@ -5,7 +5,9 @@ import type {
   UpdateDataSourceDto,
   SyncDataSourceMetadataRequest,
   DataSourceMetadata,
-  CopySampleDataSourceDto
+  CopySampleDataSourceDto,
+  CreateSpreadsheetDataSourceDto,
+  UpdateSpreadsheetDataSourceDto
 } from '$lib/types';
 
 /**
@@ -64,5 +66,23 @@ export const dataSourcesApi = {
    * Copy a sample data source into a project
    */
   copySample: (data: CopySampleDataSourceDto, fetchFn?: typeof fetch) =>
-    api.post<DataSource>('/data-sources/copy-sample', data, undefined, fetchFn)
+    api.post<DataSource>('/data-sources/copy-sample', data, undefined, fetchFn),
+
+  /**
+   * Create a spreadsheet data source
+   */
+  createSpreadsheet: (data: CreateSpreadsheetDataSourceDto, fetchFn?: typeof fetch) =>
+    api.post<DataSource>('/data-sources/spreadsheet', data, undefined, fetchFn),
+
+  /**
+   * Update a spreadsheet data source (name and JSON data)
+   */
+  updateSpreadsheet: (id: string, data: UpdateSpreadsheetDataSourceDto, fetchFn?: typeof fetch) =>
+    api.put<DataSource>(`/data-sources/${id}/spreadsheet`, data, undefined, fetchFn),
+
+  /**
+   * Get spreadsheet data source detail (includes JsonData)
+   */
+  getSpreadsheetDetail: (id: string, fetchFn?: typeof fetch) =>
+    api.get<DataSource>(`/data-sources/${id}/spreadsheet`, undefined, fetchFn)
 };

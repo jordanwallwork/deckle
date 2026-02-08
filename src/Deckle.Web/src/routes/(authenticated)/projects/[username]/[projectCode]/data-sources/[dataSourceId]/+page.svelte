@@ -231,6 +231,11 @@
           <Button variant="secondary" size="sm">Open in Google Sheets</Button>
         </a>
       {/if}
+      {#if dataSource.type === 'Spreadsheet'}
+        <a href={`${projectUrlBase}/data-sources/${dataSource.id}/edit`} style="text-decoration: none;">
+          <Button variant="secondary" size="sm">Edit</Button>
+        </a>
+      {/if}
       <Button variant="danger" size="sm" onclick={deleteDataSource}>Delete</Button>
     </div>
   </div>

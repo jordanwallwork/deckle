@@ -22,8 +22,11 @@ public record DataSourceDto
     public int? SheetGid { get; init; }
     public string? CsvExportUrl { get; init; }
 
-    // Sample-specific properties (null for other types)
+    // Sample/Spreadsheet-specific properties (null for other types)
     public string? JsonData { get; init; }
+
+    // Sample-specific: reference to original template data source
+    public Guid? SourceDataSourceId { get; init; }
 
     /// <summary>
     /// Creates a DataSourceDto from a DataSource entity.
@@ -62,7 +65,24 @@ public record DataSourceDto
                 GoogleSheetsUrl = null,
                 SheetGid = null,
                 CsvExportUrl = null,
-                JsonData = sample.JsonData
+                JsonData = sample.JsonData,
+                SourceDataSourceId = sample.SourceDataSourceId
+            },
+            SpreadsheetDataSource spreadsheet => new DataSourceDto
+            {
+                Id = spreadsheet.Id,
+                ProjectId = spreadsheet.ProjectId,
+                Name = spreadsheet.Name,
+                Type = spreadsheet.Type.ToString(),
+                Headers = spreadsheet.Headers,
+                RowCount = spreadsheet.RowCount,
+                CreatedAt = spreadsheet.CreatedAt,
+                UpdatedAt = spreadsheet.UpdatedAt,
+                GoogleSheetsId = null,
+                GoogleSheetsUrl = null,
+                SheetGid = null,
+                CsvExportUrl = null,
+                JsonData = spreadsheet.JsonData
             },
             _ => throw new InvalidOperationException($"Unknown data source type: {dataSource.GetType().Name}")
         };
@@ -113,6 +133,10 @@ public record UpdateSampleDataSourceRequest(string Name, string? JsonData);
 public record UpdateSampleComponentDataSourceRequest(Guid? DataSourceId);
 
 public record CopySampleDataSourceRequest(Guid ProjectId, Guid SampleDataSourceId);
+
+public record CreateSpreadsheetDataSourceRequest(Guid ProjectId, string Name);
+
+public record UpdateSpreadsheetDataSourceRequest(string Name, string? JsonData);
 
 public record SampleDataJson
 {

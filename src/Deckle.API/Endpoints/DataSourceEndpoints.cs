@@ -131,24 +131,36 @@ public static class DataSourceEndpoints
                 return Results.NotFound();
             }
 
-            // Handle Sample data sources with inline JSON data
-            if (dataSource.Type == "Sample" && dataSource.JsonData != null)
+            // Handle Sample and Spreadsheet data sources with inline JSON data
+            if (dataSource.Type is "Sample" or "Spreadsheet")
             {
-                try
-                {
-                    var sampleData = JsonSerializer.Deserialize<SampleDataJson>(dataSource.JsonData,
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var jsonData = dataSource.JsonData;
 
-                    if (sampleData != null)
-                    {
-                        var rows = new List<string[]> { sampleData.Headers.ToArray() };
-                        rows.AddRange(sampleData.Rows.Select(r => r.ToArray()));
-                        return Results.Ok(new { data = rows });
-                    }
-                }
-                catch (JsonException)
+                // For Sample type: if no inline data, follow the SourceDataSourceId reference
+                if (jsonData == null && dataSource.Type == "Sample" && dataSource.SourceDataSourceId.HasValue)
                 {
-                    return Results.BadRequest(new { error = "Invalid sample data format" });
+                    var sourceDs = await dataSourceService.GetDataSourceByIdAsync(userId, dataSource.SourceDataSourceId.Value);
+                    jsonData = sourceDs?.JsonData;
+                }
+
+                if (jsonData != null)
+                {
+                    try
+                    {
+                        var sampleData = JsonSerializer.Deserialize<SampleDataJson>(jsonData,
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                        if (sampleData != null)
+                        {
+                            var rows = new List<string[]> { sampleData.Headers.ToArray() };
+                            rows.AddRange(sampleData.Rows.Select(r => r.ToArray()));
+                            return Results.Ok(new { data = rows });
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        return Results.BadRequest(new { error = "Invalid data format" });
+                    }
                 }
 
                 return Results.Ok(new { data = Array.Empty<string[]>() });
@@ -183,6 +195,43 @@ public static class DataSourceEndpoints
             return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
         })
         .WithName("CopySampleDataSource");
+
+        // Spreadsheet data source endpoints
+        group.MapPost("spreadsheet", async (HttpContext httpContext, DataSourceService dataSourceService, CreateSpreadsheetDataSourceRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+            var dataSource = await dataSourceService.CreateSpreadsheetDataSourceAsync(userId, request.ProjectId, request.Name);
+            return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
+        })
+        .WithName("CreateSpreadsheetDataSource");
+
+        group.MapPut("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService, UpdateSpreadsheetDataSourceRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+            var dataSource = await dataSourceService.UpdateSpreadsheetDataSourceAsync(userId, id, request.Name, request.JsonData);
+
+            if (dataSource == null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(dataSource);
+        })
+        .WithName("UpdateSpreadsheetDataSource");
+
+        group.MapGet("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
+        {
+            var userId = httpContext.GetUserId();
+            var dataSource = await dataSourceService.GetSpreadsheetDataSourceDetailAsync(userId, id);
+
+            if (dataSource == null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(dataSource);
+        })
+        .WithName("GetSpreadsheetDataSourceDetail");
 
         return group;
     }

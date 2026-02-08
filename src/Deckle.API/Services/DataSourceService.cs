@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
@@ -119,7 +120,7 @@ public class DataSourceService
     {
         await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
 
-        var sample = await _dbContext.SampleDataSources
+        var sample = await _dbContext.DataSources
             .FirstOrDefaultAsync(ds => ds.Id == sampleDataSourceId && ds.ProjectId == null)
             ?? throw new KeyNotFoundException($"Sample data source with ID {sampleDataSourceId} not found");
 
@@ -131,7 +132,7 @@ public class DataSourceService
             Type = DataSourceType.Sample,
             Headers = sample.Headers != null ? [.. sample.Headers] : null,
             RowCount = sample.RowCount,
-            JsonData = sample.JsonData,
+            SourceDataSourceId = sampleDataSourceId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -233,5 +234,137 @@ public class DataSourceService
         await _dbContext.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<DataSourceDto> CreateSpreadsheetDataSourceAsync(Guid userId, Guid projectId, string name)
+    {
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+
+        var dataSource = new SpreadsheetDataSource
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            Name = name,
+            Type = DataSourceType.Spreadsheet,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.SpreadsheetDataSources.Add(dataSource);
+        await _dbContext.SaveChangesAsync();
+
+        return DataSourceDto.FromEntity(dataSource);
+    }
+
+    public async Task<DataSourceDto?> UpdateSpreadsheetDataSourceAsync(Guid userId, Guid dataSourceId, string name, string? jsonData)
+    {
+        var dataSource = await _dbContext.SpreadsheetDataSources
+            .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
+
+        if (dataSource == null)
+        {
+            return null;
+        }
+
+        if (!dataSource.ProjectId.HasValue)
+        {
+            throw new InvalidOperationException("Admin spreadsheet data sources should be updated through the admin API");
+        }
+
+        await _authService.RequirePermissionAsync(
+            userId,
+            dataSource.ProjectId.Value,
+            ProjectAuthorizationService.CanModifyResources,
+            "User does not have permission to update this data source");
+
+        dataSource.Name = name;
+        dataSource.JsonData = jsonData;
+
+        var (headers, rowCount) = ParseJsonDataMetadata(jsonData);
+        dataSource.Headers = headers;
+        dataSource.RowCount = rowCount;
+        dataSource.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return DataSourceDto.FromEntity(dataSource);
+    }
+
+    public async Task<DataSourceDto?> GetSpreadsheetDataSourceDetailAsync(Guid userId, Guid dataSourceId)
+    {
+        var dataSource = await _dbContext.SpreadsheetDataSources
+            .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
+
+        if (dataSource == null)
+        {
+            return null;
+        }
+
+        if (dataSource.ProjectId.HasValue)
+        {
+            await _authService.RequireProjectAccessAsync(userId, dataSource.ProjectId.Value,
+                "User does not have access to this data source");
+        }
+
+        return DataSourceDto.FromEntity(dataSource);
+    }
+
+    /// <summary>
+    /// Resolves the JSON data for a data source, following SourceDataSourceId references for SampleDataSources.
+    /// </summary>
+    public async Task<string?> ResolveJsonDataAsync(DataSource dataSource)
+    {
+        if (dataSource is SpreadsheetDataSource spreadsheet)
+        {
+            return spreadsheet.JsonData;
+        }
+
+        if (dataSource is SampleDataSource sample)
+        {
+            if (sample.JsonData != null)
+            {
+                return sample.JsonData;
+            }
+
+            if (sample.SourceDataSourceId.HasValue)
+            {
+                var source = await _dbContext.DataSources
+                    .FirstOrDefaultAsync(ds => ds.Id == sample.SourceDataSourceId.Value);
+
+                return source switch
+                {
+                    SpreadsheetDataSource s => s.JsonData,
+                    SampleDataSource s => s.JsonData,
+                    _ => null
+                };
+            }
+        }
+
+        return null;
+    }
+
+    private static (List<string>? Headers, int? RowCount) ParseJsonDataMetadata(string? jsonData)
+    {
+        if (string.IsNullOrWhiteSpace(jsonData))
+        {
+            return (null, null);
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<SampleDataJson>(jsonData,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (parsed == null)
+            {
+                return (null, null);
+            }
+
+            return (parsed.Headers.Count > 0 ? parsed.Headers : null, parsed.Rows.Count);
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
     }
 }

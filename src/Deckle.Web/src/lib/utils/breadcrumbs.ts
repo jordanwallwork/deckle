@@ -109,6 +109,21 @@ export function buildDataSourceBreadcrumbs(
   ]);
 }
 
+export function buildDataSourceEditBreadcrumbs(
+  project: ProjectIdName,
+  dataSourceId: string,
+  dataSourceName: string
+): BreadcrumbItem[] {
+  return extend(buildProjectBreadcrumbs(project), [
+    { label: 'Data Sources', href: `${getProjectUrl(project)}/data-sources` },
+    {
+      label: dataSourceName,
+      href: `${getProjectUrl(project)}/data-sources/${dataSourceId}/edit`,
+      isActive: true
+    }
+  ]);
+}
+
 // Admin breadcrumbs
 
 export function buildAdminBreadcrumbs(): BreadcrumbItem[] {

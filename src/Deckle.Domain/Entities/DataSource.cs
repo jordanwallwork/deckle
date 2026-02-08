@@ -31,5 +31,6 @@ public abstract class DataSource
 public enum DataSourceType
 {
     GoogleSheets,
-    Sample
+    Sample,
+    Spreadsheet
 }

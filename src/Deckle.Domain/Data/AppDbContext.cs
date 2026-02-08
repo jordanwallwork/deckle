@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<DataSource> DataSources { get; set; }
     public DbSet<GoogleSheetsDataSource> GoogleSheetsDataSources { get; set; }
     public DbSet<SampleDataSource> SampleDataSources { get; set; }
+    public DbSet<SpreadsheetDataSource> SpreadsheetDataSources { get; set; }
     public DbSet<Component> Components { get; set; }
     public DbSet<Card> Cards { get; set; }
     public DbSet<Dice> Dices { get; set; }
@@ -180,7 +181,8 @@ public class AppDbContext : DbContext
             // TPH discriminator using Type property
             entity.HasDiscriminator(ds => ds.Type)
                 .HasValue<GoogleSheetsDataSource>(DataSourceType.GoogleSheets)
-                .HasValue<SampleDataSource>(DataSourceType.Sample);
+                .HasValue<SampleDataSource>(DataSourceType.Sample)
+                .HasValue<SpreadsheetDataSource>(DataSourceType.Spreadsheet);
         });
 
         modelBuilder.Entity<GoogleSheetsDataSource>(entity =>
@@ -206,6 +208,19 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<SampleDataSource>(entity =>
         {
             entity.Property(ds => ds.JsonData)
+                .HasColumnName("JsonData")
+                .HasColumnType("jsonb");
+
+            entity.HasOne(ds => ds.SourceDataSource)
+                .WithMany()
+                .HasForeignKey(ds => ds.SourceDataSourceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SpreadsheetDataSource>(entity =>
+        {
+            entity.Property(ds => ds.JsonData)
+                .HasColumnName("JsonData")
                 .HasColumnType("jsonb");
         });
 

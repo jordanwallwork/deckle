@@ -118,14 +118,13 @@ public class AdminService
         return await GetUserByIdAsync(userId);
     }
 
-    // Sample Data Source CRUD
+    // Sample/Spreadsheet Data Source CRUD (admin manages template data sources)
 
     public async Task<AdminSampleDataSourceListResponse> GetSampleDataSourcesAsync(
         int page = 1, int pageSize = 20, string? search = null)
     {
         var query = _dbContext.DataSources
-            .OfType<SampleDataSource>()
-            .Where(ds => ds.ProjectId == null);
+            .Where(ds => ds.ProjectId == null && (ds.Type == DataSourceType.Sample || ds.Type == DataSourceType.Spreadsheet));
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -161,20 +160,33 @@ public class AdminService
 
     public async Task<AdminSampleDataSourceDetailDto?> GetSampleDataSourceByIdAsync(Guid id)
     {
-        return await _dbContext.DataSources
-            .OfType<SampleDataSource>()
-            .Where(ds => ds.Id == id && ds.ProjectId == null)
-            .Select(ds => new AdminSampleDataSourceDetailDto
+        var dataSource = await _dbContext.DataSources
+            .FirstOrDefaultAsync(ds => ds.Id == id && ds.ProjectId == null);
+
+        return dataSource switch
+        {
+            SpreadsheetDataSource s => new AdminSampleDataSourceDetailDto
             {
-                Id = ds.Id,
-                Name = ds.Name,
-                Headers = ds.Headers,
-                RowCount = ds.RowCount,
-                CreatedAt = ds.CreatedAt,
-                UpdatedAt = ds.UpdatedAt,
-                JsonData = ds.JsonData
-            })
-            .FirstOrDefaultAsync();
+                Id = s.Id,
+                Name = s.Name,
+                Headers = s.Headers,
+                RowCount = s.RowCount,
+                CreatedAt = s.CreatedAt,
+                UpdatedAt = s.UpdatedAt,
+                JsonData = s.JsonData
+            },
+            SampleDataSource s => new AdminSampleDataSourceDetailDto
+            {
+                Id = s.Id,
+                Name = s.Name,
+                Headers = s.Headers,
+                RowCount = s.RowCount,
+                CreatedAt = s.CreatedAt,
+                UpdatedAt = s.UpdatedAt,
+                JsonData = s.JsonData
+            },
+            _ => null
+        };
     }
 
     public async Task<AdminSampleDataSourceDetailDto> CreateSampleDataSourceAsync(
@@ -182,11 +194,11 @@ public class AdminService
     {
         var (headers, rowCount) = ParseJsonDataMetadata(jsonData);
 
-        var dataSource = new SampleDataSource
+        var dataSource = new SpreadsheetDataSource
         {
             Id = Guid.NewGuid(),
             Name = name,
-            Type = DataSourceType.Sample,
+            Type = DataSourceType.Spreadsheet,
             ProjectId = null,
             JsonData = jsonData,
             Headers = headers,
@@ -214,7 +226,6 @@ public class AdminService
         Guid id, string name, string? jsonData)
     {
         var dataSource = await _dbContext.DataSources
-            .OfType<SampleDataSource>()
             .FirstOrDefaultAsync(ds => ds.Id == id && ds.ProjectId == null);
 
         if (dataSource == null)
@@ -225,10 +236,18 @@ public class AdminService
         var (headers, rowCount) = ParseJsonDataMetadata(jsonData);
 
         dataSource.Name = name;
-        dataSource.JsonData = jsonData;
         dataSource.Headers = headers;
         dataSource.RowCount = rowCount;
         dataSource.UpdatedAt = DateTime.UtcNow;
+
+        if (dataSource is SpreadsheetDataSource spreadsheet)
+        {
+            spreadsheet.JsonData = jsonData;
+        }
+        else if (dataSource is SampleDataSource sample)
+        {
+            sample.JsonData = jsonData;
+        }
 
         await _dbContext.SaveChangesAsync();
 
@@ -240,15 +259,15 @@ public class AdminService
             RowCount = dataSource.RowCount,
             CreatedAt = dataSource.CreatedAt,
             UpdatedAt = dataSource.UpdatedAt,
-            JsonData = dataSource.JsonData
+            JsonData = jsonData
         };
     }
 
     public async Task<bool> DeleteSampleDataSourceAsync(Guid id)
     {
         var dataSource = await _dbContext.DataSources
-            .OfType<SampleDataSource>()
-            .FirstOrDefaultAsync(ds => ds.Id == id && ds.ProjectId == null);
+            .FirstOrDefaultAsync(ds => ds.Id == id && ds.ProjectId == null
+                && (ds.Type == DataSourceType.Sample || ds.Type == DataSourceType.Spreadsheet));
 
         if (dataSource == null)
         {
@@ -275,8 +294,8 @@ public class AdminService
         if (dataSourceId.HasValue)
         {
             var dataSource = await _dbContext.DataSources
-                .OfType<SampleDataSource>()
-                .FirstOrDefaultAsync(ds => ds.Id == dataSourceId.Value && ds.ProjectId == null);
+                .FirstOrDefaultAsync(ds => ds.Id == dataSourceId.Value && ds.ProjectId == null
+                    && (ds.Type == DataSourceType.Sample || ds.Type == DataSourceType.Spreadsheet));
 
             if (dataSource == null)
             {

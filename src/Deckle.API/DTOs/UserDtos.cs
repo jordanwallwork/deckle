@@ -64,6 +64,7 @@ public record AdminSampleComponentDto
     /// Examples: Card has "Size", "Horizontal"; Dice has "DiceType", "Style", "Color", "Number"
     /// </summary>
     public required Dictionary<string, string> Stats { get; init; }
+    public DataSourceInfo? DataSource { get; init; }
 }
 
 public record AdminSampleComponentListResponse

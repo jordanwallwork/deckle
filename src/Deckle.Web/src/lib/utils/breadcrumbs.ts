@@ -141,3 +141,18 @@ export function buildAdminUsersBreadcrumbs(): BreadcrumbItem[] {
     { label: 'Users', href: '/admin/users', isActive: true }
   ]);
 }
+
+export function buildAdminDataSourcesBreadcrumbs(): BreadcrumbItem[] {
+  return extend(buildAdminBreadcrumbs(), [
+    { label: 'Data Sources', href: '/admin/data-sources', isActive: true }
+  ]);
+}
+
+export function buildAdminDataSourceEditorBreadcrumbs(
+  name: string,
+  id: string
+): BreadcrumbItem[] {
+  return extend(buildAdminDataSourcesBreadcrumbs(), [
+    { label: name, href: `/admin/data-sources/${id}`, isActive: true }
+  ]);
+}

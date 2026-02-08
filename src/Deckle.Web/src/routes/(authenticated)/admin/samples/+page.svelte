@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import type { AdminSampleComponent } from '$lib/types';
+	import type { AdminSampleComponent, AdminSampleDataSource } from '$lib/types';
 	import { Button, Dialog, CardConfigForm, PlayerMatConfigForm } from '$lib/components';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { adminApi, ApiError } from '$lib/api';
@@ -100,6 +100,49 @@
 			}
 		} finally {
 			isSubmitting = false;
+		}
+	}
+
+	// Data source linking state
+	let linkTarget = $state<AdminSampleComponent | null>(null);
+	let selectedDataSourceId = $state<string | null>(null);
+	let isLinking = $state(false);
+
+	function openLinkModal(component: AdminSampleComponent) {
+		linkTarget = component;
+		selectedDataSourceId = component.dataSource?.id ?? null;
+	}
+
+	function closeLinkModal() {
+		linkTarget = null;
+		selectedDataSourceId = null;
+	}
+
+	async function handleLink() {
+		if (!linkTarget) return;
+		isLinking = true;
+		try {
+			await adminApi.updateSampleComponentDataSource(linkTarget.id, selectedDataSourceId);
+			await invalidateAll();
+			closeLinkModal();
+		} catch (err) {
+			console.error('Failed to link data source:', err);
+		} finally {
+			isLinking = false;
+		}
+	}
+
+	async function handleUnlink() {
+		if (!linkTarget) return;
+		isLinking = true;
+		try {
+			await adminApi.updateSampleComponentDataSource(linkTarget.id, null);
+			await invalidateAll();
+			closeLinkModal();
+		} catch (err) {
+			console.error('Failed to unlink data source:', err);
+		} finally {
+			isLinking = false;
 		}
 	}
 
@@ -226,6 +269,21 @@
 						{/each}
 					</div>
 					{#if component.type === 'Card' || component.type === 'PlayerMat'}
+						<div class="datasource-info">
+							{#if component.dataSource}
+								<span class="ds-label">Data:</span>
+								<a href="/admin/data-sources/{component.dataSource.id}" class="ds-link">
+									{component.dataSource.name}
+								</a>
+								<button class="ds-change-btn" onclick={() => openLinkModal(component)}>
+									Change
+								</button>
+							{:else}
+								<button class="ds-link-btn" onclick={() => openLinkModal(component)}>
+									Link Data Source
+								</button>
+							{/if}
+						</div>
 						<div class="edit-actions">
 							<a href="/admin/samples/{component.id}/front" class="edit-link">Edit Front</a>
 							<a href="/admin/samples/{component.id}/back" class="edit-link">Edit Back</a>
@@ -306,6 +364,62 @@
 				{:else}
 					Add Sample
 				{/if}
+			</Button>
+		{/if}
+	{/snippet}
+</Dialog>
+
+<Dialog
+	show={!!linkTarget}
+	title="Link Data Source"
+	maxWidth="600px"
+	onclose={closeLinkModal}
+>
+	{#snippet children()}
+		{#if data.sampleDataSources.length === 0}
+			<p class="no-datasources">
+				No sample data sources available. <a href="/admin/data-sources">Create one first</a>.
+			</p>
+		{:else}
+			<div class="datasource-options">
+				{#each data.sampleDataSources as ds}
+					<label class="datasource-option">
+						<input
+							type="radio"
+							name="dataSource"
+							value={ds.id}
+							checked={selectedDataSourceId === ds.id}
+							onchange={() => (selectedDataSourceId = ds.id)}
+						/>
+						<div class="datasource-details">
+							<span class="datasource-name">{ds.name}</span>
+							<span class="datasource-meta">
+								{#if ds.headers && ds.headers.length > 0}
+									{ds.headers.length} columns
+								{/if}
+								{#if ds.rowCount != null}
+									&middot; {ds.rowCount} rows
+								{/if}
+							</span>
+						</div>
+					</label>
+				{/each}
+			</div>
+		{/if}
+	{/snippet}
+
+	{#snippet actions()}
+		{#if linkTarget?.dataSource}
+			<Button variant="danger" onclick={handleUnlink} disabled={isLinking}>Remove Link</Button>
+		{/if}
+		<Button variant="secondary" onclick={closeLinkModal} disabled={isLinking}>Cancel</Button>
+		{#if data.sampleDataSources.length > 0}
+			<Button
+				variant="primary"
+				onclick={handleLink}
+				disabled={isLinking || !selectedDataSourceId}
+			>
+				{isLinking ? 'Linking...' : 'Link'}
 			</Button>
 		{/if}
 	{/snippet}
@@ -637,5 +751,130 @@
 		background-color: #ffebee;
 		border-radius: 8px;
 		border: 1px solid #ef9a9a;
+	}
+
+	/* Data source info on sample cards */
+	.datasource-info {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid #e5e7eb;
+		font-size: 0.8125rem;
+	}
+
+	.ds-label {
+		color: #6b7280;
+		flex-shrink: 0;
+	}
+
+	.ds-link {
+		color: #667eea;
+		text-decoration: none;
+		font-weight: 500;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.ds-link:hover {
+		text-decoration: underline;
+	}
+
+	.ds-change-btn {
+		flex-shrink: 0;
+		padding: 0.125rem 0.5rem;
+		font-size: 0.75rem;
+		color: #6b7280;
+		background: #f3f4f6;
+		border: none;
+		border-radius: 0.25rem;
+		cursor: pointer;
+	}
+
+	.ds-change-btn:hover {
+		color: #667eea;
+		background: #f0f4ff;
+	}
+
+	.ds-link-btn {
+		padding: 0.25rem 0.5rem;
+		font-size: 0.75rem;
+		color: #667eea;
+		background: #f0f4ff;
+		border: 1px dashed #c7d2fe;
+		border-radius: 0.25rem;
+		cursor: pointer;
+	}
+
+	.ds-link-btn:hover {
+		background: #e0e7ff;
+		border-color: #667eea;
+	}
+
+	/* Link data source dialog */
+	.no-datasources {
+		color: #666;
+		font-style: italic;
+		text-align: center;
+		padding: 1rem;
+		margin: 0;
+	}
+
+	.no-datasources a {
+		color: #667eea;
+	}
+
+	.datasource-options {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.datasource-option {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 1rem;
+		border: 2px solid #e5e7eb;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.datasource-option:hover {
+		border-color: #c7d2fe;
+		background-color: #f9fafb;
+	}
+
+	.datasource-option:has(input:checked) {
+		border-color: #667eea;
+		background-color: #f0f4ff;
+	}
+
+	.datasource-option input[type='radio'] {
+		width: 20px;
+		height: 20px;
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.datasource-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		flex: 1;
+	}
+
+	.datasource-name {
+		font-size: 1rem;
+		font-weight: 600;
+		color: #1a1a1a;
+	}
+
+	.datasource-meta {
+		font-size: 0.875rem;
+		color: #6b7280;
 	}
 </style>

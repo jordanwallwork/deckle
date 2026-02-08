@@ -74,3 +74,48 @@ public record CreateDataSourceRequest(Guid ProjectId, string Name, string Url, i
 public record UpdateDataSourceRequest(string Name);
 
 public record SyncDataSourceMetadataRequest(List<string> Headers, int RowCount);
+
+// Admin Sample Data Source DTOs
+
+public record AdminSampleDataSourceDto
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public List<string>? Headers { get; init; }
+    public int? RowCount { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public required DateTime UpdatedAt { get; init; }
+}
+
+public record AdminSampleDataSourceDetailDto
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public List<string>? Headers { get; init; }
+    public int? RowCount { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public required DateTime UpdatedAt { get; init; }
+    public string? JsonData { get; init; }
+}
+
+public record AdminSampleDataSourceListResponse
+{
+    public required List<AdminSampleDataSourceDto> DataSources { get; init; }
+    public required int TotalCount { get; init; }
+    public required int Page { get; init; }
+    public required int PageSize { get; init; }
+}
+
+public record CreateSampleDataSourceRequest(string Name, string? JsonData);
+
+public record UpdateSampleDataSourceRequest(string Name, string? JsonData);
+
+public record UpdateSampleComponentDataSourceRequest(Guid? DataSourceId);
+
+public record CopySampleDataSourceRequest(Guid ProjectId, Guid SampleDataSourceId);
+
+public record SampleDataJson
+{
+    public List<string> Headers { get; init; } = [];
+    public List<List<string>> Rows { get; init; } = [];
+}

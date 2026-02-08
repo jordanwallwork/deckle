@@ -115,6 +115,33 @@ public class DataSourceService
         return DataSourceDto.FromEntity(dataSource);
     }
 
+    public async Task<DataSourceDto> CopySampleDataSourceToProjectAsync(Guid userId, Guid projectId, Guid sampleDataSourceId)
+    {
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+
+        var sample = await _dbContext.SampleDataSources
+            .FirstOrDefaultAsync(ds => ds.Id == sampleDataSourceId && ds.ProjectId == null)
+            ?? throw new KeyNotFoundException($"Sample data source with ID {sampleDataSourceId} not found");
+
+        var copy = new SampleDataSource
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            Name = sample.Name,
+            Type = DataSourceType.Sample,
+            Headers = sample.Headers != null ? [.. sample.Headers] : null,
+            RowCount = sample.RowCount,
+            JsonData = sample.JsonData,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.SampleDataSources.Add(copy);
+        await _dbContext.SaveChangesAsync();
+
+        return DataSourceDto.FromEntity(copy);
+    }
+
     public async Task<DataSourceDto?> UpdateDataSourceAsync(Guid userId, Guid dataSourceId, string name)
     {
         var dataSource = await _dbContext.DataSources

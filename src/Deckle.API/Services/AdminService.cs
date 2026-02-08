@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
@@ -115,5 +116,213 @@ public class AdminService
         await _dbContext.SaveChangesAsync();
 
         return await GetUserByIdAsync(userId);
+    }
+
+    // Sample Data Source CRUD
+
+    public async Task<AdminSampleDataSourceListResponse> GetSampleDataSourcesAsync(
+        int page = 1, int pageSize = 20, string? search = null)
+    {
+        var query = _dbContext.DataSources
+            .OfType<SampleDataSource>()
+            .Where(ds => ds.ProjectId == null);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(ds =>
+                ds.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var dataSources = await query
+            .OrderByDescending(ds => ds.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(ds => new AdminSampleDataSourceDto
+            {
+                Id = ds.Id,
+                Name = ds.Name,
+                Headers = ds.Headers,
+                RowCount = ds.RowCount,
+                CreatedAt = ds.CreatedAt,
+                UpdatedAt = ds.UpdatedAt
+            })
+            .ToListAsync();
+
+        return new AdminSampleDataSourceListResponse
+        {
+            DataSources = dataSources,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<AdminSampleDataSourceDetailDto?> GetSampleDataSourceByIdAsync(Guid id)
+    {
+        return await _dbContext.DataSources
+            .OfType<SampleDataSource>()
+            .Where(ds => ds.Id == id && ds.ProjectId == null)
+            .Select(ds => new AdminSampleDataSourceDetailDto
+            {
+                Id = ds.Id,
+                Name = ds.Name,
+                Headers = ds.Headers,
+                RowCount = ds.RowCount,
+                CreatedAt = ds.CreatedAt,
+                UpdatedAt = ds.UpdatedAt,
+                JsonData = ds.JsonData
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<AdminSampleDataSourceDetailDto> CreateSampleDataSourceAsync(
+        string name, string? jsonData)
+    {
+        var (headers, rowCount) = ParseJsonDataMetadata(jsonData);
+
+        var dataSource = new SampleDataSource
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Type = DataSourceType.Sample,
+            ProjectId = null,
+            JsonData = jsonData,
+            Headers = headers,
+            RowCount = rowCount,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.DataSources.Add(dataSource);
+        await _dbContext.SaveChangesAsync();
+
+        return new AdminSampleDataSourceDetailDto
+        {
+            Id = dataSource.Id,
+            Name = dataSource.Name,
+            Headers = dataSource.Headers,
+            RowCount = dataSource.RowCount,
+            CreatedAt = dataSource.CreatedAt,
+            UpdatedAt = dataSource.UpdatedAt,
+            JsonData = dataSource.JsonData
+        };
+    }
+
+    public async Task<AdminSampleDataSourceDetailDto?> UpdateSampleDataSourceAsync(
+        Guid id, string name, string? jsonData)
+    {
+        var dataSource = await _dbContext.DataSources
+            .OfType<SampleDataSource>()
+            .FirstOrDefaultAsync(ds => ds.Id == id && ds.ProjectId == null);
+
+        if (dataSource == null)
+        {
+            return null;
+        }
+
+        var (headers, rowCount) = ParseJsonDataMetadata(jsonData);
+
+        dataSource.Name = name;
+        dataSource.JsonData = jsonData;
+        dataSource.Headers = headers;
+        dataSource.RowCount = rowCount;
+        dataSource.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return new AdminSampleDataSourceDetailDto
+        {
+            Id = dataSource.Id,
+            Name = dataSource.Name,
+            Headers = dataSource.Headers,
+            RowCount = dataSource.RowCount,
+            CreatedAt = dataSource.CreatedAt,
+            UpdatedAt = dataSource.UpdatedAt,
+            JsonData = dataSource.JsonData
+        };
+    }
+
+    public async Task<bool> DeleteSampleDataSourceAsync(Guid id)
+    {
+        var dataSource = await _dbContext.DataSources
+            .OfType<SampleDataSource>()
+            .FirstOrDefaultAsync(ds => ds.Id == id && ds.ProjectId == null);
+
+        if (dataSource == null)
+        {
+            return false;
+        }
+
+        _dbContext.DataSources.Remove(dataSource);
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<ComponentDto?> UpdateSampleComponentDataSourceAsync(
+        Guid componentId, Guid? dataSourceId)
+    {
+        var component = await _dbContext.Components
+            .Where(c => c.Id == componentId && c.ProjectId == null)
+            .FirstOrDefaultAsync();
+
+        if (component is not IDataSourceComponent dataSourceComponent)
+        {
+            return null;
+        }
+
+        if (dataSourceId.HasValue)
+        {
+            var dataSource = await _dbContext.DataSources
+                .OfType<SampleDataSource>()
+                .FirstOrDefaultAsync(ds => ds.Id == dataSourceId.Value && ds.ProjectId == null);
+
+            if (dataSource == null)
+            {
+                return null;
+            }
+
+            dataSourceComponent.DataSource = dataSource;
+        }
+        else
+        {
+            dataSourceComponent.DataSource = null;
+        }
+
+        component.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
+        // Reload to get DataSource navigation property
+        await _dbContext.Entry(component)
+            .Reference(nameof(IDataSourceComponent.DataSource))
+            .LoadAsync();
+
+        return component.ToComponentDto();
+    }
+
+    private static (List<string>? Headers, int? RowCount) ParseJsonDataMetadata(string? jsonData)
+    {
+        if (string.IsNullOrWhiteSpace(jsonData))
+        {
+            return (null, null);
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<SampleDataJson>(jsonData,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (parsed == null)
+            {
+                return (null, null);
+            }
+
+            return (parsed.Headers.Count > 0 ? parsed.Headers : null, parsed.Rows.Count);
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
     }
 }

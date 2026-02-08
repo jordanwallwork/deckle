@@ -1,12 +1,12 @@
 // DataSource entity types
 
-export type DataSourceType = 'GoogleSheets';
+export type DataSourceType = 'GoogleSheets' | 'Sample';
 
 export type DataSourceSyncStatus = 'idle' | 'syncing' | 'error';
 
 export interface DataSource {
   id: string;
-  projectId: string;
+  projectId: string | null;
   name: string;
   type: DataSourceType;
   connectionString: string;
@@ -14,6 +14,7 @@ export interface DataSource {
   googleSheetsUrl?: string;
   sheetGid?: number;
   csvExportUrl?: string;
+  jsonData?: string | null;
   headers?: string[];
   rowCount?: number;
   createdAt: string;
@@ -34,6 +35,11 @@ export interface UpdateDataSourceDto {
 export interface SyncDataSourceMetadataRequest {
   headers: string[];
   rowCount: number;
+}
+
+export interface CopySampleDataSourceDto {
+  projectId: string;
+  sampleDataSourceId: string;
 }
 
 export interface DataSourceMetadata {

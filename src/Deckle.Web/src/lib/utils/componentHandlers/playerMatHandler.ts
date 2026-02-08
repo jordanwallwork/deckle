@@ -1,4 +1,4 @@
-import { componentsApi } from '$lib/api';
+import { componentsApi, dataSourcesApi } from '$lib/api';
 import type { GameComponent, PlayerMatComponent } from '$lib/types';
 import type { PlayerMatFormState, ComponentTypeHandler } from './types';
 
@@ -63,6 +63,13 @@ export const playerMatHandler: ComponentTypeHandler<PlayerMatFormState> = {
 				}
 				if (template.backDesign) {
 					await componentsApi.saveDesign(projectId, created.id, 'back', template.backDesign);
+				}
+				if (template.dataSource) {
+					const copiedDs = await dataSourcesApi.copySample({
+						projectId,
+						sampleDataSourceId: template.dataSource.id
+					});
+					await componentsApi.updateDataSource(projectId, created.id, copiedDs.id);
 				}
 			}
 		}

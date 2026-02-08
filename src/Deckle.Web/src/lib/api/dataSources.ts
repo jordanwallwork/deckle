@@ -4,7 +4,8 @@ import type {
   CreateDataSourceDto,
   UpdateDataSourceDto,
   SyncDataSourceMetadataRequest,
-  DataSourceMetadata
+  DataSourceMetadata,
+  CopySampleDataSourceDto
 } from '$lib/types';
 
 /**
@@ -57,5 +58,11 @@ export const dataSourcesApi = {
    * Get data from a data source (CSV as 2D array)
    */
   getData: (id: string, fetchFn?: typeof fetch) =>
-    api.get<{ data: string[][] }>(`/data-sources/${id}/data`, undefined, fetchFn)
+    api.get<{ data: string[][] }>(`/data-sources/${id}/data`, undefined, fetchFn),
+
+  /**
+   * Copy a sample data source into a project
+   */
+  copySample: (data: CopySampleDataSourceDto, fetchFn?: typeof fetch) =>
+    api.post<DataSource>('/data-sources/copy-sample', data, undefined, fetchFn)
 };

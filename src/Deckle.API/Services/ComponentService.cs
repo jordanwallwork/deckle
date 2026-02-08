@@ -146,6 +146,8 @@ public class ComponentService
             .OrderBy(c => c.Name)
             .ToListAsync();
 
+        await LoadDataSourcesForComponentsAsync(components);
+
         return [.. components.Select(c => c.ToComponentDto())];
     }
 
@@ -287,6 +289,8 @@ public class ComponentService
             .Take(pageSize)
             .ToListAsync();
 
+        await LoadDataSourcesForComponentsAsync(components);
+
         var dtos = components.Select(c => new AdminSampleComponentDto
         {
             Id = c.Id,
@@ -294,7 +298,10 @@ public class ComponentService
             Name = c.Name,
             CreatedAt = c.CreatedAt,
             UpdatedAt = c.UpdatedAt,
-            Stats = GetComponentStats(c)
+            Stats = GetComponentStats(c),
+            DataSource = c is IDataSourceComponent dsc && dsc.DataSource != null
+                ? new DataSourceInfo(dsc.DataSource.Id, dsc.DataSource.Name)
+                : null
         }).ToList();
 
         return new AdminSampleComponentListResponse

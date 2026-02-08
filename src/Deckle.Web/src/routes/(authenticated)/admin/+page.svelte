@@ -21,8 +21,13 @@
       </a>
 
       <a href="/admin/samples" class="admin-card clickable">
-        <h3>Samples</h3>
-        <p>View and manage sample components and data sources</p>
+        <h3>Sample Components</h3>
+        <p>View and manage sample card and player mat templates.</p>
+      </a>
+
+      <a href="/admin/data-sources" class="admin-card clickable">
+        <h3>Sample Data Sources</h3>
+        <p>Create and manage sample data for component templates.</p>
       </a>
 
       <div class="admin-card">

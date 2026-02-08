@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Deckle.API.DTOs;
 using Deckle.API.Filters;
 using Deckle.API.Services;
@@ -130,6 +131,29 @@ public static class DataSourceEndpoints
                 return Results.NotFound();
             }
 
+            // Handle Sample data sources with inline JSON data
+            if (dataSource.Type == "Sample" && dataSource.JsonData != null)
+            {
+                try
+                {
+                    var sampleData = JsonSerializer.Deserialize<SampleDataJson>(dataSource.JsonData,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (sampleData != null)
+                    {
+                        var rows = new List<string[]> { sampleData.Headers.ToArray() };
+                        rows.AddRange(sampleData.Rows.Select(r => r.ToArray()));
+                        return Results.Ok(new { data = rows });
+                    }
+                }
+                catch (JsonException)
+                {
+                    return Results.BadRequest(new { error = "Invalid sample data format" });
+                }
+
+                return Results.Ok(new { data = Array.Empty<string[]>() });
+            }
+
             if (string.IsNullOrEmpty(dataSource.CsvExportUrl))
             {
                 // This is a business logic error, not an exception from the service.
@@ -151,6 +175,14 @@ public static class DataSourceEndpoints
             return Results.Ok(new { data });
         })
         .WithName("GetDataSourceData");
+
+        group.MapPost("copy-sample", async (HttpContext httpContext, DataSourceService dataSourceService, CopySampleDataSourceRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+            var dataSource = await dataSourceService.CopySampleDataSourceToProjectAsync(userId, request.ProjectId, request.SampleDataSourceId);
+            return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
+        })
+        .WithName("CopySampleDataSource");
 
         return group;
     }

@@ -9,7 +9,7 @@ export const diceHandler: ComponentTypeHandler<DiceFormState> = {
 			diceType: 'D6',
 			diceStyle: 'Numbered',
 			diceColor: 'EarthGreen',
-			diceNumber: '1'
+			diceNumber: 1
 		};
 	},
 
@@ -20,7 +20,7 @@ export const diceHandler: ComponentTypeHandler<DiceFormState> = {
 			diceType: dice.diceType,
 			diceStyle: dice.style,
 			diceColor: dice.baseColor,
-			diceNumber: String(dice.number)
+			diceNumber: dice.number
 		};
 	},
 
@@ -30,7 +30,7 @@ export const diceHandler: ComponentTypeHandler<DiceFormState> = {
 			type: state.diceType,
 			style: state.diceStyle,
 			baseColor: state.diceColor,
-			number: Number(state.diceNumber)
+			number: state.diceNumber
 		});
 	},
 
@@ -40,7 +40,7 @@ export const diceHandler: ComponentTypeHandler<DiceFormState> = {
 			type: state.diceType,
 			style: state.diceStyle,
 			baseColor: state.diceColor,
-			number: Number(state.diceNumber)
+			number: state.diceNumber
 		});
 	},
 

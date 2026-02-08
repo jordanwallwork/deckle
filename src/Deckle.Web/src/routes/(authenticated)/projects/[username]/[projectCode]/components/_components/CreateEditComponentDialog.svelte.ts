@@ -27,7 +27,7 @@ export class ComponentDialogState {
 	diceType = $state('D6');
 	diceStyle = $state('Numbered');
 	diceColor = $state('EarthGreen');
-	diceNumber = $state('1');
+	diceNumber = $state(1);
 
 	// Player Mat
 	playerMatSizeMode: 'preset' | 'custom' = $state('preset');
@@ -180,7 +180,7 @@ export class ComponentDialogState {
 		this.diceType = (diceDefaults as { diceType: string }).diceType;
 		this.diceStyle = (diceDefaults as { diceStyle: string }).diceStyle;
 		this.diceColor = (diceDefaults as { diceColor: string }).diceColor;
-		this.diceNumber = (diceDefaults as { diceNumber: string }).diceNumber;
+		this.diceNumber = (diceDefaults as { diceNumber: number }).diceNumber;
 
 		const matDefaults = getHandler('playermat').defaults();
 		this.playerMatSizeMode = (matDefaults as { sizeMode: 'preset' | 'custom' }).sizeMode;

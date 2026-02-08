@@ -1,7 +1,7 @@
 <script lang="ts">
   let {
     id,
-    value,
+    value = $bindable(),
     min,
     max,
     step,
@@ -28,7 +28,7 @@
   <input
     type="number"
     {id}
-    {value}
+    bind:value
     {min}
     {max}
     {step}

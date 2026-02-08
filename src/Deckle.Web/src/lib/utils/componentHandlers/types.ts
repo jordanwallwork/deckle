@@ -14,7 +14,7 @@ export interface DiceFormState {
 	diceType: string;
 	diceStyle: string;
 	diceColor: string;
-	diceNumber: string;
+	diceNumber: number;
 }
 
 export interface PlayerMatFormState {

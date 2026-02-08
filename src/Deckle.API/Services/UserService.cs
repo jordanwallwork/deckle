@@ -23,8 +23,11 @@ public class UserService
         if (user == null)
         {
             // If not found by GoogleId, check if user exists by email with null GoogleId (invited user)
+            var lowerEmail = userInfo.Email.ToLower(System.Globalization.CultureInfo.InvariantCulture);
+#pragma warning disable CA1304 // ToLower() in EF expression tree is translated to SQL LOWER()
             user = await _dbContext.Users.FirstOrDefaultAsync(u =>
-                u.Email.ToLower() == userInfo.Email.ToLower() && u.GoogleId == null);
+                u.Email.ToLower() == lowerEmail && u.GoogleId == null);
+#pragma warning restore CA1304
 
             if (user != null)
             {
@@ -120,9 +123,11 @@ public class UserService
 
     public async Task<bool> IsUsernameAvailableAsync(string username, Guid? excludeUserId = null)
     {
-        var normalizedUsername = username.ToLower();
+        var normalizedUsername = username.ToLower(System.Globalization.CultureInfo.InvariantCulture);
 
+#pragma warning disable CA1304 // ToLower() in EF expression tree is translated to SQL LOWER()
         var query = _dbContext.Users.Where(u => u.Username != null && u.Username.ToLower() == normalizedUsername);
+#pragma warning restore CA1304
 
         if (excludeUserId.HasValue)
         {

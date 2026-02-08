@@ -16,7 +16,7 @@ public class GoogleSheetsService
     /// </summary>
     public async Task<string> FetchCsvDataAsync(string csvExportUrl)
     {
-        var httpClient = _httpClientFactory.CreateClient();
+        using var httpClient = _httpClientFactory.CreateClient();
 
         try
         {
@@ -103,11 +103,11 @@ public class GoogleSheetsService
     /// </summary>
     public async Task<bool> ValidateCsvAccessAsync(string csvExportUrl)
     {
-        var httpClient = _httpClientFactory.CreateClient();
+        using var httpClient = _httpClientFactory.CreateClient();
 
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Head, csvExportUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Head, csvExportUrl);
             var response = await httpClient.SendAsync(request);
 
             return response.IsSuccessStatusCode;

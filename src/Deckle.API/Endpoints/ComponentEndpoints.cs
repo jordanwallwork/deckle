@@ -10,6 +10,7 @@ namespace Deckle.API.Endpoints;
 
 public static class ComponentEndpoints
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Justification = "Endpoint mapping inherently couples to many types")]
     public static RouteGroupBuilder MapComponentEndpoints(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/projects/{projectId:guid}/components")

@@ -24,7 +24,7 @@ public partial class SmtpEmailSender : IEmailSender
 
     public async Task SendAsync(IEmailTemplate template, CancellationToken cancellationToken = default)
     {
-        var message = CreateMimeMessage(template);
+        using var message = CreateMimeMessage(template);
 
         try
         {
@@ -84,7 +84,7 @@ public partial class SmtpEmailSender : IEmailSender
             // Send all emails using the same connection
             foreach (var template in templateList)
             {
-                var message = CreateMimeMessage(template);
+                using var message = CreateMimeMessage(template);
                 await client.SendAsync(message, cancellationToken);
 
                 LogEmailSent(string.Join(", ", template.To.Select(t => t.Address)), template.Subject);

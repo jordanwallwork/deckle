@@ -65,8 +65,8 @@ public static class Extensions
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>
-                            !context.Request.Path.StartsWithSegments(_healthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(_alivenessEndpointPath)
+                            !context.Request.Path.StartsWithSegments(_healthEndpointPath, StringComparison.OrdinalIgnoreCase)
+                            && !context.Request.Path.StartsWithSegments(_alivenessEndpointPath, StringComparison.OrdinalIgnoreCase)
                     )
                     // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                     //.AddGrpcClientInstrumentation()

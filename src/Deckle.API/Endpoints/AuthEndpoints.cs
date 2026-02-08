@@ -11,6 +11,7 @@ namespace Deckle.API.Endpoints;
 
 public static partial class AuthEndpoints
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Justification = "Endpoint mapping inherently couples to many types")]
     public static RouteGroupBuilder MapAuthEndpoints(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/auth")
@@ -47,7 +48,7 @@ public static partial class AuthEndpoints
             var redirectUri = frontendUrl.TrimEnd('/');
 
             //Ensure returnUrl is a relative path to prevent open redirect attacks
-            if (!string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//"))
+            if (!string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/')  && !returnUrl.StartsWith("//", StringComparison.Ordinal))
             {
                 redirectUri += returnUrl;
             }

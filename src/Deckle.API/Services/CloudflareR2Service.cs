@@ -72,7 +72,7 @@ public partial class CloudflareR2Service : IDisposable
             };
 
             // Add metadata for file size validation
-            request.Metadata.Add("x-amz-meta-filesize", fileSizeBytes.ToString());
+            request.Metadata.Add("x-amz-meta-filesize", fileSizeBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
             var url = _s3Client.GetPreSignedURL(request);
 

@@ -24,6 +24,7 @@ public class AppDbContext : DbContext
     public DbSet<Entities.File> Files { get; set; }
     public DbSet<FileDirectory> FileDirectories { get; set; }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Justification = "EF Core DbContext configuration inherently couples to all entity types")]
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -155,7 +156,7 @@ public class AppDbContext : DbContext
                 .Metadata.SetValueComparer(
                     new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>?>(
                         (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
-                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode(StringComparison.Ordinal))),
                         c => c == null ? null : c.ToList()
                     )
                 );
@@ -368,7 +369,7 @@ public class AppDbContext : DbContext
                 .Metadata.SetValueComparer(
                     new ValueComparer<List<string>>(
                         (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
-                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode(StringComparison.Ordinal))),
                         c => c == null ? new List<string>() : c.ToList()
                     )
                 );

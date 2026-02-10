@@ -15,6 +15,9 @@ public class AppDbContext : DbContext
     public DbSet<Project> Projects { get; set; }
     public DbSet<UserProject> UserProjects { get; set; }
     public DbSet<DataSource> DataSources { get; set; }
+    public DbSet<GoogleSheetsDataSource> GoogleSheetsDataSources { get; set; }
+    public DbSet<SampleDataSource> SampleDataSources { get; set; }
+    public DbSet<SpreadsheetDataSource> SpreadsheetDataSources { get; set; }
     public DbSet<Component> Components { get; set; }
     public DbSet<Card> Cards { get; set; }
     public DbSet<Dice> Dices { get; set; }
@@ -22,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<Entities.File> Files { get; set; }
     public DbSet<FileDirectory> FileDirectories { get; set; }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Justification = "EF Core DbContext configuration inherently couples to all entity types")]
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -144,21 +148,6 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasConversion<string>();
 
-            entity.Property(ds => ds.ConnectionString)
-                .IsRequired()
-                .HasMaxLength(1000);
-
-            entity.Property(ds => ds.GoogleSheetsId)
-                .HasMaxLength(255);
-
-            entity.Property(ds => ds.GoogleSheetsUrl)
-                .HasMaxLength(500);
-
-            entity.Property(ds => ds.SheetGid);
-
-            entity.Property(ds => ds.CsvExportUrl)
-                .HasMaxLength(1000);
-
             entity.Property(ds => ds.Headers)
                 .HasColumnType("jsonb")
                 .HasConversion(
@@ -168,7 +157,7 @@ public class AppDbContext : DbContext
                 .Metadata.SetValueComparer(
                     new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>?>(
                         (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
-                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode(StringComparison.Ordinal))),
                         c => c == null ? null : c.ToList()
                     )
                 );
@@ -183,10 +172,52 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            // ProjectId is now nullable - SampleDataSources may not be associated with a project
             entity.HasOne(ds => ds.Project)
                 .WithMany(p => p.DataSources)
                 .HasForeignKey(ds => ds.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // TPH discriminator using Type property
+            entity.HasDiscriminator(ds => ds.Type)
+                .HasValue<GoogleSheetsDataSource>(DataSourceType.GoogleSheets)
+                .HasValue<SampleDataSource>(DataSourceType.Sample)
+                .HasValue<SpreadsheetDataSource>(DataSourceType.Spreadsheet);
+        });
+
+        modelBuilder.Entity<GoogleSheetsDataSource>(entity =>
+        {
+            entity.Property(ds => ds.GoogleSheetsId)
+                .HasMaxLength(255);
+
+            entity.Property(ds => ds.GoogleSheetsUrl)
+                .HasMaxLength(500)
+                .HasConversion(
+                    v => v != null ? v.ToString() : null,
+                    v => v != null ? new Uri(v) : null);
+
+            entity.Property(ds => ds.SheetGid);
+
+            entity.Property(ds => ds.CsvExportUrl)
+                .HasMaxLength(1000)
+                .HasConversion(
+                    v => v != null ? v.ToString() : null,
+                    v => v != null ? new Uri(v) : null);
+        });
+
+        modelBuilder.Entity<SampleDataSource>(entity =>
+        {
+            entity.HasOne(ds => ds.SourceDataSource)
+                .WithMany()
+                .HasForeignKey(ds => ds.SourceDataSourceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SpreadsheetDataSource>(entity =>
+        {
+            entity.Property(ds => ds.JsonData)
+                .HasColumnName("JsonData")
+                .HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<Component>(entity =>
@@ -205,6 +236,7 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            // ProjectId is nullable - shared sample components may not be associated with a project
             entity.HasOne(c => c.Project)
                 .WithMany(p => p.Components)
                 .HasForeignKey(c => c.ProjectId)
@@ -218,6 +250,9 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Card>(entity =>
         {
+            entity.Property(c => c.Horizontal)
+                .HasColumnName("Horizontal");
+
             entity.Property(c => c.Size)
                 .IsRequired()
                 .HasConversion<string>();
@@ -259,11 +294,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<PlayerMat>(entity =>
         {
-            entity.Property(pm => pm.PresetSize)
-                .HasConversion<string>();
+            entity.Property(pm => pm.Horizontal)
+                .HasColumnName("Horizontal");
 
-            entity.Property(pm => pm.Orientation)
-                .IsRequired()
+            entity.Property(pm => pm.PresetSize)
                 .HasConversion<string>();
 
             entity.Property(pm => pm.CustomWidthMm)
@@ -346,7 +380,7 @@ public class AppDbContext : DbContext
                 .Metadata.SetValueComparer(
                     new ValueComparer<List<string>>(
                         (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
-                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode(StringComparison.Ordinal))),
                         c => c == null ? new List<string>() : c.ToList()
                     )
                 );

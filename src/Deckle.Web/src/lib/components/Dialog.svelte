@@ -19,19 +19,15 @@
     actions
   }: Props = $props();
 
-  function handleOverlayClick() {
+  function handleClose() {
     if (onclose) {
       onclose();
     }
   }
 
-  function handleDialogClick(e: MouseEvent) {
-    e.stopPropagation();
-  }
-
   function handleEscapeKey(e: KeyboardEvent) {
-    if (e.key === 'Escape' && onclose) {
-      onclose();
+    if (e.key === 'Escape') {
+      handleClose();
     }
   }
 
@@ -45,20 +41,21 @@
   <div
     class="dialog-overlay"
     role="presentation"
-    onclick={handleOverlayClick}
     onkeydown={handleEscapeKey}
   >
     <div
       class="dialog"
       style="max-width: {maxWidth}"
-      onclick={handleDialogClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby="dialog-title"
       tabindex="-1"
       use:autoFocus
     >
-      <h2 id="dialog-title">{title}</h2>
+      <div class="dialog-header">
+        <h2 id="dialog-title">{title}</h2>
+        <button class="close-button" onclick={handleClose} aria-label="Close dialog">&times;</button>
+      </div>
       <div class="dialog-content">
         {@render children()}
       </div>
@@ -94,11 +91,35 @@
     overflow-y: auto;
   }
 
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
   .dialog h2 {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--color-sage);
-    margin-bottom: 1.5rem;
+    margin: 0;
+  }
+
+  .close-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--color-sage);
+    padding: 0.25rem;
+    border-radius: 4px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+  }
+
+  .close-button:hover {
+    opacity: 1;
   }
 
   .dialog-content {

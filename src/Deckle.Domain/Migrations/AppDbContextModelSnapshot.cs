@@ -43,7 +43,7 @@ namespace Deckle.Domain.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<Guid>("ProjectId")
+                    b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -68,27 +68,10 @@ namespace Deckle.Domain.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ConnectionString")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("CsvExportUrl")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("GoogleSheetsId")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("GoogleSheetsUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Headers")
                         .HasColumnType("jsonb");
@@ -98,13 +81,10 @@ namespace Deckle.Domain.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<Guid>("ProjectId")
+                    b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid");
 
                     b.Property<int?>("RowCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("SheetGid")
                         .HasColumnType("integer");
 
                     b.Property<string>("Type")
@@ -121,6 +101,10 @@ namespace Deckle.Domain.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("DataSources");
+
+                    b.HasDiscriminator<string>("Type");
+
+                    b.UseTphMappingStrategy();
                 });
 
             modelBuilder.Entity("Deckle.Domain.Entities.File", b =>
@@ -395,6 +379,11 @@ namespace Deckle.Domain.Migrations
                     b.Property<string>("FrontDesign")
                         .HasColumnType("text");
 
+                    b.Property<bool>("Horizontal")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("boolean")
+                        .HasColumnName("Horizontal");
+
                     b.Property<string>("Shape")
                         .IsRequired()
                         .ValueGeneratedOnUpdateSometimes()
@@ -450,9 +439,10 @@ namespace Deckle.Domain.Migrations
                     b.Property<string>("FrontDesign")
                         .HasColumnType("text");
 
-                    b.Property<string>("Orientation")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<bool>("Horizontal")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("boolean")
+                        .HasColumnName("Horizontal");
 
                     b.Property<string>("PresetSize")
                         .HasColumnType("text");
@@ -479,13 +469,63 @@ namespace Deckle.Domain.Migrations
                     b.HasDiscriminator().HasValue("PlayerMat");
                 });
 
+            modelBuilder.Entity("Deckle.Domain.Entities.GoogleSheetsDataSource", b =>
+                {
+                    b.HasBaseType("Deckle.Domain.Entities.DataSource");
+
+                    b.Property<string>("CsvExportUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("GoogleSheetsId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("GoogleSheetsUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("SheetGid")
+                        .HasColumnType("integer");
+
+                    b.HasDiscriminator().HasValue("GoogleSheets");
+                });
+
+            modelBuilder.Entity("Deckle.Domain.Entities.SampleDataSource", b =>
+                {
+                    b.HasBaseType("Deckle.Domain.Entities.DataSource");
+
+                    b.Property<string>("JsonData")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("JsonData");
+
+                    b.Property<Guid?>("SourceDataSourceId")
+                        .HasColumnType("uuid");
+
+                    b.HasIndex("SourceDataSourceId");
+
+                    b.HasDiscriminator().HasValue("Sample");
+                });
+
+            modelBuilder.Entity("Deckle.Domain.Entities.SpreadsheetDataSource", b =>
+                {
+                    b.HasBaseType("Deckle.Domain.Entities.DataSource");
+
+                    b.Property<string>("JsonData")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("JsonData");
+
+                    b.HasDiscriminator().HasValue("Spreadsheet");
+                });
+
             modelBuilder.Entity("Deckle.Domain.Entities.Component", b =>
                 {
                     b.HasOne("Deckle.Domain.Entities.Project", "Project")
                         .WithMany("Components")
                         .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Project");
                 });
@@ -495,8 +535,7 @@ namespace Deckle.Domain.Migrations
                     b.HasOne("Deckle.Domain.Entities.Project", "Project")
                         .WithMany("DataSources")
                         .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Project");
                 });
@@ -582,6 +621,16 @@ namespace Deckle.Domain.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("DataSource");
+                });
+
+            modelBuilder.Entity("Deckle.Domain.Entities.SampleDataSource", b =>
+                {
+                    b.HasOne("Deckle.Domain.Entities.DataSource", "SourceDataSource")
+                        .WithMany()
+                        .HasForeignKey("SourceDataSourceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("SourceDataSource");
                 });
 
             modelBuilder.Entity("Deckle.Domain.Entities.FileDirectory", b =>

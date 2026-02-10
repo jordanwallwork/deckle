@@ -11,7 +11,10 @@ public abstract record ComponentDto
 {
     public required string Type { get; init; }
     public required Guid Id { get; init; }
-    public required Guid ProjectId { get; init; }
+    /// <summary>
+    /// The project this component belongs to, or null for shared sample components.
+    /// </summary>
+    public Guid? ProjectId { get; init; }
     public required string Name { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
@@ -52,6 +55,7 @@ public record DataSourceInfo(Guid Id, string Name);
 public record CardDto : ComponentDto
 {
     public required string Size { get; init; }
+    public required bool Horizontal { get; init; }
     public required Dimensions Dimensions { get; init; }
     public string? FrontDesign { get; init; }
     public string? BackDesign { get; init; }
@@ -64,7 +68,8 @@ public record CardDto : ComponentDto
     public CardDto(Card card) : base("Card", card)
     {
         Size = card.Size.ToString();
-        Dimensions = card.Size.GetDimensions(false);
+        Horizontal = card.Horizontal;
+        Dimensions = card.GetDimensions();
         FrontDesign = card.FrontDesign;
         BackDesign = card.BackDesign;
         Shape = card.Shape;
@@ -93,18 +98,18 @@ public record DiceDto : ComponentDto
     }
 }
 
-public record CreateCardRequest(string Name, CardSize Size);
+public record CreateCardRequest(string Name, CardSize Size, bool Horizontal = false, Guid? Sample = null);
 
 public record CreateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);
 
-public record UpdateCardRequest(string Name, CardSize Size);
+public record UpdateCardRequest(string Name, CardSize Size, bool Horizontal = false, Guid? Sample = null);
 
 public record UpdateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);
 
 public record PlayerMatDto : ComponentDto
 {
     public string? PresetSize { get; init; }
-    public required string Orientation { get; init; }
+    public required bool Horizontal { get; init; }
     public decimal? CustomWidthMm { get; init; }
     public decimal? CustomHeightMm { get; init; }
     public required Dimensions Dimensions { get; init; }
@@ -119,7 +124,7 @@ public record PlayerMatDto : ComponentDto
     public PlayerMatDto(PlayerMat playerMat) : base("PlayerMat", playerMat)
     {
         PresetSize = playerMat.PresetSize?.ToString();
-        Orientation = playerMat.Orientation.ToString();
+        Horizontal = playerMat.Horizontal;
         CustomWidthMm = playerMat.CustomWidthMm;
         CustomHeightMm = playerMat.CustomHeightMm;
         Dimensions = playerMat.GetDimensions();
@@ -135,14 +140,16 @@ public record PlayerMatDto : ComponentDto
 public record CreatePlayerMatRequest(
     string Name,
     PlayerMatSize? PresetSize,
-    PlayerMatOrientation Orientation,
-    decimal? CustomWidthMm,
-    decimal? CustomHeightMm);
+    bool Horizontal = false,
+    decimal? CustomWidthMm = null,
+    decimal? CustomHeightMm = null,
+    Guid? Sample = null);
 
 public record UpdatePlayerMatRequest(
     string Name,
     PlayerMatSize? PresetSize,
-    PlayerMatOrientation Orientation,
-    decimal? CustomWidthMm,
-    decimal? CustomHeightMm);
+    bool Horizontal = false,
+    decimal? CustomWidthMm = null,
+    decimal? CustomHeightMm = null,
+    Guid? Sample = null);
 

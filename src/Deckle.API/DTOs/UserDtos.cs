@@ -50,3 +50,27 @@ public record AdminUserListResponse
 public record UpdateUserRoleRequest(string Role);
 
 public record UpdateUserQuotaRequest(int StorageQuotaMb);
+
+// Admin Sample Component DTOs
+public record AdminSampleComponentDto
+{
+    public required Guid Id { get; init; }
+    public required string Type { get; init; }
+    public required string Name { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public required DateTime UpdatedAt { get; init; }
+    /// <summary>
+    /// Component-specific stats displayed as key-value pairs.
+    /// Examples: Card has "Size", "Horizontal"; Dice has "DiceType", "Style", "Color", "Number"
+    /// </summary>
+    public required Dictionary<string, string> Stats { get; init; }
+    public DataSourceInfo? DataSource { get; init; }
+}
+
+public record AdminSampleComponentListResponse
+{
+    public required List<AdminSampleComponentDto> Components { get; init; }
+    public required int TotalCount { get; init; }
+    public required int Page { get; init; }
+    public required int PageSize { get; init; }
+}

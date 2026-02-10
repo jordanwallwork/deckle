@@ -29,8 +29,8 @@ export function dimensionValue(
 
   // Handle mm unit - convert to px
   if (typeof value === 'string' && value.includes('mm') && dpi !== undefined) {
-    const numericValue = parseFloat(value);
-    if (!isNaN(numericValue)) {
+    const numericValue = Number.parseFloat(value);
+    if (!Number.isNaN(numericValue)) {
       return `${mmToPx(numericValue, dpi)}px`;
     }
   }
@@ -48,15 +48,15 @@ export function dimensionToPx(value: number | string | undefined, dpi?: number):
 
   // Handle mm unit - convert to px
   if (typeof value === 'string' && value.includes('mm') && dpi !== undefined) {
-    const numericValue = parseFloat(value);
-    if (!isNaN(numericValue)) {
+    const numericValue = Number.parseFloat(value);
+    if (!Number.isNaN(numericValue)) {
       return mmToPx(numericValue, dpi);
     }
   }
 
   // Try to parse numeric value from string (e.g., "10px" -> 10)
-  const parsed = parseFloat(value);
-  return isNaN(parsed) ? 0 : parsed;
+  const parsed = Number.parseFloat(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 /**

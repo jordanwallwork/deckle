@@ -7,7 +7,22 @@ namespace Deckle.API.Exceptions;
 /// </summary>
 public class DirectoryConflictException : Exception
 {
-    public DirectoryMoveConflictDto Conflict { get; }
+    public DirectoryMoveConflictDto? Conflict { get; }
+
+    public DirectoryConflictException()
+        : base("A directory conflict occurred")
+    {
+    }
+
+    public DirectoryConflictException(string message)
+        : base(message)
+    {
+    }
+
+    public DirectoryConflictException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 
     public DirectoryConflictException(DirectoryMoveConflictDto conflict)
         : base(conflict.Message)

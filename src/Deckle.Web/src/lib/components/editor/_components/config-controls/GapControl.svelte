@@ -15,14 +15,14 @@
     min="0"
     max="50"
     {value}
-    oninput={(e) => onchange(parseInt(e.currentTarget.value) || 0)}
+    oninput={(e) => onchange(Number.parseInt(e.currentTarget.value) || 0)}
   />
   <input
     type="number"
     class="gap-number"
     min="0"
     {value}
-    oninput={(e) => onchange(parseInt(e.currentTarget.value) || 0)}
+    oninput={(e) => onchange(Number.parseInt(e.currentTarget.value) || 0)}
   />
   <span class="unit">px</span>
 </div>

@@ -142,9 +142,7 @@ public partial class FileService
 
         var expiresAt = DateTime.UtcNow.AddMinutes(15);
 
-        _logger.LogInformation(
-            "Generated upload URL for user {UserId}, project {ProjectId}, file {FileId}",
-            userId, projectId, fileId);
+        LogUploadUrlGenerated(userId, projectId, fileId);
 
         return new RequestUploadUrlResponse(
             fileId,
@@ -198,9 +196,7 @@ public partial class FileService
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Confirmed upload for file {FileId}, updated quota for project owner",
-            fileId);
+        LogUploadConfirmed(fileId);
 
         return MapToDto(file);
     }
@@ -310,7 +306,7 @@ public partial class FileService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to delete file from R2: {StorageKey}", file.StorageKey);
+            LogR2DeleteFailed(ex, file.StorageKey);
             // Continue with database deletion even if R2 deletion fails
         }
 
@@ -330,8 +326,7 @@ public partial class FileService
         _context.Files.Remove(file);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Deleted file {FileId}, updated quota for project owner",
-            fileId);
+        LogFileDeleted(fileId);
     }
 
     /// <summary>
@@ -377,9 +372,7 @@ public partial class FileService
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Updated tags for file {FileId} by user {UserId}",
-            fileId, userId);
+        LogFileTagsUpdated(fileId, userId);
 
         return MapToDto(file);
     }
@@ -472,9 +465,7 @@ public partial class FileService
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Renamed file {FileId} from '{OldFileName}' to '{NewFileName}' by user {UserId}",
-            fileId, Path.GetFileName(oldStorageKey), finalFileName, userId);
+        LogFileRenamed(fileId, Path.GetFileName(oldStorageKey), finalFileName, userId);
 
         return MapToDto(file);
     }
@@ -504,9 +495,7 @@ public partial class FileService
 
         if (uniqueFileName != fileName)
         {
-            _logger.LogInformation(
-                "Renamed file from '{OriginalFileName}' to '{UniqueFileName}' to ensure uniqueness at path '{Path}' in project {ProjectId}",
-                fileName, uniqueFileName, basePath, projectId);
+            LogFileRenamedForUniqueness(fileName, uniqueFileName, basePath, projectId);
         }
 
         return uniqueFileName;
@@ -581,9 +570,7 @@ public partial class FileService
         file.Path = newPath;
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Moved file {FileId} to directory {DirectoryId} (path: {Path}) by user {UserId}",
-            fileId, directoryId?.ToString() ?? "root", newPath, userId);
+        LogFileMoved(fileId, directoryId?.ToString() ?? "root", newPath, userId);
 
         return MapToDto(file);
     }
@@ -642,6 +629,30 @@ public partial class FileService
             file.Tags
         );
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Generated upload URL for user {UserId}, project {ProjectId}, file {FileId}")]
+    private partial void LogUploadUrlGenerated(Guid userId, Guid projectId, Guid fileId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Confirmed upload for file {FileId}, updated quota for project owner")]
+    private partial void LogUploadConfirmed(Guid fileId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to delete file from R2: {StorageKey}")]
+    private partial void LogR2DeleteFailed(Exception ex, string storageKey);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Deleted file {FileId}, updated quota for project owner")]
+    private partial void LogFileDeleted(Guid fileId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Updated tags for file {FileId} by user {UserId}")]
+    private partial void LogFileTagsUpdated(Guid fileId, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Renamed file {FileId} from '{OldFileName}' to '{NewFileName}' by user {UserId}")]
+    private partial void LogFileRenamed(Guid fileId, string oldFileName, string newFileName, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Renamed file from '{OriginalFileName}' to '{UniqueFileName}' to ensure uniqueness at path '{Path}' in project {ProjectId}")]
+    private partial void LogFileRenamedForUniqueness(string originalFileName, string uniqueFileName, string path, Guid projectId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Moved file {FileId} to directory {DirectoryId} (path: {Path}) by user {UserId}")]
+    private partial void LogFileMoved(Guid fileId, string directoryId, string path, Guid userId);
 
     [GeneratedRegex(@"^[a-z0-9\-_]+$", RegexOptions.Compiled)]
     private static partial Regex TagPatternRegex();

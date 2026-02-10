@@ -4,13 +4,28 @@
     DICE_COLORS,
     DICE_TYPES,
     DICE_STYLES,
-    PLAYER_MAT_SIZES,
-    PLAYER_MAT_ORIENTATIONS
+    PLAYER_MAT_SIZES
   } from '$lib/constants';
-  import type { GameComponent } from '$lib/types';
+  import type { GameComponent, CardComponent, PlayerMatComponent } from '$lib/types';
   import { isCard, isDice, isPlayerMat } from '$lib/utils/componentTypes';
 
   let { component }: { component: GameComponent } = $props();
+
+  function getCardSizeLabel(card: CardComponent): string {
+    const sizeInfo = CARD_SIZES.find((s) => s.value === card.size);
+    if (!sizeInfo) return card.size;
+    const width = card.horizontal ? sizeInfo.heightMm : sizeInfo.widthMm;
+    const height = card.horizontal ? sizeInfo.widthMm : sizeInfo.heightMm;
+    return `${sizeInfo.label} (${width}mm × ${height}mm)`;
+  }
+
+  function getMatSizeLabel(mat: PlayerMatComponent): string {
+    const sizeInfo = PLAYER_MAT_SIZES.find((s) => s.value === mat.presetSize);
+    if (!sizeInfo) return mat.presetSize || '';
+    const width = mat.horizontal ? sizeInfo.heightMm : sizeInfo.widthMm;
+    const height = mat.horizontal ? sizeInfo.widthMm : sizeInfo.heightMm;
+    return `${sizeInfo.label} (${width}mm × ${height}mm)`;
+  }
 </script>
 
 {#if isDice(component)}
@@ -30,16 +45,13 @@
   </div>
 {:else if isCard(component)}
   <p class="component-type">
-    Card • {CARD_SIZES.find((s) => s.value === component.size)?.label || component.size}
+    Card • {getCardSizeLabel(component)}
   </p>
 {:else if isPlayerMat(component)}
   <p class="component-type">
     Player Mat •
     {#if component.presetSize}
-      {PLAYER_MAT_SIZES.find((s) => s.value === component.presetSize)?.label ||
-        component.presetSize}
-      ({PLAYER_MAT_ORIENTATIONS.find((o) => o.value === component.orientation)?.label ||
-        component.orientation})
+      {getMatSizeLabel(component)}
     {:else}
       Custom ({component.customWidthMm}mm × {component.customHeightMm}mm)
     {/if}

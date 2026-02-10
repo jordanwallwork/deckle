@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
@@ -8,10 +9,12 @@ namespace Deckle.API.Services;
 public class AdminService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ComponentService _componentService;
 
-    public AdminService(AppDbContext dbContext)
+    public AdminService(AppDbContext dbContext, ComponentService componentService)
     {
         _dbContext = dbContext;
+        _componentService = componentService;
     }
 
     public async Task<AdminUserListResponse> GetUsersAsync(int page = 1, int pageSize = 20, string? search = null)
@@ -20,10 +23,9 @@ public class AdminService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var searchLower = search.ToLower();
             query = query.Where(u =>
-                u.Email.ToLower().Contains(searchLower) ||
-                (u.Name != null && u.Name.ToLower().Contains(searchLower)));
+                u.Email.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                (u.Name != null && u.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
         }
 
         var totalCount = await query.CountAsync();

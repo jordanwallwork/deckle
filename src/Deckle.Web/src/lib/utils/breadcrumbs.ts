@@ -1,4 +1,4 @@
-import type { Component, Project, GameComponent } from '$lib/types';
+import type { Component, Project, GameComponent, EditableComponent } from '$lib/types';
 import type { BreadcrumbItem } from '$lib/types/breadcrumb';
 
 type ProjectIdName = Project | { id: string; name: string; ownerUsername: string; code: string };
@@ -106,5 +106,68 @@ export function buildDataSourceBreadcrumbs(
       href: `${getProjectUrl(project)}/data-sources/${dataSourceId}`,
       isActive: true
     }
+  ]);
+}
+
+export function buildDataSourceEditBreadcrumbs(
+  project: ProjectIdName,
+  dataSourceId: string,
+  dataSourceName: string
+): BreadcrumbItem[] {
+  return extend(buildProjectBreadcrumbs(project), [
+    { label: 'Data Sources', href: `${getProjectUrl(project)}/data-sources` },
+    {
+      label: dataSourceName,
+      href: `${getProjectUrl(project)}/data-sources/${dataSourceId}/edit`,
+      isActive: true
+    }
+  ]);
+}
+
+// Admin breadcrumbs
+
+export function buildAdminBreadcrumbs(): BreadcrumbItem[] {
+  return [{ label: 'Admin', href: '/admin', isActive: true }];
+}
+
+export function buildAdminSamplesBreadcrumbs(): BreadcrumbItem[] {
+  return extend(buildAdminBreadcrumbs(), [
+    { label: 'Samples', href: '/admin/samples', isActive: true }
+  ]);
+}
+
+export function buildAdminSampleEditorBreadcrumbs(
+  component: EditableComponent,
+  part: string,
+  partLabel: string
+): BreadcrumbItem[] {
+  return extend(buildAdminSamplesBreadcrumbs(), [
+    { label: component.name, href: `/admin/samples/${component.id}/front` },
+    {
+      label: `${partLabel} Design`,
+      href: `/admin/samples/${component.id}/${part}`,
+      isActive: true
+    }
+  ]);
+}
+
+export function buildAdminUsersBreadcrumbs(): BreadcrumbItem[] {
+  return extend(buildAdminBreadcrumbs(), [
+    { label: 'Users', href: '/admin/users', isActive: true }
+  ]);
+}
+
+export function buildAdminDataSourcesBreadcrumbs(): BreadcrumbItem[] {
+  return extend(buildAdminBreadcrumbs(), [
+    { label: 'Data Sources', href: '/admin/data-sources', isActive: true }
+  ]);
+}
+
+export function buildAdminDataSourceEditorBreadcrumbs(
+  name: string,
+  id: string
+): BreadcrumbItem[] {
+  return extend(buildAdminDataSourcesBreadcrumbs(), [
+    { label: name, href: `/admin/data-sources/${id}`, isActive: true }
   ]);
 }

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
-public class FileDirectoryService
+public partial class FileDirectoryService
 {
     private readonly AppDbContext _context;
     private readonly ProjectAuthorizationService _authService;
@@ -81,9 +81,7 @@ public class FileDirectoryService
         _context.FileDirectories.Add(directory);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Created directory '{Name}' in project {ProjectId} by user {UserId}",
-            name, projectId, userId);
+        LogDirectoryCreated(name, projectId, userId);
 
         return MapToDto(directory);
     }
@@ -310,9 +308,7 @@ public class FileDirectoryService
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Renamed directory {DirectoryId} from '{OldName}' to '{NewName}' by user {UserId}",
-            directoryId, oldName, newName, userId);
+        LogDirectoryRenamed(directoryId, oldName, newName, userId);
 
         return MapToDto(directory);
     }
@@ -399,9 +395,7 @@ public class FileDirectoryService
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Moved directory {DirectoryId} to parent {ParentDirectoryId} by user {UserId}",
-            directoryId, newParentDirectoryId?.ToString() ?? "root", userId);
+        LogDirectoryMoved(directoryId, newParentDirectoryId?.ToString() ?? "root", userId);
 
         return MapToDto(directory);
     }
@@ -414,9 +408,7 @@ public class FileDirectoryService
         FileDirectory sourceDirectory,
         FileDirectory targetDirectory)
     {
-        _logger.LogInformation(
-            "Merging directory {SourceId} ('{SourceName}') into {TargetId} ('{TargetName}') by user {UserId}",
-            sourceDirectory.Id, sourceDirectory.Name, targetDirectory.Id, targetDirectory.Name, userId);
+        LogDirectoryMergeStarted(sourceDirectory.Id, sourceDirectory.Name, targetDirectory.Id, targetDirectory.Name, userId);
 
         // Get the target directory's full path for file path updates
         var targetPath = await GetDirectoryFullPathAsync(targetDirectory);
@@ -482,9 +474,7 @@ public class FileDirectoryService
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Completed merge of directory {SourceId} into {TargetId}. Source directory deleted.",
-            sourceDirectory.Id, targetDirectory.Id);
+        LogDirectoryMergeCompleted(sourceDirectory.Id, targetDirectory.Id);
 
         // Return the target directory (which now contains the merged contents)
         return MapToDto(targetDirectory);
@@ -513,9 +503,7 @@ public class FileDirectoryService
         _context.FileDirectories.Remove(directory);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Deleted directory {DirectoryId} by user {UserId}",
-            directoryId, userId);
+        LogDirectoryDeleted(directoryId, userId);
 
         return true;
     }
@@ -666,8 +654,27 @@ public class FileDirectoryService
             }
         }
 
-        _logger.LogInformation(
-            "Updated paths for {FileCount} files from '{OldPath}' to '{NewPath}'",
-            files.Count, oldPath, newPath);
+        LogFilePathsUpdated(files.Count, oldPath, newPath);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Created directory '{Name}' in project {ProjectId} by user {UserId}")]
+    private partial void LogDirectoryCreated(string name, Guid projectId, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Renamed directory {DirectoryId} from '{OldName}' to '{NewName}' by user {UserId}")]
+    private partial void LogDirectoryRenamed(Guid directoryId, string oldName, string newName, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Moved directory {DirectoryId} to parent {ParentDirectoryId} by user {UserId}")]
+    private partial void LogDirectoryMoved(Guid directoryId, string parentDirectoryId, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Merging directory {SourceId} ('{SourceName}') into {TargetId} ('{TargetName}') by user {UserId}")]
+    private partial void LogDirectoryMergeStarted(Guid sourceId, string sourceName, Guid targetId, string targetName, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Completed merge of directory {SourceId} into {TargetId}. Source directory deleted.")]
+    private partial void LogDirectoryMergeCompleted(Guid sourceId, Guid targetId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Deleted directory {DirectoryId} by user {UserId}")]
+    private partial void LogDirectoryDeleted(Guid directoryId, Guid userId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Updated paths for {FileCount} files from '{OldPath}' to '{NewPath}'")]
+    private partial void LogFilePathsUpdated(int fileCount, string oldPath, string newPath);
 }

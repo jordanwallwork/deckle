@@ -260,7 +260,7 @@
       // Create instances for this component
       for (const rowData of instances) {
         // Check for "Num" field for duplicates
-        const numCopies = rowData.Num ? Math.max(1, parseInt(rowData.Num, 10) || 1) : 1;
+        const numCopies = rowData.Num ? Math.max(1, Number.parseInt(rowData.Num, 10) || 1) : 1;
 
         for (let copyIndex = 0; copyIndex < numCopies; copyIndex++) {
           // Generate instance key and check rotation state

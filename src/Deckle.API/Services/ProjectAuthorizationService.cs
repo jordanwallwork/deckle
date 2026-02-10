@@ -27,11 +27,19 @@ public class ProjectAuthorizationService
             .AnyAsync(up => up.UserId == userId && up.ProjectId == projectId);
     }
 
+    private async Task<User?> GetUserAsync(Guid userId) => await _context.Users.FindAsync(userId);
+
     /// <summary>
     /// Gets the user's role in a project, or null if the user doesn't have access.
     /// </summary>
-    public async Task<ProjectRole?> GetUserProjectRoleAsync(Guid userId, Guid projectId)
+    public async Task<ProjectRole?> GetUserProjectRoleAsync(Guid userId, Guid? projectId)
     {
+        if (projectId is null)
+        {
+            var user = await GetUserAsync(userId);
+            return user?.Role == UserRole.Administrator ? ProjectRole.Owner : null;
+        }
+
         return await _context.UserProjects
             .Where(up => up.UserId == userId && up.ProjectId == projectId)
             .Select(up => up.Role)
@@ -53,7 +61,7 @@ public class ProjectAuthorizationService
     /// Throws UnauthorizedAccessException if the user doesn't have access to the project.
     /// Returns the user's role if they have access.
     /// </summary>
-    public async Task<ProjectRole> RequireProjectAccessAsync(Guid userId, Guid projectId, string? customMessage = null)
+    public async Task<ProjectRole> RequireProjectAccessAsync(Guid userId, Guid? projectId, string? customMessage = null)
     {
         var role = (await GetUserProjectRoleAsync(userId, projectId))
             ?? throw new UnauthorizedAccessException(customMessage ?? "User does not have access to this project");
@@ -67,18 +75,13 @@ public class ProjectAuthorizationService
     /// </summary>
     public async Task<ProjectRole> RequirePermissionAsync(
         Guid userId,
-        Guid projectId,
+        Guid? projectId,
         Func<ProjectRole, bool> permissionCheck,
         string errorMessage)
     {
         var role = await RequireProjectAccessAsync(userId, projectId);
 
-        if (!permissionCheck(role))
-        {
-            throw new UnauthorizedAccessException(errorMessage);
-        }
-
-        return role;
+        return !permissionCheck(role) ? throw new UnauthorizedAccessException(errorMessage) : role;
     }
 
     #endregion
@@ -140,7 +143,7 @@ public class ProjectAuthorizationService
     /// <summary>
     /// Ensures the user can modify resources (create/update) in the project.
     /// </summary>
-    public async Task EnsureCanModifyResourcesAsync(Guid userId, Guid projectId)
+    public async Task EnsureCanModifyResourcesAsync(Guid userId, Guid? projectId)
     {
         await RequirePermissionAsync(
             userId,

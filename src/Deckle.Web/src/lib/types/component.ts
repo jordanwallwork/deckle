@@ -40,6 +40,7 @@ export interface EditableComponent extends Component {
 export interface CardComponent extends EditableComponent {
   type: 'Card';
   size: string;
+  horizontal: boolean;
   frontDesign?: string | null;
   backDesign?: string | null;
   shape: ComponentShape;
@@ -57,7 +58,7 @@ export interface DiceComponent extends Component {
 export interface PlayerMatComponent extends EditableComponent {
   type: 'PlayerMat';
   presetSize?: string | null;
-  orientation: string;
+  horizontal: boolean;
   customWidthMm?: number | null;
   customHeightMm?: number | null;
   frontDesign?: string | null;
@@ -71,6 +72,8 @@ export type GameComponent = CardComponent | DiceComponent | PlayerMatComponent;
 export interface CreateCardDto {
   name: string;
   size: string;
+  horizontal?: boolean;
+  sample: string | null;
 }
 
 export interface CreateDiceDto {
@@ -84,6 +87,7 @@ export interface CreateDiceDto {
 export interface UpdateCardDto {
   name: string;
   size: string;
+  horizontal?: boolean;
 }
 
 export interface UpdateDiceDto {
@@ -97,15 +101,16 @@ export interface UpdateDiceDto {
 export interface CreatePlayerMatDto {
   name: string;
   presetSize?: string | null;
-  orientation: string;
+  horizontal?: boolean;
   customWidthMm?: number | null;
   customHeightMm?: number | null;
+  sample: string | null;
 }
 
 export interface UpdatePlayerMatDto {
   name: string;
   presetSize?: string | null;
-  orientation: string;
+  horizontal?: boolean;
   customWidthMm?: number | null;
   customHeightMm?: number | null;
 }

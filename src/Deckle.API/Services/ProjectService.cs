@@ -289,11 +289,13 @@ public partial class ProjectService
         email = email.Trim().ToLowerInvariant();
 
         // 4. Check if user is already a member (check by email, not UserId)
+        var lowerEmail = email.ToLower(System.Globalization.CultureInfo.InvariantCulture);
+#pragma warning disable CA1304 // ToLower() in EF expression tree is translated to SQL LOWER()
         var existingMember = await _dbContext.UserProjects
             .Include(up => up.User)
             .FirstOrDefaultAsync(up =>
                 up.ProjectId == projectId &&
-                up.User.Email.ToLower() == email);
+                up.User.Email.ToLower() == lowerEmail);
 
         if (existingMember != null)
         {
@@ -302,7 +304,8 @@ public partial class ProjectService
 
         // 5. Check if User record exists with this email
         var invitedUser = await _dbContext.Users
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == email);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == lowerEmail);
+#pragma warning restore CA1304
 
         if (invitedUser == null)
         {

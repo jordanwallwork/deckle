@@ -1,6 +1,6 @@
 <script lang="ts">
   import { DICE_TYPES, DICE_STYLES, DICE_COLORS } from '$lib/constants';
-  import { FormField, Input, Select } from '$lib/components/forms';
+  import { FormField, Input, NumberInput, Select } from '$lib/components/forms';
 
   let {
     diceType = $bindable(),
@@ -13,7 +13,7 @@
     diceStyle: string;
     diceColor: string;
     componentName: string;
-    diceNumber: string;
+    diceNumber: number;
   } = $props();
 </script>
 
@@ -23,10 +23,10 @@
   </FormField>
 
   <FormField label="Number of Dice" name="dice-number">
-    <Input
+    <NumberInput
       id="dice-number"
-      type="number"
       bind:value={diceNumber}
+      min={1}
       placeholder="Enter number of dice"
     />
   </FormField>

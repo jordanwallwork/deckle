@@ -1,5 +1,9 @@
+using Deckle.API.Configurators;
 using Deckle.API.DTOs;
+using Deckle.API.Filters;
 using Deckle.API.Services;
+using Deckle.Domain.Entities;
+using Microsoft.AspNetCore.Http;
 
 namespace Deckle.API.Endpoints;
 
@@ -9,8 +13,17 @@ public static class AdminEndpoints
     {
         var group = routes.MapGroup("/admin")
             .WithTags("Admin")
-            .RequireAuthorization("AdminOnly");
+            .RequireAuthorization("AdminOnly")
+            .RequireUserId();
 
+        MapUserEndpoints(group);
+        MapSampleComponentEndpoints(group);
+
+        return group;
+    }
+
+    private static void MapUserEndpoints(RouteGroupBuilder group)
+    {
         // GET /admin/users - List all users with pagination and search
         group.MapGet("/users", async (
             AdminService adminService,
@@ -19,7 +32,7 @@ public static class AdminEndpoints
             string? search = null) =>
         {
             if (page < 1) page = 1;
-            if (pageSize < 1 || pageSize > 100) pageSize = 20;
+            if (pageSize is < 1 or > 100) pageSize = 20;
 
             var result = await adminService.GetUsersAsync(page, pageSize, search);
             return Results.Ok(result);
@@ -32,11 +45,7 @@ public static class AdminEndpoints
             AdminService adminService) =>
         {
             var user = await adminService.GetUserByIdAsync(id);
-            if (user == null)
-            {
-                return Results.NotFound(new { error = "User not found" });
-            }
-            return Results.Ok(user);
+            return user == null ? Results.NotFound(new { error = "User not found" }) : Results.Ok(user);
         })
         .WithName("GetAdminUser");
 
@@ -47,11 +56,7 @@ public static class AdminEndpoints
             AdminService adminService) =>
         {
             var user = await adminService.UpdateUserRoleAsync(id, request.Role);
-            if (user == null)
-            {
-                return Results.BadRequest(new { error = "Invalid role or user not found" });
-            }
-            return Results.Ok(user);
+            return user == null ? Results.BadRequest(new { error = "Invalid role or user not found" }) : Results.Ok(user);
         })
         .WithName("UpdateAdminUserRole");
 
@@ -62,14 +67,96 @@ public static class AdminEndpoints
             AdminService adminService) =>
         {
             var user = await adminService.UpdateUserQuotaAsync(id, request.StorageQuotaMb);
-            if (user == null)
-            {
-                return Results.BadRequest(new { error = "Invalid quota or user not found" });
-            }
-            return Results.Ok(user);
+            return user == null ? Results.BadRequest(new { error = "Invalid quota or user not found" }) : Results.Ok(user);
         })
         .WithName("UpdateAdminUserQuota");
+    }
 
-        return group;
+    private static void MapSampleComponentEndpoints(RouteGroupBuilder group)
+    {
+        // GET /admin/samples - List all sample components with pagination, search, and filtering
+        group.MapGet("/samples", async (
+            ComponentService componentService,
+            int page = 1,
+            int pageSize = 20,
+            string? search = null,
+            string? type = null) =>
+        {
+            if (page < 1) page = 1;
+            if (pageSize is < 1 or > 100) pageSize = 20;
+
+            var result = await componentService.GetSampleComponentsAsync(page, pageSize, search, type);
+            return Results.Ok(result);
+        })
+        .WithName("GetAdminSamples");
+
+        // POST /admin/samples/cards - Create a sample card
+        group.MapPost("/samples/cards", async (
+            CreateCardRequest request,
+            HttpContext httpContext,
+            ComponentService componentService) =>
+        {
+            var userId = httpContext.GetUserId();
+            var card = await componentService.CreateComponentAsync<Card, CardConfig>(userId, null, new CardConfig(request.Name, request.Size, request.Horizontal, request.Sample));
+            return Results.Created($"/admin/samples/{card.Id}", new CardDto(card));
+        })
+        .WithName("CreateAdminSampleCard");
+
+        // POST /admin/samples/playermats - Create a sample player mat
+        group.MapPost("/samples/playermats", async (
+            CreatePlayerMatRequest request,
+            HttpContext httpContext,
+            ComponentService componentService) =>
+        {
+            var playerMat = await componentService.CreateComponentAsync<PlayerMat, PlayerMatConfig>(
+                httpContext.GetUserId(), null,
+                new PlayerMatConfig(request.Name, request.PresetSize, request.Horizontal, request.CustomWidthMm, request.CustomHeightMm, request.Sample));
+            return Results.Created($"/admin/samples/{playerMat.Id}", new PlayerMatDto(playerMat));
+        })
+        .WithName("CreateAdminSamplePlayerMat");
+
+        // PUT /admin/samples/{id}/datasource - Update data source for a sample component
+        group.MapPut("/samples/{id:guid}/datasource", async (
+            Guid id,
+            UpdateComponentDataSourceRequest request,
+            ComponentService componentService) =>
+        {
+            var component = await componentService.UpdateSampleDataSourceAsync(id, request.DataSourceId);
+            return component == null
+                ? Results.NotFound(new { error = "Sample component not found or does not support data sources" })
+                : Results.Ok(component);
+        })
+        .WithName("UpdateAdminSampleDataSource");
+
+        // GET /admin/samples/{id} - Get a sample component by ID
+        group.MapGet("/samples/{id:guid}", async (
+            Guid id,
+            HttpContext httpContext,
+            ComponentService componentService) =>
+        {
+            var component = await componentService.GetComponentByIdAsync<Component>(httpContext.GetUserId(), id);
+            return component == null ? Results.NotFound(new { error = "Sample component not found" }) : Results.Ok(component.ToComponentDto());
+        })
+        .WithName("GetAdminSample");
+
+        // PUT /admin/samples/{id}/design/{part} - Save a sample component design
+        group.MapPut("/samples/{id:guid}/design/{part}", async (
+            Guid id,
+            string part,
+            SaveDesignRequest request,
+            HttpContext httpContext,
+            ComponentService componentService) =>
+        {
+            if (part is not "front" and not "back")
+            {
+                return Results.BadRequest(new { error = "Part must be 'front' or 'back'" });
+            }
+
+            var component = await componentService.SaveDesignAsync(httpContext.GetUserId(), id, part, request.Design);
+            return component == null
+                ? Results.NotFound(new { error = "Sample component not found or not editable" })
+                : Results.Ok(component);
+        })
+        .WithName("SaveAdminSampleDesign");
     }
 }

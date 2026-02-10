@@ -15,7 +15,7 @@ public class CloudflareR2Options
     public int PresignedUrlExpirationMinutes { get; set; } = 15;
 }
 
-public class CloudflareR2Service : IDisposable
+public partial class CloudflareR2Service : IDisposable
 {
     private readonly IAmazonS3 _s3Client;
     private readonly CloudflareR2Options _options;
@@ -72,7 +72,7 @@ public class CloudflareR2Service : IDisposable
             };
 
             // Add metadata for file size validation
-            request.Metadata.Add("x-amz-meta-filesize", fileSizeBytes.ToString());
+            request.Metadata.Add("x-amz-meta-filesize", fileSizeBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
             var url = _s3Client.GetPreSignedURL(request);
 
@@ -80,7 +80,7 @@ public class CloudflareR2Service : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate upload URL for key: {StorageKey}", storageKey);
+            LogGenerateUploadUrlFailed(ex, storageKey);
             throw;
         }
     }
@@ -109,7 +109,7 @@ public class CloudflareR2Service : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate download URL for key: {StorageKey}", storageKey);
+            LogGenerateDownloadUrlFailed(ex, storageKey);
             throw;
         }
     }
@@ -130,13 +130,11 @@ public class CloudflareR2Service : IDisposable
             };
 
             await _s3Client.CopyObjectAsync(copyRequest);
-            _logger.LogInformation("Copied file in R2 from {SourceKey} to {DestinationKey}",
-                sourceStorageKey, destinationStorageKey);
+            LogFileCopied(sourceStorageKey, destinationStorageKey);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy file in R2 from {SourceKey} to {DestinationKey}",
-                sourceStorageKey, destinationStorageKey);
+            LogFileCopyFailed(ex, sourceStorageKey, destinationStorageKey);
             throw;
         }
     }
@@ -155,11 +153,11 @@ public class CloudflareR2Service : IDisposable
             };
 
             await _s3Client.DeleteObjectAsync(request);
-            _logger.LogInformation("Deleted file from R2: {StorageKey}", storageKey);
+            LogFileDeleted(storageKey);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete file from R2: {StorageKey}", storageKey);
+            LogFileDeleteFailed(ex, storageKey);
             throw;
         }
     }
@@ -234,6 +232,24 @@ public class CloudflareR2Service : IDisposable
 
         return sanitized;
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to generate upload URL for key: {StorageKey}")]
+    private partial void LogGenerateUploadUrlFailed(Exception ex, string storageKey);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to generate download URL for key: {StorageKey}")]
+    private partial void LogGenerateDownloadUrlFailed(Exception ex, string storageKey);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Copied file in R2 from {SourceKey} to {DestinationKey}")]
+    private partial void LogFileCopied(string sourceKey, string destinationKey);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to copy file in R2 from {SourceKey} to {DestinationKey}")]
+    private partial void LogFileCopyFailed(Exception ex, string sourceKey, string destinationKey);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Deleted file from R2: {StorageKey}")]
+    private partial void LogFileDeleted(string storageKey);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to delete file from R2: {StorageKey}")]
+    private partial void LogFileDeleteFailed(Exception ex, string storageKey);
 
     /// <summary>
     /// Dispose of the S3 client resources

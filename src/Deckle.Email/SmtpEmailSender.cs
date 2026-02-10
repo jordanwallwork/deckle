@@ -11,7 +11,7 @@ namespace Deckle.Email;
 /// <summary>
 /// Email sender implementation using SMTP via MailKit.
 /// </summary>
-public class SmtpEmailSender : IEmailSender
+public partial class SmtpEmailSender : IEmailSender
 {
     private readonly EmailOptions _options;
     private readonly ILogger<SmtpEmailSender> _logger;
@@ -24,7 +24,7 @@ public class SmtpEmailSender : IEmailSender
 
     public async Task SendAsync(IEmailTemplate template, CancellationToken cancellationToken = default)
     {
-        var message = CreateMimeMessage(template);
+        using var message = CreateMimeMessage(template);
 
         try
         {
@@ -50,18 +50,11 @@ public class SmtpEmailSender : IEmailSender
             // Disconnect
             await client.DisconnectAsync(true, cancellationToken);
 
-            _logger.LogInformation(
-                "Email sent successfully to {Recipients}. Subject: {Subject}",
-                string.Join(", ", template.To.Select(t => t.Address)),
-                template.Subject);
+            LogEmailSent(string.Join(", ", template.To.Select(t => t.Address)), template.Subject);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Failed to send email to {Recipients}. Subject: {Subject}",
-                string.Join(", ", template.To.Select(t => t.Address)),
-                template.Subject);
+            LogEmailSendFailed(ex, string.Join(", ", template.To.Select(t => t.Address)), template.Subject);
             throw;
         }
     }
@@ -91,22 +84,19 @@ public class SmtpEmailSender : IEmailSender
             // Send all emails using the same connection
             foreach (var template in templateList)
             {
-                var message = CreateMimeMessage(template);
+                using var message = CreateMimeMessage(template);
                 await client.SendAsync(message, cancellationToken);
 
-                _logger.LogInformation(
-                    "Email sent successfully to {Recipients}. Subject: {Subject}",
-                    string.Join(", ", template.To.Select(t => t.Address)),
-                    template.Subject);
+                LogEmailSent(string.Join(", ", template.To.Select(t => t.Address)), template.Subject);
             }
 
             await client.DisconnectAsync(true, cancellationToken);
 
-            _logger.LogInformation("Batch of {Count} emails sent successfully", templateList.Count);
+            LogBatchEmailsSent(templateList.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send batch of {Count} emails", templateList.Count);
+            LogBatchEmailsFailed(ex, templateList.Count);
             throw;
         }
     }
@@ -186,6 +176,18 @@ public class SmtpEmailSender : IEmailSender
 
         return message;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Email sent successfully to {Recipients}. Subject: {Subject}")]
+    private partial void LogEmailSent(string recipients, string subject);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to send email to {Recipients}. Subject: {Subject}")]
+    private partial void LogEmailSendFailed(Exception ex, string recipients, string subject);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Batch of {Count} emails sent successfully")]
+    private partial void LogBatchEmailsSent(int count);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to send batch of {Count} emails")]
+    private partial void LogBatchEmailsFailed(Exception ex, int count);
 
     private static MailboxAddress CreateMailboxAddress(EmailAddress emailAddress)
     {

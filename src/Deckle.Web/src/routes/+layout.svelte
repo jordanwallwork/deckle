@@ -42,6 +42,9 @@
       <a href="/privacy">Privacy</a>
       <a href="https://docs.deckle.games">Docs</a>
       <a href="https://github.com/jordanwallwork/deckle">GitHub</a>
+      {#if data.user?.role === 'Administrator'}
+        <a href="/admin">Admin</a>
+      {/if}
     </footer>
   {/if}
 </div>

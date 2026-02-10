@@ -9,8 +9,9 @@ using System.Security.Claims;
 
 namespace Deckle.API.Endpoints;
 
-public static class AuthEndpoints
+public static partial class AuthEndpoints
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Justification = "Endpoint mapping inherently couples to many types")]
     public static RouteGroupBuilder MapAuthEndpoints(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/auth")
@@ -27,11 +28,11 @@ public static class AuthEndpoints
                 if (isDevelopment)
                 {
                     frontendUrl = "http://localhost:5173";
-                    logger.LogWarning("FrontendUrl not configured, using default: {FrontendUrl}", frontendUrl);
+                    LogFrontendUrlNotConfigured(logger, frontendUrl);
                 }
                 else
                 {
-                    logger.LogError("FrontendUrl is not configured in production environment");
+                    LogFrontendUrlNotConfiguredInProduction(logger);
                     return Results.Problem("FrontendUrl is not configured", statusCode: 500);
                 }
             }
@@ -39,22 +40,20 @@ public static class AuthEndpoints
             // Validate that frontendUrl is an absolute URL
             if (!Uri.TryCreate(frontendUrl, UriKind.Absolute, out var frontendUri))
             {
-                logger.LogError("Invalid FrontendUrl configuration: {FrontendUrl}", frontendUrl);
+                LogInvalidFrontendUrl(logger, frontendUrl);
                 return Results.Problem("Invalid FrontendUrl configuration", statusCode: 500);
             }
 
             // Build redirect URI, appending returnUrl path if provided and valid
             var redirectUri = frontendUrl.TrimEnd('/');
-            if (!string.IsNullOrWhiteSpace(returnUrl))
+
+            //Ensure returnUrl is a relative path to prevent open redirect attacks
+            if (!string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/')  && !returnUrl.StartsWith("//", StringComparison.Ordinal))
             {
-                // Ensure returnUrl is a relative path to prevent open redirect attacks
-                if (returnUrl.StartsWith('/') && !returnUrl.StartsWith("//"))
-                {
-                    redirectUri += returnUrl;
-                }
+                redirectUri += returnUrl;
             }
 
-            logger.LogInformation("Auth login initiated. Redirecting to: {RedirectUri}", redirectUri);
+            LogAuthLoginInitiated(logger, redirectUri);
 
             return Results.Challenge(
                 new AuthenticationProperties { RedirectUri = redirectUri },
@@ -152,4 +151,16 @@ public static class AuthEndpoints
 
         return group;
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "FrontendUrl not configured, using default: {FrontendUrl}")]
+    private static partial void LogFrontendUrlNotConfigured(ILogger logger, string frontendUrl);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "FrontendUrl is not configured in production environment")]
+    private static partial void LogFrontendUrlNotConfiguredInProduction(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Invalid FrontendUrl configuration: {FrontendUrl}")]
+    private static partial void LogInvalidFrontendUrl(ILogger logger, string frontendUrl);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Auth login initiated. Redirecting to: {RedirectUri}")]
+    private static partial void LogAuthLoginInitiated(ILogger logger, string redirectUri);
 }

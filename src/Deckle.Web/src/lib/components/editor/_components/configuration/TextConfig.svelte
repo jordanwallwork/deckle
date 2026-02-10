@@ -15,12 +15,15 @@
   let { element }: { element: TextElement } = $props();
 
   // Helper function to extract all fonts currently used in text elements
-  function extractUsedFonts(el: TemplateElement, fontMetadata: FontMetadata[] | undefined): FontMetadata[] {
+  function extractUsedFonts(
+    el: TemplateElement,
+    fontMetadata: FontMetadata[] | undefined
+  ): FontMetadata[] {
     const fonts: FontMetadata[] = [];
 
     if (el.type === 'text' && el.fontFamily && el.fontFamily !== 'System Default') {
       // Look up category from stored fonts metadata if available
-      const storedFont = fontMetadata?.find(f => f.family === el.fontFamily);
+      const storedFont = fontMetadata?.find((f) => f.family === el.fontFamily);
       fonts.push({
         family: el.fontFamily,
         category: storedFont?.category || 'sans-serif'
@@ -40,9 +43,10 @@
   let usedFonts = $derived.by(() => {
     const allFonts = extractUsedFonts($templateStore.root, $templateStore.root.fonts);
     // Filter to unique fonts, excluding the current element's font (it will show as selected)
-    return allFonts.filter((font, index, self) =>
-      font.family !== element.fontFamily &&
-      self.findIndex(f => f.family === font.family) === index
+    return allFonts.filter(
+      (font, index, self) =>
+        font.family !== element.fontFamily &&
+        self.findIndex((f) => f.family === font.family) === index
     );
   });
 
@@ -90,7 +94,7 @@
     label="Font Family"
     id="font-family"
     value={element.fontFamily || 'System Default'}
-    usedFonts={usedFonts}
+    {usedFonts}
     onchange={handleFontChange}
   />
 
@@ -99,7 +103,7 @@
       label="Font Size (px)"
       id="font-size"
       value={element.fontSize || 16}
-      oninput={(e) => updateElement({ fontSize: parseInt(e.currentTarget.value) || 16 })}
+      oninput={(e) => updateElement({ fontSize: Number.parseInt(e.currentTarget.value) || 16 })}
     />
 
     <SelectField
@@ -118,7 +122,7 @@
       ]}
       onchange={(val) => {
         updateElement({
-          fontWeight: isNaN(Number(val)) ? (val as any) : parseInt(val)
+          fontWeight: isNaN(Number(val)) ? (val as any) : Number.parseInt(val)
         });
       }}
     />

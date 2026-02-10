@@ -16,9 +16,17 @@
     component,
     projectUrlBase,
     projectId,
-    part
-  }: { component: EditableComponent; projectUrlBase: string; projectId: string; part: string } =
-    $props();
+    part,
+    onSave,
+    hideExport = false
+  }: {
+    component: EditableComponent;
+    projectUrlBase: string;
+    projectId: string;
+    part: string;
+    onSave?: () => Promise<void>;
+    hideExport?: boolean;
+  } = $props();
   let dimensions = component.dimensions;
   // Extract shape if this is a CardComponent
   let shape = $derived<ComponentShape | undefined>(
@@ -97,14 +105,19 @@
     saveSuccess = false;
 
     try {
-      // Get the current template design from the store
-      let design: string | null = null;
-      templateStore.subscribe((store) => {
-        design = JSON.stringify(store.root);
-      })();
+      // Use custom save handler if provided
+      if (onSave) {
+        await onSave();
+      } else {
+        // Get the current template design from the store
+        let design: string | null = null;
+        templateStore.subscribe((store) => {
+          design = JSON.stringify(store.root);
+        })();
 
-      // Save the design via API (works for both Card and PlayerMat)
-      await componentsApi.saveDesign(projectId, component.id, part.toLowerCase(), design);
+        // Save the design via API (works for both Card and PlayerMat)
+        await componentsApi.saveDesign(projectId, component.id, part.toLowerCase(), design);
+      }
 
       // Mark changes as saved
       templateStore.markAsSaved();
@@ -141,14 +154,16 @@
     >
       {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save'}
     </button>
-    <button
-      onclick={handleExport}
-      class="export-button"
-      class:error={exportError !== null}
-      title={exportError || 'Export Design'}
-    >
-      {exportError || 'Export'}
-    </button>
+    {#if !hideExport}
+      <button
+        onclick={handleExport}
+        class="export-button"
+        class:error={exportError !== null}
+        title={exportError || 'Export Design'}
+      >
+        {exportError || 'Export'}
+      </button>
+    {/if}
     <div class="toolbar-divider"></div>
     <UndoRedoControls />
 

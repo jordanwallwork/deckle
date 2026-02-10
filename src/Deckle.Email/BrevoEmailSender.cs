@@ -10,7 +10,7 @@ namespace Deckle.Email;
 /// <summary>
 /// Email sender implementation using the Brevo (formerly Sendinblue) transactional email API.
 /// </summary>
-public class BrevoEmailSender : IEmailSender
+public partial class BrevoEmailSender : IEmailSender
 {
     private const string ApiBaseUrl = "https://api.brevo.com/v3";
 
@@ -52,18 +52,11 @@ public class BrevoEmailSender : IEmailSender
                     $"Brevo API returned {response.StatusCode}: {errorBody}");
             }
 
-            _logger.LogInformation(
-                "Email sent successfully via Brevo to {Recipients}. Subject: {Subject}",
-                string.Join(", ", template.To.Select(t => t.Address)),
-                template.Subject);
+            LogEmailSentViaBrevo(string.Join(", ", template.To.Select(t => t.Address)), template.Subject);
         }
         catch (Exception ex) when (ex is not HttpRequestException)
         {
-            _logger.LogError(
-                ex,
-                "Failed to send email via Brevo to {Recipients}. Subject: {Subject}",
-                string.Join(", ", template.To.Select(t => t.Address)),
-                template.Subject);
+            LogEmailSendFailedViaBrevo(ex, string.Join(", ", template.To.Select(t => t.Address)), template.Subject);
             throw;
         }
     }
@@ -81,7 +74,7 @@ public class BrevoEmailSender : IEmailSender
             await SendAsync(template, cancellationToken);
         }
 
-        _logger.LogInformation("Batch of {Count} emails sent successfully via Brevo", templateList.Count);
+        LogBatchEmailsSentViaBrevo(templateList.Count);
     }
 
     private BrevoEmailPayload BuildPayload(IEmailTemplate template)
@@ -130,6 +123,15 @@ public class BrevoEmailSender : IEmailSender
             Name = string.IsNullOrEmpty(address.DisplayName) ? null : address.DisplayName
         };
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Email sent successfully via Brevo to {Recipients}. Subject: {Subject}")]
+    private partial void LogEmailSentViaBrevo(string recipients, string subject);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to send email via Brevo to {Recipients}. Subject: {Subject}")]
+    private partial void LogEmailSendFailedViaBrevo(Exception ex, string recipients, string subject);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Batch of {Count} emails sent successfully via Brevo")]
+    private partial void LogBatchEmailsSentViaBrevo(int count);
 
     private sealed class BrevoEmailPayload
     {

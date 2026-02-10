@@ -15,20 +15,10 @@
     dataSources: DataSource[];
     projectId: string;
     componentId: string;
-    onMinimize?: () => void;
-    onMaximize?: () => void;
     readOnly?: boolean;
   }
 
-  let {
-    dataSource,
-    dataSources,
-    projectId,
-    componentId,
-    onMinimize,
-    onMaximize,
-    readOnly = false
-  }: Props = $props();
+  let { dataSource, dataSources, projectId, componentId, readOnly = false }: Props = $props();
 
   // Get the store reference during component initialization
   const dataSourceRowStore = getDataSourceRow();
@@ -38,6 +28,7 @@
   let spreadsheetData = $state<string[][] | null>(null);
   let loadingData = $state(false);
   let selectedRowIndex = $state(0); // Default to first row
+  let maximised = $state(false);
 
   // Load data when component mounts or dataSource changes
   $effect(() => {
@@ -104,8 +95,6 @@
           },
           {} as Record<string, string>
         );
-
-        console.log('Selected row:', JSON.stringify(rowObject, null, 2));
 
         // Update the store for merge field functionality
         dataSourceRowStore.set(rowObject);
@@ -224,7 +213,7 @@
     <div class="panel-controls">
       <button
         class="icon-button"
-        onclick={onMaximize}
+        onclick={() => (maximised = true)}
         title="Maximize panel"
         aria-label="Maximize panel"
       >
@@ -232,7 +221,7 @@
       </button>
       <button
         class="icon-button"
-        onclick={onMinimize}
+        onclick={() => (maximised = false)}
         title="Minimize panel"
         aria-label="Minimize panel"
       >
@@ -240,30 +229,34 @@
       </button>
     </div>
   {/snippet}
-  {#if dataSource}
-    {#if loadingData}
-      <div class="loading-state">Loading data...</div>
-    {:else if spreadsheetData && spreadsheetData.length > 0}
-      <DataTable
-        data={spreadsheetData}
-        sortable={false}
-        maxRows={10}
-        stickyHeader={true}
-        selectable={true}
-        {selectedRowIndex}
-        onRowSelect={handleRowSelect}
-      />
-    {:else if dataSource.headers && dataSource.headers.length > 0}
-      <div class="no-data-state">
-        <p>No data loaded yet. Click "Sync" to load the latest data.</p>
+  {#if maximised}
+    {#if dataSource}
+      {#if loadingData}
+        <div class="loading-state">Loading data...</div>
+      {:else if spreadsheetData && spreadsheetData.length > 0}
+        <div class="data-source-table">
+          <DataTable
+            data={spreadsheetData}
+            sortable={false}
+            maxRows={10}
+            stickyHeader={true}
+            selectable={true}
+            {selectedRowIndex}
+            onRowSelect={handleRowSelect}
+          />
+        </div>
+      {:else if dataSource.headers && dataSource.headers.length > 0}
+        <div class="no-data-state">
+          <p>No data loaded yet. Click "Sync" to load the latest data.</p>
+        </div>
+      {/if}
+    {:else}
+      <div class="empty-state">
+        <p class="empty-message">No data source linked to this component.</p>
+        <p class="empty-hint">Link a data source to populate this component with dynamic data.</p>
+        <Button variant="primary" onclick={openLinkDataSourceModal}>Link Data Source</Button>
       </div>
     {/if}
-  {:else}
-    <div class="empty-state">
-      <p class="empty-message">No data source linked to this component.</p>
-      <p class="empty-hint">Link a data source to populate this component with dynamic data.</p>
-      <Button variant="primary" onclick={openLinkDataSourceModal}>Link Data Source</Button>
-    </div>
   {/if}
 </Panel>
 
@@ -409,5 +402,11 @@
     font-size: 0.875rem;
     color: var(--color-text-secondary);
     max-width: 250px;
+  }
+
+  .data-source-table {
+    width: 100%;
+    max-height: 50vh;
+    overflow: auto;
   }
 </style>

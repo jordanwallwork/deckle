@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { adminApi, ApiError } from '$lib/api';
+import { adminApi, ApiError, dataSourcesApi } from '$lib/api';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ parent, fetch, url }) => {
@@ -24,12 +24,12 @@ export const load: PageServerLoad = async ({ parent, fetch, url }) => {
   try {
     const [samplesResponse, sampleDataSourcesResponse] = await Promise.all([
       adminApi.getSamples({ page, pageSize, search, type }, fetch),
-      adminApi.getSampleDataSources({ pageSize: 100 }, fetch)
+      dataSourcesApi.getAll(undefined, fetch)
     ]);
     return {
       user,
       samplesResponse,
-      sampleDataSources: sampleDataSourcesResponse.dataSources,
+      sampleDataSources: sampleDataSourcesResponse,
       currentPage: page,
       currentPageSize: pageSize,
       currentSearch: search || '',

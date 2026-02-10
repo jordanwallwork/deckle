@@ -207,10 +207,6 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<SampleDataSource>(entity =>
         {
-            entity.Property(ds => ds.JsonData)
-                .HasColumnName("JsonData")
-                .HasColumnType("jsonb");
-
             entity.HasOne(ds => ds.SourceDataSource)
                 .WithMany()
                 .HasForeignKey(ds => ds.SourceDataSourceId)

@@ -11,25 +11,3 @@ namespace Deckle.Domain.Entities;
 public interface IComponentConfig<TComponent> where TComponent : Component
 {
 }
-
-/// <summary>
-/// Configuration for creating or updating a Card component.
-/// </summary>
-public record CardConfig(string Name, CardSize Size, bool Horizontal = false)
-    : IComponentConfig<Card>;
-
-/// <summary>
-/// Configuration for creating or updating a Dice component.
-/// </summary>
-public record DiceConfig(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number)
-    : IComponentConfig<Dice>;
-
-/// <summary>
-/// Configuration for creating or updating a PlayerMat component.
-/// </summary>
-public record PlayerMatConfig(
-    string Name,
-    PlayerMatSize? PresetSize,
-    bool Horizontal,
-    decimal? CustomWidthMm,
-    decimal? CustomHeightMm) : IComponentConfig<PlayerMat>;

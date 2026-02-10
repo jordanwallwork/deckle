@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { adminApi, ApiError } from '$lib/api';
+import { ApiError, dataSourcesApi } from '$lib/api';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ parent, fetch, url }) => {
@@ -17,11 +17,9 @@ export const load: PageServerLoad = async ({ parent, fetch, url }) => {
   const pageSize = Number.parseInt(url.searchParams.get('pageSize') || '20');
   const search = url.searchParams.get('search') || undefined;
 
+  // todo: add pagination + search filtering back in to api endpoint
   try {
-    const dataSourcesResponse = await adminApi.getSampleDataSources(
-      { page, pageSize, search },
-      fetch
-    );
+    const dataSourcesResponse = await dataSourcesApi.getAll(undefined, fetch);
     return {
       user,
       dataSourcesResponse,

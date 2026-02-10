@@ -12,19 +12,19 @@ public class ValidationException : Exception
     public ValidationException()
         : base("Validation failed")
     {
-        ErrorResponse = new ValidationErrorResponse { Errors = new Dictionary<string, string[]>() };
+        ErrorResponse = new ValidationErrorResponse { Errors = [] };
     }
 
     public ValidationException(string message)
         : base(message)
     {
-        ErrorResponse = new ValidationErrorResponse { Errors = new Dictionary<string, string[]>() };
+        ErrorResponse = new ValidationErrorResponse { Errors = [] };
     }
 
     public ValidationException(string message, Exception innerException)
         : base(message, innerException)
     {
-        ErrorResponse = new ValidationErrorResponse { Errors = new Dictionary<string, string[]>() };
+        ErrorResponse = new ValidationErrorResponse { Errors = [] };
     }
 
     public ValidationException(ValidationErrorResponse errorResponse)

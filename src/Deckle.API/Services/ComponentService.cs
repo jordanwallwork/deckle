@@ -1,20 +1,56 @@
+using Deckle.API.Configurators;
 using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Deckle.API.Services;
+
+public class SampleService
+{
+    private readonly ComponentService _componentService;
+    private readonly DataSourceService _dataSourceService;
+
+    public SampleService(ComponentService componentService, DataSourceService dataSourceService)
+    {
+        _componentService = componentService;
+        _dataSourceService = dataSourceService;
+    }
+
+    public async Task UseSampleAsync<TComponent>(Guid userId, TComponent component, Guid sampleId, Action<TComponent> copyDesigns) where TComponent : Component
+    {
+        var sample = await _componentService.GetComponentByIdAsync<TComponent>(userId, sampleId);
+        if (sample is null)
+            return;
+
+        if (sample is IDataSourceComponent dsc && dsc.DataSource is not null)
+        {
+            var copiedDs = await _dataSourceService.GetOrCreateProjectSampleDataSourceFromAsync(component.ProjectId!.Value, dsc.DataSource);
+            if (component is IDataSourceComponent newDsc)
+                newDsc.DataSource = copiedDs;
+        }
+
+        copyDesigns(sample);
+    }
+}
 
 public class ComponentService
 {
     private readonly AppDbContext _context;
     private readonly ProjectAuthorizationService _authService;
+    private readonly DataSourceService _dataSourceService;
+    private readonly IConfiguratorProvider _configuratorProvider;
 
-    public ComponentService(AppDbContext context, ProjectAuthorizationService authService)
+    public ComponentService(
+        AppDbContext context,
+        ProjectAuthorizationService authService,
+        DataSourceService dataSourceService,
+        IConfiguratorProvider configuratorProvider)
     {
         _context = context;
         _authService = authService;
+        _dataSourceService = dataSourceService;
+        _configuratorProvider = configuratorProvider;
     }
 
     #region Generic Factory Methods
@@ -32,13 +68,15 @@ public class ComponentService
         Guid userId,
         Guid? projectId,
         TConfig config)
-        where TComponent : Component, ICreatableComponent<TComponent, TConfig>
+        where TComponent : Component
         where TConfig : IComponentConfig<TComponent>
     {
-        TComponent.Validate(config);
+        var configurator = _configuratorProvider.GetConfigurator<TComponent, TConfig>();
+
+        await configurator.ValidateAsync(config);
         await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
-        var component = TComponent.Create(config);
-        component.ProjectId = projectId;
+        var component = await configurator.CreateAsync(userId, projectId, config);
+
         return await SaveAndReturnAsync(component);
     }
 
@@ -56,15 +94,17 @@ public class ComponentService
         Guid userId,
         Guid componentId,
         TConfig config)
-        where TComponent : Component, IUpdatableComponent<TComponent, TConfig>
+        where TComponent : Component
         where TConfig : IComponentConfig<TComponent>
     {
-        var component = await FindAndAuthorizeComponentAsync<TComponent>(
-            userId, componentId, ProjectAuthorizationService.CanModifyResources);
+        var component = await FindAndAuthorizeComponentAsync<TComponent>(userId, componentId, ProjectAuthorizationService.CanModifyResources);
         if (component == null) return default;
 
-        TComponent.ApplyUpdate(component, config);
+        var configurator = _configuratorProvider.GetConfigurator<TComponent, TConfig>();
+
+        await configurator.UpdateAsync(component, config);
         await _context.SaveChangesAsync();
+
         return component;
     }
 
@@ -96,12 +136,9 @@ public class ComponentService
 
     #region Read Operations
 
-    public async Task<List<ComponentDto>> GetProjectComponentsAsync(Guid userId, Guid projectId)
+    public async Task<List<ComponentDto>> GetProjectComponentsAsync(Guid userId, Guid? projectId)
     {
-        if (!await _authService.HasProjectAccessAsync(userId, projectId))
-        {
-            return [];
-        }
+        await _authService.RequireProjectAccessAsync(userId, projectId);
 
         var components = await _context.Components
             .Where(c => c.ProjectId == projectId)
@@ -113,11 +150,10 @@ public class ComponentService
         return [.. components.Select(c => c.ToComponentDto())];
     }
 
-    public async Task<ComponentDto?> GetComponentByIdAsync(Guid userId, Guid componentId)
+    public async Task<TComponent?> GetComponentByIdAsync<TComponent>(Guid userId, Guid componentId) where TComponent : Component
     {
         var component = await _context.Components
-            .Where(c => c.Id == componentId &&
-                        (c.ProjectId == null || c.Project!.Users.Any(u => u.Id == userId)))
+            .Where(c => c.Id == componentId && (c.ProjectId == null || c.Project!.Users.Any(u => u.Id == userId)))
             .FirstOrDefaultAsync();
 
         if (component == null)
@@ -127,10 +163,10 @@ public class ComponentService
 
         await LoadDataSourceIfSupportedAsync(component);
 
-        return component.ToComponentDto();
+        return component as TComponent;
     }
 
-    public async Task<List<ComponentDto>> GetSampleTemplatesAsync(string componentType)
+    public async Task<List<ComponentDto>> GetSamplesForTypeAsync(string componentType)
     {
         var query = _context.Components
             .Where(c => c.ProjectId == null);
@@ -139,7 +175,7 @@ public class ComponentService
         {
             "CARD" => query.Where(c => c is Card),
             "PLAYERMAT" => query.Where(c => c is PlayerMat),
-            _ => throw new ArgumentException($"Unsupported component type for templates: {componentType}")
+            _ => throw new ArgumentException($"Unsupported component type for samples: {componentType}")
         };
 
         var components = await query
@@ -197,6 +233,43 @@ public class ComponentService
             }
 
             dataSourceComponent.DataSource = await _context.DataSources.FindAsync(dataSourceId.Value);
+        }
+        else
+        {
+            dataSourceComponent.DataSource = null;
+        }
+
+        component.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return component.ToComponentDto();
+    }
+
+    public async Task<ComponentDto?> UpdateSampleDataSourceAsync(Guid componentId, Guid? dataSourceId)
+    {
+        var component = await _context.Components
+            .Where(c => c.Id == componentId && c.ProjectId == null)
+            .FirstOrDefaultAsync();
+
+        if (component is not IDataSourceComponent dataSourceComponent)
+        {
+            return null;
+        }
+
+        await LoadDataSourceIfSupportedAsync(component);
+
+        if (dataSourceId.HasValue)
+        {
+            var dataSource = await _context.DataSources
+                .Where(ds => ds.Id == dataSourceId.Value && ds.ProjectId == null)
+                .FirstOrDefaultAsync();
+
+            if (dataSource == null)
+            {
+                throw new ArgumentException("Data source not found or is not a sample data source");
+            }
+
+            dataSourceComponent.DataSource = dataSource;
         }
         else
         {

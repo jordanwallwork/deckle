@@ -78,34 +78,3 @@ export interface AdminSampleComponentListResponse {
   page: number;
   pageSize: number;
 }
-
-// Admin sample data source types
-export interface AdminSampleDataSource {
-  id: string;
-  name: string;
-  headers?: string[] | null;
-  rowCount?: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AdminSampleDataSourceDetail extends AdminSampleDataSource {
-  jsonData?: string | null;
-}
-
-export interface AdminSampleDataSourceListResponse {
-  dataSources: AdminSampleDataSource[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface CreateSampleDataSourceDto {
-  name: string;
-  jsonData?: string | null;
-}
-
-export interface UpdateSampleDataSourceDto {
-  name: string;
-  jsonData?: string | null;
-}

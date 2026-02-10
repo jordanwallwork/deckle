@@ -73,6 +73,7 @@ export interface CreateCardDto {
   name: string;
   size: string;
   horizontal?: boolean;
+  sample: string | null;
 }
 
 export interface CreateDiceDto {
@@ -103,6 +104,7 @@ export interface CreatePlayerMatDto {
   horizontal?: boolean;
   customWidthMm?: number | null;
   customHeightMm?: number | null;
+  sample: string | null;
 }
 
 export interface UpdatePlayerMatDto {

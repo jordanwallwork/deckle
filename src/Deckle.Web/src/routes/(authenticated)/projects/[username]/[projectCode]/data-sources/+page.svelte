@@ -4,6 +4,7 @@
   import { Card, Dialog, Button, EmptyState, ConfirmDialog, TabContent } from '$lib/components';
   import { buildDataSourcesBreadcrumbs } from '$lib/utils/breadcrumbs';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import type { CreateGoogleSheetsDataSourceDto } from '$lib/types';
   import { dataSourcesApi, ApiError } from '$lib/api';
   import { formatRelativeTime } from '$lib/utils/date.utils';
   import { syncDataSource } from '$lib/utils/dataSource.utils';
@@ -68,11 +69,12 @@
       errorMessage = '';
 
       await dataSourcesApi.create({
+        type: 'GoogleSheets',
         projectId: data.project.id,
         name: newSourceName.trim() || '',
         url: newSourceUrl.trim(),
         sheetGid: newSourceGid
-      });
+      } as CreateGoogleSheetsDataSourceDto);
 
       // Refresh data from server
       await invalidateAll();
@@ -175,6 +177,7 @@
       errorMessage = '';
 
       const created = await dataSourcesApi.createSpreadsheet({
+        type: 'Spreadsheet',
         projectId: data.project.id,
         name: spreadsheetName.trim()
       });

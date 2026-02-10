@@ -7,24 +7,24 @@
     cardSize = $bindable(),
     cardHorizontal = $bindable(),
     componentName = $bindable(),
-    templates = [],
-    selectedTemplateId = $bindable(null)
+    samples = [],
+    selectedSampleId = $bindable(null)
   }: {
     cardSize: string;
     cardHorizontal: boolean;
     componentName: string;
-    templates?: CardComponent[];
-    selectedTemplateId?: string | null;
+    samples?: CardComponent[];
+    selectedSampleId?: string | null;
   } = $props();
 
-  const matchingTemplates = $derived(
-    templates.filter((t) => t.size === cardSize && t.horizontal === cardHorizontal)
+  const matchingSamples = $derived(
+    samples.filter((t) => t.size === cardSize && t.horizontal === cardHorizontal)
   );
 
-  // Reset selection when card size changes and selected template no longer matches
+  // Reset selection when card size changes and selected sample no longer matches
   $effect(() => {
-    if (selectedTemplateId && !matchingTemplates.some((t) => t.id === selectedTemplateId)) {
-      selectedTemplateId = null;
+    if (selectedSampleId && !matchingSamples.some((t) => t.id === selectedSampleId)) {
+      selectedSampleId = null;
     }
   });
 
@@ -53,12 +53,12 @@
     <span>Horizontal (landscape orientation)</span>
   </label>
 
-  {#if matchingTemplates.length > 0}
-    <FormField label="Template" name="template">
-      <Select id="template" bind:value={selectedTemplateId}>
+  {#if matchingSamples.length > 0}
+    <FormField label="Sample" name="sample">
+      <Select id="sample" bind:value={selectedSampleId}>
         <option value={null}>None (blank)</option>
-        {#each matchingTemplates as template}
-          <option value={template.id}>{template.name}</option>
+        {#each matchingSamples as sample}
+          <option value={sample.id}>{sample.name}</option>
         {/each}
       </Select>
     </FormField>

@@ -53,7 +53,7 @@ public class GoogleSheetsService
     /// <summary>
     /// Extracts spreadsheet ID and optional sheet GID from various Google Sheets URL formats
     /// </summary>
-    public (string? spreadsheetId, int? sheetGid) ExtractIdsFromUrl(string url)
+    public (string? spreadsheetId, int? sheetGid) ExtractIdsFromUrl(Uri url)
     {
         string? spreadsheetId = null;
         int? sheetGid = null;
@@ -67,7 +67,7 @@ public class GoogleSheetsService
 
         foreach (var pattern in idPatterns)
         {
-            var match = Regex.Match(url, pattern);
+            var match = Regex.Match(url.ToString(), pattern);
             if (match.Success)
             {
                 spreadsheetId = match.Groups[1].Value;
@@ -78,7 +78,7 @@ public class GoogleSheetsService
         // Extract sheet GID if present
         // Supports formats: #gid=123456 or ?gid=123456 or &gid=123456
         var gidPattern = @"[#?&]gid=(\d+)";
-        var gidMatch = Regex.Match(url, gidPattern);
+        var gidMatch = Regex.Match(url.ToString(), gidPattern);
         if (gidMatch.Success)
         {
             if (int.TryParse(gidMatch.Groups[1].Value, out var parsedGid))

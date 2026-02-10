@@ -22,10 +22,10 @@ public record DataSourceDto
     public int? SheetGid { get; init; }
     public string? CsvExportUrl { get; init; }
 
-    // Sample/Spreadsheet-specific properties (null for other types)
+    // Spreadsheet-specific properties (null for other types)
     public string? JsonData { get; init; }
 
-    // Sample-specific: reference to original template data source
+    // Sample-specific: reference to original sample data source
     public Guid? SourceDataSourceId { get; init; }
 
     /// <summary>
@@ -65,7 +65,6 @@ public record DataSourceDto
                 GoogleSheetsUrl = null,
                 SheetGid = null,
                 CsvExportUrl = null,
-                JsonData = sample.JsonData,
                 SourceDataSourceId = sample.SourceDataSourceId
             },
             SpreadsheetDataSource spreadsheet => new DataSourceDto
@@ -89,52 +88,17 @@ public record DataSourceDto
     }
 }
 
-public record CreateDataSourceRequest(Guid ProjectId, string Name, string Url, int? SheetGid = null);
+public abstract record CreateDataSourceRequest(Guid? ProjectId, string Name);
+
+public record CreateGoogleSheetsDataSourceRequest(Guid? ProjectId, string Name, Uri Url, int? SheetGid = null) : CreateDataSourceRequest(ProjectId, Name);
+
+public record CreateSpreadsheetDataSourceRequest(Guid? ProjectId, string Name) : CreateDataSourceRequest(ProjectId, Name);
 
 public record UpdateDataSourceRequest(string Name);
 
 public record SyncDataSourceMetadataRequest(List<string> Headers, int RowCount);
 
-// Admin Sample Data Source DTOs
-
-public record AdminSampleDataSourceDto
-{
-    public required Guid Id { get; init; }
-    public required string Name { get; init; }
-    public List<string>? Headers { get; init; }
-    public int? RowCount { get; init; }
-    public required DateTime CreatedAt { get; init; }
-    public required DateTime UpdatedAt { get; init; }
-}
-
-public record AdminSampleDataSourceDetailDto
-{
-    public required Guid Id { get; init; }
-    public required string Name { get; init; }
-    public List<string>? Headers { get; init; }
-    public int? RowCount { get; init; }
-    public required DateTime CreatedAt { get; init; }
-    public required DateTime UpdatedAt { get; init; }
-    public string? JsonData { get; init; }
-}
-
-public record AdminSampleDataSourceListResponse
-{
-    public required List<AdminSampleDataSourceDto> DataSources { get; init; }
-    public required int TotalCount { get; init; }
-    public required int Page { get; init; }
-    public required int PageSize { get; init; }
-}
-
-public record CreateSampleDataSourceRequest(string Name, string? JsonData);
-
-public record UpdateSampleDataSourceRequest(string Name, string? JsonData);
-
-public record UpdateSampleComponentDataSourceRequest(Guid? DataSourceId);
-
 public record CopySampleDataSourceRequest(Guid ProjectId, Guid SampleDataSourceId);
-
-public record CreateSpreadsheetDataSourceRequest(Guid ProjectId, string Name);
 
 public record UpdateSpreadsheetDataSourceRequest(string Name, string? JsonData);
 

@@ -10,8 +10,8 @@
     horizontal = $bindable(),
     customWidthMm = $bindable(),
     customHeightMm = $bindable(),
-    templates = [],
-    selectedTemplateId = $bindable(null)
+    samples = [],
+    selectedSampleId = $bindable(null)
   }: {
     componentName: string;
     sizeMode: 'preset' | 'custom';
@@ -19,20 +19,20 @@
     horizontal: boolean;
     customWidthMm: string;
     customHeightMm: string;
-    templates?: PlayerMatComponent[];
-    selectedTemplateId?: string | null;
+    samples?: PlayerMatComponent[];
+    selectedSampleId?: string | null;
   } = $props();
 
-  const matchingTemplates = $derived(
+  const matchingSamples = $derived(
     sizeMode === 'preset'
-      ? templates.filter((t) => t.presetSize === presetSize && t.horizontal === horizontal)
+      ? samples.filter((t) => t.presetSize === presetSize && t.horizontal === horizontal)
       : []
   );
 
-  // Reset selection when size changes and selected template no longer matches
+  // Reset selection when size changes and selected sample no longer matches
   $effect(() => {
-    if (selectedTemplateId && !matchingTemplates.some((t) => t.id === selectedTemplateId)) {
-      selectedTemplateId = null;
+    if (selectedSampleId && !matchingSamples.some((t) => t.id === selectedSampleId)) {
+      selectedSampleId = null;
     }
   });
 
@@ -119,12 +119,12 @@
     </FormField>
   {/if}
 
-  {#if matchingTemplates.length > 0}
-    <FormField label="Template" name="template">
-      <Select id="template" bind:value={selectedTemplateId}>
+  {#if matchingSamples.length > 0}
+    <FormField label="Sample" name="sample">
+      <Select id="sample" bind:value={selectedSampleId}>
         <option value={null}>None (blank)</option>
-        {#each matchingTemplates as template}
-          <option value={template.id}>{template.name}</option>
+        {#each matchingSamples as sample}
+          <option value={sample.id}>{sample.name}</option>
         {/each}
       </Select>
     </FormField>

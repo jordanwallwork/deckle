@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Deckle.API.DTOs;
 using Deckle.API.Filters;
@@ -14,10 +15,10 @@ public static class DataSourceEndpoints
             .RequireAuthorization()
             .RequireUserId();
 
-        group.MapGet("project/{projectId:guid}", async (Guid projectId, HttpContext httpContext, DataSourceService dataSourceService) =>
+        group.MapGet("project/{projectId:guid?}", async (Guid? projectId, HttpContext httpContext, DataSourceService dataSourceService) =>
         {
             var userId = httpContext.GetUserId();
-            var dataSources = await dataSourceService.GetProjectDataSourcesAsync(userId, projectId);
+            var dataSources = await dataSourceService.GetDataSourcesAsync(userId, projectId);
             return Results.Ok(dataSources);
         })
         .WithName("GetProjectDataSources");
@@ -27,16 +28,11 @@ public static class DataSourceEndpoints
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
 
-            if (dataSource == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(dataSource);
+            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
         })
         .WithName("GetDataSourceById");
 
-        group.MapPost("", async (HttpContext httpContext, DataSourceService dataSourceService, CreateDataSourceRequest request) =>
+        group.MapPost("GoogleSheets", async (HttpContext httpContext, DataSourceService dataSourceService, CreateGoogleSheetsDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -58,12 +54,7 @@ public static class DataSourceEndpoints
 
             var dataSource = await dataSourceService.UpdateDataSourceAsync(userId, id, request.Name);
 
-            if (dataSource == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(dataSource);
+            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
         })
         .WithName("UpdateDataSource");
 
@@ -73,12 +64,7 @@ public static class DataSourceEndpoints
 
             var deleted = await dataSourceService.DeleteDataSourceAsync(userId, id);
 
-            if (!deleted)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.NoContent();
+            return !deleted ? Results.NotFound() : Results.NoContent();
         })
         .WithName("DeleteDataSource");
 
@@ -131,17 +117,32 @@ public static class DataSourceEndpoints
                 return Results.NotFound();
             }
 
-            // Handle Sample and Spreadsheet data sources with inline JSON data
-            if (dataSource.Type is "Sample" or "Spreadsheet")
+            // Handle Sample type: follow the SourceDataSourceId reference to get data from the source
+            if (dataSource.Type is "Sample")
             {
-                var jsonData = dataSource.JsonData;
-
-                // For Sample type: if no inline data, follow the SourceDataSourceId reference
-                if (jsonData == null && dataSource.Type == "Sample" && dataSource.SourceDataSourceId.HasValue)
+                if (dataSource.SourceDataSourceId.HasValue)
                 {
                     var sourceDs = await dataSourceService.GetDataSourceByIdAsync(userId, dataSource.SourceDataSourceId.Value);
-                    jsonData = sourceDs?.JsonData;
+                    if (sourceDs != null)
+                    {
+                        // Redirect to the source data source's data endpoint logic
+                        dataSource = sourceDs;
+                    }
+                    else
+                    {
+                        return Results.Ok(new { data = Array.Empty<string[]>() });
+                    }
                 }
+                else
+                {
+                    return Results.Ok(new { data = Array.Empty<string[]>() });
+                }
+            }
+
+            // Handle Spreadsheet data sources with inline JSON data
+            if (dataSource.Type is "Spreadsheet")
+            {
+                var jsonData = dataSource.JsonData;
 
                 if (jsonData != null)
                 {
@@ -179,10 +180,8 @@ public static class DataSourceEndpoints
             // Parse CSV into 2D array (simple implementation)
             var lines = csvData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             var data = lines.Select(line =>
-            {
                 // Simple CSV parsing - doesn't handle quoted commas
-                return line.Split(',').Select(cell => cell.Trim()).ToArray();
-            }).ToList();
+                line.Split(',').Select(cell => cell.Trim()).ToArray()).ToList();
 
             return Results.Ok(new { data });
         })
@@ -210,12 +209,7 @@ public static class DataSourceEndpoints
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.UpdateSpreadsheetDataSourceAsync(userId, id, request.Name, request.JsonData);
 
-            if (dataSource == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(dataSource);
+            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
         })
         .WithName("UpdateSpreadsheetDataSource");
 
@@ -224,12 +218,7 @@ public static class DataSourceEndpoints
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.GetSpreadsheetDataSourceDetailAsync(userId, id);
 
-            if (dataSource == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(dataSource);
+            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
         })
         .WithName("GetSpreadsheetDataSourceDetail");
 

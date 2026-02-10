@@ -17,8 +17,8 @@ export const dataSourcesApi = {
   /**
    * Get all data sources for a project
    */
-  listByProject: (projectId: string, fetchFn?: typeof fetch) =>
-    api.get<DataSource[]>(`/data-sources/project/${projectId}`, undefined, fetchFn),
+  getAll: (projectId?: string, fetchFn?: typeof fetch) =>
+    api.get<DataSource[]>(`/data-sources/project/${projectId ?? ''}`, undefined, fetchFn),
 
   /**
    * Get a single data source by ID
@@ -36,13 +36,19 @@ export const dataSourcesApi = {
    * Create a new data source
    */
   create: (data: CreateDataSourceDto, fetchFn?: typeof fetch) =>
-    api.post<DataSource>('/data-sources', data, undefined, fetchFn),
+    api.post<DataSource>(`/data-sources/${data.type}`, data, undefined, fetchFn),
 
   /**
    * Update a data source
    */
   update: (id: string, data: UpdateDataSourceDto, fetchFn?: typeof fetch) =>
     api.put<DataSource>(`/data-sources/${id}`, data, undefined, fetchFn),
+
+  /**
+   * Update a spreadsheet data source (name and JSON data)
+   */
+  updateSpreadsheet: (id: string, data: UpdateSpreadsheetDataSourceDto, fetchFn?: typeof fetch) =>
+    api.put<DataSource>(`/data-sources/${id}/spreadsheet`, data, undefined, fetchFn),
 
   /**
    * Sync data source metadata (headers and row count)
@@ -73,12 +79,6 @@ export const dataSourcesApi = {
    */
   createSpreadsheet: (data: CreateSpreadsheetDataSourceDto, fetchFn?: typeof fetch) =>
     api.post<DataSource>('/data-sources/spreadsheet', data, undefined, fetchFn),
-
-  /**
-   * Update a spreadsheet data source (name and JSON data)
-   */
-  updateSpreadsheet: (id: string, data: UpdateSpreadsheetDataSourceDto, fetchFn?: typeof fetch) =>
-    api.put<DataSource>(`/data-sources/${id}/spreadsheet`, data, undefined, fetchFn),
 
   /**
    * Get spreadsheet data source detail (includes JsonData)

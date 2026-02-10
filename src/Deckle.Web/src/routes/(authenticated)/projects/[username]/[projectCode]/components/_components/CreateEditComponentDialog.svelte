@@ -62,8 +62,8 @@
 						bind:cardSize={state.cardSize}
 						bind:cardHorizontal={state.cardHorizontal}
 						bind:componentName={state.componentName}
-						templates={state.templates as CardComponent[]}
-						bind:selectedTemplateId={state.selectedTemplateId}
+						samples={state.samples as CardComponent[]}
+						bind:selectedSampleId={state.selectedSampleId}
 					/>
 				{:else if state.selectedType === 'dice'}
 					<DiceConfigForm
@@ -81,8 +81,8 @@
 						bind:horizontal={state.playerMatHorizontal}
 						bind:customWidthMm={state.playerMatCustomWidth}
 						bind:customHeightMm={state.playerMatCustomHeight}
-						templates={state.templates as PlayerMatComponent[]}
-						bind:selectedTemplateId={state.selectedTemplateId}
+						samples={state.samples as PlayerMatComponent[]}
+						bind:selectedSampleId={state.selectedSampleId}
 					/>
 				{/if}
 

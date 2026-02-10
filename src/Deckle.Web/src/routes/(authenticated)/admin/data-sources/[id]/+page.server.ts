@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { adminApi, ApiError } from '$lib/api';
+import { ApiError, dataSourcesApi } from '$lib/api';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ parent, fetch, params }) => {
@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ parent, fetch, params }) => {
   }
 
   try {
-    const dataSource = await adminApi.getSampleDataSource(params.id, fetch);
+    const dataSource = await dataSourcesApi.getById(params.id, fetch);
     return {
       user,
       dataSource

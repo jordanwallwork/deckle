@@ -3,10 +3,6 @@ import type {
   AdminUser,
   AdminUserListResponse,
   AdminSampleComponentListResponse,
-  AdminSampleDataSourceListResponse,
-  AdminSampleDataSourceDetail,
-  CreateSampleDataSourceDto,
-  UpdateSampleDataSourceDto,
   CreateCardDto,
   CreatePlayerMatDto,
   CardComponent,
@@ -111,56 +107,8 @@ export const adminApi = {
     api.put<GameComponent>(`/admin/samples/${id}/design/${part}`, { design }, undefined, fetchFn),
 
   /**
-   * Link/unlink a data source to a sample component
+   * Update data source for a sample component
    */
-  updateSampleComponentDataSource: (
-    componentId: string,
-    dataSourceId: string | null,
-    fetchFn?: typeof fetch
-  ) =>
-    api.put<GameComponent>(
-      `/admin/samples/${componentId}/datasource`,
-      { dataSourceId },
-      undefined,
-      fetchFn
-    ),
-
-  /**
-   * Get list of sample data sources with pagination and search
-   */
-  getSampleDataSources: (params?: GetSampleDataSourcesParams, fetchFn?: typeof fetch) => {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.set('page', params.page.toString());
-    if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString());
-    if (params?.search) searchParams.set('search', params.search);
-
-    const queryString = searchParams.toString();
-    const endpoint = queryString ? `/admin/data-sources?${queryString}` : '/admin/data-sources';
-
-    return api.get<AdminSampleDataSourceListResponse>(endpoint, undefined, fetchFn);
-  },
-
-  /**
-   * Get a sample data source by ID (with JsonData)
-   */
-  getSampleDataSource: (id: string, fetchFn?: typeof fetch) =>
-    api.get<AdminSampleDataSourceDetail>(`/admin/data-sources/${id}`, undefined, fetchFn),
-
-  /**
-   * Create a sample data source
-   */
-  createSampleDataSource: (data: CreateSampleDataSourceDto, fetchFn?: typeof fetch) =>
-    api.post<AdminSampleDataSourceDetail>('/admin/data-sources', data, undefined, fetchFn),
-
-  /**
-   * Update a sample data source
-   */
-  updateSampleDataSource: (id: string, data: UpdateSampleDataSourceDto, fetchFn?: typeof fetch) =>
-    api.put<AdminSampleDataSourceDetail>(`/admin/data-sources/${id}`, data, undefined, fetchFn),
-
-  /**
-   * Delete a sample data source
-   */
-  deleteSampleDataSource: (id: string, fetchFn?: typeof fetch) =>
-    api.delete(`/admin/data-sources/${id}`, undefined, fetchFn)
+  updateSampleDataSource: (id: string, dataSourceId: string | null, fetchFn?: typeof fetch) =>
+    api.put<GameComponent>(`/admin/samples/${id}/datasource`, { dataSourceId }, undefined, fetchFn)
 };

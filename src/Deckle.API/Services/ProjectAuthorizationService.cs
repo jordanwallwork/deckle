@@ -81,12 +81,7 @@ public class ProjectAuthorizationService
     {
         var role = await RequireProjectAccessAsync(userId, projectId);
 
-        if (!permissionCheck(role))
-        {
-            throw new UnauthorizedAccessException(errorMessage);
-        }
-
-        return role;
+        return !permissionCheck(role) ? throw new UnauthorizedAccessException(errorMessage) : role;
     }
 
     #endregion

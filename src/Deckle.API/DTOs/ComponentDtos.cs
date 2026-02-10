@@ -98,11 +98,11 @@ public record DiceDto : ComponentDto
     }
 }
 
-public record CreateCardRequest(string Name, CardSize Size, bool Horizontal = false);
+public record CreateCardRequest(string Name, CardSize Size, bool Horizontal = false, Guid? Sample = null);
 
 public record CreateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);
 
-public record UpdateCardRequest(string Name, CardSize Size, bool Horizontal = false);
+public record UpdateCardRequest(string Name, CardSize Size, bool Horizontal = false, Guid? Sample = null);
 
 public record UpdateDiceRequest(string Name, DiceType Type, DiceStyle Style, DiceColor BaseColor, int Number);
 
@@ -142,12 +142,14 @@ public record CreatePlayerMatRequest(
     PlayerMatSize? PresetSize,
     bool Horizontal = false,
     decimal? CustomWidthMm = null,
-    decimal? CustomHeightMm = null);
+    decimal? CustomHeightMm = null,
+    Guid? Sample = null);
 
 public record UpdatePlayerMatRequest(
     string Name,
     PlayerMatSize? PresetSize,
     bool Horizontal = false,
     decimal? CustomWidthMm = null,
-    decimal? CustomHeightMm = null);
+    decimal? CustomHeightMm = null,
+    Guid? Sample = null);
 

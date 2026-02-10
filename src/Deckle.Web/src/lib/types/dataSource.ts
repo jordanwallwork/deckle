@@ -23,14 +23,24 @@ export interface DataSource {
 }
 
 export interface CreateDataSourceDto {
-  projectId: string;
+  type: DataSourceType;
+  projectId?: string;
   name: string;
+}
+
+export interface CreateGoogleSheetsDataSourceDto extends CreateDataSourceDto {
+  type: 'GoogleSheets';
   url: string;
   sheetGid?: number;
 }
 
+export interface CreateSpreadsheetDataSourceDto extends CreateDataSourceDto {
+  type: 'Spreadsheet';
+}
+
 export interface UpdateDataSourceDto {
   name: string;
+  jsonData?: string;
 }
 
 export interface SyncDataSourceMetadataRequest {
@@ -41,11 +51,6 @@ export interface SyncDataSourceMetadataRequest {
 export interface CopySampleDataSourceDto {
   projectId: string;
   sampleDataSourceId: string;
-}
-
-export interface CreateSpreadsheetDataSourceDto {
-  projectId: string;
-  name: string;
 }
 
 export interface UpdateSpreadsheetDataSourceDto {

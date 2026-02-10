@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ params, parent, fetch }) => {
     const { project } = await parent();
 
     // Load data sources for the project
-    const dataSources = await dataSourcesApi.listByProject(project.id, fetch);
+    const dataSources = await dataSourcesApi.getAll(project.id, fetch);
 
     return {
       project,

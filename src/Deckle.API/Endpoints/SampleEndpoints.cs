@@ -13,13 +13,13 @@ public static class SampleEndpoints
             .RequireAuthorization()
             .RequireUserId();
 
-        group.MapGet("templates", async (string type, ComponentService componentService) =>
+        group.MapGet("", async (string type, ComponentService componentService) =>
         {
-            var templates = await componentService.GetSampleTemplatesAsync(type);
-            return Results.Ok(templates);
+            var samples = await componentService.GetSamplesForTypeAsync(type);
+            return Results.Ok(samples);
         })
-        .WithName("GetSampleTemplates")
-        .WithDescription("Get sample component templates for a given component type (card, playermat)");
+        .WithName("GetSamples")
+        .WithDescription("Get sample components for a given component type (card, playermat)");
 
         return group;
     }

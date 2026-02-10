@@ -1,10 +1,8 @@
+using Deckle.API.Configurators;
 using Deckle.API.DTOs;
 using Deckle.API.Filters;
 using Deckle.API.Services;
 using Deckle.Domain.Entities;
-using System.ComponentModel;
-using System.Xml.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Deckle.API.Endpoints;
 
@@ -13,76 +11,76 @@ public static class ComponentEndpoints
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Justification = "Endpoint mapping inherently couples to many types")]
     public static RouteGroupBuilder MapComponentEndpoints(this IEndpointRouteBuilder routes)
     {
-        var group = routes.MapGroup("/projects/{projectId:guid}/components")
+        var group = routes.MapGroup("/projects/{projectId}/components")
             .WithTags("Components")
             .RequireAuthorization()
             .RequireUserId();
 
-        group.MapGet("", async (Guid projectId, HttpContext httpContext, ComponentService componentService) =>
+        group.MapGet("", async (string projectId, HttpContext httpContext, ComponentService componentService) =>
         {
             var userId = httpContext.GetUserId();
-            var components = await componentService.GetProjectComponentsAsync(userId, projectId);
+            var parsedProjectId = ParseProjectId(projectId);
+            var components = await componentService.GetProjectComponentsAsync(userId, parsedProjectId);
             return Results.Ok(components);
         })
         .WithName("GetProjectComponents");
 
-        group.MapGet("{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>
+        group.MapGet("{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>
         {
             var userId = httpContext.GetUserId();
-            var component = await componentService.GetComponentByIdAsync(userId, id);
+            var parsedProjectId = ParseProjectId(projectId);
+            var component = await componentService.GetComponentByIdAsync<Domain.Entities.Component>(userId, id);
 
-            if (component == null || component.ProjectId != projectId)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(component);
+            return component == null || component.ProjectId != parsedProjectId ? Results.NotFound() : Results.Ok(component.ToComponentDto());
         })
         .WithName("GetComponentById");
 
-        group.MapPost("cards", async (Guid projectId, HttpContext httpContext, ComponentService componentService, CreateCardRequest request) =>
+        group.MapPost("cards", async (string projectId, HttpContext httpContext, ComponentService componentService, CreateCardRequest request) =>
         {
             var userId = httpContext.GetUserId();
+            var parsedProjectId = ParseProjectId(projectId);
 
-            var cardConfig = new CardConfig(request.Name, request.Size, request.Horizontal);
-            var card = await componentService.CreateComponentAsync<Card, CardConfig>(userId, projectId, cardConfig);
+            var cardConfig = new CardConfig(request.Name, request.Size, request.Horizontal, request.Sample);
+            var card = await componentService.CreateComponentAsync<Card, CardConfig>(userId, parsedProjectId, cardConfig);
             return Results.Created($"/projects/{projectId}/components/{card.Id}", new CardDto(card));
         })
         .WithName("CreateCard");
 
-        group.MapPost("dice", async (Guid projectId, HttpContext httpContext, ComponentService componentService, CreateDiceRequest request) =>
+        group.MapPost("dice", async (string projectId, HttpContext httpContext, ComponentService componentService, CreateDiceRequest request) =>
         {
             var userId = httpContext.GetUserId();
+            var parsedProjectId = ParseProjectId(projectId);
 
             var dice = await componentService.CreateComponentAsync<Dice, DiceConfig>(
-            userId, projectId,
+            userId, parsedProjectId,
             new DiceConfig(request.Name, request.Type, request.Style, request.BaseColor, request.Number));
             return Results.Created($"/projects/{projectId}/components/{dice.Id}", new DiceDto(dice));
 
         })
         .WithName("CreateDice");
 
-        group.MapPost("playermats", async (Guid projectId, HttpContext httpContext, ComponentService componentService, CreatePlayerMatRequest request) =>
+        group.MapPost("playermats", async (string projectId, HttpContext httpContext, ComponentService componentService, CreatePlayerMatRequest request) =>
         {
             var userId = httpContext.GetUserId();
+            var parsedProjectId = ParseProjectId(projectId);
 
             var playerMat = await componentService.CreateComponentAsync<PlayerMat, PlayerMatConfig>(
-                userId, projectId,
-                new PlayerMatConfig(request.Name, request.PresetSize, request.Horizontal, request.CustomWidthMm, request.CustomHeightMm));
+                userId, parsedProjectId,
+                new PlayerMatConfig(request.Name, request.PresetSize, request.Horizontal, request.CustomWidthMm, request.CustomHeightMm, request.Sample));
             return Results.Created($"/projects/{projectId}/components/{playerMat.Id}", new PlayerMatDto(playerMat));
         })
         .WithName("CreatePlayerMat");
 
-        group.MapPut("cards/{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateCardRequest request) =>
+        group.MapPut("cards/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateCardRequest request) =>
         {
             var userId = httpContext.GetUserId();
-            var card = await componentService.UpdateComponentAsync<Card, CardConfig>(userId, id, new(request.Name, request.Size, request.Horizontal));
+            var card = await componentService.UpdateComponentAsync<Card, CardConfig>(userId, id, new(request.Name, request.Size, request.Horizontal, request.Sample));
 
             return card == null ? Results.NotFound() : Results.Ok(new CardDto(card));
         })
         .WithName("UpdateCard");
 
-        group.MapPut("dice/{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateDiceRequest request) =>
+        group.MapPut("dice/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateDiceRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var dice = await componentService.UpdateComponentAsync<Dice, DiceConfig>(userId, id, new(request.Name, request.Type, request.Style, request.BaseColor, request.Number));
@@ -91,17 +89,18 @@ public static class ComponentEndpoints
         })
         .WithName("UpdateDice");
 
-        group.MapPut("playermats/{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdatePlayerMatRequest request) =>
+        group.MapPut("playermats/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdatePlayerMatRequest request) =>
         {
             var userId = httpContext.GetUserId();
 
-            var playerMat = await componentService.UpdateComponentAsync<PlayerMat, PlayerMatConfig>(userId, id, new(request.Name, request.PresetSize, request.Horizontal, request.CustomWidthMm, request.CustomHeightMm));
+            var playerMat = await componentService.UpdateComponentAsync<PlayerMat, PlayerMatConfig>(userId, id,
+                new(request.Name, request.PresetSize, request.Horizontal, request.CustomWidthMm, request.CustomHeightMm, request.Sample));
 
             return playerMat == null ? Results.NotFound() : Results.Ok(new PlayerMatDto(playerMat));
         })
         .WithName("UpdatePlayerMat");
 
-        group.MapDelete("{id:guid}", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>
+        group.MapDelete("{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>
         {
             var userId = httpContext.GetUserId();
             await componentService.DeleteComponentAsync(userId, id);
@@ -110,38 +109,35 @@ public static class ComponentEndpoints
         })
         .WithName("DeleteComponent");
 
-        group.MapPut("{id:guid}/design/{part}", async (Guid projectId, Guid id, string part, HttpContext httpContext, ComponentService componentService, SaveDesignRequest request) =>
+        group.MapPut("{id:guid}/design/{part}", async (string projectId, Guid id, string part, HttpContext httpContext, ComponentService componentService, SaveDesignRequest request) =>
         {
             var userId = httpContext.GetUserId();
+            var parsedProjectId = ParseProjectId(projectId);
 
             var component = await componentService.SaveDesignAsync(userId, id, part, request.Design);
 
-            if (component == null || component.ProjectId != projectId)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(component);        })
+            return component == null || component.ProjectId != parsedProjectId ? Results.NotFound() : Results.Ok(component);
+        })
         .WithName("SaveComponentDesign")
         .WithDescription("Save design for any editable component (Card, PlayerMat, etc.)");
 
-        group.MapPut("{id:guid}/datasource", async (Guid projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateComponentDataSourceRequest request) =>
+        group.MapPut("{id:guid}/datasource", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateComponentDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
+            var parsedProjectId = ParseProjectId(projectId);
 
             var component = await componentService.UpdateDataSourceAsync(userId, id, request.DataSourceId);
 
-            if (component == null || component.ProjectId != projectId)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(component);        })
+            return component == null || component.ProjectId != parsedProjectId ? Results.NotFound() : Results.Ok(component);
+        })
         .WithName("UpdateComponentDataSource")
         .WithDescription("Update data source for any component that supports data sources (Card, PlayerMat, etc.)");
 
         return group;
     }
+
+    private static Guid? ParseProjectId(string projectId) =>
+        Guid.TryParse(projectId, out var parsed) ? parsed : null;
 }
 
 public record SaveDesignRequest(string? Design);

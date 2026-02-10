@@ -44,7 +44,7 @@ export const diceHandler: ComponentTypeHandler<DiceFormState> = {
 		});
 	},
 
-	async loadTemplates(): Promise<GameComponent[]> {
+	async loadSamples(): Promise<GameComponent[]> {
 		return [];
 	}
 };

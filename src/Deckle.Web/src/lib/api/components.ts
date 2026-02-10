@@ -9,6 +9,12 @@ import type {
   UpdatePlayerMatDto
 } from '$lib/types';
 
+type OptionalProjectId = string | null | undefined;
+
+function componentsBase(projectId: OptionalProjectId) {
+  return `/projects/${projectId ?? 'sample'}/components`;
+}
+
 /**
  * Components API
  */
@@ -16,38 +22,38 @@ export const componentsApi = {
   /**
    * Get all components for a project
    */
-  listByProject: (projectId: string, fetchFn?: typeof fetch) =>
-    api.get<GameComponent[]>(`/projects/${projectId}/components`, undefined, fetchFn),
+  listByProject: (projectId: OptionalProjectId, fetchFn?: typeof fetch) =>
+    api.get<GameComponent[]>(componentsBase(projectId), undefined, fetchFn),
 
   /**
    * Get a component by ID
    */
-  getById: (projectId: string, componentId: string, fetchFn?: typeof fetch) =>
-    api.get<GameComponent>(`/projects/${projectId}/components/${componentId}`, undefined, fetchFn),
+  getById: (projectId: OptionalProjectId, componentId: string, fetchFn?: typeof fetch) =>
+    api.get<GameComponent>(`${componentsBase(projectId)}/${componentId}`, undefined, fetchFn),
 
   /**
    * Create a new card component
    */
-  createCard: (projectId: string, data: CreateCardDto, fetchFn?: typeof fetch) =>
-    api.post<GameComponent>(`/projects/${projectId}/components/cards`, data, undefined, fetchFn),
+  createCard: (projectId: OptionalProjectId, data: CreateCardDto, fetchFn?: typeof fetch) =>
+    api.post<GameComponent>(`${componentsBase(projectId)}/cards`, data, undefined, fetchFn),
 
   /**
    * Create a new dice component
    */
-  createDice: (projectId: string, data: CreateDiceDto, fetchFn?: typeof fetch) =>
-    api.post<GameComponent>(`/projects/${projectId}/components/dice`, data, undefined, fetchFn),
+  createDice: (projectId: OptionalProjectId, data: CreateDiceDto, fetchFn?: typeof fetch) =>
+    api.post<GameComponent>(`${componentsBase(projectId)}/dice`, data, undefined, fetchFn),
 
   /**
    * Update a card component
    */
   updateCard: (
-    projectId: string,
+    projectId: OptionalProjectId,
     componentId: string,
     data: UpdateCardDto,
     fetchFn?: typeof fetch
   ) =>
     api.put<GameComponent>(
-      `/projects/${projectId}/components/cards/${componentId}`,
+      `${componentsBase(projectId)}/cards/${componentId}`,
       data,
       undefined,
       fetchFn
@@ -57,13 +63,13 @@ export const componentsApi = {
    * Update a dice component
    */
   updateDice: (
-    projectId: string,
+    projectId: OptionalProjectId,
     componentId: string,
     data: UpdateDiceDto,
     fetchFn?: typeof fetch
   ) =>
     api.put<GameComponent>(
-      `/projects/${projectId}/components/dice/${componentId}`,
+      `${componentsBase(projectId)}/dice/${componentId}`,
       data,
       undefined,
       fetchFn
@@ -72,21 +78,21 @@ export const componentsApi = {
   /**
    * Delete a component
    */
-  delete: (projectId: string, componentId: string, fetchFn?: typeof fetch) =>
-    api.delete(`/projects/${projectId}/components/${componentId}`, undefined, fetchFn),
+  delete: (projectId: OptionalProjectId, componentId: string, fetchFn?: typeof fetch) =>
+    api.delete(`${componentsBase(projectId)}/${componentId}`, undefined, fetchFn),
 
   /**
    * Save design for a component (Card or PlayerMat) for a specific part (front/back)
    */
   saveDesign: (
-    projectId: string,
+    projectId: OptionalProjectId,
     componentId: string,
     part: string,
     design: string | null,
     fetchFn?: typeof fetch
   ) =>
     api.put<GameComponent>(
-      `/projects/${projectId}/components/${componentId}/design/${part}`,
+      `${componentsBase(projectId)}/${componentId}/design/${part}`,
       { design },
       undefined,
       fetchFn
@@ -96,13 +102,13 @@ export const componentsApi = {
    * Update data source for a component (Card or PlayerMat)
    */
   updateDataSource: (
-    projectId: string,
+    projectId: OptionalProjectId,
     componentId: string,
     dataSourceId: string | null,
     fetchFn?: typeof fetch
   ) =>
     api.put<GameComponent>(
-      `/projects/${projectId}/components/${componentId}/datasource`,
+      `${componentsBase(projectId)}/${componentId}/datasource`,
       { dataSourceId },
       undefined,
       fetchFn
@@ -111,31 +117,29 @@ export const componentsApi = {
   /**
    * Create a new player mat component
    */
-  createPlayerMat: (projectId: string, data: CreatePlayerMatDto, fetchFn?: typeof fetch) =>
-    api.post<GameComponent>(
-      `/projects/${projectId}/components/playermats`,
-      data,
-      undefined,
-      fetchFn
-    ),
+  createPlayerMat: (
+    projectId: OptionalProjectId,
+    data: CreatePlayerMatDto,
+    fetchFn?: typeof fetch
+  ) => api.post<GameComponent>(`${componentsBase(projectId)}/playermats`, data, undefined, fetchFn),
 
   /**
-   * Get sample design templates for a component type (card, playermat)
+   * Get sample components for a component type (card, playermat)
    */
-  getSampleTemplates: (type: string, fetchFn?: typeof fetch) =>
-    api.get<GameComponent[]>(`/samples/templates?type=${type}`, undefined, fetchFn),
+  getSamples: (type: string, fetchFn?: typeof fetch) =>
+    api.get<GameComponent[]>(`/samples?type=${type}`, undefined, fetchFn),
 
   /**
    * Update a player mat component
    */
   updatePlayerMat: (
-    projectId: string,
+    projectId: OptionalProjectId,
     componentId: string,
     data: UpdatePlayerMatDto,
     fetchFn?: typeof fetch
   ) =>
     api.put<GameComponent>(
-      `/projects/${projectId}/components/playermats/${componentId}`,
+      `${componentsBase(projectId)}/playermats/${componentId}`,
       data,
       undefined,
       fetchFn

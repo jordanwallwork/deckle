@@ -27,6 +27,8 @@ dotnet build
 
 ### Building the Solution
 
+Note: when the app is already running, you do not need to re-build for frontend only changes; these will hot-reload automatically.
+
 ```bash
 dotnet build
 ```
@@ -513,6 +515,20 @@ Components are **automatically supported** for:
 ## Svelte Development Guide
 
 When working with Svelte components in this project, follow the guidelines from https://svelte.dev/llms-small.txt:
+
+### Component Philosophy
+- **Single Responsibility:** A component should do one thing (render a list, handle a form, or display a layout). If a component exceeds 150 lines, it must be decomposed.
+- **Open/Closed Principle:** Components must be "Open for extension, Closed for modification." Use Svelte Snippets and Props for extension rather than adding `if/else` logic inside the component for every new use case.
+- **Logic Extraction:** Business logic and complex state transitions must reside in `.svelte.ts` modules (using Runes) rather than the `<script>` block of a component.
+
+### Patterns for Extension
+- **Prefer Snippets over Conditionals:** Instead of adding a `type` prop that triggers 5 different `{#if}` blocks, allow the consumer to pass in a `snippet` to define the internal UI.
+- **Headless Logic:** For complex UI (tabs, modals, combos), build a "headless" state rune first, then apply it to the UI.
+- **Action over Bloat:** Use Svelte Actions for DOM-specific behavior (e.g., click outside, tooltips) instead of wrapping everything in a new component.
+
+### Refactoring Protocol
+- **Analyze Before Coding:** Before adding a new feature to an existing component, evaluate if the component is becoming a "God Object."
+- **Decomposition Trigger:** If you find yourself adding a third "mode" or "variant" to a component via props, you must refactor the component into a Base component and specialized sub-components.
 
 ### Hot Reload
 

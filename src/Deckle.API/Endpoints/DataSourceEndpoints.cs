@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using Deckle.API.DTOs;
 using Deckle.API.Filters;
 using Deckle.API.Services;
@@ -13,10 +15,10 @@ public static class DataSourceEndpoints
             .RequireAuthorization()
             .RequireUserId();
 
-        group.MapGet("project/{projectId:guid}", async (Guid projectId, HttpContext httpContext, DataSourceService dataSourceService) =>
+        group.MapGet("project/{projectId:guid?}", async (Guid? projectId, HttpContext httpContext, DataSourceService dataSourceService) =>
         {
             var userId = httpContext.GetUserId();
-            var dataSources = await dataSourceService.GetProjectDataSourcesAsync(userId, projectId);
+            var dataSources = await dataSourceService.GetDataSourcesAsync(userId, projectId);
             return Results.Ok(dataSources);
         })
         .WithName("GetProjectDataSources");
@@ -26,16 +28,11 @@ public static class DataSourceEndpoints
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
 
-            if (dataSource == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(dataSource);
+            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
         })
         .WithName("GetDataSourceById");
 
-        group.MapPost("", async (HttpContext httpContext, DataSourceService dataSourceService, CreateDataSourceRequest request) =>
+        group.MapPost("GoogleSheets", async (HttpContext httpContext, DataSourceService dataSourceService, CreateGoogleSheetsDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -57,12 +54,7 @@ public static class DataSourceEndpoints
 
             var dataSource = await dataSourceService.UpdateDataSourceAsync(userId, id, request.Name);
 
-            if (dataSource == null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(dataSource);
+            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
         })
         .WithName("UpdateDataSource");
 
@@ -72,12 +64,7 @@ public static class DataSourceEndpoints
 
             var deleted = await dataSourceService.DeleteDataSourceAsync(userId, id);
 
-            if (!deleted)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.NoContent();
+            return !deleted ? Results.NotFound() : Results.NoContent();
         })
         .WithName("DeleteDataSource");
 
@@ -130,6 +117,56 @@ public static class DataSourceEndpoints
                 return Results.NotFound();
             }
 
+            // Handle Sample type: follow the SourceDataSourceId reference to get data from the source
+            if (dataSource.Type is "Sample")
+            {
+                if (dataSource.SourceDataSourceId.HasValue)
+                {
+                    var sourceDs = await dataSourceService.GetDataSourceByIdAsync(userId, dataSource.SourceDataSourceId.Value);
+                    if (sourceDs != null)
+                    {
+                        // Redirect to the source data source's data endpoint logic
+                        dataSource = sourceDs;
+                    }
+                    else
+                    {
+                        return Results.Ok(new { data = Array.Empty<string[]>() });
+                    }
+                }
+                else
+                {
+                    return Results.Ok(new { data = Array.Empty<string[]>() });
+                }
+            }
+
+            // Handle Spreadsheet data sources with inline JSON data
+            if (dataSource.Type is "Spreadsheet")
+            {
+                var jsonData = dataSource.JsonData;
+
+                if (jsonData != null)
+                {
+                    try
+                    {
+                        var sampleData = JsonSerializer.Deserialize<SampleDataJson>(jsonData,
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                        if (sampleData != null)
+                        {
+                            var rows = new List<string[]> { sampleData.Headers.ToArray() };
+                            rows.AddRange(sampleData.Rows.Select(r => r.ToArray()));
+                            return Results.Ok(new { data = rows });
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        return Results.BadRequest(new { error = "Invalid data format" });
+                    }
+                }
+
+                return Results.Ok(new { data = Array.Empty<string[]>() });
+            }
+
             if (string.IsNullOrEmpty(dataSource.CsvExportUrl))
             {
                 // This is a business logic error, not an exception from the service.
@@ -143,14 +180,47 @@ public static class DataSourceEndpoints
             // Parse CSV into 2D array (simple implementation)
             var lines = csvData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             var data = lines.Select(line =>
-            {
                 // Simple CSV parsing - doesn't handle quoted commas
-                return line.Split(',').Select(cell => cell.Trim()).ToArray();
-            }).ToList();
+                line.Split(',').Select(cell => cell.Trim()).ToArray()).ToList();
 
             return Results.Ok(new { data });
         })
         .WithName("GetDataSourceData");
+
+        group.MapPost("copy-sample", async (HttpContext httpContext, DataSourceService dataSourceService, CopySampleDataSourceRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+            var dataSource = await dataSourceService.CopySampleDataSourceToProjectAsync(userId, request.ProjectId, request.SampleDataSourceId);
+            return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
+        })
+        .WithName("CopySampleDataSource");
+
+        // Spreadsheet data source endpoints
+        group.MapPost("spreadsheet", async (HttpContext httpContext, DataSourceService dataSourceService, CreateSpreadsheetDataSourceRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+            var dataSource = await dataSourceService.CreateSpreadsheetDataSourceAsync(userId, request.ProjectId, request.Name);
+            return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
+        })
+        .WithName("CreateSpreadsheetDataSource");
+
+        group.MapPut("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService, UpdateSpreadsheetDataSourceRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+            var dataSource = await dataSourceService.UpdateSpreadsheetDataSourceAsync(userId, id, request.Name, request.JsonData);
+
+            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
+        })
+        .WithName("UpdateSpreadsheetDataSource");
+
+        group.MapGet("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
+        {
+            var userId = httpContext.GetUserId();
+            var dataSource = await dataSourceService.GetSpreadsheetDataSourceDetailAsync(userId, id);
+
+            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
+        })
+        .WithName("GetSpreadsheetDataSourceDetail");
 
         return group;
     }

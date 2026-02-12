@@ -8,7 +8,7 @@ namespace Deckle.API.Services.Email;
 /// An <see cref="IEmailSender"/> implementation that enqueues emails as background jobs
 /// via Hangfire, rather than sending them synchronously.
 /// </summary>
-public class BackgroundEmailSender : IEmailSender
+public partial class BackgroundEmailSender : IEmailSender
 {
     private readonly IBackgroundJobClient _backgroundJobClient;
     private readonly ILogger<BackgroundEmailSender> _logger;
@@ -28,11 +28,7 @@ public class BackgroundEmailSender : IEmailSender
         var jobId = _backgroundJobClient.Enqueue<EmailJobProcessor>(
             processor => processor.ProcessEmailAsync(message));
 
-        _logger.LogInformation(
-            "Enqueued background email job {JobId} to {Recipients}. Subject: {Subject}",
-            jobId,
-            string.Join(", ", template.To.Select(t => t.Address)),
-            template.Subject);
+        LogEmailJobEnqueued(jobId, string.Join(", ", template.To.Select(t => t.Address)), template.Subject);
 
         return Task.CompletedTask;
     }
@@ -49,11 +45,14 @@ public class BackgroundEmailSender : IEmailSender
         var jobId = _backgroundJobClient.Enqueue<EmailJobProcessor>(
             processor => processor.ProcessBatchEmailAsync(messages));
 
-        _logger.LogInformation(
-            "Enqueued background batch email job {JobId} ({Count} emails)",
-            jobId,
-            messages.Count);
+        LogBatchEmailJobEnqueued(jobId, messages.Count);
 
         return Task.CompletedTask;
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Enqueued background email job {JobId} to {Recipients}. Subject: {Subject}")]
+    private partial void LogEmailJobEnqueued(string jobId, string recipients, string subject);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Enqueued background batch email job {JobId} ({Count} emails)")]
+    private partial void LogBatchEmailJobEnqueued(string jobId, int count);
 }

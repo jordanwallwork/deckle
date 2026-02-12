@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ parent, fetch }) => {
     const { project } = await parent();
     const [components, dataSources] = await Promise.all([
       componentsApi.listByProject(project.id, fetch),
-      dataSourcesApi.listByProject(project.id, fetch).catch(() => [])
+      dataSourcesApi.getAll(project.id, fetch).catch(() => [])
     ]);
     return { components, dataSources };
   } catch (err) {

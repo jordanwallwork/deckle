@@ -72,7 +72,7 @@
   }
 
   function handleZoomInput(e: Event) {
-    const value = parseInt((e.target as HTMLInputElement).value);
+    const value = Number.parseInt((e.target as HTMLInputElement).value);
     if (panzoomInstance && !isNaN(value)) {
       const scale = value / 100;
       panzoomInstance.zoom(scale, { animate: true });

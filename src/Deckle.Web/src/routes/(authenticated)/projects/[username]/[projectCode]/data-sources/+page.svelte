@@ -4,10 +4,11 @@
   import { Card, Dialog, Button, EmptyState, ConfirmDialog, TabContent } from '$lib/components';
   import { buildDataSourcesBreadcrumbs } from '$lib/utils/breadcrumbs';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
+  import type { CreateGoogleSheetsDataSourceDto } from '$lib/types';
   import { dataSourcesApi, ApiError } from '$lib/api';
   import { formatRelativeTime } from '$lib/utils/date.utils';
   import { syncDataSource } from '$lib/utils/dataSource.utils';
-  import { invalidateAll } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
 
   // Validation constants
   const GOOGLE_SHEETS_URL_RULES = {
@@ -28,12 +29,21 @@
     setBreadcrumbs(buildDataSourcesBreadcrumbs(data.project));
   });
 
+  // Type chooser dialog
+  let showTypeChooser = $state(false);
+
+  // Google Sheets modal
   let showAddModal = $state(false);
   let newSourceUrl = $state('');
   let newSourceName = $state('');
   let newSourceGid = $state<number | undefined>(undefined);
   let addingSource = $state(false);
   let errorMessage = $state('');
+
+  // Spreadsheet modal
+  let showSpreadsheetModal = $state(false);
+  let spreadsheetName = $state('');
+  let creatingSpreadsheet = $state(false);
 
   // Track sync status per data source
   let syncStatuses = $state<Record<string, DataSourceSyncStatus>>({});
@@ -59,11 +69,12 @@
       errorMessage = '';
 
       await dataSourcesApi.create({
+        type: 'GoogleSheets',
         projectId: data.project.id,
         name: newSourceName.trim() || '',
         url: newSourceUrl.trim(),
         sheetGid: newSourceGid
-      });
+      } as CreateGoogleSheetsDataSourceDto);
 
       // Refresh data from server
       await invalidateAll();
@@ -135,12 +146,55 @@
     }
   }
 
-  function openAddModal(): void {
+  function openTypeChooser(): void {
+    showTypeChooser = true;
+  }
+
+  function chooseGoogleSheets(): void {
+    showTypeChooser = false;
     showAddModal = true;
     errorMessage = '';
     newSourceUrl = '';
     newSourceName = '';
     newSourceGid = undefined;
+  }
+
+  function chooseSpreadsheet(): void {
+    showTypeChooser = false;
+    showSpreadsheetModal = true;
+    spreadsheetName = '';
+    errorMessage = '';
+  }
+
+  async function createSpreadsheet(): Promise<void> {
+    if (!spreadsheetName.trim()) {
+      errorMessage = 'Please enter a name for the spreadsheet';
+      return;
+    }
+
+    try {
+      creatingSpreadsheet = true;
+      errorMessage = '';
+
+      const created = await dataSourcesApi.createSpreadsheet({
+        type: 'Spreadsheet',
+        projectId: data.project.id,
+        name: spreadsheetName.trim()
+      });
+
+      showSpreadsheetModal = false;
+      spreadsheetName = '';
+      await goto(`${projectUrlBase}/data-sources/${created.id}/edit`);
+    } catch (err) {
+      console.error('Failed to create spreadsheet:', err);
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      } else {
+        errorMessage = 'Failed to create spreadsheet. Please try again.';
+      }
+    } finally {
+      creatingSpreadsheet = false;
+    }
   }
 </script>
 
@@ -155,7 +209,7 @@
 
 <TabContent>
   {#snippet actions()}
-    <Button variant="primary" size="sm" onclick={openAddModal}>+ Add Data Source</Button>
+    <Button variant="primary" size="sm" onclick={openTypeChooser}>+ Add Data Source</Button>
   {/snippet}
 
   {#if data.dataSources.length === 0}
@@ -197,14 +251,24 @@
               {/if}
             </div>
             <div class="source-actions">
-              <Button
-                variant="secondary"
-                size="sm"
-                onclick={() => handleSyncDataSource(source)}
-                disabled={syncStatuses[source.id] === 'syncing'}
-              >
-                {syncStatuses[source.id] === 'syncing' ? 'Syncing...' : 'Sync'}
-              </Button>
+              {#if source.type === 'GoogleSheets'}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onclick={() => handleSyncDataSource(source)}
+                  disabled={syncStatuses[source.id] === 'syncing'}
+                >
+                  {syncStatuses[source.id] === 'syncing' ? 'Syncing...' : 'Sync'}
+                </Button>
+              {/if}
+              {#if source.type === 'Spreadsheet'}
+                <a
+                  href={`${projectUrlBase}/data-sources/${source.id}/edit`}
+                  style="text-decoration: none;"
+                >
+                  <Button variant="secondary" size="sm">Edit</Button>
+                </a>
+              {/if}
               <a
                 href={`${projectUrlBase}/data-sources/${source.id}`}
                 style="text-decoration: none;"
@@ -273,6 +337,54 @@
     </Button>
     <Button variant="primary" onclick={addDataSource} disabled={addingSource}>
       {addingSource ? 'Adding...' : 'Add Data Source'}
+    </Button>
+  {/snippet}
+</Dialog>
+
+<Dialog
+  bind:show={showTypeChooser}
+  title="Add Data Source"
+  onclose={() => (showTypeChooser = false)}
+>
+  <p class="type-chooser-description">Choose the type of data source to add:</p>
+  <div class="type-chooser-options">
+    <button class="type-option" onclick={chooseSpreadsheet}>
+      <span class="type-option-title">Spreadsheet</span>
+      <span class="type-option-desc">Create and edit data directly in Deckle</span>
+    </button>
+    <button class="type-option" onclick={chooseGoogleSheets}>
+      <span class="type-option-title">Google Sheets</span>
+      <span class="type-option-desc">Link to an existing Google Sheets spreadsheet</span>
+    </button>
+  </div>
+</Dialog>
+
+<Dialog
+  bind:show={showSpreadsheetModal}
+  title="New Spreadsheet"
+  onclose={() => (showSpreadsheetModal = false)}
+>
+  {#if errorMessage}
+    <div class="error-message">{errorMessage}</div>
+  {/if}
+
+  <div class="form-group">
+    <label for="spreadsheet-name">Name *</label>
+    <input
+      id="spreadsheet-name"
+      type="text"
+      bind:value={spreadsheetName}
+      placeholder="e.g. Monster Stats, Item Cards"
+      disabled={creatingSpreadsheet}
+    />
+  </div>
+
+  {#snippet actions()}
+    <Button variant="secondary" onclick={() => (showSpreadsheetModal = false)} disabled={creatingSpreadsheet}>
+      Cancel
+    </Button>
+    <Button variant="primary" onclick={createSpreadsheet} disabled={creatingSpreadsheet || !spreadsheetName.trim()}>
+      {creatingSpreadsheet ? 'Creating...' : 'Create'}
     </Button>
   {/snippet}
 </Dialog>
@@ -401,5 +513,46 @@
     font-size: 0.75rem;
     color: var(--color-muted-teal);
     margin: 0.5rem 0 0 0;
+  }
+
+  .type-chooser-description {
+    color: var(--color-muted-teal);
+    margin: 0 0 1rem 0;
+    font-size: 0.875rem;
+  }
+
+  .type-chooser-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .type-option {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem;
+    border: 2px solid var(--color-teal-grey);
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+  }
+
+  .type-option:hover {
+    border-color: var(--color-muted-teal);
+    background-color: var(--color-background, #f9fafb);
+  }
+
+  .type-option-title {
+    font-weight: 600;
+    color: var(--color-sage);
+    font-size: 1rem;
+  }
+
+  .type-option-desc {
+    font-size: 0.875rem;
+    color: var(--color-muted-teal);
   }
 </style>

@@ -60,3 +60,21 @@ export interface SetUsernameRequest {
 export interface SetUsernameResponse {
   username: string;
 }
+
+// Admin sample component types
+export interface AdminSampleComponent {
+  id: string;
+  type: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  stats: Record<string, string>;
+  dataSource?: { id: string; name: string } | null;
+}
+
+export interface AdminSampleComponentListResponse {
+  components: AdminSampleComponent[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}

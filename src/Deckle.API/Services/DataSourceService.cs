@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
@@ -18,30 +19,15 @@ public class DataSourceService
         _authService = authService;
     }
 
-    public async Task<List<DataSourceDto>> GetProjectDataSourcesAsync(Guid userId, Guid projectId)
+    public async Task<List<DataSourceDto>> GetDataSourcesAsync(Guid userId, Guid? projectId)
     {
         await _authService.RequireProjectAccessAsync(userId, projectId);
 
         var dataSources = await _dbContext.DataSources
             .Where(ds => ds.ProjectId == projectId)
-            .Select(ds => new DataSourceDto
-            {
-                Id = ds.Id,
-                ProjectId = ds.ProjectId,
-                Name = ds.Name,
-                Type = ds.Type.ToString(),
-                GoogleSheetsId = ds.GoogleSheetsId,
-                GoogleSheetsUrl = ds.GoogleSheetsUrl,
-                SheetGid = ds.SheetGid,
-                CsvExportUrl = ds.CsvExportUrl,
-                Headers = ds.Headers,
-                RowCount = ds.RowCount,
-                CreatedAt = ds.CreatedAt,
-                UpdatedAt = ds.UpdatedAt
-            })
             .ToListAsync();
 
-        return dataSources;
+        return [.. dataSources.Select(DataSourceDto.FromEntity)];
     }
 
     public async Task<DataSourceDto?> GetDataSourceByIdAsync(Guid userId, Guid dataSourceId)
@@ -54,26 +40,16 @@ public class DataSourceService
             return null;
         }
 
-        await _authService.RequireProjectAccessAsync(userId, dataSource.ProjectId, "User does not have access to this data source");
-
-        return new DataSourceDto
+        // Sample data sources without a project are accessible to all authenticated users
+        if (dataSource.ProjectId.HasValue)
         {
-            Id = dataSource.Id,
-            ProjectId = dataSource.ProjectId,
-            Name = dataSource.Name,
-            Type = dataSource.Type.ToString(),
-            GoogleSheetsId = dataSource.GoogleSheetsId,
-            GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
-            SheetGid = dataSource.SheetGid,
-            CsvExportUrl = dataSource.CsvExportUrl,
-            Headers = dataSource.Headers,
-            RowCount = dataSource.RowCount,
-            CreatedAt = dataSource.CreatedAt,
-            UpdatedAt = dataSource.UpdatedAt
-        };
+            await _authService.RequireProjectAccessAsync(userId, dataSource.ProjectId.Value, "User does not have access to this data source");
+        }
+
+        return DataSourceDto.FromEntity(dataSource);
     }
 
-    public async Task<DataSourceDto> CreateGoogleSheetsDataSourceAsync(Guid userId, Guid projectId, string name, string url, int? sheetGid = null)
+    public async Task<DataSourceDto> CreateGoogleSheetsDataSourceAsync(Guid userId, Guid? projectId, string name, Uri url, int? sheetGid = null)
     {
         await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
 
@@ -107,39 +83,61 @@ public class DataSourceService
             name = $"Google Sheet ({extractedSpreadsheetId})";
         }
 
-        var dataSource = new DataSource
+        var dataSource = new GoogleSheetsDataSource
         {
             Id = Guid.NewGuid(),
             ProjectId = projectId,
             Name = name,
             Type = DataSourceType.GoogleSheets,
-            ConnectionString = csvExportUrl,
             GoogleSheetsId = extractedSpreadsheetId,
             GoogleSheetsUrl = url,
             SheetGid = finalSheetGid,
-            CsvExportUrl = csvExportUrl,
+            CsvExportUrl = new Uri(csvExportUrl),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
-        _dbContext.DataSources.Add(dataSource);
+        _dbContext.GoogleSheetsDataSources.Add(dataSource);
         await _dbContext.SaveChangesAsync();
 
-        return new DataSourceDto
+        return DataSourceDto.FromEntity(dataSource);
+    }
+
+    public async Task<DataSourceDto> CopySampleDataSourceToProjectAsync(Guid userId, Guid projectId, Guid sampleDataSourceId)
+    {
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+
+        var sample = await _dbContext.DataSources
+            .SingleOrDefaultAsync(ds => ds.Id == sampleDataSourceId && ds.ProjectId == null)
+            ?? throw new KeyNotFoundException($"Sample data source with ID {sampleDataSourceId} not found");
+
+        var copy = await GetOrCreateProjectSampleDataSourceFromAsync(projectId, sample);
+
+        await _dbContext.SaveChangesAsync();
+
+        return DataSourceDto.FromEntity(copy);
+    }
+
+    public async Task<SampleDataSource> GetOrCreateProjectSampleDataSourceFromAsync(Guid projectId, DataSource dataSource) {
+        var sample = await _dbContext.SampleDataSources.FirstOrDefaultAsync(x => x.ProjectId == projectId && x.SourceDataSourceId == dataSource.Id);
+        if (sample is not null)
+            return sample;
+
+        var copy = new SampleDataSource
         {
-            Id = dataSource.Id,
-            ProjectId = dataSource.ProjectId,
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
             Name = dataSource.Name,
-            Type = dataSource.Type.ToString(),
-            GoogleSheetsId = dataSource.GoogleSheetsId,
-            GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
-            SheetGid = dataSource.SheetGid,
-            CsvExportUrl = dataSource.CsvExportUrl,
-            Headers = dataSource.Headers,
+            Type = DataSourceType.Sample,
+            Headers = dataSource.Headers != null ? [.. dataSource.Headers] : null,
             RowCount = dataSource.RowCount,
-            CreatedAt = dataSource.CreatedAt,
-            UpdatedAt = dataSource.UpdatedAt
+            SourceDataSourceId = dataSource.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
+        await _dbContext.SampleDataSources.AddAsync(copy);
+
+        return copy;
     }
 
     public async Task<DataSourceDto?> UpdateDataSourceAsync(Guid userId, Guid dataSourceId, string name)
@@ -153,13 +151,10 @@ public class DataSourceService
         }
 
         // Check user's role
-        var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId);
-        if (role == null)
-        {
-            throw new UnauthorizedAccessException("User does not have access to this data source");
-        }
+        var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId)
+            ?? throw new UnauthorizedAccessException("User does not have access to this data source");
 
-        if (!ProjectAuthorizationService.CanModifyResources(role.Value))
+        if (!ProjectAuthorizationService.CanModifyResources(role))
         {
             return null;
         }
@@ -170,36 +165,24 @@ public class DataSourceService
 
         await _dbContext.SaveChangesAsync();
 
-        return new DataSourceDto
-        {
-            Id = dataSource.Id,
-            ProjectId = dataSource.ProjectId,
-            Name = dataSource.Name,
-            Type = dataSource.Type.ToString(),
-            GoogleSheetsId = dataSource.GoogleSheetsId,
-            GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
-            SheetGid = dataSource.SheetGid,
-            CsvExportUrl = dataSource.CsvExportUrl,
-            Headers = dataSource.Headers,
-            RowCount = dataSource.RowCount,
-            CreatedAt = dataSource.CreatedAt,
-            UpdatedAt = dataSource.UpdatedAt
-        };
+        return DataSourceDto.FromEntity(dataSource);
     }
 
     public async Task<DataSourceDto> SyncDataSourceMetadataAsync(Guid userId, Guid dataSourceId, List<string> headers, int rowCount)
     {
         var dataSource = await _dbContext.DataSources
-            .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
+            .FirstOrDefaultAsync(ds => ds.Id == dataSourceId)
+            ?? throw new KeyNotFoundException($"Data source with ID {dataSourceId} not found");
 
-        if (dataSource == null)
+        // Sample data sources without a project cannot be synced via this method
+        if (!dataSource.ProjectId.HasValue)
         {
-            throw new KeyNotFoundException($"Data source with ID {dataSourceId} not found");
+            throw new InvalidOperationException("Sample data sources cannot be synced through this method");
         }
 
         await _authService.RequirePermissionAsync(
             userId,
-            dataSource.ProjectId,
+            dataSource.ProjectId.Value,
             ProjectAuthorizationService.CanModifyResources,
             "User does not have permission to sync data sources");
 
@@ -210,21 +193,7 @@ public class DataSourceService
 
         await _dbContext.SaveChangesAsync();
 
-        return new DataSourceDto
-        {
-            Id = dataSource.Id,
-            ProjectId = dataSource.ProjectId,
-            Name = dataSource.Name,
-            Type = dataSource.Type.ToString(),
-            GoogleSheetsId = dataSource.GoogleSheetsId,
-            GoogleSheetsUrl = dataSource.GoogleSheetsUrl,
-            SheetGid = dataSource.SheetGid,
-            CsvExportUrl = dataSource.CsvExportUrl,
-            Headers = dataSource.Headers,
-            RowCount = dataSource.RowCount,
-            CreatedAt = dataSource.CreatedAt,
-            UpdatedAt = dataSource.UpdatedAt
-        };
+        return DataSourceDto.FromEntity(dataSource);
     }
 
     public async Task<bool> DeleteDataSourceAsync(Guid userId, Guid dataSourceId)
@@ -238,13 +207,10 @@ public class DataSourceService
         }
 
         // Check user's role
-        var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId);
-        if (role == null)
-        {
-            throw new UnauthorizedAccessException("User does not have access to this data source");
-        }
+        var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId)
+            ?? throw new UnauthorizedAccessException("User does not have access to this data source");
 
-        if (!ProjectAuthorizationService.CanModifyResources(role.Value))
+        if (!ProjectAuthorizationService.CanModifyResources(role))
         {
             return false;
         }
@@ -253,5 +219,98 @@ public class DataSourceService
         await _dbContext.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<DataSourceDto> CreateSpreadsheetDataSourceAsync(Guid userId, Guid? projectId, string name)
+    {
+        await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
+
+        var dataSource = new SpreadsheetDataSource
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            Name = name,
+            Type = DataSourceType.Spreadsheet,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.SpreadsheetDataSources.Add(dataSource);
+        await _dbContext.SaveChangesAsync();
+
+        return DataSourceDto.FromEntity(dataSource);
+    }
+
+    public async Task<DataSourceDto?> UpdateSpreadsheetDataSourceAsync(Guid userId, Guid dataSourceId, string name, string? jsonData)
+    {
+        var dataSource = await _dbContext.SpreadsheetDataSources
+            .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
+
+        if (dataSource == null)
+        {
+            return null;
+        }
+
+        await _authService.RequirePermissionAsync(
+            userId,
+            dataSource.ProjectId,
+            ProjectAuthorizationService.CanModifyResources,
+            "User does not have permission to update this data source");
+
+        dataSource.Name = name;
+        dataSource.JsonData = jsonData;
+
+        var (headers, rowCount) = ParseJsonDataMetadata(jsonData);
+        dataSource.Headers = headers;
+        dataSource.RowCount = rowCount;
+        dataSource.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return DataSourceDto.FromEntity(dataSource);
+    }
+
+    public async Task<DataSourceDto?> GetSpreadsheetDataSourceDetailAsync(Guid userId, Guid dataSourceId)
+    {
+        var dataSource = await _dbContext.SpreadsheetDataSources
+            .FirstOrDefaultAsync(ds => ds.Id == dataSourceId);
+
+        if (dataSource == null)
+        {
+            return null;
+        }
+
+        if (dataSource.ProjectId.HasValue)
+        {
+            await _authService.RequireProjectAccessAsync(userId, dataSource.ProjectId.Value,
+                "User does not have access to this data source");
+        }
+
+        return DataSourceDto.FromEntity(dataSource);
+    }
+
+    private static (List<string>? Headers, int? RowCount) ParseJsonDataMetadata(string? jsonData)
+    {
+        if (string.IsNullOrWhiteSpace(jsonData))
+        {
+            return (null, null);
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<SampleDataJson>(jsonData,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (parsed == null)
+            {
+                return (null, null);
+            }
+
+            return (parsed.Headers.Count > 0 ? parsed.Headers : null, parsed.Rows.Count);
+        }
+        catch (JsonException)
+        {
+            return (null, null);
+        }
     }
 }

@@ -21,9 +21,7 @@
     {canEdit ? 'Edit' : 'View'} Back
   </a>
   <span class="design-link-separator">•</span>
-  <a href="{projectUrlBase}/export?components={component.id}" class="design-link">
-    Export
-  </a>
+  <a href="{projectUrlBase}/export?components={component.id}" class="design-link"> Export </a>
 </div>
 
 <style>

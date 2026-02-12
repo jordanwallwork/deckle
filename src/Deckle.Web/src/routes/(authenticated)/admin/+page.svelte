@@ -20,11 +20,15 @@
         <p>View and manage user accounts, roles, and permissions.</p>
       </a>
 
-      <div class="admin-card">
-        <h3>System Analytics</h3>
-        <p>Monitor system usage, performance metrics, and statistics.</p>
-        <span class="badge">Coming Soon</span>
-      </div>
+      <a href="/admin/samples" class="admin-card clickable">
+        <h3>Sample Components</h3>
+        <p>View and manage sample card and player mat components.</p>
+      </a>
+
+      <a href="/admin/data-sources" class="admin-card clickable">
+        <h3>Sample Data Sources</h3>
+        <p>Create and manage sample data for components.</p>
+      </a>
 
       <div class="admin-card">
         <h3>Content Moderation</h3>
@@ -42,10 +46,6 @@
 </div>
 
 <style>
-  .admin-container {
-    padding: 2rem;
-  }
-
   .admin-header h1 {
     color: #1a1a1a;
     margin-bottom: 1rem;
@@ -114,10 +114,6 @@
   }
 
   @media (max-width: 768px) {
-    .admin-container {
-      padding: 1rem;
-    }
-
     .admin-header h1 {
       font-size: 2rem;
     }

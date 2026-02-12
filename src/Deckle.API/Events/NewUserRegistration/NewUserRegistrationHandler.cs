@@ -10,7 +10,7 @@ namespace Deckle.API.Events.NewUserRegistration;
 /// <summary>
 /// Handles the NewUserRegistrationEvent by sending an email notification to site administrators.
 /// </summary>
-public class NewUserRegistrationHandler : INotificationHandler<NewUserRegistrationEvent>
+public partial class NewUserRegistrationHandler : INotificationHandler<NewUserRegistrationEvent>
 {
     private readonly IEmailSender _emailSender;
     private readonly AppDbContext _dbContext;
@@ -35,7 +35,7 @@ public class NewUserRegistrationHandler : INotificationHandler<NewUserRegistrati
 
         if (adminEmails.Count == 0)
         {
-            _logger.LogWarning("No administrators found. Skipping new user registration notification for {Username}", notification.Username);
+            LogNoAdministratorsFound(notification.Username);
             return;
         }
 
@@ -51,11 +51,20 @@ public class NewUserRegistrationHandler : INotificationHandler<NewUserRegistrati
         try
         {
             await _emailSender.SendAsync(template, cancellationToken);
-            _logger.LogInformation("Sent new user registration notification for {Username} to {AdminCount} administrator(s)", notification.Username, adminEmails.Count);
+            LogNewUserRegistrationNotificationSent(notification.Username, adminEmails.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send new user registration notification for {Username}", notification.Username);
+            LogNewUserRegistrationNotificationFailed(ex, notification.Username);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "No administrators found. Skipping new user registration notification for {Username}")]
+    private partial void LogNoAdministratorsFound(string username);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Sent new user registration notification for {Username} to {AdminCount} administrator(s)")]
+    private partial void LogNewUserRegistrationNotificationSent(string username, int adminCount);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Failed to send new user registration notification for {Username}")]
+    private partial void LogNewUserRegistrationNotificationFailed(Exception ex, string username);
 }

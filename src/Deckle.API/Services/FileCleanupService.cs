@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
-public class FileCleanupService : BackgroundService
+public partial class FileCleanupService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<FileCleanupService> _logger;
@@ -21,7 +21,7 @@ public class FileCleanupService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("FileCleanupService started");
+        LogServiceStarted();
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -31,13 +31,13 @@ public class FileCleanupService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during file cleanup");
+                LogCleanupError(ex);
             }
 
             await Task.Delay(_cleanupInterval, stoppingToken);
         }
 
-        _logger.LogInformation("FileCleanupService stopped");
+        LogServiceStopped();
     }
 
     private async Task CleanupPendingFilesAsync()
@@ -53,11 +53,11 @@ public class FileCleanupService : BackgroundService
 
         if (pendingFiles.Count == 0)
         {
-            _logger.LogDebug("No pending files to clean up");
+            LogNoPendingFiles();
             return;
         }
 
-        _logger.LogInformation("Found {Count} pending files to clean up", pendingFiles.Count);
+        LogPendingFilesFound(pendingFiles.Count);
 
         var successCount = 0;
         var failureCount = 0;
@@ -73,7 +73,7 @@ public class FileCleanupService : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete file from R2 (may not exist): {StorageKey}", file.StorageKey);
+                    LogR2DeleteFailed(ex, file.StorageKey);
                     // Continue with database cleanup even if R2 deletion fails
                 }
 
@@ -81,22 +81,46 @@ public class FileCleanupService : BackgroundService
                 context.Files.Remove(file);
 
                 successCount++;
-                _logger.LogInformation("Cleaned up pending file: {FileId} (uploaded {UploadedAt})",
-                    file.Id, file.UploadedAt);
+                LogPendingFileCleaned(file.Id, file.UploadedAt);
             }
             catch (Exception ex)
             {
                 failureCount++;
-                _logger.LogWarning(ex, "Failed to cleanup file: {FileId}", file.Id);
+                LogFileCleanupFailed(ex, file.Id);
             }
         }
 
         if (successCount > 0)
         {
             await context.SaveChangesAsync();
-            _logger.LogInformation(
-                "File cleanup completed: {SuccessCount} cleaned up, {FailureCount} failed",
-                successCount, failureCount);
+            LogCleanupCompleted(successCount, failureCount);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "FileCleanupService started")]
+    private partial void LogServiceStarted();
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Error during file cleanup")]
+    private partial void LogCleanupError(Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "FileCleanupService stopped")]
+    private partial void LogServiceStopped();
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "No pending files to clean up")]
+    private partial void LogNoPendingFiles();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Found {Count} pending files to clean up")]
+    private partial void LogPendingFilesFound(int count);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to delete file from R2 (may not exist): {StorageKey}")]
+    private partial void LogR2DeleteFailed(Exception ex, string storageKey);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Cleaned up pending file: {FileId} (uploaded {UploadedAt})")]
+    private partial void LogPendingFileCleaned(Guid fileId, DateTime uploadedAt);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to cleanup file: {FileId}")]
+    private partial void LogFileCleanupFailed(Exception ex, Guid fileId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "File cleanup completed: {SuccessCount} cleaned up, {FailureCount} failed")]
+    private partial void LogCleanupCompleted(int successCount, int failureCount);
 }

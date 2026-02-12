@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ params, fetch, parent }) => {
     // Load all data sources for the project
     let dataSources: DataSource[] = [];
     try {
-      dataSources = await dataSourcesApi.listByProject(parentData.project.id, fetch);
+      dataSources = await dataSourcesApi.getAll(parentData.project.id, fetch);
     } catch (err) {
       console.error('Failed to load data sources:', err);
       // Continue without data sources list if it fails to load

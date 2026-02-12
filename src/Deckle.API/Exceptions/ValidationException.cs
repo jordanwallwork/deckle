@@ -9,24 +9,36 @@ public class ValidationException : Exception
 {
     public ValidationErrorResponse ErrorResponse { get; }
 
+    public ValidationException()
+        : base("Validation failed")
+    {
+        ErrorResponse = new ValidationErrorResponse { Errors = [] };
+    }
+
+    public ValidationException(string message)
+        : base(message)
+    {
+        ErrorResponse = new ValidationErrorResponse { Errors = [] };
+    }
+
+    public ValidationException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+        ErrorResponse = new ValidationErrorResponse { Errors = [] };
+    }
+
     public ValidationException(ValidationErrorResponse errorResponse)
         : base("Validation failed")
     {
         ErrorResponse = errorResponse;
     }
 
-    public ValidationException(string field, string message)
-        : base("Validation failed")
-    {
-        ErrorResponse = new ValidationErrorResponse
-        {
-            Errors = new Dictionary<string, string[]> { { field, [message] } }
-        };
-    }
-
     public static ValidationException ForField(string field, string message)
     {
-        return new ValidationException(field, message);
+        return new ValidationException(new ValidationErrorResponse
+        {
+            Errors = new Dictionary<string, string[]> { { field, [message] } }
+        });
     }
 
     public static ValidationException FromBuilder(ValidationErrorBuilder builder)

@@ -1,12 +1,14 @@
-using System.Text.Json.Serialization;
+using Deckle.API.Configurators;
 using Deckle.API.Services;
 using Deckle.API.Services.Email;
 using Deckle.Email;
 using Deckle.Email.Abstractions;
 using Exceptionless;
 using Hangfire;
-using Hangfire.InMemory;
+using Hangfire.PostgreSql;
 using MediatR;
+using System.Reflection;
+using System.Text.Json.Serialization;
 
 namespace Deckle.API.Extensions;
 
@@ -20,12 +22,33 @@ public static class ServiceCollectionExtensions
         services.AddScoped<GoogleSheetsService>();
         services.AddScoped<DataSourceService>();
         services.AddScoped<ComponentService>();
+        services.AddScoped<SampleService>();
         services.AddScoped<FileService>();
         services.AddScoped<FileDirectoryService>();
         services.AddScoped<AdminService>();
 
         // MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
+
+        // Configurators
+        services.AddTransient<IConfiguratorProvider, ConfiguratorProvider>();
+        services.AddConfigurators();
+
+        return services;
+    }
+
+    private static IServiceCollection AddConfigurators(this IServiceCollection services)
+    {
+        var implementations = Assembly.GetExecutingAssembly().GetTypes()
+            .Where(t => !t.IsAbstract && !t.IsInterface)
+            .SelectMany(t => t.GetInterfaces(), (t, i) => new { Implementation = t, Interface = i })
+            .Where(x => x.Interface.IsGenericType &&
+                        x.Interface.GetGenericTypeDefinition() == typeof(IConfigurator<,>));
+
+        foreach (var mapping in implementations)
+        {
+            services.AddTransient(mapping.Interface, mapping.Implementation);
+        }
 
         return services;
     }
@@ -37,12 +60,14 @@ public static class ServiceCollectionExtensions
         // HttpClient for external API calls
         services.AddHttpClient();
 
-        // Hangfire background job processing
+        // Hangfire background job processing with PostgreSQL storage
+        var hangfireConnectionString = configuration.GetConnectionString("deckledb")
+            ?? throw new InvalidOperationException("Connection string 'deckledb' not found for Hangfire.");
         services.AddHangfire(config => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
             .UseRecommendedSerializerSettings()
-            .UseInMemoryStorage());
+            .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(hangfireConnectionString)));
         services.AddHangfireServer();
 
         // Email services: register provider-specific senders as keyed services,
@@ -70,7 +95,6 @@ public static class ServiceCollectionExtensions
         {
             options.CustomizeProblemDetails = ctx =>
             {
-                ctx.ProblemDetails.Extensions.Add("traceId", ctx.HttpContext.TraceIdentifier);
                 ctx.ProblemDetails.Extensions.Add("instance", $"{ctx.HttpContext.Request.Method} {ctx.HttpContext.Request.Path}");
             };
         });

@@ -33,9 +33,6 @@
   let structurePanelOpen = $state(false);
   let configPanelOpen = $state(false);
 
-  // Data source panel expansion state
-  let dataSourceExpanded = $state(false);
-
   function toggleStructurePanel() {
     structurePanelOpen = !structurePanelOpen;
     if (structurePanelOpen) configPanelOpen = false; // Close other panel
@@ -44,14 +41,6 @@
   function toggleConfigPanel() {
     configPanelOpen = !configPanelOpen;
     if (configPanelOpen) structurePanelOpen = false; // Close other panel
-  }
-
-  function minimizeDataSourcePanel() {
-    dataSourceExpanded = false;
-  }
-
-  function maximizeDataSourcePanel() {
-    dataSourceExpanded = true;
   }
 
   // Load the saved design when the editor initializes
@@ -231,14 +220,12 @@
   </div>
 
   <!-- Data Source Panel (bottom) -->
-  <div class="data-source-container" class:expanded={dataSourceExpanded}>
+  <div class="data-source-container">
     <DataSourcePanel
       dataSource={data.dataSource}
       dataSources={data.dataSources}
       projectId={data.project.id}
       componentId={data.component.id}
-      onMinimize={minimizeDataSourcePanel}
-      onMaximize={maximizeDataSourcePanel}
       {readOnly}
     />
   </div>
@@ -303,10 +290,6 @@
     border-color: #3b82f6;
   }
 
-  .panel-toggle svg {
-    flex-shrink: 0;
-  }
-
   /* Panels container - holds side panels and main panel */
   .panels-container {
     flex: 1 1 0;
@@ -369,18 +352,11 @@
 
   /* Data source panel container */
   .data-source-container {
-    flex: 0 0 auto;
+    position: absolute;
+    bottom: 0;
+    width: 100%;
     border-top: 1px solid #e5e5e7;
     background: white;
-    height: 60px;
-    overflow: hidden;
-    transition: height 0.2s ease;
-  }
-
-  .data-source-container.expanded {
-    /* Use flex-basis to set expanded size, capped at 50% of editor or 600px */
-    height: min(600px, 50vh);
-    overflow: hidden;
   }
 
   /* Mobile styles */

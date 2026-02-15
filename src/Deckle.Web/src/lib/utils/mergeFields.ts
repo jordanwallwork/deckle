@@ -1,47 +1,83 @@
+import FormulaEvaluator from 'formula-evaluator';
+
+const evaluator = new FormulaEvaluator();
+
+/**
+ * Converts string rowData values to appropriate types for formula evaluation.
+ * Numeric strings become numbers, "true"/"false" become booleans.
+ */
+function toTypedContext(rowData: Record<string, string>): Record<string, string | number | boolean> {
+  const context: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(rowData)) {
+    const lower = value.toLowerCase();
+    if (lower === 'true') {
+      context[key] = true;
+    } else if (lower === 'false') {
+      context[key] = false;
+    } else if (value !== '' && !isNaN(Number(value))) {
+      context[key] = Number(value);
+    } else {
+      context[key] = value;
+    }
+  }
+  return context;
+}
+
+/**
+ * Strips matching surrounding quotes (single or double) from a string.
+ */
+function stripQuotes(s: string): string {
+  if (s.length >= 2 && ((s[0] === '"' && s[s.length - 1] === '"') || (s[0] === "'" && s[s.length - 1] === "'"))) {
+    return s.slice(1, -1);
+  }
+  return s;
+}
+
 /**
  * Replaces merge field patterns with values from data source row data.
+ * The expression inside {{ }} is evaluated as a formula using formula-evaluator,
+ * with rowData fields available as variables.
  *
  * Patterns supported:
- * - {{FieldName}} - Replaces with value from rowData['FieldName']
+ * - {{FieldName}} - Evaluates as a variable reference, resolves from rowData
  * - {{Field Name}} - Supports field names with spaces
- * - {{Field Name|Default Value}} - Uses fallback if field is not found
+ * - {{IF(Type = 'Fire', "Burnt", "Wet")}} - Formula expressions
+ * - {{Price + Tax}} - Arithmetic expressions
+ * - {{Expression|Default Value}} - Uses fallback if evaluation fails or returns empty
  *
  * @param content - The text content containing merge field patterns
  * @param rowData - Record mapping field names to values from the selected data source row
- * @returns Content with merge fields replaced by actual values
+ * @returns Content with merge fields replaced by evaluated values
  *
  * @example
  * replaceMergeFields('Hello {{Name}}', { Name: 'World' }) // 'Hello World'
  * replaceMergeFields('{{Count|0}} items', {}) // '0 items'
- * replaceMergeFields('{{Player Name|Unknown}}', {}) // 'Unknown'
+ * replaceMergeFields('{{Price + Tax}}', { Price: '10', Tax: '2' }) // '12'
+ * replaceMergeFields('{{3 / Zero|N/A}}', { Zero: '0' }) // 'N/A'
  */
 export function replaceMergeFields(
   content: string,
   rowData: Record<string, string> | null | undefined
 ): string {
   if (!rowData) {
-    // If no row data, replace merge fields with fallback values or keep the pattern
-    return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, _fieldName, fallback) => {
-      return fallback !== undefined ? fallback.trim() : match;
+    return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, _formula, fallback) => {
+      return fallback !== undefined ? stripQuotes(fallback.trim()) : match;
     });
   }
 
-  // Pattern explanation:
-  // \{\{ - Opening braces (escaped)
-  // ([^|{}]+) - Capture group 1: Field name (anything except |, {, })
-  // (?:\|([^}]*))? - Optional non-capturing group for fallback:
-  //   \| - Pipe character
-  //   ([^}]*) - Capture group 2: Fallback value (anything except })
-  // \}\} - Closing braces (escaped)
-  return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, fieldName, fallback) => {
-    const normalizedFieldName = fieldName.trim();
-    const value = rowData[normalizedFieldName];
+  const context = toTypedContext(rowData);
 
-    // Return value if found, otherwise use fallback (or original pattern if no fallback)
-    if (value !== undefined && value !== null && value !== '') {
-      return value;
+  return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, formula, fallback) => {
+    const expression = formula.trim();
+    try {
+      const result = evaluator.evaluate(expression, context);
+      if (result !== undefined && result !== null && result !== '') {
+        return String(result);
+      }
+    } catch {
+      // Evaluation failed — fall through to fallback
     }
 
-    return fallback !== undefined ? fallback.trim() : match;
+    return fallback !== undefined ? stripQuotes(fallback.trim()) : match;
   });
 }

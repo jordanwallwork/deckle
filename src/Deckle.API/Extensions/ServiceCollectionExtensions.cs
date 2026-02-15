@@ -95,7 +95,7 @@ public static class ServiceCollectionExtensions
         {
             options.CustomizeProblemDetails = ctx =>
             {
-                ctx.ProblemDetails.Extensions.Add("instance", $"{ctx.HttpContext.Request.Method} {ctx.HttpContext.Request.Path}");
+                    ctx.ProblemDetails.Extensions.Add("instance", $"{ctx.HttpContext.Request.Method} {ctx.HttpContext.Request.Path}");
             };
         });
 

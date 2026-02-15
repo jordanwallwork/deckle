@@ -24,6 +24,30 @@ function toTypedContext(rowData: Record<string, string>): Record<string, string 
 }
 
 /**
+ * Converts a header string into a valid alphanumeric identifier for use with formula-evaluator.
+ * Removes spaces and non-alphanumeric characters, producing a PascalCase identifier.
+ *
+ * @example
+ * toIdentifier('Hero Name') // 'HeroName'
+ * toIdentifier('Attack Stat') // 'AttackStat'
+ * toIdentifier('HP (Max)') // 'HPMax'
+ * toIdentifier('already_valid') // 'already_valid'
+ */
+export function toIdentifier(header: string): string {
+  // Split on non-alphanumeric characters, capitalize each word, rejoin
+  return header
+    .split(/[^a-zA-Z0-9_]+/)
+    .filter(Boolean)
+    .map((word, index) => {
+      // Capitalize the first letter of each word after the first split segment
+      // But preserve the original casing of the first segment to handle already-capitalized headers
+      if (index === 0) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join('');
+}
+
+/**
  * Strips matching surrounding quotes (single or double) from a string.
  */
 function stripQuotes(s: string): string {
@@ -40,7 +64,6 @@ function stripQuotes(s: string): string {
  *
  * Patterns supported:
  * - {{FieldName}} - Evaluates as a variable reference, resolves from rowData
- * - {{Field Name}} - Supports field names with spaces
  * - {{IF(Type = 'Fire', "Burnt", "Wet")}} - Formula expressions
  * - {{Price + Tax}} - Arithmetic expressions
  * - {{Expression|Default Value}} - Uses fallback if evaluation fails or returns empty

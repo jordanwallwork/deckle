@@ -8,6 +8,7 @@
   import { formatRelativeTime } from '$lib/utils/date.utils';
   import { syncDataSource } from '$lib/utils/dataSource.utils';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
+  import { toIdentifier } from '$lib/utils/mergeFields';
   import { ChevronLeftIcon, MaximizeIcon, MinimizeIcon } from '$lib/components/icons';
 
   interface Props {
@@ -29,6 +30,16 @@
   let loadingData = $state(false);
   let selectedRowIndex = $state(0); // Default to first row
   let maximised = $state(false);
+
+  // Compute identifier tooltips for data table headers
+  const headerTooltips = $derived(
+    spreadsheetData && spreadsheetData.length > 0
+      ? spreadsheetData[0].map((header) => {
+          const id = toIdentifier(header);
+          return id !== header ? `Merge field: {{${id}}}` : `Merge field: {{${header}}}`;
+        })
+      : undefined
+  );
 
   // Load data when component mounts or dataSource changes
   $effect(() => {
@@ -57,7 +68,7 @@
 
         const rowObject = headers.reduce(
           (obj, header, index) => {
-            obj[header] = firstRow[index] || '';
+            obj[toIdentifier(header)] = firstRow[index] || '';
             return obj;
           },
           {} as Record<string, string>
@@ -87,10 +98,10 @@
       const selectedRow = rows[rowIndex];
 
       if (selectedRow) {
-        // Map headers to values to create an object
+        // Map headers to identifier keys for formula-evaluator compatibility
         const rowObject = headers.reduce(
           (obj, header, index) => {
-            obj[header] = selectedRow[index] || '';
+            obj[toIdentifier(header)] = selectedRow[index] || '';
             return obj;
           },
           {} as Record<string, string>
@@ -242,6 +253,7 @@
             stickyHeader={true}
             selectable={true}
             {selectedRowIndex}
+            {headerTooltips}
             onRowSelect={handleRowSelect}
           />
         </div>

@@ -9,6 +9,8 @@
   import TreeNode from './TreeNode.svelte';
   import { getElementLabel } from '../utils';
   import { DragHandleIcon, LockIcon, PlusIcon, CloseIcon } from '$lib/components/icons';
+  import { getDataSourceRow } from '$lib/stores/dataSourceRow';
+  import { evaluateVisibility } from '$lib/utils/mergeFields';
 
   let {
     element,
@@ -34,10 +36,15 @@
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
 
+  const dataSourceRow = getDataSourceRow();
+
   const hasChildren = $derived(element.type === 'container' && element.children.length > 0);
   const isSelected = $derived(selectedId === element.id);
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
-  const isInvisible = $derived(element.visibilityMode === 'hide');
+  const isInvisible = $derived(
+    element.visibilityMode === 'hide' ||
+    (element.visibilityMode === 'conditional' && !evaluateVisibility(element.visibilityCondition, $dataSourceRow))
+  );
   const isLocked = $derived(element.locked === true);
 
   function toggleExpanded() {

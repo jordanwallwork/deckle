@@ -55,6 +55,38 @@ function stripQuotes(s: string): string {
  * replaceMergeFields('{{Price + Tax}}', { Price: '10', Tax: '2' }) // '12'
  * replaceMergeFields('{{3 / Zero|N/A}}', { Zero: '0' }) // 'N/A'
  */
+/**
+ * Evaluates a visibility condition formula against row data.
+ * Returns true if the element should be visible, false if it should be hidden.
+ * Empty strings, null, undefined, false, and 0 are considered falsy (hidden).
+ *
+ * @param condition - The formula expression to evaluate (without {{ }} delimiters)
+ * @param rowData - Record mapping field names to values from the selected data source row
+ * @returns true if the element should be visible
+ */
+export function evaluateVisibility(
+  condition: string | undefined,
+  rowData: Record<string, string> | null | undefined
+): boolean {
+  if (!condition || !condition.trim()) {
+    return false;
+  }
+
+  if (!rowData) {
+    return false;
+  }
+
+  const context = toTypedContext(rowData);
+  const expression = condition.trim();
+
+  try {
+    const result = evaluator.evaluate(expression, context);
+    return !!result;
+  } catch {
+    return false;
+  }
+}
+
 export function replaceMergeFields(
   content: string,
   rowData: Record<string, string> | null | undefined

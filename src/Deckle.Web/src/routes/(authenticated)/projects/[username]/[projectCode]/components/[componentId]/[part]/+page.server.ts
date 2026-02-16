@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ params, fetch, parent }) => {
 
     // Load data source details if component has one linked
     let dataSource = null;
-    if (component.type === 'Card' && component.dataSource) {
+    if ('dataSource' in component && component.dataSource) {
       try {
         dataSource = await dataSourcesApi.getById(component.dataSource.id, fetch);
       } catch (err) {

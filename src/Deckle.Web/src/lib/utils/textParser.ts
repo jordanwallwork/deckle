@@ -65,67 +65,100 @@ function iconHtml(rawIconName: string): string {
 }
 
 /**
+ * Tries to parse the inner content of a brace pair into an HTML token.
+ * Returns the HTML string if matched, or null if the content doesn't match any pattern.
+ */
+function tryParseToken(inner: string, escapeText: boolean): string | null {
+  // 1. Standalone icon: [iconName] or [s:iconName]
+  if (inner.startsWith('[') && inner.endsWith(']')) {
+    const iconName = inner.slice(1, -1);
+    const icon = iconHtml(iconName);
+    return icon || null;
+  }
+
+  // 2. Icon with class: className:[iconName]
+  const bracketIdx = inner.indexOf(':[');
+  if (bracketIdx > 0 && inner.endsWith(']')) {
+    const className = inner.slice(0, bracketIdx).trim();
+    const iconName = inner.slice(bracketIdx + 2, -1);
+    const sanitizedClass = sanitizeClassName(className);
+    const icon = iconHtml(iconName);
+
+    if (icon && sanitizedClass) {
+      return `<span class="${sanitizedClass}">${icon}</span>`;
+    }
+    if (icon) {
+      return icon;
+    }
+    return null;
+  }
+
+  // 3. Inline class: className: textContent (colon followed by space)
+  const colonSpaceIdx = inner.indexOf(': ');
+  if (colonSpaceIdx > 0) {
+    const className = inner.slice(0, colonSpaceIdx).trim();
+    const textContent = inner.slice(colonSpaceIdx + 2).trim();
+    const sanitizedClass = sanitizeClassName(className);
+
+    if (sanitizedClass) {
+      const escapedContent = escapeText ? escapeHtml(textContent) : textContent;
+      return `<span class="${sanitizedClass}">${escapedContent}</span>`;
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
  * Parses text content and converts inline class syntax and icon syntax to HTML.
+ *
+ * Uses a character-by-character loop to avoid catastrophic backtracking from complex regex.
  *
  * @param content - The text content to parse
  * @param escapeText - Whether to escape HTML in the text portions (default: true)
  * @returns The parsed HTML string
  */
 export function parseInlineClasses(content: string, escapeText: boolean = true): string {
-  // Combined pattern matches:
-  // 1. {className:[icon-name]} - icon with class wrapper
-  // 2. {[icon-name]} - standalone icon
-  // 3. {className: text content} - inline class (original)
-  const pattern = /\{([^{}:]*?):\s*\[((?:s:)?[a-z0-9-]+)\]\}|\{\[((?:s:)?[a-z0-9-]+)\]\}|\{([^{}:]+):\s*([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g;
-
-  let lastIndex = 0;
+  const maybeEscape = escapeText ? escapeHtml : (s: string) => s;
   let output = '';
-  let match;
+  let i = 0;
 
-  pattern.lastIndex = 0;
-
-  while ((match = pattern.exec(content)) !== null) {
-    // Add the text before this match
-    const beforeMatch = content.substring(lastIndex, match.index);
-    output += escapeText ? escapeHtml(beforeMatch) : beforeMatch;
-
-    if (match[3] !== undefined) {
-      // Standalone icon: {[icon-name]}
-      const icon = iconHtml(match[3]);
-      output += icon || (escapeText ? escapeHtml(match[0]) : match[0]);
-    } else if (match[1] !== undefined && match[2] !== undefined) {
-      // Icon with class: {className:[icon-name]}
-      const className = match[1].trim();
-      const sanitizedClass = sanitizeClassName(className);
-      const icon = iconHtml(match[2]);
-
-      if (icon && sanitizedClass) {
-        output += `<span class="${sanitizedClass}">${icon}</span>`;
-      } else if (icon) {
-        output += icon;
-      } else {
-        output += escapeText ? escapeHtml(match[0]) : match[0];
-      }
-    } else if (match[4] !== undefined && match[5] !== undefined) {
-      // Original inline class: {className: text content}
-      const className = match[4].trim();
-      const textContent = match[5].trim();
-      const sanitizedClass = sanitizeClassName(className);
-
-      if (sanitizedClass) {
-        const escapedContent = escapeText ? escapeHtml(textContent) : textContent;
-        output += `<span class="${sanitizedClass}">${escapedContent}</span>`;
-      } else {
-        output += escapeText ? escapeHtml(match[0]) : match[0];
-      }
+  while (i < content.length) {
+    if (content[i] !== '{') {
+      // Accumulate plain text until next '{' or end
+      const start = i;
+      while (i < content.length && content[i] !== '{') i++;
+      output += maybeEscape(content.substring(start, i));
+      continue;
     }
 
-    lastIndex = pattern.lastIndex;
-  }
+    // Found '{' — scan for matching '}'
+    const braceStart = i;
+    i++; // skip '{'
+    let depth = 1;
+    while (i < content.length && depth > 0) {
+      if (content[i] === '{') depth++;
+      else if (content[i] === '}') depth--;
+      i++;
+    }
 
-  // Add any remaining text after the last match
-  const remaining = content.substring(lastIndex);
-  output += escapeText ? escapeHtml(remaining) : remaining;
+    if (depth !== 0) {
+      // Unmatched brace — emit as literal text
+      output += maybeEscape(content.substring(braceStart, i));
+      continue;
+    }
+
+    // inner = content between the outermost braces (exclusive)
+    const inner = content.substring(braceStart + 1, i - 1);
+
+    const result = tryParseToken(inner, escapeText);
+    if (result) {
+      output += result;
+    } else {
+      output += maybeEscape('{' + inner + '}');
+    }
+  }
 
   return output;
 }
@@ -134,6 +167,31 @@ export function parseInlineClasses(content: string, escapeText: boolean = true):
  * Checks if the content contains any inline class syntax or icon syntax.
  */
 export function hasInlineClasses(content: string): boolean {
-  const pattern = /\{[^{}:]*:\s*\[(?:s:)?[a-z0-9-]+\]\}|\{\[(?:s:)?[a-z0-9-]+\]\}|\{[^{}:]+:\s*[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/;
-  return pattern.test(content);
+  let i = 0;
+
+  while (i < content.length) {
+    if (content[i] !== '{') {
+      i++;
+      continue;
+    }
+
+    // Found '{' — scan for matching '}'
+    const braceStart = i;
+    i++; // skip '{'
+    let depth = 1;
+    while (i < content.length && depth > 0) {
+      if (content[i] === '{') depth++;
+      else if (content[i] === '}') depth--;
+      i++;
+    }
+
+    if (depth !== 0) continue;
+
+    const inner = content.substring(braceStart + 1, i - 1);
+    if (tryParseToken(inner, false) !== null) {
+      return true;
+    }
+  }
+
+  return false;
 }

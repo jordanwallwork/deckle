@@ -8,6 +8,7 @@
   import { formatRelativeTime } from '$lib/utils/date.utils';
   import { syncDataSource } from '$lib/utils/dataSource.utils';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
+  import { toIdentifier } from '$lib/utils/mergeFields';
   import { ChevronLeftIcon, MaximizeIcon, MinimizeIcon } from '$lib/components/icons';
 
   interface Props {
@@ -29,6 +30,16 @@
   let loadingData = $state(false);
   let selectedRowIndex = $state(0); // Default to first row
   let maximised = $state(false);
+
+  // Compute identifier tooltips for data table headers
+  const headerTooltips = $derived(
+    spreadsheetData && spreadsheetData.length > 0
+      ? spreadsheetData[0].map((header) => {
+          const id = toIdentifier(header);
+          return id !== header ? `Merge field: {{${id}}}` : `Merge field: {{${header}}}`;
+        })
+      : undefined
+  );
 
   // Load data when component mounts or dataSource changes
   $effect(() => {
@@ -52,20 +63,8 @@
 
       // Set the initial row data in the store for merge field functionality
       if (spreadsheetData && spreadsheetData.length > 1) {
-        const headers = spreadsheetData[0];
-        const firstRow = spreadsheetData[1]; // First data row (index 1, since 0 is headers)
-
-        const rowObject = headers.reduce(
-          (obj, header, index) => {
-            obj[header] = firstRow[index] || '';
-            return obj;
-          },
-          {} as Record<string, string>
-        );
-
-        dataSourceRowStore.set(rowObject);
+        dataSourceRowStore.set(toRowObject(spreadsheetData[0], spreadsheetData[1]));
       } else {
-        // Clear the store if no data
         dataSourceRowStore.set(null);
       }
     } catch (err) {
@@ -77,27 +76,23 @@
     }
   }
 
+  function toRowObject(headers: string[], row: string[]): Record<string, string> {
+    return headers.reduce(
+      (obj, header, index) => {
+        obj[toIdentifier(header)] = row[index] || '';
+        return obj;
+      },
+      {} as Record<string, string>
+    );
+  }
+
   function handleRowSelect(rowIndex: number) {
     selectedRowIndex = rowIndex;
 
-    // Get the selected row data as a JSON object
-    if (spreadsheetData && spreadsheetData.length > 0) {
-      const headers = spreadsheetData[0];
-      const rows = spreadsheetData.slice(1);
-      const selectedRow = rows[rowIndex];
-
+    if (spreadsheetData && spreadsheetData.length > 1) {
+      const selectedRow = spreadsheetData[rowIndex + 1]; // +1 to skip header row
       if (selectedRow) {
-        // Map headers to values to create an object
-        const rowObject = headers.reduce(
-          (obj, header, index) => {
-            obj[header] = selectedRow[index] || '';
-            return obj;
-          },
-          {} as Record<string, string>
-        );
-
-        // Update the store for merge field functionality
-        dataSourceRowStore.set(rowObject);
+        dataSourceRowStore.set(toRowObject(spreadsheetData[0], selectedRow));
       }
     }
   }
@@ -242,6 +237,7 @@
             stickyHeader={true}
             selectable={true}
             {selectedRowIndex}
+            {headerTooltips}
             onRowSelect={handleRowSelect}
           />
         </div>

@@ -32,6 +32,7 @@
     "@panzoom/panzoom": "^4.6.1",
     "@zip.js/zip.js": "^2.8.11",
     "convert-csv-to-json": "^3.20.0",
+    "formula-evaluator": "^1.2.1",
     "html-to-image": "^1.11.13",
     "jspdf": "^3.0.4",
     "marked": "^17.0.1",

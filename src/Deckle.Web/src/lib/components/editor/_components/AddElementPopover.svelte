@@ -20,7 +20,7 @@
     const id = generateId();
     const baseElement = {
       id,
-      visible: true,
+      visibilityMode: 'show' as const,
       opacity: 1
     };
 

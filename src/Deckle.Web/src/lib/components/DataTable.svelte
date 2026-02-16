@@ -6,6 +6,7 @@
     stickyHeader = true,
     selectable = false,
     selectedRowIndex = 0,
+    headerTooltips,
     onRowSelect
   }: {
     data: string[][];
@@ -14,6 +15,7 @@
     stickyHeader?: boolean;
     selectable?: boolean;
     selectedRowIndex?: number;
+    headerTooltips?: string[];
     onRowSelect?: (rowIndex: number) => void;
   } = $props();
 
@@ -93,6 +95,7 @@
             onclick={() => handleSort(index)}
             role={sortable ? 'button' : undefined}
             tabindex={sortable ? 0 : undefined}
+            title={headerTooltips?.[index]}
           >
             <div class="header-content">
               <span>{header}</span>

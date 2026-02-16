@@ -9,6 +9,8 @@
   import TreeNode from './TreeNode.svelte';
   import { getElementLabel } from '../utils';
   import { DragHandleIcon, LockIcon, PlusIcon, CloseIcon } from '$lib/components/icons';
+  import { getDataSourceRow } from '$lib/stores/dataSourceRow';
+  import { isElementVisible } from '$lib/utils/mergeFields';
 
   let {
     element,
@@ -34,10 +36,14 @@
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
 
+  const dataSourceRow = getDataSourceRow();
+
   const hasChildren = $derived(element.type === 'container' && element.children.length > 0);
   const isSelected = $derived(selectedId === element.id);
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
-  const isInvisible = $derived(element.visible === false);
+  const isInvisible = $derived(
+    !isElementVisible(element.visibilityMode, element.visibilityCondition, $dataSourceRow)
+  );
   const isLocked = $derived(element.locked === true);
 
   function toggleExpanded() {
@@ -170,7 +176,9 @@
   }
 
   function handleToggleVisibility() {
-    templateStore.updateElement(element.id, { visible: !element.visible });
+    // Toggle between 'show' and 'hide'
+    const newMode = element.visibilityMode === 'hide' ? 'show' : 'hide';
+    templateStore.updateElement(element.id, { visibilityMode: newMode });
   }
 
   function handleToggleLock() {
@@ -207,12 +215,19 @@
       });
     }
 
-    // Visibility toggle
+    // Visibility toggle (only show simple toggle for show/hide, not conditional)
     items.push({ divider: true });
-    items.push({
-      label: element.visible === false ? 'Show' : 'Hide',
-      action: handleToggleVisibility
-    });
+    if (element.visibilityMode === 'conditional') {
+      items.push({
+        label: 'Visibility: Conditional',
+        action: () => {} // No-op, use config panel for conditional
+      });
+    } else {
+      items.push({
+        label: element.visibilityMode === 'hide' ? 'Show' : 'Hide',
+        action: handleToggleVisibility
+      });
+    }
 
     // Lock toggle
     items.push({

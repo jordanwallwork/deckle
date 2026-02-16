@@ -2,6 +2,7 @@
   import type { BaseElement, TextElement, TemplateElement, FontMetadata } from '../../types';
   import { templateStore } from '$lib/stores/templateElements';
   import { fontLoader } from '$lib/stores/fontLoader';
+  import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import BaseElementConfig from './BaseElementConfig.svelte';
   import ColorPicker from '../config-controls/ColorPicker.svelte';
   import PaddingControls from '../config-controls/PaddingControls.svelte';
@@ -13,6 +14,12 @@
   import Fields from '../config-controls/Fields.svelte';
 
   let { element }: { element: TextElement } = $props();
+
+  const dataSourceRowStore = getDataSourceRow();
+
+  let dataSourceFields = $derived(
+    $dataSourceRowStore ? Object.keys($dataSourceRowStore) : []
+  );
 
   // Helper function to extract all fonts currently used in text elements
   function extractUsedFonts(
@@ -87,6 +94,8 @@
     id="content"
     rows={3}
     value={element.content}
+    showToolbar={true}
+    {dataSourceFields}
     oninput={(e) => updateElement({ content: e.currentTarget.value })}
   />
 

@@ -45,8 +45,18 @@
             "description": " "
         },
         {
-            "url": "/merge-fields/",
+            "url": "/component-editor/merge-fields/",
             "title": "Merge Fields",
+            "description": " "
+        },
+        {
+            "url": "/component-editor/",
+            "title": "Component Editor",
+            "description": " "
+        },
+        {
+            "url": "/component-editor/ui-overview/",
+            "title": "UI Overview",
             "description": " "
         },
         {

@@ -9,7 +9,7 @@
   import { syncDataSource } from '$lib/utils/dataSource.utils';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import { toIdentifier } from '$lib/utils/mergeFields';
-  import { ChevronLeftIcon, MaximizeIcon, MinimizeIcon } from '$lib/components/icons';
+  import { ChevronLeftIcon, MinimizeIcon, TableIcon, TableRowIcon } from '$lib/components/icons';
 
   interface Props {
     dataSource: DataSource | null;
@@ -29,7 +29,15 @@
   let spreadsheetData = $state<string[][] | null>(null);
   let loadingData = $state(false);
   let selectedRowIndex = $state(0); // Default to first row
-  let maximised = $state(false);
+  type PanelMode = 'minimised' | 'row' | 'maximised';
+  let panelMode = $state<PanelMode>('minimised');
+
+  // Compute single-row view data (header + active row only)
+  const singleRowData = $derived(
+    spreadsheetData && spreadsheetData.length > 1
+      ? [spreadsheetData[0], spreadsheetData[selectedRowIndex + 1]]
+      : null
+  );
 
   // Compute identifier tooltips for data table headers
   const headerTooltips = $derived(
@@ -208,15 +216,26 @@
     <div class="panel-controls">
       <button
         class="icon-button"
-        onclick={() => (maximised = true)}
-        title="Maximize panel"
-        aria-label="Maximize panel"
+        class:active={panelMode === 'maximised'}
+        onclick={() => (panelMode = panelMode === 'maximised' ? 'minimised' : 'maximised')}
+        title="Show data table"
+        aria-label="Show data table"
       >
-        <MaximizeIcon size={16} />
+        <TableIcon size={16} />
       </button>
       <button
         class="icon-button"
-        onclick={() => (maximised = false)}
+        class:active={panelMode === 'row'}
+        onclick={() => (panelMode = panelMode === 'row' ? 'minimised' : 'row')}
+        title="Show active row"
+        aria-label="Show active row"
+      >
+        <TableRowIcon size={16} />
+      </button>
+      <button
+        class="icon-button"
+        class:active={panelMode === 'minimised'}
+        onclick={() => (panelMode = 'minimised')}
         title="Minimize panel"
         aria-label="Minimize panel"
       >
@@ -224,11 +243,21 @@
       </button>
     </div>
   {/snippet}
-  {#if maximised}
+  {#if panelMode !== 'minimised'}
     {#if dataSource}
       {#if loadingData}
         <div class="loading-state">Loading data...</div>
-      {:else if spreadsheetData && spreadsheetData.length > 0}
+      {:else if panelMode === 'row' && singleRowData}
+        <div class="data-source-table single-row-table">
+          <DataTable
+            data={singleRowData}
+            sortable={false}
+            stickyHeader={false}
+            selectable={false}
+            {headerTooltips}
+          />
+        </div>
+      {:else if panelMode === 'maximised' && spreadsheetData && spreadsheetData.length > 0}
         <div class="data-source-table">
           <DataTable
             data={spreadsheetData}
@@ -367,6 +396,12 @@
     color: #374151;
   }
 
+  .icon-button.active {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+    color: #374151;
+  }
+
   .loading-state,
   .no-data-state {
     padding: 2rem;
@@ -404,5 +439,9 @@
     width: 100%;
     max-height: 50vh;
     overflow: auto;
+  }
+
+  .single-row-table {
+    max-height: none;
   }
 </style>

@@ -20,4 +20,6 @@ export { default as MenuIcon } from './MenuIcon.svelte';
 export { default as MinimizeIcon } from './MinimizeIcon.svelte';
 export { default as PlusIcon } from './PlusIcon.svelte';
 export { default as SettingsIcon } from './SettingsIcon.svelte';
+export { default as TableIcon } from './TableIcon.svelte';
+export { default as TableRowIcon } from './TableRowIcon.svelte';
 export { default as TrashIcon } from './TrashIcon.svelte';

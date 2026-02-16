@@ -5,7 +5,7 @@
   import BaseElementConfig from './BaseElementConfig.svelte';
   import ColorPicker from '../config-controls/ColorPicker.svelte';
   import PaddingControls from '../config-controls/PaddingControls.svelte';
-  import TextAreaField from '../config-controls/TextAreaField.svelte';
+  import HighlightedTextArea from '../config-controls/HighlightedTextArea.svelte';
   import TextField from '../config-controls/TextField.svelte';
   import NumberField from '../config-controls/NumberField.svelte';
   import SelectField from '../config-controls/SelectField.svelte';
@@ -82,7 +82,7 @@
     <span>Enable Markdown</span>
   </label>
 
-  <TextAreaField
+  <HighlightedTextArea
     label="Content"
     id="content"
     rows={3}

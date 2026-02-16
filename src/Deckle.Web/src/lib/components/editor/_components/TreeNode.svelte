@@ -10,7 +10,7 @@
   import { getElementLabel } from '../utils';
   import { DragHandleIcon, LockIcon, PlusIcon, CloseIcon } from '$lib/components/icons';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
-  import { evaluateVisibility } from '$lib/utils/mergeFields';
+  import { isElementVisible } from '$lib/utils/mergeFields';
 
   let {
     element,
@@ -42,8 +42,7 @@
   const isSelected = $derived(selectedId === element.id);
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
   const isInvisible = $derived(
-    element.visibilityMode === 'hide' ||
-    (element.visibilityMode === 'conditional' && !evaluateVisibility(element.visibilityCondition, $dataSourceRow))
+    !isElementVisible(element.visibilityMode, element.visibilityCondition, $dataSourceRow)
   );
   const isLocked = $derived(element.locked === true);
 

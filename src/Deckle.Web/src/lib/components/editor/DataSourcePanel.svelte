@@ -63,20 +63,8 @@
 
       // Set the initial row data in the store for merge field functionality
       if (spreadsheetData && spreadsheetData.length > 1) {
-        const headers = spreadsheetData[0];
-        const firstRow = spreadsheetData[1]; // First data row (index 1, since 0 is headers)
-
-        const rowObject = headers.reduce(
-          (obj, header, index) => {
-            obj[toIdentifier(header)] = firstRow[index] || '';
-            return obj;
-          },
-          {} as Record<string, string>
-        );
-
-        dataSourceRowStore.set(rowObject);
+        dataSourceRowStore.set(toRowObject(spreadsheetData[0], spreadsheetData[1]));
       } else {
-        // Clear the store if no data
         dataSourceRowStore.set(null);
       }
     } catch (err) {
@@ -88,27 +76,23 @@
     }
   }
 
+  function toRowObject(headers: string[], row: string[]): Record<string, string> {
+    return headers.reduce(
+      (obj, header, index) => {
+        obj[toIdentifier(header)] = row[index] || '';
+        return obj;
+      },
+      {} as Record<string, string>
+    );
+  }
+
   function handleRowSelect(rowIndex: number) {
     selectedRowIndex = rowIndex;
 
-    // Get the selected row data as a JSON object
-    if (spreadsheetData && spreadsheetData.length > 0) {
-      const headers = spreadsheetData[0];
-      const rows = spreadsheetData.slice(1);
-      const selectedRow = rows[rowIndex];
-
+    if (spreadsheetData && spreadsheetData.length > 1) {
+      const selectedRow = spreadsheetData[rowIndex + 1]; // +1 to skip header row
       if (selectedRow) {
-        // Map headers to identifier keys for formula-evaluator compatibility
-        const rowObject = headers.reduce(
-          (obj, header, index) => {
-            obj[toIdentifier(header)] = selectedRow[index] || '';
-            return obj;
-          },
-          {} as Record<string, string>
-        );
-
-        // Update the store for merge field functionality
-        dataSourceRowStore.set(rowObject);
+        dataSourceRowStore.set(toRowObject(spreadsheetData[0], selectedRow));
       }
     }
   }

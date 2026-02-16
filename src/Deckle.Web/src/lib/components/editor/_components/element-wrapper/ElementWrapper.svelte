@@ -9,7 +9,7 @@
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
   import Portal from '$lib/components/Portal.svelte';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
-  import { evaluateVisibility } from '$lib/utils/mergeFields';
+  import { isElementVisible } from '$lib/utils/mergeFields';
 
   let {
     element,
@@ -56,11 +56,9 @@
       : undefined
   );
   const display = $derived(
-    element.visibilityMode === 'hide'
-      ? 'none'
-      : element.visibilityMode === 'conditional' && !evaluateVisibility(element.visibilityCondition, $dataSourceRow)
-        ? 'none'
-        : undefined
+    isElementVisible(element.visibilityMode, element.visibilityCondition, $dataSourceRow)
+      ? undefined
+      : 'none'
   );
 
   function handleMouseEnter() {

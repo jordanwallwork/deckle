@@ -58,27 +58,6 @@ function stripQuotes(s: string): string {
 }
 
 /**
- * Replaces merge field patterns with values from data source row data.
- * The expression inside {{ }} is evaluated as a formula using formula-evaluator,
- * with rowData fields available as variables.
- *
- * Patterns supported:
- * - {{FieldName}} - Evaluates as a variable reference, resolves from rowData
- * - {{IF(Type = 'Fire', "Burnt", "Wet")}} - Formula expressions
- * - {{Price + Tax}} - Arithmetic expressions
- * - {{Expression|Default Value}} - Uses fallback if evaluation fails or returns empty
- *
- * @param content - The text content containing merge field patterns
- * @param rowData - Record mapping field names to values from the selected data source row
- * @returns Content with merge fields replaced by evaluated values
- *
- * @example
- * replaceMergeFields('Hello {{Name}}', { Name: 'World' }) // 'Hello World'
- * replaceMergeFields('{{Count|0}} items', {}) // '0 items'
- * replaceMergeFields('{{Price + Tax}}', { Price: '10', Tax: '2' }) // '12'
- * replaceMergeFields('{{3 / Zero|N/A}}', { Zero: '0' }) // 'N/A'
- */
-/**
  * Evaluates a visibility condition formula against row data.
  * Returns true if the element should be visible, false if it should be hidden.
  * Empty strings, null, undefined, false, and 0 are considered falsy (hidden).
@@ -110,19 +89,57 @@ export function evaluateVisibility(
   }
 }
 
+/**
+ * Determines whether an element is visible based on its visibility mode and condition.
+ * Centralizes the visibility check used across ElementWrapper, TreeNode, and StaticTemplateRenderer.
+ */
+export function isElementVisible(
+  visibilityMode: string | undefined,
+  visibilityCondition: string | undefined,
+  rowData: Record<string, string> | null | undefined
+): boolean {
+  if (visibilityMode === 'hide') return false;
+  if (visibilityMode === 'conditional') return evaluateVisibility(visibilityCondition, rowData);
+  return true;
+}
+
+/** Regex for matching merge field patterns: {{expression}} or {{expression|fallback}} */
+const MERGE_FIELD_PATTERN = /\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g;
+
+/**
+ * Replaces merge field patterns with values from data source row data.
+ * The expression inside {{ }} is evaluated as a formula using formula-evaluator,
+ * with rowData fields available as variables.
+ *
+ * Patterns supported:
+ * - {{FieldName}} - Evaluates as a variable reference, resolves from rowData
+ * - {{IF(Type = 'Fire', "Burnt", "Wet")}} - Formula expressions
+ * - {{Price + Tax}} - Arithmetic expressions
+ * - {{Expression|Default Value}} - Uses fallback if evaluation fails or returns empty
+ *
+ * @param content - The text content containing merge field patterns
+ * @param rowData - Record mapping field names to values from the selected data source row
+ * @returns Content with merge fields replaced by evaluated values
+ *
+ * @example
+ * replaceMergeFields('Hello {{Name}}', { Name: 'World' }) // 'Hello World'
+ * replaceMergeFields('{{Count|0}} items', {}) // '0 items'
+ * replaceMergeFields('{{Price + Tax}}', { Price: '10', Tax: '2' }) // '12'
+ * replaceMergeFields('{{3 / Zero|N/A}}', { Zero: '0' }) // 'N/A'
+ */
 export function replaceMergeFields(
   content: string,
   rowData: Record<string, string> | null | undefined
 ): string {
   if (!rowData) {
-    return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, _formula, fallback) => {
+    return content.replace(MERGE_FIELD_PATTERN, (match, _formula, fallback) => {
       return fallback !== undefined ? stripQuotes(fallback.trim()) : match;
     });
   }
 
   const context = toTypedContext(rowData);
 
-  return content.replace(/\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g, (match, formula, fallback) => {
+  return content.replace(MERGE_FIELD_PATTERN, (match, formula, fallback) => {
     const expression = formula.trim();
     try {
       const result = evaluator.evaluate(expression, context);

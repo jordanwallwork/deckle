@@ -7,7 +7,7 @@
   } from '$lib/components/editor/types';
   import StaticTemplateRenderer from './StaticTemplateRenderer.svelte';
   import { dimensionValue, spacingToCss } from '$lib/components/editor/utils';
-  import { evaluateVisibility } from '$lib/utils/mergeFields';
+  import { isElementVisible } from '$lib/utils/mergeFields';
   import ImageElementComponent from '$lib/components/editor/_components/elements/ImageElement.svelte';
   import TextElementComponent from '$lib/components/editor/_components/elements/TextElement.svelte';
   import ContainerElementComponent from '$lib/components/editor/_components/elements/ContainerElement.svelte';
@@ -50,11 +50,7 @@
   );
 
   const isVisible = $derived(
-    element.visibilityMode === 'hide'
-      ? false
-      : element.visibilityMode === 'conditional'
-        ? evaluateVisibility(element.visibilityCondition, mergeData)
-        : true
+    isElementVisible(element.visibilityMode, element.visibilityCondition, mergeData)
   );
 </script>
 

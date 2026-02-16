@@ -116,10 +116,11 @@
     line-height: 1.25rem;
     border: 1px solid #d1d5db;
     border-radius: 4px;
-    background: white;
-    font-family: monospace;
+    background: #f8f9fa;
+    font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
     box-sizing: border-box;
     height: 2.125rem;
+    color: #1a73e8;
   }
 
   .condition-input:focus {

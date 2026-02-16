@@ -386,8 +386,13 @@
                             </a>
                         </li>
                         <li class="d-flex">
-                            <a href="#handling-spaces" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
-                                Handling Spaces
+                            <a href="#identifiers" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
+                                Identifiers
+                            </a>
+                        </li>
+                        <li class="d-flex">
+                            <a href="#formulas-amp-expressions" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
+                                Formulas &amp; Expressions
                             </a>
                         </li>
                         <li class="d-flex">
@@ -415,23 +420,70 @@
                                 <span class="icon-link-simple | pos-absolute top-50 left-50 t-tY-50 t-tX-50 | fs-4"></span>
                             </a>
                     Usage in Text Elements</h2>
-<p>To display dynamic data, wrap the column name from your data source in double curly brackets. The system will automatically replace these tags with the corresponding row data during rendering.</p>
+<p>To display dynamic data, wrap the <strong>identifier</strong> for a column in double curly brackets. The system will automatically replace these tags with the corresponding row data during rendering.</p>
 <p><strong>Example:</strong>
 If you link a data source with headers like <strong>Name</strong> and <strong>Power</strong>, you can use these tags:</p>
 <ul>
 <li><code>{{  Name }}</code></li>
 <li><code>{{ Name}}</code> (Whitespace inside the brackets is optional)</li>
 </ul>
+<hr>
 
-                        <h3 id="handling-spaces" pl-9="xs,sm">
-                            <a href="#handling-spaces" title="Handling Spaces" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">
+                        <h2 id="identifiers" pl-9="xs,sm">
+                            <a href="#identifiers" title="Identifiers" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">
                                 <span class="icon-link-simple | pos-absolute top-50 left-50 t-tY-50 t-tX-50 | fs-4"></span>
                             </a>
-                    Handling Spaces</h3>
-<p>If your column name contains spaces, include them exactly as they appear in your data source:</p>
+                    Identifiers</h2>
+<p>Merge field identifiers must be alphanumeric (letters, numbers, and underscores only). Deckle automatically generates valid identifiers from your data source column headers by removing spaces and special characters.</p>
+<div class="o-auto w-100 table-wrapper"><table>
+<thead>
+<tr>
+<th>Column Header</th>
+<th>Generated Identifier</th>
+<th>Merge Field Syntax</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Name</strong></td>
+<td><code>Name</code></td>
+<td><code>{{ Name }}</code></td>
+</tr>
+<tr>
+<td><strong>Hero Name</strong></td>
+<td><code>HeroName</code></td>
+<td><code>{{ HeroName }}</code></td>
+</tr>
+<tr>
+<td><strong>Attack Stat</strong></td>
+<td><code>AttackStat</code></td>
+<td><code>{{ AttackStat }}</code></td>
+</tr>
+<tr>
+<td><strong>HP (Max)</strong></td>
+<td><code>HPMax</code></td>
+<td><code>{{ HPMax }}</code></td>
+</tr>
+</tbody>
+</table></div>
+<aside class="widget widget-alert">
+<div class="alert alert-info">
+Tip: Hover over a column header in the Data Source panel to see the generated merge field identifier in a tooltip.
+</div>
+</aside>
+<hr>
+
+                        <h2 id="formulas-amp-expressions" pl-9="xs,sm">
+                            <a href="#formulas-amp-expressions" title="Formulas &amp; Expressions" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">
+                                <span class="icon-link-simple | pos-absolute top-50 left-50 t-tY-50 t-tX-50 | fs-4"></span>
+                            </a>
+                    Formulas &amp; Expressions</h2>
+<p>Merge fields support formula expressions using standard operators and functions:</p>
 <ul>
-<li><code>{{  Attack Stat }}</code></li>
+<li><code>{{ Price + Tax }}</code> - Arithmetic</li>
+<li><code>{{ IF(Type = \'Fire\', &quot;Burnt&quot;, &quot;Wet&quot;) }}</code> - Conditional logic</li>
 </ul>
+<p>Because identifiers are alphanumeric, you can use them directly in expressions without any special quoting.</p>
 <hr>
 
                         <h2 id="default-amp-fallback-values" pl-9="xs,sm">

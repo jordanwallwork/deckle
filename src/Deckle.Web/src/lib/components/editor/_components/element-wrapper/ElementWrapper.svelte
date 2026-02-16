@@ -130,8 +130,8 @@
       action: handleDuplicate
     });
 
-    // Add submenu for container elements
-    if (element.type === 'container') {
+    // Add submenu for container and iterator elements
+    if (element.type === 'container' || element.type === 'iterator') {
       items.push({
         label: 'Add...',
         submenu: [
@@ -146,6 +146,10 @@
           {
             label: 'Image',
             action: () => handleAddElement('image')
+          },
+          {
+            label: 'Iterator',
+            action: () => handleAddElement('iterator')
           }
         ]
       });

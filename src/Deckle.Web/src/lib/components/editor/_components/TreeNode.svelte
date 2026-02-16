@@ -38,7 +38,9 @@
 
   const dataSourceRow = getDataSourceRow();
 
-  const hasChildren = $derived(element.type === 'container' && element.children.length > 0);
+  const hasChildren = $derived(
+    (element.type === 'container' || element.type === 'iterator') && element.children.length > 0
+  );
   const isSelected = $derived(selectedId === element.id);
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
   const isInvisible = $derived(
@@ -122,8 +124,8 @@
     e.preventDefault();
     e.stopPropagation();
 
-    // Only allow drop on containers or root
-    if (element.type === 'container' || isRoot) {
+    // Only allow drop on containers, iterators, or root
+    if (element.type === 'container' || element.type === 'iterator' || isRoot) {
       e.dataTransfer.dropEffect = 'move';
       isDragOver = true;
     }
@@ -194,8 +196,8 @@
       action: handleDuplicate
     });
 
-    // Add submenu for container elements
-    if (element.type === 'container') {
+    // Add submenu for container and iterator elements
+    if (element.type === 'container' || element.type === 'iterator') {
       items.push({
         label: 'Add...',
         submenu: [
@@ -210,6 +212,10 @@
           {
             label: 'Image',
             action: () => handleAddElement('image')
+          },
+          {
+            label: 'Iterator',
+            action: () => handleAddElement('iterator')
           }
         ]
       });
@@ -324,7 +330,7 @@
       {/if}
 
       <div class="node-actions">
-        {#if element.type === 'container'}
+        {#if element.type === 'container' || element.type === 'iterator'}
           <button
             class="action-button"
             onclick={(e) => {
@@ -357,7 +363,7 @@
     {/if}
   </div>
 
-  {#if hasChildren && expanded && element.type === 'container'}
+  {#if hasChildren && expanded && (element.type === 'container' || element.type === 'iterator')}
     <div class="node-children" transition:slide={{ duration: 200 }}>
       {#each element.children as child, index (child.id)}
         <DropTarget parentId={isRoot ? 'root' : element.id} insertIndex={index} depth={depth + 1} />

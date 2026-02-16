@@ -3,14 +3,17 @@
     TemplateElement,
     ContainerElement,
     TextElement,
-    ImageElement
+    ImageElement,
+    IteratorElement
   } from '$lib/components/editor/types';
   import StaticTemplateRenderer from './StaticTemplateRenderer.svelte';
   import { dimensionValue, spacingToCss } from '$lib/components/editor/utils';
-  import { isElementVisible } from '$lib/utils/mergeFields';
+  import { isElementVisible, evaluateExpression } from '$lib/utils/mergeFields';
   import ImageElementComponent from '$lib/components/editor/_components/elements/ImageElement.svelte';
   import TextElementComponent from '$lib/components/editor/_components/elements/TextElement.svelte';
   import ContainerElementComponent from '$lib/components/editor/_components/elements/ContainerElement.svelte';
+
+  const MAX_ITERATIONS = 100;
 
   let {
     element,
@@ -81,6 +84,20 @@
           <StaticTemplateRenderer element={child} {dpi} {mergeData} {projectId} />
         {/each}
       </ContainerElementComponent>
+    {:else if element.type === 'iterator'}
+      {@const iter = element as IteratorElement}
+      {@const fromVal = evaluateExpression(iter.fromExpression, mergeData)}
+      {@const toVal = evaluateExpression(iter.toExpression, mergeData)}
+      {@const from = typeof fromVal === 'number' ? Math.round(fromVal) : parseInt(String(fromVal ?? ''), 10)}
+      {@const to = typeof toVal === 'number' ? Math.round(toVal) : parseInt(String(toVal ?? ''), 10)}
+      {#if !isNaN(from) && !isNaN(to) && Math.abs(to - from) + 1 <= MAX_ITERATIONS}
+        {#each Array.from({ length: Math.abs(to - from) + 1 }, (_, i) => from + (from <= to ? i : -i)) as value (value)}
+          {@const augmented = { ...(mergeData ?? {}), [iter.iteratorName]: String(value) }}
+          {#each iter.children as child (child.id)}
+            <StaticTemplateRenderer element={child} {dpi} mergeData={augmented} {projectId} />
+          {/each}
+        {/each}
+      {/if}
     {/if}
   </div>
 {/if}

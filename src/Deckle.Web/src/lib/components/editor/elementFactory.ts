@@ -29,6 +29,17 @@ export function createElementOfType(type: ElementType): TemplateElement {
       fontSize: 16,
       color: '#000000'
     };
+  } else if (type === 'iterator') {
+    return {
+      id: crypto.randomUUID(),
+      type: 'iterator',
+      visibilityMode: 'show',
+      opacity: 1,
+      iteratorName: 'i',
+      fromExpression: '1',
+      toExpression: '3',
+      children: []
+    };
   } else {
     // image
     return {

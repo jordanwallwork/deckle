@@ -3,9 +3,10 @@
   import ContainerConfig from './_components/configuration/ContainerConfig.svelte';
   import TextConfig from './_components/configuration/TextConfig.svelte';
   import ImageConfig from './_components/configuration/ImageConfig.svelte';
+  import IteratorConfig from './_components/configuration/IteratorConfig.svelte';
   import ComponentConfig from './_components/configuration/ComponentConfig.svelte';
   import { templateStore } from '$lib/stores/templateElements';
-  import type { ContainerElement, TextElement, ImageElement } from './types';
+  import type { ContainerElement, TextElement, ImageElement, IteratorElement } from './types';
   import type { EditableComponent } from '$lib/types';
 
   let {
@@ -34,6 +35,8 @@
         <TextConfig element={selectedElement as TextElement} />
       {:else if selectedElement.type === 'image'}
         <ImageConfig element={selectedElement as ImageElement} />
+      {:else if selectedElement.type === 'iterator'}
+        <IteratorConfig element={selectedElement as IteratorElement} />
       {/if}
     {:else}
       <div class="empty-state">

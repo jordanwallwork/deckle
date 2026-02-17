@@ -3,7 +3,7 @@
   import ResizeHandles from './ResizeHandles.svelte';
   import DragHandles from './DragHandles.svelte';
   import RotationHandle from './RotationHandle.svelte';
-  import { templateStore } from '$lib/stores/templateElements';
+  import { templateStore, highlightedElementIds } from '$lib/stores/templateElements';
   import { spacingToCss, dimensionValue } from '../../utils';
   import { createElementOfType } from '../../elementFactory';
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
@@ -25,6 +25,7 @@
 
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
   const isSelected = $derived($templateStore.selectedElementId === element.id);
+  const isHighlighted = $derived($highlightedElementIds.has(element.id));
 
   // Context menu state
   let showContextMenu = $state(false);
@@ -130,7 +131,7 @@
       action: handleDuplicate
     });
 
-    // Add submenu for container elements
+    // Add submenu for container elements (iterators no longer have ElementWrapper)
     if (element.type === 'container') {
       items.push({
         label: 'Add...',
@@ -146,6 +147,10 @@
           {
             label: 'Image',
             action: () => handleAddElement('image')
+          },
+          {
+            label: 'Iterator',
+            action: () => handleAddElement('iterator')
           }
         ]
       });
@@ -203,6 +208,7 @@
   class:locked={element.locked}
   class:hovered={isHovered}
   class:selected={isSelected}
+  class:highlighted={isHighlighted}
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
   onclick={handleClick}
@@ -250,6 +256,12 @@
   }
 
   .editable-element.selected {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+  }
+
+  .editable-element.highlighted {
     outline: 2px solid #0066cc;
     outline-offset: 2px;
     box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);

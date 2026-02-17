@@ -1,9 +1,16 @@
 <script lang="ts">
-  import type { TemplateElement, ContainerElement, TextElement, ImageElement } from './types';
+  import type {
+    TemplateElement,
+    ContainerElement,
+    TextElement,
+    ImageElement,
+    IteratorElement
+  } from './types';
   import ElementWrapper from './_components/element-wrapper/ElementWrapper.svelte';
   import TextElementComponent from './_components/elements/TextElement.svelte';
   import ContainerElementComponent from './_components/elements/ContainerElement.svelte';
   import ImageElementComponent from './_components/elements/ImageElement.svelte';
+  import IteratorElementComponent from './_components/elements/IteratorElement.svelte';
 
   let { element, dpi }: { element: TemplateElement; dpi: number } = $props();
 </script>
@@ -20,4 +27,6 @@
   <ElementWrapper {element} {dpi}>
     <ImageElementComponent element={element as ImageElement} {dpi} />
   </ElementWrapper>
+{:else if element.type === 'iterator'}
+  <IteratorElementComponent element={element as IteratorElement} {dpi} />
 {/if}

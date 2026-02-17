@@ -1,5 +1,21 @@
-import type { BaseElement, Shadow, TextElement } from './types';
+import type {
+  BaseElement,
+  Shadow,
+  TextElement,
+  IteratorElement,
+  ContainerElement,
+  TemplateElement
+} from './types';
 import { mmToPx } from '$lib/utils/size.utils';
+
+/**
+ * Type guard for elements that have children (container or iterator).
+ */
+export function elementHasChildren(
+  element: TemplateElement
+): element is ContainerElement | IteratorElement {
+  return element.type === 'container' || element.type === 'iterator';
+}
 
 export function getElementLabel(el: BaseElement): string {
   // Use custom label if available
@@ -11,6 +27,10 @@ export function getElementLabel(el: BaseElement): string {
   if (el.type === 'text') {
     const textEl = el as TextElement;
     return textEl.content.substring(0, 20) + (textEl.content.length > 20 ? '...' : '');
+  }
+  if (el.type === 'iterator') {
+    const iter = el as IteratorElement;
+    return `Iterator (${iter.iteratorName}: ${iter.fromExpression}..${iter.toExpression})`;
   }
   return el.type.charAt(0).toUpperCase() + el.type.slice(1);
 }

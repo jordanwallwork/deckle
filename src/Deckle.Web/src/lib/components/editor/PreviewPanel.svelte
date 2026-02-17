@@ -4,7 +4,7 @@
   import UndoRedoControls from '$lib/components/editor/_components/UndoRedoControls.svelte';
   import ZoomControls from '$lib/components/editor/_components/ZoomControls.svelte';
   import MenuIcon from '$lib/components/icons/MenuIcon.svelte';
-  import type { EditableComponent, ComponentShape, CardComponent } from '$lib/types';
+  import type { EditableComponent, ComponentShape } from '$lib/types';
   import EditableComponentView from './EditableComponent.svelte';
   import type { PanzoomObject } from '@panzoom/panzoom';
   import { templateStore } from '$lib/stores/templateElements';
@@ -28,9 +28,9 @@
     hideExport?: boolean;
   } = $props();
   let dimensions = component.dimensions;
-  // Extract shape if this is a CardComponent
+  // Extract shape if the component has one
   let shape = $derived<ComponentShape | undefined>(
-    'shape' in component ? (component as CardComponent).shape : undefined
+    'shape' in component ? (component as { shape: ComponentShape }).shape : undefined
   );
 
   let showBleedSafeArea = $state(true);
@@ -95,12 +95,6 @@
   }
 
   async function handleSave() {
-    // Only allow saving for components that support design (Card and PlayerMat)
-    if (component.type !== 'Card' && component.type !== 'PlayerMat') {
-      alert('Only card and player mat designs can be saved.');
-      return;
-    }
-
     isSaving = true;
     saveSuccess = false;
 

@@ -2,7 +2,7 @@
 // Base Types and Enums
 // ============================================================================
 
-export type ElementType = 'container' | 'text' | 'image';
+export type ElementType = 'container' | 'text' | 'image' | 'iterator';
 
 export type Position = 'absolute' | 'relative';
 export type Display = 'flex' | 'block' | 'inline';
@@ -221,10 +221,22 @@ export interface ImageElement extends BaseElement {
 }
 
 // ============================================================================
+// Iterator Element
+// ============================================================================
+
+export interface IteratorElement extends BaseElement {
+  type: 'iterator';
+  iteratorName: string; // Variable name exposed to children (e.g., 'i')
+  fromExpression: string; // Formula expression for range start (inclusive)
+  toExpression: string; // Formula expression for range end (inclusive)
+  children: TemplateElement[];
+}
+
+// ============================================================================
 // Union Type for All Elements
 // ============================================================================
 
-export type TemplateElement = ContainerElement | TextElement | ImageElement;
+export type TemplateElement = ContainerElement | TextElement | ImageElement | IteratorElement;
 
 // ============================================================================
 // Root Template Interface

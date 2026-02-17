@@ -1,5 +1,16 @@
-import { writable, type Writable } from 'svelte/store';
-import type { TemplateElement, ContainerElement } from '$lib/components/editor/types';
+import { writable, derived, type Writable } from 'svelte/store';
+import type {
+  TemplateElement,
+  ContainerElement,
+  IteratorElement
+} from '$lib/components/editor/types';
+
+/** Type guard for elements with children arrays (container or iterator). */
+function hasChildren(
+  element: TemplateElement
+): element is ContainerElement | IteratorElement {
+  return element.type === 'container' || element.type === 'iterator';
+}
 
 export interface TemplateStore {
   root: ContainerElement;
@@ -224,18 +235,25 @@ function createTemplateStore() {
 
         // Don't allow moving to itself or to its own descendants
         if (elementId === newParentId) return store;
-        if (element.type === 'container') {
+        if (hasChildren(element)) {
           const descendant = findElementById(element, newParentId || '');
           if (descendant) return store;
         }
 
-        // Validate that the new parent is a container or root
+        // Validate that the new parent is a container, iterator, or root
         if (newParentId && newParentId !== 'root') {
           const targetParent = findElementById(store.root, newParentId);
-          if (!targetParent || targetParent.type !== 'container') {
-            // Target is not a container, abort the move
+          if (!targetParent || !hasChildren(targetParent)) {
+            // Target is not a container or iterator, abort the move
             return store;
           }
+        }
+
+        // Iterators can only be placed inside containers (not root, not other iterators)
+        if (element.type === 'iterator') {
+          if (!newParentId || newParentId === 'root') return store;
+          const targetParent = findElementById(store.root, newParentId);
+          if (!targetParent || targetParent.type !== 'container') return store;
         }
 
         saveHistory(store);
@@ -354,7 +372,7 @@ function findElementById(element: TemplateElement, targetId: string): TemplateEl
     return element;
   }
 
-  if (element.type === 'container') {
+  if (hasChildren(element)) {
     for (const child of element.children) {
       const found = findElementById(child, targetId);
       if (found) return found;
@@ -393,10 +411,10 @@ function addElementToContainer(
 
   // Recursively search and update children
   const newChildren = container.children.map((child: TemplateElement) => {
-    if (child.type === 'container') {
+    if (hasChildren(child)) {
       const found = findElementById(child, parentId);
       if (found) {
-        return addElementToContainer(child, parentId, element, insertIndex);
+        return addElementToChildContainer(child, parentId, element, insertIndex);
       }
     }
     return child;
@@ -407,6 +425,33 @@ function addElementToContainer(
     ...container,
     children: newChildren
   };
+}
+
+// Helper to add element to a child that has children (container or iterator)
+function addElementToChildContainer(
+  parent: ContainerElement | IteratorElement,
+  parentId: string,
+  element: TemplateElement,
+  insertIndex?: number
+): ContainerElement | IteratorElement {
+  if (parent.id === parentId) {
+    return {
+      ...parent,
+      children: insertAtIndex(parent.children, element, insertIndex)
+    };
+  }
+
+  const newChildren = parent.children.map((child: TemplateElement) => {
+    if (hasChildren(child)) {
+      const found = findElementById(child, parentId);
+      if (found) {
+        return addElementToChildContainer(child, parentId, element, insertIndex);
+      }
+    }
+    return child;
+  });
+
+  return { ...parent, children: newChildren };
 }
 
 // Helper function to remove an element by ID immutably
@@ -426,15 +471,15 @@ function removeElementFromContainer(
     };
   }
 
-  // Recursively search in nested containers
+  // Recursively search in nested containers and iterators
   let removed = false;
   const newChildren = container.children.map((child: TemplateElement) => {
-    if (!removed && child.type === 'container') {
+    if (!removed && hasChildren(child)) {
       const found = findElementById(child, targetId);
       if (found) {
-        const result = removeElementFromContainer(child, targetId);
+        const result = removeElementFromChildContainer(child, targetId);
         removed = result.removed;
-        return result.container;
+        return result.element;
       }
     }
     return child;
@@ -442,6 +487,41 @@ function removeElementFromContainer(
 
   return {
     container: removed ? { ...container, children: newChildren } : container,
+    removed
+  };
+}
+
+// Helper to remove element from a child that has children (container or iterator)
+function removeElementFromChildContainer(
+  parent: ContainerElement | IteratorElement,
+  targetId: string
+): { element: ContainerElement | IteratorElement; removed: boolean } {
+  const hasChild = parent.children.some((child: TemplateElement) => child.id === targetId);
+  if (hasChild) {
+    return {
+      element: {
+        ...parent,
+        children: parent.children.filter((child: TemplateElement) => child.id !== targetId)
+      },
+      removed: true
+    };
+  }
+
+  let removed = false;
+  const newChildren = parent.children.map((child: TemplateElement) => {
+    if (!removed && hasChildren(child)) {
+      const found = findElementById(child, targetId);
+      if (found) {
+        const result = removeElementFromChildContainer(child, targetId);
+        removed = result.removed;
+        return result.element;
+      }
+    }
+    return child;
+  });
+
+  return {
+    element: removed ? { ...parent, children: newChildren } : parent,
     removed
   };
 }
@@ -460,10 +540,10 @@ function updateElementInContainer(
     if (child.id === targetId) {
       return { ...child, ...updates } as TemplateElement;
     }
-    if (child.type === 'container') {
+    if (hasChildren(child)) {
       const found = findElementById(child, targetId);
       if (found) {
-        return updateElementInContainer(child, targetId, updates);
+        return updateElementInChildContainer(child, targetId, updates);
       }
     }
     return child;
@@ -475,9 +555,35 @@ function updateElementInContainer(
   };
 }
 
+// Helper to update element in a child that has children (container or iterator)
+function updateElementInChildContainer(
+  parent: ContainerElement | IteratorElement,
+  targetId: string,
+  updates: Partial<TemplateElement>
+): ContainerElement | IteratorElement {
+  if (parent.id === targetId) {
+    return { ...parent, ...updates } as ContainerElement | IteratorElement;
+  }
+
+  const newChildren = parent.children.map((child: TemplateElement): TemplateElement => {
+    if (child.id === targetId) {
+      return { ...child, ...updates } as TemplateElement;
+    }
+    if (hasChildren(child)) {
+      const found = findElementById(child, targetId);
+      if (found) {
+        return updateElementInChildContainer(child, targetId, updates);
+      }
+    }
+    return child;
+  });
+
+  return { ...parent, children: newChildren };
+}
+
 // Helper function to find parent and index of an element
 function findParentAndIndex(
-  container: ContainerElement,
+  container: ContainerElement | IteratorElement,
   targetId: string,
   parentId: string = 'root'
 ): { parentId: string; index: number } | null {
@@ -487,9 +593,9 @@ function findParentAndIndex(
     return { parentId, index };
   }
 
-  // Recursively search in nested containers
+  // Recursively search in nested containers and iterators
   for (const child of container.children) {
-    if (child.type === 'container') {
+    if (hasChildren(child)) {
       const found = findParentAndIndex(child, targetId, child.id);
       if (found) return found;
     }
@@ -520,7 +626,7 @@ function duplicateElementWithNewIds(element: TemplateElement): TemplateElement {
   }
 
   // Recursively update IDs of children
-  if (duplicated.type === 'container' && duplicated.children) {
+  if (hasChildren(duplicated)) {
     duplicated.children = duplicated.children.map((child: TemplateElement) =>
       duplicateElementWithNewIds(child)
     );
@@ -530,3 +636,28 @@ function duplicateElementWithNewIds(element: TemplateElement): TemplateElement {
 }
 
 export const templateStore = createTemplateStore();
+
+/** Collect all descendant element IDs of a given element. */
+function collectDescendantIds(element: TemplateElement): Set<string> {
+  const ids = new Set<string>();
+  if (hasChildren(element)) {
+    for (const child of element.children) {
+      ids.add(child.id);
+      for (const id of collectDescendantIds(child)) {
+        ids.add(id);
+      }
+    }
+  }
+  return ids;
+}
+
+/**
+ * Derived store: set of element IDs that should be visually highlighted
+ * (without handles) because a parent iterator is selected.
+ */
+export const highlightedElementIds = derived(templateStore, ($store) => {
+  if (!$store.selectedElementId) return new Set<string>();
+  const selected = findElementById($store.root, $store.selectedElementId);
+  if (!selected || selected.type !== 'iterator') return new Set<string>();
+  return collectDescendantIds(selected);
+});

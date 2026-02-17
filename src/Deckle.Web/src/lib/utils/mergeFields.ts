@@ -103,6 +103,29 @@ export function isElementVisible(
   return true;
 }
 
+/**
+ * Evaluates a formula expression against row data and returns the result.
+ * Used by the iterator element to evaluate from/to range expressions.
+ *
+ * @param expression - The formula expression to evaluate
+ * @param rowData - Record mapping field names to values from the current data context
+ * @returns The evaluated result, or undefined if evaluation fails
+ */
+export function evaluateExpression(
+  expression: string,
+  rowData: Record<string, string> | null
+): unknown {
+  const trimmed = expression.trim();
+  if (!trimmed) return undefined;
+
+  const context = rowData ? toTypedContext(rowData) : {};
+  try {
+    return evaluator.evaluate(trimmed, context);
+  } catch {
+    return undefined;
+  }
+}
+
 /** Regex for matching merge field patterns: {{expression}} or {{expression|fallback}} */
 const MERGE_FIELD_PATTERN = /\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g;
 

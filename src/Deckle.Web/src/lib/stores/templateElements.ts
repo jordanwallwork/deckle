@@ -1,4 +1,4 @@
-import { writable, type Writable } from 'svelte/store';
+import { writable, derived, type Writable } from 'svelte/store';
 import type {
   TemplateElement,
   ContainerElement,
@@ -636,3 +636,28 @@ function duplicateElementWithNewIds(element: TemplateElement): TemplateElement {
 }
 
 export const templateStore = createTemplateStore();
+
+/** Collect all descendant element IDs of a given element. */
+function collectDescendantIds(element: TemplateElement): Set<string> {
+  const ids = new Set<string>();
+  if (hasChildren(element)) {
+    for (const child of element.children) {
+      ids.add(child.id);
+      for (const id of collectDescendantIds(child)) {
+        ids.add(id);
+      }
+    }
+  }
+  return ids;
+}
+
+/**
+ * Derived store: set of element IDs that should be visually highlighted
+ * (without handles) because a parent iterator is selected.
+ */
+export const highlightedElementIds = derived(templateStore, ($store) => {
+  if (!$store.selectedElementId) return new Set<string>();
+  const selected = findElementById($store.root, $store.selectedElementId);
+  if (!selected || selected.type !== 'iterator') return new Set<string>();
+  return collectDescendantIds(selected);
+});

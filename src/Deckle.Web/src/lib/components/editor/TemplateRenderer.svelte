@@ -28,7 +28,5 @@
     <ImageElementComponent element={element as ImageElement} {dpi} />
   </ElementWrapper>
 {:else if element.type === 'iterator'}
-  <ElementWrapper {element} {dpi}>
-    <IteratorElementComponent element={element as IteratorElement} {dpi} />
-  </ElementWrapper>
+  <IteratorElementComponent element={element as IteratorElement} {dpi} />
 {/if}

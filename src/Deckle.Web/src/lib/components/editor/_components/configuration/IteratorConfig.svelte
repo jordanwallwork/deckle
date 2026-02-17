@@ -1,9 +1,11 @@
 <script lang="ts">
-  import type { BaseElement, IteratorElement } from '../../types';
+  import type { IteratorElement, VisibilityMode } from '../../types';
   import { templateStore } from '$lib/stores/templateElements';
-  import BaseElementConfig from './BaseElementConfig.svelte';
+  import ConfigSection from '../config-controls/ConfigSection.svelte';
   import TextField from '../config-controls/TextField.svelte';
   import Fields from '../config-controls/Fields.svelte';
+  import LockCheckbox from '../config-controls/LockCheckbox.svelte';
+  import VisibilityControl from '../config-controls/VisibilityControl.svelte';
 
   let { element }: { element: IteratorElement } = $props();
 
@@ -12,10 +14,29 @@
   }
 </script>
 
-<BaseElementConfig
-  {element}
-  updateElement={updateElement as (updates: Partial<BaseElement>) => void}
->
+<ConfigSection>
+  <div class="icon-toggle-group">
+    <div style:flex="1">
+      <TextField
+        label="Label"
+        id="label"
+        placeholder={element.label ?? 'Iterator'}
+        value={element.label}
+        oninput={(e) => updateElement({ label: e.currentTarget.value })}
+        hideLabel={true}
+      />
+    </div>
+
+    <LockCheckbox locked={element.locked} onchange={(locked) => updateElement({ locked })} />
+  </div>
+
+  <VisibilityControl
+    mode={element.visibilityMode ?? 'show'}
+    condition={element.visibilityCondition ?? ''}
+    onModeChange={(mode: VisibilityMode) => updateElement({ visibilityMode: mode })}
+    onConditionChange={(condition: string) => updateElement({ visibilityCondition: condition })}
+  />
+
   <TextField
     label="Variable Name"
     id="iterator-name"
@@ -41,4 +62,12 @@
       oninput={(e) => updateElement({ toExpression: e.currentTarget.value })}
     />
   </Fields>
-</BaseElementConfig>
+</ConfigSection>
+
+<style>
+  .icon-toggle-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+</style>

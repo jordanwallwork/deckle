@@ -148,6 +148,12 @@
     // Don't drop on yourself
     if (draggedId === element.id) return;
 
+    // If the dragged element is an iterator, only allow dropping into containers (not root, not iterators)
+    const draggedElement = templateStore.getElement(draggedId);
+    if (draggedElement?.type === 'iterator') {
+      if (isRoot || element.type !== 'container') return;
+    }
+
     // Drop into container or root
     const targetParentId = isRoot ? 'root' : element.id;
     templateStore.moveElement(draggedId, targetParentId);
@@ -198,26 +204,32 @@
 
     // Add submenu for container and iterator elements
     if (element.type === 'container' || element.type === 'iterator') {
+      const submenuItems: ContextMenuItem[] = [
+        {
+          label: 'Container',
+          action: () => handleAddElement('container')
+        },
+        {
+          label: 'Text',
+          action: () => handleAddElement('text')
+        },
+        {
+          label: 'Image',
+          action: () => handleAddElement('image')
+        }
+      ];
+
+      // Only allow adding iterators inside containers (not inside other iterators)
+      if (element.type === 'container') {
+        submenuItems.push({
+          label: 'Iterator',
+          action: () => handleAddElement('iterator')
+        });
+      }
+
       items.push({
         label: 'Add...',
-        submenu: [
-          {
-            label: 'Container',
-            action: () => handleAddElement('container')
-          },
-          {
-            label: 'Text',
-            action: () => handleAddElement('text')
-          },
-          {
-            label: 'Image',
-            action: () => handleAddElement('image')
-          },
-          {
-            label: 'Iterator',
-            action: () => handleAddElement('iterator')
-          }
-        ]
+        submenu: submenuItems
       });
     }
 

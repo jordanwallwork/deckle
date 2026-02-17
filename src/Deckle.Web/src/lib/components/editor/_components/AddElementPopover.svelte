@@ -88,6 +88,11 @@
   }
 
   const isRootLevel = $derived(!parentId || parentId === 'root');
+
+  const parentElement = $derived(
+    parentId && parentId !== 'root' ? templateStore.getElement(parentId) : null
+  );
+  const isParentContainer = $derived(parentElement?.type === 'container');
 </script>
 
 {#if isOpen}
@@ -141,20 +146,22 @@
       </svg>
       Image
     </button>
-    <button class="popover-item" onclick={() => addElement('iterator')}>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path
-          d="M4 4h8M4 8h8M4 12h8"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-        />
-        <circle cx="2" cy="4" r="1" fill="currentColor" />
-        <circle cx="2" cy="8" r="1" fill="currentColor" />
-        <circle cx="2" cy="12" r="1" fill="currentColor" />
-      </svg>
-      Iterator
-    </button>
+    {#if isParentContainer}
+      <button class="popover-item" onclick={() => addElement('iterator')}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M4 4h8M4 8h8M4 12h8"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+          <circle cx="2" cy="4" r="1" fill="currentColor" />
+          <circle cx="2" cy="8" r="1" fill="currentColor" />
+          <circle cx="2" cy="12" r="1" fill="currentColor" />
+        </svg>
+        Iterator
+      </button>
+    {/if}
   </div>
 {/if}
 

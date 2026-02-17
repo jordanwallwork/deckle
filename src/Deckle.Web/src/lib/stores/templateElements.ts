@@ -249,6 +249,13 @@ function createTemplateStore() {
           }
         }
 
+        // Iterators can only be placed inside containers (not root, not other iterators)
+        if (element.type === 'iterator') {
+          if (!newParentId || newParentId === 'root') return store;
+          const targetParent = findElementById(store.root, newParentId);
+          if (!targetParent || targetParent.type !== 'container') return store;
+        }
+
         saveHistory(store);
 
         // Remove from current parent

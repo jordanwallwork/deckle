@@ -58,46 +58,48 @@
 </script>
 
 {#if isVisible}
-  <div
-    style:position
-    style:left
-    style:top
-    style:margin
-    style:width
-    style:height
-    style:min-width={minWidth}
-    style:max-width={maxWidth}
-    style:min-height={minHeight}
-    style:max-height={maxHeight}
-    style:z-index={zIndex}
-    style:opacity
-    style:transform
-    data-element-id={element.id}
-  >
-    {#if element.type === 'image'}
-      <ImageElementComponent element={element as ImageElement} {dpi} />
-    {:else if element.type === 'text'}
-      <TextElementComponent element={element as TextElement} {dpi} />
-    {:else if element.type === 'container'}
-      <ContainerElementComponent element={element as ContainerElement} {dpi}>
-        {#each (element as ContainerElement).children as child (child.id)}
-          <StaticTemplateRenderer element={child} {dpi} {mergeData} {projectId} />
+  {#if element.type === 'iterator'}
+    {@const iter = element as IteratorElement}
+    {@const fromVal = evaluateExpression(iter.fromExpression, mergeData)}
+    {@const toVal = evaluateExpression(iter.toExpression, mergeData)}
+    {@const from = typeof fromVal === 'number' ? Math.round(fromVal) : parseInt(String(fromVal ?? ''), 10)}
+    {@const to = typeof toVal === 'number' ? Math.round(toVal) : parseInt(String(toVal ?? ''), 10)}
+    {#if !isNaN(from) && !isNaN(to) && Math.abs(to - from) + 1 <= MAX_ITERATIONS}
+      {#each Array.from({ length: Math.abs(to - from) + 1 }, (_, i) => from + (from <= to ? i : -i)) as value (value)}
+        {@const augmented = { ...(mergeData ?? {}), [iter.iteratorName]: String(value) }}
+        {#each iter.children as child (child.id)}
+          <StaticTemplateRenderer element={child} {dpi} mergeData={augmented} {projectId} />
         {/each}
-      </ContainerElementComponent>
-    {:else if element.type === 'iterator'}
-      {@const iter = element as IteratorElement}
-      {@const fromVal = evaluateExpression(iter.fromExpression, mergeData)}
-      {@const toVal = evaluateExpression(iter.toExpression, mergeData)}
-      {@const from = typeof fromVal === 'number' ? Math.round(fromVal) : parseInt(String(fromVal ?? ''), 10)}
-      {@const to = typeof toVal === 'number' ? Math.round(toVal) : parseInt(String(toVal ?? ''), 10)}
-      {#if !isNaN(from) && !isNaN(to) && Math.abs(to - from) + 1 <= MAX_ITERATIONS}
-        {#each Array.from({ length: Math.abs(to - from) + 1 }, (_, i) => from + (from <= to ? i : -i)) as value (value)}
-          {@const augmented = { ...(mergeData ?? {}), [iter.iteratorName]: String(value) }}
-          {#each iter.children as child (child.id)}
-            <StaticTemplateRenderer element={child} {dpi} mergeData={augmented} {projectId} />
-          {/each}
-        {/each}
-      {/if}
+      {/each}
     {/if}
-  </div>
+  {:else}
+    <div
+      style:position
+      style:left
+      style:top
+      style:margin
+      style:width
+      style:height
+      style:min-width={minWidth}
+      style:max-width={maxWidth}
+      style:min-height={minHeight}
+      style:max-height={maxHeight}
+      style:z-index={zIndex}
+      style:opacity
+      style:transform
+      data-element-id={element.id}
+    >
+      {#if element.type === 'image'}
+        <ImageElementComponent element={element as ImageElement} {dpi} />
+      {:else if element.type === 'text'}
+        <TextElementComponent element={element as TextElement} {dpi} />
+      {:else if element.type === 'container'}
+        <ContainerElementComponent element={element as ContainerElement} {dpi}>
+          {#each (element as ContainerElement).children as child (child.id)}
+            <StaticTemplateRenderer element={child} {dpi} {mergeData} {projectId} />
+          {/each}
+        </ContainerElementComponent>
+      {/if}
+    </div>
+  {/if}
 {/if}

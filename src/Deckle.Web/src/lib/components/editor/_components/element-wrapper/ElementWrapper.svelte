@@ -130,8 +130,8 @@
       action: handleDuplicate
     });
 
-    // Add submenu for container and iterator elements
-    if (element.type === 'container' || element.type === 'iterator') {
+    // Add submenu for container elements (iterators no longer have ElementWrapper)
+    if (element.type === 'container') {
       items.push({
         label: 'Add...',
         submenu: [

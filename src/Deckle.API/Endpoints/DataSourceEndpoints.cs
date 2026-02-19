@@ -177,11 +177,8 @@ public static class DataSourceEndpoints
             // Fetch CSV data from the public CSV export URL
             var csvData = await googleSheetsService.FetchCsvDataAsync(dataSource.CsvExportUrl);
 
-            // Parse CSV into 2D array (simple implementation)
-            var lines = csvData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var data = lines.Select(line =>
-                // Simple CSV parsing - doesn't handle quoted commas
-                line.Split(',').Select(cell => cell.Trim()).ToArray()).ToList();
+            // Parse CSV into 2D array using RFC 4180-compliant parsing
+            var data = ParseCsv(csvData);
 
             return Results.Ok(new { data });
         })
@@ -223,5 +220,96 @@ public static class DataSourceEndpoints
         .WithName("GetSpreadsheetDataSourceDetail");
 
         return group;
+    }
+
+    /// <summary>
+    /// Parses CSV text handling quoted fields (RFC 4180).
+    /// Quoted fields may contain commas, newlines, and escaped quotes ("").
+    /// </summary>
+    private static List<string[]> ParseCsv(string csvText)
+    {
+        var rows = new List<string[]>();
+        var fields = new List<string>();
+        var field = new System.Text.StringBuilder();
+        bool inQuotes = false;
+        int i = 0;
+
+        while (i < csvText.Length)
+        {
+            char c = csvText[i];
+
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    // Check for escaped quote ""
+                    if (i + 1 < csvText.Length && csvText[i + 1] == '"')
+                    {
+                        field.Append('"');
+                        i += 2;
+                    }
+                    else
+                    {
+                        // End of quoted field
+                        inQuotes = false;
+                        i++;
+                    }
+                }
+                else
+                {
+                    field.Append(c);
+                    i++;
+                }
+            }
+            else
+            {
+                if (c == '"' && field.Length == 0)
+                {
+                    // Start of quoted field
+                    inQuotes = true;
+                    i++;
+                }
+                else if (c == ',')
+                {
+                    fields.Add(field.ToString().Trim());
+                    field.Clear();
+                    i++;
+                }
+                else if (c == '\r' || c == '\n')
+                {
+                    // End of row
+                    fields.Add(field.ToString().Trim());
+                    field.Clear();
+                    if (fields.Any(f => f.Length > 0))
+                    {
+                        rows.Add(fields.ToArray());
+                    }
+                    fields.Clear();
+                    // Skip \r\n pair
+                    if (c == '\r' && i + 1 < csvText.Length && csvText[i + 1] == '\n')
+                    {
+                        i += 2;
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                }
+                else
+                {
+                    field.Append(c);
+                    i++;
+                }
+            }
+        }
+
+        // Handle last field/row
+        fields.Add(field.ToString().Trim());
+        if (fields.Any(f => f.Length > 0))
+        {
+            rows.Add(fields.ToArray());
+        }
+
+        return rows;
     }
 }

@@ -2,6 +2,54 @@ import type { DataSource } from '$lib/types';
 import { dataSourcesApi } from '$lib/api';
 
 /**
+ * Parse a single CSV line handling quoted fields (RFC 4180).
+ * Quoted fields may contain commas and escaped quotes ("").
+ */
+function parseCSVLine(line: string): string[] {
+  const fields: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < line.length) {
+    const c = line[i];
+
+    if (inQuotes) {
+      if (c === '"') {
+        // Check for escaped quote ""
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          field += '"';
+          i += 2;
+        } else {
+          // End of quoted field
+          inQuotes = false;
+          i++;
+        }
+      } else {
+        field += c;
+        i++;
+      }
+    } else {
+      if (c === '"' && field.length === 0) {
+        // Start of quoted field
+        inQuotes = true;
+        i++;
+      } else if (c === ',') {
+        fields.push(field.trim());
+        field = '';
+        i++;
+      } else {
+        field += c;
+        i++;
+      }
+    }
+  }
+
+  fields.push(field.trim());
+  return fields;
+}
+
+/**
  * Parse CSV text to extract headers and count non-empty rows
  */
 export function parseCSVData(csvText: string): {
@@ -11,15 +59,13 @@ export function parseCSVData(csvText: string): {
   const lines = csvText.split('\n');
 
   // Extract headers (first line)
-  const headers = lines[0]
-    .split(',')
-    .map((h) => h.trim().replace(/^"|"$/g, '')) // Remove quotes if present
+  const headers = parseCSVLine(lines[0])
+    .map((h) => h.replace(/^"|"$/g, ''))
     .filter((h) => h.length > 0);
 
   // Count non-empty data rows (skip header)
   const dataRows = lines.slice(1).filter((line) => {
-    // A row is non-empty if it has at least one non-empty cell
-    const cells = line.split(',').map((c) => c.trim());
+    const cells = parseCSVLine(line);
     return cells.some((cell) => cell.length > 0);
   });
 

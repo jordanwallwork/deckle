@@ -12,9 +12,9 @@ public record PlayerMatConfig(
 
 public class PlayerMatConfigurator : IConfigurator<PlayerMat, PlayerMatConfig>
 {
-    private readonly SampleService _sampleService;
+    private readonly ISampleService _sampleService;
 
-    public PlayerMatConfigurator(SampleService sampleService)
+    public PlayerMatConfigurator(ISampleService sampleService)
     {
         _sampleService = sampleService;
     }

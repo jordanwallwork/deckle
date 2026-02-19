@@ -6,13 +6,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
-public class DataSourceService
+public interface IDataSourceService
+{
+    public Task<List<DataSourceDto>> GetDataSourcesAsync(Guid userId, Guid? projectId);
+    public Task<DataSourceDto?> GetDataSourceByIdAsync(Guid userId, Guid dataSourceId);
+    public Task<DataSourceDto> CreateGoogleSheetsDataSourceAsync(Guid userId, Guid? projectId, string name, Uri url, int? sheetGid = null);
+    public Task<DataSourceDto> CopySampleDataSourceToProjectAsync(Guid userId, Guid projectId, Guid sampleDataSourceId);
+    public Task<SampleDataSource> GetOrCreateProjectSampleDataSourceFromAsync(Guid projectId, DataSource dataSource);
+    public Task<DataSourceDto?> UpdateDataSourceAsync(Guid userId, Guid dataSourceId, string name);
+    public Task<DataSourceDto> SyncDataSourceMetadataAsync(Guid userId, Guid dataSourceId, List<string> headers, int rowCount);
+    public Task<bool> DeleteDataSourceAsync(Guid userId, Guid dataSourceId);
+    public Task<DataSourceDto> CreateSpreadsheetDataSourceAsync(Guid userId, Guid? projectId, string name);
+    public Task<DataSourceDto?> UpdateSpreadsheetDataSourceAsync(Guid userId, Guid dataSourceId, string name, string? jsonData);
+    public Task<DataSourceDto?> GetSpreadsheetDataSourceDetailAsync(Guid userId, Guid dataSourceId);
+}
+
+public class DataSourceService : IDataSourceService
 {
     private readonly AppDbContext _dbContext;
-    private readonly GoogleSheetsService _googleSheetsService;
-    private readonly ProjectAuthorizationService _authService;
+    private readonly IGoogleSheetsService _googleSheetsService;
+    private readonly IProjectAuthorizationService _authService;
 
-    public DataSourceService(AppDbContext dbContext, GoogleSheetsService googleSheetsService, ProjectAuthorizationService authService)
+    public DataSourceService(AppDbContext dbContext, IGoogleSheetsService googleSheetsService, IProjectAuthorizationService authService)
     {
         _dbContext = dbContext;
         _googleSheetsService = googleSheetsService;
@@ -154,7 +169,7 @@ public class DataSourceService
         var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId)
             ?? throw new UnauthorizedAccessException("User does not have access to this data source");
 
-        if (!ProjectAuthorizationService.CanModifyResources(role))
+        if (!ProjectAuthorizationService.CanManageDataSources(role))
         {
             return null;
         }
@@ -183,7 +198,7 @@ public class DataSourceService
         await _authService.RequirePermissionAsync(
             userId,
             dataSource.ProjectId.Value,
-            ProjectAuthorizationService.CanModifyResources,
+            ProjectAuthorizationService.CanManageDataSources,
             "User does not have permission to sync data sources");
 
         // Update metadata
@@ -210,7 +225,7 @@ public class DataSourceService
         var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId)
             ?? throw new UnauthorizedAccessException("User does not have access to this data source");
 
-        if (!ProjectAuthorizationService.CanModifyResources(role))
+        if (!ProjectAuthorizationService.CanManageDataSources(role))
         {
             return false;
         }
@@ -254,7 +269,7 @@ public class DataSourceService
         await _authService.RequirePermissionAsync(
             userId,
             dataSource.ProjectId,
-            ProjectAuthorizationService.CanModifyResources,
+            ProjectAuthorizationService.CanManageDataSources,
             "User does not have permission to update this data source");
 
         dataSource.Name = name;

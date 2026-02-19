@@ -13,7 +13,7 @@ public static class SampleEndpoints
             .RequireAuthorization()
             .RequireUserId();
 
-        group.MapGet("", async (string type, ComponentService componentService) =>
+        group.MapGet("", async (string type, IComponentService componentService) =>
         {
             var samples = await componentService.GetSamplesForTypeAsync(type);
             return Results.Ok(samples);

@@ -16,16 +16,16 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDeckleApplicationServices(this IServiceCollection services)
     {
-        services.AddScoped<ProjectAuthorizationService>();
-        services.AddScoped<UserService>();
-        services.AddScoped<ProjectService>();
-        services.AddScoped<GoogleSheetsService>();
-        services.AddScoped<DataSourceService>();
-        services.AddScoped<ComponentService>();
-        services.AddScoped<SampleService>();
-        services.AddScoped<FileService>();
-        services.AddScoped<FileDirectoryService>();
-        services.AddScoped<AdminService>();
+        services.AddScoped<IProjectAuthorizationService, ProjectAuthorizationService>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IProjectService, ProjectService>();
+        services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
+        services.AddScoped<IDataSourceService, DataSourceService>();
+        services.AddScoped<IComponentService, ComponentService>();
+        services.AddScoped<ISampleService, SampleService>();
+        services.AddScoped<IFileService, FileService>();
+        services.AddScoped<IFileDirectoryService, FileDirectoryService>();
+        services.AddScoped<IAdminService, AdminService>();
 
         // MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
@@ -78,7 +78,7 @@ public static class ServiceCollectionExtensions
 
         // Cloudflare R2 storage
         services.Configure<CloudflareR2Options>(configuration.GetSection("CloudflareR2"));
-        services.AddSingleton<CloudflareR2Service>();
+        services.AddSingleton<ICloudflareR2Service, CloudflareR2Service>();
 
         // Background services
         services.AddHostedService<FileCleanupService>();

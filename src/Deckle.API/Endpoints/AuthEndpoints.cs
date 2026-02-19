@@ -85,7 +85,7 @@ public static partial class AuthEndpoints
         .RequireAuthorization()
         .WithName("GetCurrentUser");
 
-        group.MapGet("/username/check/{username}", async (string username, ClaimsPrincipal user, UserService userService) =>
+        group.MapGet("/username/check/{username}", async (string username, ClaimsPrincipal user, IUserService userService) =>
         {
             var userId = UserService.GetUserIdFromClaims(user);
             if (userId == null)
@@ -99,7 +99,7 @@ public static partial class AuthEndpoints
         .RequireAuthorization()
         .WithName("CheckUsernameAvailability");
 
-        group.MapPost("/username", async (SetUsernameRequest request, ClaimsPrincipal user, UserService userService, IPublisher publisher, HttpContext context) =>
+        group.MapPost("/username", async (SetUsernameRequest request, ClaimsPrincipal user, IUserService userService, IPublisher publisher, HttpContext context) =>
         {
             var userId = UserService.GetUserIdFromClaims(user);
             if (userId == null)

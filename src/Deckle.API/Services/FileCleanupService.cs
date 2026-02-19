@@ -44,7 +44,7 @@ public partial class FileCleanupService : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var r2Service = scope.ServiceProvider.GetRequiredService<CloudflareR2Service>();
+        var r2Service = scope.ServiceProvider.GetRequiredService<ICloudflareR2Service>();
 
         var cutoff = DateTime.UtcNow - _pendingTimeout;
         var pendingFiles = await context.Files

@@ -16,7 +16,7 @@ public static class ProjectEndpoints
             .RequireAuthorization()
             .RequireUserId(); // Apply user ID validation to all endpoints in this group
 
-        group.MapGet("", async (HttpContext httpContext, ProjectService projectService) =>
+        group.MapGet("", async (HttpContext httpContext, IProjectService projectService) =>
         {
             var userId = httpContext.GetUserId();
             var projects = await projectService.GetUserProjectsAsync(userId);
@@ -24,7 +24,7 @@ public static class ProjectEndpoints
         })
         .WithName("GetProjects");
 
-        group.MapGet("{id:guid}", async (Guid id, HttpContext httpContext, ProjectService projectService) =>
+        group.MapGet("{id:guid}", async (Guid id, HttpContext httpContext, IProjectService projectService) =>
         {
             var userId = httpContext.GetUserId();
             var project = await projectService.GetProjectByIdAsync(userId, id);
@@ -38,7 +38,7 @@ public static class ProjectEndpoints
         })
         .WithName("GetProjectById");
 
-        group.MapGet("{username}/{code}", async (string username, string code, HttpContext httpContext, ProjectService projectService) =>
+        group.MapGet("{username}/{code}", async (string username, string code, HttpContext httpContext, IProjectService projectService) =>
         {
             var userId = httpContext.GetUserId();
             var project = await projectService.GetProjectByUsernameAndCodeAsync(userId, username, code);
@@ -52,7 +52,7 @@ public static class ProjectEndpoints
         })
         .WithName("GetProjectByUsernameAndCode");
 
-        group.MapPost("", async (HttpContext httpContext, ProjectService projectService, CreateProjectRequest request) =>
+        group.MapPost("", async (HttpContext httpContext, IProjectService projectService, CreateProjectRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var project = await projectService.CreateProjectAsync(userId, request.Name, request.Code, request.Description);
@@ -60,7 +60,7 @@ public static class ProjectEndpoints
         })
         .WithName("CreateProject");
 
-        group.MapPut("{id:guid}", async (Guid id, HttpContext httpContext, ProjectService projectService, UpdateProjectRequest request) =>
+        group.MapPut("{id:guid}", async (Guid id, HttpContext httpContext, IProjectService projectService, UpdateProjectRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var project = await projectService.UpdateProjectAsync(userId, id, request.Name, request.Description);
@@ -74,7 +74,7 @@ public static class ProjectEndpoints
         })
         .WithName("UpdateProject");
 
-        group.MapGet("{id:guid}/users", async (Guid id, HttpContext httpContext, ProjectService projectService) =>
+        group.MapGet("{id:guid}/users", async (Guid id, HttpContext httpContext, IProjectService projectService) =>
         {
             var userId = httpContext.GetUserId();
             var users = await projectService.GetProjectUsersAsync(userId, id);
@@ -85,7 +85,7 @@ public static class ProjectEndpoints
         group.MapPost("{id:guid}/users/invite", async (
             Guid id,
             HttpContext httpContext,
-            ProjectService projectService,
+            IProjectService projectService,
             IEmailSender emailSender,
             IConfiguration configuration,
             InviteUserRequest request) =>
@@ -146,7 +146,7 @@ public static class ProjectEndpoints
             Guid id,
             Guid userId,
             HttpContext httpContext,
-            ProjectService projectService) =>
+            IProjectService projectService) =>
         {
             var requestingUserId = httpContext.GetUserId();
 
@@ -164,7 +164,7 @@ public static class ProjectEndpoints
         })
         .WithName("RemoveUserFromProject");
 
-        group.MapDelete("{id:guid}", async (Guid id, HttpContext httpContext, ProjectService projectService) =>
+        group.MapDelete("{id:guid}", async (Guid id, HttpContext httpContext, IProjectService projectService) =>
         {
             var userId = httpContext.GetUserId();
             await projectService.DeleteProjectAsync(userId, id);

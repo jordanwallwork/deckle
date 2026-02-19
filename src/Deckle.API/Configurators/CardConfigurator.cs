@@ -8,9 +8,9 @@ public record CardConfig(string Name, CardSize Size, bool Horizontal, Guid? Samp
 
 public class CardConfigurator : IConfigurator<Card, CardConfig>
 {
-    private readonly SampleService _sampleService;
+    private readonly ISampleService _sampleService;
 
-    public CardConfigurator(SampleService sampleService)
+    public CardConfigurator(ISampleService sampleService)
     {
         _sampleService = sampleService;
     }

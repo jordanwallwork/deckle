@@ -110,7 +110,7 @@ public static class AuthenticationExtensions
 
     private static async Task HandleGoogleTicketCreation(OAuthCreatingTicketContext context)
     {
-        var userService = context.HttpContext.RequestServices.GetRequiredService<UserService>();
+        var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
 
         var googleId = context.User.GetProperty("sub").GetString();
         var email = context.User.GetProperty("email").GetString();

@@ -18,7 +18,7 @@ public static class FileDirectoryEndpoints
         projectDirectoriesGroup.MapPost("", async (
             Guid projectId,
             HttpContext httpContext,
-            FileDirectoryService directoryService,
+            IFileDirectoryService directoryService,
             CreateFileDirectoryRequest request) =>
         {
             var userId = httpContext.GetUserId();
@@ -37,7 +37,7 @@ public static class FileDirectoryEndpoints
         projectDirectoriesGroup.MapGet("", async (
             Guid projectId,
             HttpContext httpContext,
-            FileDirectoryService directoryService) =>
+            IFileDirectoryService directoryService) =>
         {
             var userId = httpContext.GetUserId();
             var directories = await directoryService.GetProjectDirectoriesAsync(userId, projectId);
@@ -50,7 +50,7 @@ public static class FileDirectoryEndpoints
         projectDirectoriesGroup.MapGet("/by-path", async (
             Guid projectId,
             HttpContext httpContext,
-            FileDirectoryService directoryService,
+            IFileDirectoryService directoryService,
             string? path) =>
         {
             var userId = httpContext.GetUserId();
@@ -70,7 +70,7 @@ public static class FileDirectoryEndpoints
         projectDirectoriesGroup.MapGet("/root", async (
             Guid projectId,
             HttpContext httpContext,
-            FileDirectoryService directoryService) =>
+            IFileDirectoryService directoryService) =>
         {
             var userId = httpContext.GetUserId();
             var contents = await directoryService.GetRootContentsAsync(userId, projectId);
@@ -90,7 +90,7 @@ public static class FileDirectoryEndpoints
             Guid projectId,
             Guid directoryId,
             HttpContext httpContext,
-            FileDirectoryService directoryService) =>
+            IFileDirectoryService directoryService) =>
         {
             var userId = httpContext.GetUserId();
             var directory = await directoryService.GetDirectoryWithContentsAsync(userId, projectId, directoryId);
@@ -114,7 +114,7 @@ public static class FileDirectoryEndpoints
         directoriesGroup.MapPatch("/{directoryId:guid}/rename", async (
             Guid directoryId,
             HttpContext httpContext,
-            FileDirectoryService directoryService,
+            IFileDirectoryService directoryService,
             RenameFileDirectoryRequest request) =>
         {
             var userId = httpContext.GetUserId();
@@ -128,7 +128,7 @@ public static class FileDirectoryEndpoints
         directoriesGroup.MapPatch("/{directoryId:guid}/move", async (
             Guid directoryId,
             HttpContext httpContext,
-            FileDirectoryService directoryService,
+            IFileDirectoryService directoryService,
             MoveFileDirectoryRequest request) =>
         {
             var userId = httpContext.GetUserId();
@@ -146,7 +146,7 @@ public static class FileDirectoryEndpoints
         directoriesGroup.MapDelete("/{directoryId:guid}", async (
             Guid directoryId,
             HttpContext httpContext,
-            FileDirectoryService directoryService) =>
+            IFileDirectoryService directoryService) =>
         {
             var userId = httpContext.GetUserId();
 

@@ -32,4 +32,14 @@
     <ProjectReference Include="..\Deckle.ServiceDefaults\Deckle.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <!-- Remove the OpenAPI XML comment source generator before compilation.
+       The XmlCommentGenerator produces interceptor code that Stryker's in-memory
+       Roslyn compilation cannot handle (it lacks the InterceptorsNamespaces feature flag). -->
+  <Target Name="RemoveOpenApiSourceGenerator" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="%(Analyzer.Identity)"
+                Condition="'%(Analyzer.Filename)' == 'Microsoft.AspNetCore.OpenApi.SourceGenerators'" />
+    </ItemGroup>
+  </Target>
+
 </Project>

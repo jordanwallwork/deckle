@@ -2,7 +2,15 @@ using System.Text.RegularExpressions;
 
 namespace Deckle.API.Services;
 
-public class GoogleSheetsService
+public interface IGoogleSheetsService
+{
+    public (string? spreadsheetId, int? sheetGid) ExtractIdsFromUrl(Uri url);
+    public string BuildCsvExportUrl(string spreadsheetId, int sheetGid = 0);
+    public Task<bool> ValidateCsvAccessAsync(string csvExportUrl);
+    public Task<string> FetchCsvDataAsync(string csvExportUrl);
+}
+
+public class GoogleSheetsService : IGoogleSheetsService
 {
     private readonly IHttpClientFactory _httpClientFactory;
 
@@ -116,28 +124,5 @@ public class GoogleSheetsService
         {
             return false;
         }
-    }
-
-    /// <summary>
-    /// Legacy method for extracting spreadsheet ID from URL
-    /// </summary>
-    public static string? ExtractSpreadsheetIdFromUrl(string url)
-    {
-        var patterns = new[]
-        {
-            @"docs\.google\.com/spreadsheets/d/([a-zA-Z0-9-_]+)",
-            @"spreadsheets/d/([a-zA-Z0-9-_]+)"
-        };
-
-        foreach (var pattern in patterns)
-        {
-            var match = Regex.Match(url, pattern);
-            if (match.Success)
-            {
-                return match.Groups[1].Value;
-            }
-        }
-
-        return null;
     }
 }

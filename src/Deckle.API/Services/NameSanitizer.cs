@@ -68,12 +68,7 @@ public static partial class NameSanitizer
     /// <param name="fileName">The file name to validate</param>
     /// <returns>True if valid, false otherwise</returns>
     public static bool IsValidFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-            return false;
-
-        return AllowedNamePattern().IsMatch(fileName);
-    }
+        => !string.IsNullOrWhiteSpace(fileName) && AllowedNamePattern().IsMatch(fileName);
 
     /// <summary>
     /// Sanitizes a directory name by replacing invalid characters with underscores.
@@ -106,12 +101,7 @@ public static partial class NameSanitizer
     /// <param name="directoryName">The directory name to validate</param>
     /// <returns>True if valid, false otherwise</returns>
     public static bool IsValidDirectoryName(string directoryName)
-    {
-        if (string.IsNullOrWhiteSpace(directoryName))
-            return false;
-
-        return AllowedDirectoryNamePattern().IsMatch(directoryName);
-    }
+        => !string.IsNullOrWhiteSpace(directoryName) && AllowedDirectoryNamePattern().IsMatch(directoryName);
 
     /// <summary>
     /// Validates a directory name and throws an ArgumentException if invalid.

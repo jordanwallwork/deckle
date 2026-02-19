@@ -1,0 +1,23 @@
+{
+  "stryker-config": {
+    "project": "Deckle.API.csproj",
+    "mutate": [
+      "**/*.cs",
+      "!**/*.generated.cs",
+      "!**/obj/**/*.cs"
+    ],
+    "reporters": [
+      "html",
+      "progress"
+    ],
+    "mutation-level": "Standard",
+    "since": {
+      "enabled": false
+    },
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 0
+    }
+  }
+}

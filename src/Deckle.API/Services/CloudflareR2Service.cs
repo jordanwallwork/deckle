@@ -15,7 +15,16 @@ public class CloudflareR2Options
     public int PresignedUrlExpirationMinutes { get; set; } = 15;
 }
 
-public partial class CloudflareR2Service : IDisposable
+public interface ICloudflareR2Service
+{
+    public string GenerateUploadUrl(string storageKey, string contentType, long fileSizeBytes);
+    public string GenerateDownloadUrl(string storageKey, string fileName);
+    public Task CopyFileAsync(string sourceStorageKey, string destinationStorageKey);
+    public Task DeleteFileAsync(string storageKey);
+    public Task<bool> FileExistsAsync(string storageKey);
+}
+
+public partial class CloudflareR2Service : ICloudflareR2Service, IDisposable
 {
     private readonly IAmazonS3 _s3Client;
     private readonly CloudflareR2Options _options;

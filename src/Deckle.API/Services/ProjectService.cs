@@ -7,12 +7,25 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
-public partial class ProjectService
+public interface IProjectService
+{
+    public Task<List<ProjectDto>> GetUserProjectsAsync(Guid userId);
+    public Task<ProjectDto?> GetProjectByIdAsync(Guid userId, Guid projectId);
+    public Task<ProjectDto?> GetProjectByUsernameAndCodeAsync(Guid requestingUserId, string ownerUsername, string projectCode);
+    public Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string code, string? description);
+    public Task<ProjectDto?> UpdateProjectAsync(Guid userId, Guid projectId, string name, string? description);
+    public Task<List<ProjectUserDto>> GetProjectUsersAsync(Guid userId, Guid projectId);
+    public Task<(ProjectUserDto? user, string? inviterName)?> InviteUserToProjectAsync(Guid userId, Guid projectId, string email, string roleString);
+    public Task<bool> RemoveUserFromProjectAsync(Guid requestingUserId, Guid projectId, Guid targetUserId);
+    public Task DeleteProjectAsync(Guid userId, Guid projectId);
+}
+
+public partial class ProjectService : IProjectService
 {
     private readonly AppDbContext _dbContext;
-    private readonly ProjectAuthorizationService _authService;
+    private readonly IProjectAuthorizationService _authService;
 
-    public ProjectService(AppDbContext dbContext, ProjectAuthorizationService authService)
+    public ProjectService(AppDbContext dbContext, IProjectAuthorizationService authService)
     {
         _dbContext = dbContext;
         _authService = authService;
@@ -84,22 +97,19 @@ public partial class ProjectService
             .Where(up => up.UserId == requestingUserId && up.ProjectId == project.Id)
             .FirstOrDefaultAsync();
 
-        if (userProject == null)
-        {
-            return null;
-        }
-
-        return new ProjectDto
-        {
-            Id = project.Id,
-            Name = project.Name,
-            Code = project.Code,
-            Description = project.Description,
-            CreatedAt = project.CreatedAt,
-            UpdatedAt = project.UpdatedAt,
-            Role = userProject.Role.ToString(),
-            OwnerUsername = ownerUsername
-        };
+        return userProject == null
+            ? null
+            : new ProjectDto
+            {
+                Id = project.Id,
+                Name = project.Name,
+                Code = project.Code,
+                Description = project.Description,
+                CreatedAt = project.CreatedAt,
+                UpdatedAt = project.UpdatedAt,
+                Role = userProject.Role.ToString(),
+                OwnerUsername = ownerUsername
+            };
     }
 
     private static readonly Regex _projectCodePattern = ProjectCodePatternRegex();

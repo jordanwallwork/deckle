@@ -6,12 +6,35 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
-public class SampleService
+public interface IComponentService
 {
-    private readonly ComponentService _componentService;
-    private readonly DataSourceService _dataSourceService;
+    public Task<TComponent> CreateComponentAsync<TComponent, TConfig>(Guid userId, Guid? projectId, TConfig config)
+        where TComponent : Component
+        where TConfig : IComponentConfig<TComponent>;
+    public Task<TComponent?> UpdateComponentAsync<TComponent, TConfig>(Guid userId, Guid componentId, TConfig config)
+        where TComponent : Component
+        where TConfig : IComponentConfig<TComponent>;
+    public Task<List<ComponentDto>> GetProjectComponentsAsync(Guid userId, Guid? projectId);
+    public Task<TComponent?> GetComponentByIdAsync<TComponent>(Guid userId, Guid componentId) where TComponent : Component;
+    public Task<List<ComponentDto>> GetSamplesForTypeAsync(string componentType);
+    public Task<ComponentDto?> UpdateDataSourceAsync(Guid userId, Guid componentId, Guid? dataSourceId);
+    public Task<ComponentDto?> UpdateSampleDataSourceAsync(Guid componentId, Guid? dataSourceId);
+    public Task<ComponentDto?> SaveDesignAsync(Guid userId, Guid componentId, string part, string? design);
+    public Task DeleteComponentAsync(Guid userId, Guid componentId);
+    public Task<AdminSampleComponentListResponse> GetSampleComponentsAsync(int page = 1, int pageSize = 20, string? search = null, string? componentType = null);
+}
 
-    public SampleService(ComponentService componentService, DataSourceService dataSourceService)
+public interface ISampleService
+{
+    public Task UseSampleAsync<TComponent>(Guid userId, TComponent component, Guid sampleId, Action<TComponent> copyDesigns) where TComponent : Component;
+}
+
+public class SampleService : ISampleService
+{
+    private readonly IComponentService _componentService;
+    private readonly IDataSourceService _dataSourceService;
+
+    public SampleService(IComponentService componentService, IDataSourceService dataSourceService)
     {
         _componentService = componentService;
         _dataSourceService = dataSourceService;
@@ -34,22 +57,19 @@ public class SampleService
     }
 }
 
-public class ComponentService
+public class ComponentService : IComponentService
 {
     private readonly AppDbContext _context;
-    private readonly ProjectAuthorizationService _authService;
-    private readonly DataSourceService _dataSourceService;
+    private readonly IProjectAuthorizationService _authService;
     private readonly IConfiguratorProvider _configuratorProvider;
 
     public ComponentService(
         AppDbContext context,
-        ProjectAuthorizationService authService,
-        DataSourceService dataSourceService,
+        IProjectAuthorizationService authService,
         IConfiguratorProvider configuratorProvider)
     {
         _context = context;
         _authService = authService;
-        _dataSourceService = dataSourceService;
         _configuratorProvider = configuratorProvider;
     }
 
@@ -262,12 +282,8 @@ public class ComponentService
         {
             var dataSource = await _context.DataSources
                 .Where(ds => ds.Id == dataSourceId.Value && ds.ProjectId == null)
-                .FirstOrDefaultAsync();
-
-            if (dataSource == null)
-            {
-                throw new ArgumentException("Data source not found or is not a sample data source");
-            }
+                .FirstOrDefaultAsync()
+                ?? throw new ArgumentException("Data source not found or is not a sample data source");
 
             dataSourceComponent.DataSource = dataSource;
         }

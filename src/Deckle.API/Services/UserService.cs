@@ -6,7 +6,15 @@ using System.Security.Claims;
 
 namespace Deckle.API.Services;
 
-public class UserService
+public interface IUserService
+{
+    public Task<User> CreateOrUpdateUserAsync(GoogleUserInfo userInfo);
+    public Task<bool> IsUsernameAvailableAsync(string username, Guid? excludeUserId = null);
+    public Task<(bool Success, string? Error, bool IsNewRegistration)> SetUsernameAsync(Guid userId, string username);
+    public Task<User?> GetUserByIdAsync(Guid userId);
+}
+
+public class UserService : IUserService
 {
     private readonly AppDbContext _dbContext;
 

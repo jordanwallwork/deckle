@@ -7,15 +7,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
-public partial class FileDirectoryService
+public interface IFileDirectoryService
+{
+    public Task<FileDirectoryDto> CreateDirectoryAsync(Guid userId, Guid projectId, string name, Guid? parentDirectoryId = null);
+    public Task<List<FileDirectoryDto>> GetProjectDirectoriesAsync(Guid userId, Guid projectId);
+    public Task<FileDirectoryWithContentsDto?> GetDirectoryWithContentsAsync(Guid userId, Guid projectId, Guid directoryId);
+    public Task<FileDirectoryWithContentsDto?> GetDirectoryByPathAsync(Guid userId, Guid projectId, string path);
+    public Task<string?> GetDirectoryPathAsync(Guid userId, Guid projectId, Guid directoryId);
+    public Task<FileDirectoryWithContentsDto?> GetRootContentsAsync(Guid userId, Guid projectId);
+    public Task<FileDirectoryDto> RenameDirectoryAsync(Guid userId, Guid directoryId, string newName);
+    public Task<FileDirectoryDto> MoveDirectoryAsync(Guid userId, Guid directoryId, Guid? newParentDirectoryId, bool merge = false);
+    public Task<bool> DeleteDirectoryAsync(Guid userId, Guid directoryId);
+}
+
+public partial class FileDirectoryService : IFileDirectoryService
 {
     private readonly AppDbContext _context;
-    private readonly ProjectAuthorizationService _authService;
+    private readonly IProjectAuthorizationService _authService;
     private readonly ILogger<FileDirectoryService> _logger;
 
     public FileDirectoryService(
         AppDbContext context,
-        ProjectAuthorizationService authService,
+        IProjectAuthorizationService authService,
         ILogger<FileDirectoryService> logger)
     {
         _context = context;

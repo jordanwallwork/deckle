@@ -15,7 +15,7 @@ public static class DataSourceEndpoints
             .RequireAuthorization()
             .RequireUserId();
 
-        group.MapGet("project/{projectId:guid?}", async (Guid? projectId, HttpContext httpContext, DataSourceService dataSourceService) =>
+        group.MapGet("project/{projectId:guid?}", async (Guid? projectId, HttpContext httpContext, IDataSourceService dataSourceService) =>
         {
             var userId = httpContext.GetUserId();
             var dataSources = await dataSourceService.GetDataSourcesAsync(userId, projectId);
@@ -23,7 +23,7 @@ public static class DataSourceEndpoints
         })
         .WithName("GetProjectDataSources");
 
-        group.MapGet("{id:guid}", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
+        group.MapGet("{id:guid}", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService) =>
         {
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
@@ -32,7 +32,7 @@ public static class DataSourceEndpoints
         })
         .WithName("GetDataSourceById");
 
-        group.MapPost("GoogleSheets", async (HttpContext httpContext, DataSourceService dataSourceService, CreateGoogleSheetsDataSourceRequest request) =>
+        group.MapPost("GoogleSheets", async (HttpContext httpContext, IDataSourceService dataSourceService, CreateGoogleSheetsDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -48,7 +48,7 @@ public static class DataSourceEndpoints
         })
         .WithName("CreateDataSource");
 
-        group.MapPut("{id:guid}", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService, UpdateDataSourceRequest request) =>
+        group.MapPut("{id:guid}", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, UpdateDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -58,7 +58,7 @@ public static class DataSourceEndpoints
         })
         .WithName("UpdateDataSource");
 
-        group.MapDelete("{id:guid}", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
+        group.MapDelete("{id:guid}", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -69,7 +69,7 @@ public static class DataSourceEndpoints
         .WithName("DeleteDataSource");
 
         // Endpoint to sync data source metadata (headers and row count)
-        group.MapPost("{id:guid}/sync", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService, SyncDataSourceMetadataRequest request) =>
+        group.MapPost("{id:guid}/sync", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, SyncDataSourceMetadataRequest request) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -79,7 +79,7 @@ public static class DataSourceEndpoints
         .WithName("SyncDataSourceMetadata");
 
         // Endpoint to get basic data source info (metadata)
-        group.MapGet("{id:guid}/metadata", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
+        group.MapGet("{id:guid}/metadata", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -106,7 +106,7 @@ public static class DataSourceEndpoints
         .WithName("GetDataSourceMetadata");
 
         // Endpoint to get sheet data (CSV)
-        group.MapGet("{id:guid}/data", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService, GoogleSheetsService googleSheetsService) =>
+        group.MapGet("{id:guid}/data", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, IGoogleSheetsService googleSheetsService) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -187,7 +187,7 @@ public static class DataSourceEndpoints
         })
         .WithName("GetDataSourceData");
 
-        group.MapPost("copy-sample", async (HttpContext httpContext, DataSourceService dataSourceService, CopySampleDataSourceRequest request) =>
+        group.MapPost("copy-sample", async (HttpContext httpContext, IDataSourceService dataSourceService, CopySampleDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.CopySampleDataSourceToProjectAsync(userId, request.ProjectId, request.SampleDataSourceId);
@@ -196,7 +196,7 @@ public static class DataSourceEndpoints
         .WithName("CopySampleDataSource");
 
         // Spreadsheet data source endpoints
-        group.MapPost("spreadsheet", async (HttpContext httpContext, DataSourceService dataSourceService, CreateSpreadsheetDataSourceRequest request) =>
+        group.MapPost("spreadsheet", async (HttpContext httpContext, IDataSourceService dataSourceService, CreateSpreadsheetDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.CreateSpreadsheetDataSourceAsync(userId, request.ProjectId, request.Name);
@@ -204,7 +204,7 @@ public static class DataSourceEndpoints
         })
         .WithName("CreateSpreadsheetDataSource");
 
-        group.MapPut("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService, UpdateSpreadsheetDataSourceRequest request) =>
+        group.MapPut("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, UpdateSpreadsheetDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.UpdateSpreadsheetDataSourceAsync(userId, id, request.Name, request.JsonData);
@@ -213,7 +213,7 @@ public static class DataSourceEndpoints
         })
         .WithName("UpdateSpreadsheetDataSource");
 
-        group.MapGet("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, DataSourceService dataSourceService) =>
+        group.MapGet("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService) =>
         {
             var userId = httpContext.GetUserId();
             var dataSource = await dataSourceService.GetSpreadsheetDataSourceDetailAsync(userId, id);

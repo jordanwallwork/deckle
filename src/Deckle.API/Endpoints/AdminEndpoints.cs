@@ -26,7 +26,7 @@ public static class AdminEndpoints
     {
         // GET /admin/users - List all users with pagination and search
         group.MapGet("/users", async (
-            AdminService adminService,
+            IAdminService adminService,
             int page = 1,
             int pageSize = 20,
             string? search = null) =>
@@ -42,7 +42,7 @@ public static class AdminEndpoints
         // GET /admin/users/{id} - Get a specific user by ID
         group.MapGet("/users/{id:guid}", async (
             Guid id,
-            AdminService adminService) =>
+            IAdminService adminService) =>
         {
             var user = await adminService.GetUserByIdAsync(id);
             return user == null ? Results.NotFound(new { error = "User not found" }) : Results.Ok(user);
@@ -53,7 +53,7 @@ public static class AdminEndpoints
         group.MapPut("/users/{id:guid}/role", async (
             Guid id,
             UpdateUserRoleRequest request,
-            AdminService adminService) =>
+            IAdminService adminService) =>
         {
             var user = await adminService.UpdateUserRoleAsync(id, request.Role);
             return user == null ? Results.BadRequest(new { error = "Invalid role or user not found" }) : Results.Ok(user);
@@ -64,7 +64,7 @@ public static class AdminEndpoints
         group.MapPut("/users/{id:guid}/quota", async (
             Guid id,
             UpdateUserQuotaRequest request,
-            AdminService adminService) =>
+            IAdminService adminService) =>
         {
             var user = await adminService.UpdateUserQuotaAsync(id, request.StorageQuotaMb);
             return user == null ? Results.BadRequest(new { error = "Invalid quota or user not found" }) : Results.Ok(user);
@@ -76,7 +76,7 @@ public static class AdminEndpoints
     {
         // GET /admin/samples - List all sample components with pagination, search, and filtering
         group.MapGet("/samples", async (
-            ComponentService componentService,
+            IComponentService componentService,
             int page = 1,
             int pageSize = 20,
             string? search = null,
@@ -94,7 +94,7 @@ public static class AdminEndpoints
         group.MapPost("/samples/cards", async (
             CreateCardRequest request,
             HttpContext httpContext,
-            ComponentService componentService) =>
+            IComponentService componentService) =>
         {
             var userId = httpContext.GetUserId();
             var card = await componentService.CreateComponentAsync<Card, CardConfig>(userId, null, new CardConfig(request.Name, request.Size, request.Horizontal, request.Sample));
@@ -106,7 +106,7 @@ public static class AdminEndpoints
         group.MapPost("/samples/playermats", async (
             CreatePlayerMatRequest request,
             HttpContext httpContext,
-            ComponentService componentService) =>
+            IComponentService componentService) =>
         {
             var playerMat = await componentService.CreateComponentAsync<PlayerMat, PlayerMatConfig>(
                 httpContext.GetUserId(), null,
@@ -119,7 +119,7 @@ public static class AdminEndpoints
         group.MapPut("/samples/{id:guid}/datasource", async (
             Guid id,
             UpdateComponentDataSourceRequest request,
-            ComponentService componentService) =>
+            IComponentService componentService) =>
         {
             var component = await componentService.UpdateSampleDataSourceAsync(id, request.DataSourceId);
             return component == null
@@ -132,7 +132,7 @@ public static class AdminEndpoints
         group.MapGet("/samples/{id:guid}", async (
             Guid id,
             HttpContext httpContext,
-            ComponentService componentService) =>
+            IComponentService componentService) =>
         {
             var component = await componentService.GetComponentByIdAsync<Component>(httpContext.GetUserId(), id);
             return component == null ? Results.NotFound(new { error = "Sample component not found" }) : Results.Ok(component.ToComponentDto());
@@ -145,7 +145,7 @@ public static class AdminEndpoints
             string part,
             SaveDesignRequest request,
             HttpContext httpContext,
-            ComponentService componentService) =>
+            IComponentService componentService) =>
         {
             if (part is not "front" and not "back")
             {

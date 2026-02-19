@@ -6,11 +6,25 @@ using System.Text.RegularExpressions;
 
 namespace Deckle.API.Services;
 
-public partial class FileService
+public interface IFileService
+{
+    public Task<RequestUploadUrlResponse> RequestUploadUrlAsync(Guid userId, Guid projectId, string fileName, string contentType, long fileSizeBytes, List<string>? tags = null, Guid? directoryId = null);
+    public Task<FileDto> ConfirmUploadAsync(Guid userId, Guid fileId);
+    public Task<List<FileDto>> GetProjectFilesAsync(Guid userId, Guid projectId, List<string>? filterTags = null, bool useAndLogic = false, Guid? directoryId = null, bool directoryIdSpecified = false);
+    public Task<Domain.Entities.File?> GetFileByProjectAndPathAsync(Guid userId, Guid projectId, string path);
+    public Task DeleteFileAsync(Guid userId, Guid fileId);
+    public Task<UserStorageQuotaDto> GetUserQuotaAsync(Guid userId);
+    public Task<FileDto> UpdateFileTagsAsync(Guid userId, Guid fileId, List<string> tags);
+    public Task<List<string>> GetProjectTagsAsync(Guid userId, Guid projectId);
+    public Task<FileDto> RenameFileAsync(Guid userId, Guid fileId, string newFileName);
+    public Task<FileDto> MoveFileAsync(Guid userId, Guid fileId, Guid? directoryId);
+}
+
+public partial class FileService : IFileService
 {
     private readonly AppDbContext _context;
-    private readonly ProjectAuthorizationService _authService;
-    private readonly CloudflareR2Service _r2Service;
+    private readonly IProjectAuthorizationService _authService;
+    private readonly ICloudflareR2Service _r2Service;
     private readonly ILogger<FileService> _logger;
 
     private const long _maxFileSizeBytes = 50 * 1024 * 1024; // 50MB
@@ -20,8 +34,8 @@ public partial class FileService
 
     public FileService(
         AppDbContext context,
-        ProjectAuthorizationService authService,
-        CloudflareR2Service r2Service,
+        IProjectAuthorizationService authService,
+        ICloudflareR2Service r2Service,
         ILogger<FileService> logger)
     {
         _context = context;

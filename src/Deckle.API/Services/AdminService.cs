@@ -6,15 +6,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
-public class AdminService
+public interface IAdminService
+{
+    public Task<AdminUserListResponse> GetUsersAsync(int page = 1, int pageSize = 20, string? search = null);
+    public Task<AdminUserDto?> GetUserByIdAsync(Guid userId);
+    public Task<AdminUserDto?> UpdateUserRoleAsync(Guid userId, string role);
+    public Task<AdminUserDto?> UpdateUserQuotaAsync(Guid userId, int storageQuotaMb);
+}
+
+public class AdminService : IAdminService
 {
     private readonly AppDbContext _dbContext;
-    private readonly ComponentService _componentService;
 
-    public AdminService(AppDbContext dbContext, ComponentService componentService)
+    public AdminService(AppDbContext dbContext)
     {
         _dbContext = dbContext;
-        _componentService = componentService;
     }
 
     public async Task<AdminUserListResponse> GetUsersAsync(int page = 1, int pageSize = 20, string? search = null)

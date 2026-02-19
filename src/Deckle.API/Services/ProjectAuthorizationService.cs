@@ -4,10 +4,25 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Deckle.API.Services;
 
+public interface IProjectAuthorizationService
+{
+    public Task<bool> HasProjectAccessAsync(Guid userId, Guid projectId);
+    public Task<ProjectRole?> GetUserProjectRoleAsync(Guid userId, Guid? projectId);
+    public Task<UserProject?> GetUserProjectAsync(Guid userId, Guid projectId);
+    public Task<ProjectRole> RequireProjectAccessAsync(Guid userId, Guid? projectId, string? customMessage = null);
+    public Task<ProjectRole> RequirePermissionAsync(Guid userId, Guid? projectId, Func<ProjectRole, bool> permissionCheck, string errorMessage);
+    public Task EnsureCanModifyResourcesAsync(Guid userId, Guid? projectId);
+    public Task EnsureCanDeleteResourcesAsync(Guid userId, Guid projectId);
+    public Task EnsureCanManageDataSourcesAsync(Guid userId, Guid projectId);
+    public Task EnsureCanModifyProjectAsync(Guid userId, Guid projectId);
+    public Task EnsureCanManageUsersAsync(Guid userId, Guid projectId);
+    public Task EnsureCanDeleteProjectAsync(Guid userId, Guid projectId);
+}
+
 /// <summary>
 /// Provides centralized authorization logic for project-related permissions.
 /// </summary>
-public class ProjectAuthorizationService
+public class ProjectAuthorizationService : IProjectAuthorizationService
 {
     private readonly AppDbContext _context;
 
@@ -42,7 +57,7 @@ public class ProjectAuthorizationService
 
         return await _context.UserProjects
             .Where(up => up.UserId == userId && up.ProjectId == projectId)
-            .Select(up => up.Role)
+            .Select(up => (ProjectRole?)up.Role)
             .FirstOrDefaultAsync();
     }
 
@@ -81,7 +96,7 @@ public class ProjectAuthorizationService
     {
         var role = await RequireProjectAccessAsync(userId, projectId);
 
-        return !permissionCheck(role) ? throw new UnauthorizedAccessException(errorMessage) : role;
+        return permissionCheck(role) ? role : throw new UnauthorizedAccessException(errorMessage);
     }
 
     #endregion
@@ -100,41 +115,31 @@ public class ProjectAuthorizationService
     /// Checks if the role has permission to create or update resources (Owner and Collaborator).
     /// </summary>
     public static bool CanModifyResources(ProjectRole role)
-    {
-        return true; // Both Owner and Collaborator can modify resources
-    }
+        => true; // Both Owner and Collaborator can modify resources
 
     /// <summary>
     /// Checks if the role has permission to delete resources (Owner only).
     /// </summary>
     public static bool CanDeleteResources(ProjectRole role)
-    {
-        return role == ProjectRole.Owner;
-    }
+        => role == ProjectRole.Owner;
 
     /// <summary>
     /// Checks if the role has permission to manage data sources (Owner only).
     /// </summary>
     public static bool CanManageDataSources(ProjectRole role)
-    {
-        return role == ProjectRole.Owner;
-    }
+        => role == ProjectRole.Owner;
 
     /// <summary>
     /// Checks if the role has permission to invite and manage users (Owner only).
     /// </summary>
     public static bool CanManageUsers(ProjectRole role)
-    {
-        return role == ProjectRole.Owner;
-    }
+        => role == ProjectRole.Owner;
 
     /// <summary>
     /// Checks if the role has permission to delete the project (Owner only).
     /// </summary>
     public static bool CanDeleteProject(ProjectRole role)
-    {
-        return role == ProjectRole.Owner;
-    }
+        => role == ProjectRole.Owner;
 
     #endregion
 

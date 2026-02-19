@@ -16,7 +16,7 @@ public static class ComponentEndpoints
             .RequireAuthorization()
             .RequireUserId();
 
-        group.MapGet("", async (string projectId, HttpContext httpContext, ComponentService componentService) =>
+        group.MapGet("", async (string projectId, HttpContext httpContext, IComponentService componentService) =>
         {
             var userId = httpContext.GetUserId();
             var parsedProjectId = ParseProjectId(projectId);
@@ -25,7 +25,7 @@ public static class ComponentEndpoints
         })
         .WithName("GetProjectComponents");
 
-        group.MapGet("{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>
+        group.MapGet("{id:guid}", async (string projectId, Guid id, HttpContext httpContext, IComponentService componentService) =>
         {
             var userId = httpContext.GetUserId();
             var parsedProjectId = ParseProjectId(projectId);
@@ -35,7 +35,7 @@ public static class ComponentEndpoints
         })
         .WithName("GetComponentById");
 
-        group.MapPost("cards", async (string projectId, HttpContext httpContext, ComponentService componentService, CreateCardRequest request) =>
+        group.MapPost("cards", async (string projectId, HttpContext httpContext, IComponentService componentService, CreateCardRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var parsedProjectId = ParseProjectId(projectId);
@@ -46,7 +46,7 @@ public static class ComponentEndpoints
         })
         .WithName("CreateCard");
 
-        group.MapPost("dice", async (string projectId, HttpContext httpContext, ComponentService componentService, CreateDiceRequest request) =>
+        group.MapPost("dice", async (string projectId, HttpContext httpContext, IComponentService componentService, CreateDiceRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var parsedProjectId = ParseProjectId(projectId);
@@ -59,7 +59,7 @@ public static class ComponentEndpoints
         })
         .WithName("CreateDice");
 
-        group.MapPost("playermats", async (string projectId, HttpContext httpContext, ComponentService componentService, CreatePlayerMatRequest request) =>
+        group.MapPost("playermats", async (string projectId, HttpContext httpContext, IComponentService componentService, CreatePlayerMatRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var parsedProjectId = ParseProjectId(projectId);
@@ -71,7 +71,7 @@ public static class ComponentEndpoints
         })
         .WithName("CreatePlayerMat");
 
-        group.MapPut("cards/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateCardRequest request) =>
+        group.MapPut("cards/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdateCardRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var card = await componentService.UpdateComponentAsync<Card, CardConfig>(userId, id, new(request.Name, request.Size, request.Horizontal, request.Sample));
@@ -80,7 +80,7 @@ public static class ComponentEndpoints
         })
         .WithName("UpdateCard");
 
-        group.MapPut("dice/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateDiceRequest request) =>
+        group.MapPut("dice/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdateDiceRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var dice = await componentService.UpdateComponentAsync<Dice, DiceConfig>(userId, id, new(request.Name, request.Type, request.Style, request.BaseColor, request.Number));
@@ -89,7 +89,7 @@ public static class ComponentEndpoints
         })
         .WithName("UpdateDice");
 
-        group.MapPut("playermats/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdatePlayerMatRequest request) =>
+        group.MapPut("playermats/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdatePlayerMatRequest request) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -100,7 +100,7 @@ public static class ComponentEndpoints
         })
         .WithName("UpdatePlayerMat");
 
-        group.MapDelete("{id:guid}", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService) =>
+        group.MapDelete("{id:guid}", async (string projectId, Guid id, HttpContext httpContext, IComponentService componentService) =>
         {
             var userId = httpContext.GetUserId();
             await componentService.DeleteComponentAsync(userId, id);
@@ -109,7 +109,7 @@ public static class ComponentEndpoints
         })
         .WithName("DeleteComponent");
 
-        group.MapPut("{id:guid}/design/{part}", async (string projectId, Guid id, string part, HttpContext httpContext, ComponentService componentService, SaveDesignRequest request) =>
+        group.MapPut("{id:guid}/design/{part}", async (string projectId, Guid id, string part, HttpContext httpContext, IComponentService componentService, SaveDesignRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var parsedProjectId = ParseProjectId(projectId);
@@ -121,7 +121,7 @@ public static class ComponentEndpoints
         .WithName("SaveComponentDesign")
         .WithDescription("Save design for any editable component (Card, PlayerMat, etc.)");
 
-        group.MapPut("{id:guid}/datasource", async (string projectId, Guid id, HttpContext httpContext, ComponentService componentService, UpdateComponentDataSourceRequest request) =>
+        group.MapPut("{id:guid}/datasource", async (string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdateComponentDataSourceRequest request) =>
         {
             var userId = httpContext.GetUserId();
             var parsedProjectId = ParseProjectId(projectId);

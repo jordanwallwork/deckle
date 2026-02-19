@@ -12,13 +12,13 @@ namespace Deckle.Email;
 /// </summary>
 public partial class BrevoEmailSender : IEmailSender
 {
-    private const string ApiBaseUrl = "https://api.brevo.com/v3";
+    private const string _apiBaseUrl = "https://api.brevo.com/v3";
 
     private readonly BrevoOptions _options;
     private readonly ILogger<BrevoEmailSender> _logger;
     private readonly HttpClient _httpClient;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -32,7 +32,7 @@ public partial class BrevoEmailSender : IEmailSender
         _options = options.Value;
         _logger = logger;
         _httpClient = httpClient;
-        _httpClient.BaseAddress ??= new Uri(ApiBaseUrl);
+        _httpClient.BaseAddress ??= new Uri(_apiBaseUrl);
         _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("api-key", _options.ApiKey);
     }
 
@@ -43,7 +43,7 @@ public partial class BrevoEmailSender : IEmailSender
         try
         {
             var response = await _httpClient.PostAsJsonAsync(
-                "/v3/smtp/email", payload, JsonOptions, cancellationToken);
+                "/v3/smtp/email", payload, _jsonOptions, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -82,7 +82,7 @@ public partial class BrevoEmailSender : IEmailSender
         var payload = new BrevoEmailPayload
         {
             Sender = new BrevoContact { Email = _options.FromAddress, Name = _options.FromName },
-            To = template.To.Select(ToBrevoContact).ToList(),
+            To = [.. template.To.Select(ToBrevoContact)],
             Subject = template.Subject,
             HtmlContent = template.HtmlBody,
             TextContent = string.IsNullOrEmpty(template.TextBody) ? null : template.TextBody
@@ -90,12 +90,12 @@ public partial class BrevoEmailSender : IEmailSender
 
         if (template.Cc is { Count: > 0 })
         {
-            payload.Cc = template.Cc.Select(ToBrevoContact).ToList();
+            payload.Cc = [.. template.Cc.Select(ToBrevoContact)];
         }
 
         if (template.Bcc is { Count: > 0 })
         {
-            payload.Bcc = template.Bcc.Select(ToBrevoContact).ToList();
+            payload.Bcc = [.. template.Bcc.Select(ToBrevoContact)];
         }
 
         if (template.ReplyTo != null)
@@ -105,11 +105,11 @@ public partial class BrevoEmailSender : IEmailSender
 
         if (template.Attachments is { Count: > 0 })
         {
-            payload.Attachment = template.Attachments.Select(a => new BrevoAttachment
+            payload.Attachment = [.. template.Attachments.Select(a => new BrevoAttachment
             {
                 Name = a.FileName,
                 Content = Convert.ToBase64String(a.Content)
-            }).ToList();
+            })];
         }
 
         return payload;

@@ -17,7 +17,7 @@ public static class FileEndpoints
         projectFilesGroup.MapPost("/upload-url", async (
             Guid projectId,
             HttpContext httpContext,
-            FileService fileService,
+            IFileService fileService,
             RequestUploadUrlRequest request) =>
         {
             var userId = httpContext.GetUserId();
@@ -40,7 +40,7 @@ public static class FileEndpoints
         projectFilesGroup.MapGet("", async (
             Guid projectId,
             HttpContext httpContext,
-            FileService fileService,
+            IFileService fileService,
             string? tags,
             bool? matchAll,
             Guid? directoryId,
@@ -68,7 +68,7 @@ public static class FileEndpoints
         projectFilesGroup.MapGet("/tags", async (
             Guid projectId,
             HttpContext httpContext,
-            FileService fileService) =>
+            IFileService fileService) =>
         {
             var userId = httpContext.GetUserId();
             var tags = await fileService.GetProjectTagsAsync(userId, projectId);
@@ -86,7 +86,7 @@ public static class FileEndpoints
         filesGroup.MapPost("/{fileId:guid}/confirm", async (
             Guid fileId,
             HttpContext httpContext,
-            FileService fileService) =>
+            IFileService fileService) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -100,7 +100,7 @@ public static class FileEndpoints
         filesGroup.MapPatch("/{fileId:guid}/tags", async (
             Guid fileId,
             HttpContext httpContext,
-            FileService fileService,
+            IFileService fileService,
             UpdateFileTagsRequest request) =>
         {
             var userId = httpContext.GetUserId();
@@ -115,7 +115,7 @@ public static class FileEndpoints
         filesGroup.MapPatch("/{fileId:guid}/rename", async (
             Guid fileId,
             HttpContext httpContext,
-            FileService fileService,
+            IFileService fileService,
             ILogger<FileService> logger, // Keep logger for potential logging of success or specific cases if needed in the future
             RenameFileRequest request) =>
         {
@@ -131,7 +131,7 @@ public static class FileEndpoints
         filesGroup.MapPatch("/{fileId:guid}/move", async (
             Guid fileId,
             HttpContext httpContext,
-            FileService fileService,
+            IFileService fileService,
             MoveFileRequest request) =>
         {
             var userId = httpContext.GetUserId();
@@ -146,7 +146,7 @@ public static class FileEndpoints
         filesGroup.MapDelete("/{fileId:guid}", async (
             Guid fileId,
             HttpContext httpContext,
-            FileService fileService) =>
+            IFileService fileService) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -165,7 +165,7 @@ public static class FileEndpoints
 
         userGroup.MapGet("/storage-quota", async (
             HttpContext httpContext,
-            FileService fileService) =>
+            IFileService fileService) =>
         {
             var userId = httpContext.GetUserId();
             var quota = await fileService.GetUserQuotaAsync(userId);
@@ -184,8 +184,8 @@ public static class FileEndpoints
             Guid projectId,
             string filename,
             HttpContext httpContext,
-            FileService fileService,
-            CloudflareR2Service r2Service) =>
+            IFileService fileService,
+            ICloudflareR2Service r2Service) =>
         {
             var userId = httpContext.GetUserId();
 

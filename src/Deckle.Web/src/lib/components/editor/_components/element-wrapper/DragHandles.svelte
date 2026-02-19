@@ -113,14 +113,14 @@
 <div
   class="drag-handles panzoom-exclude"
   class:dragging={isDragging}
-  onmouseenter={() => (isHoveringEdge = true)}
-  onmouseleave={() => (isHoveringEdge = false)}
+  class:hovering={isHoveringEdge}
   style="--inverse-scale: {inverseScale}"
 >
   <!-- Top edge -->
   <div
     class="drag-handle panzoom-exclude drag-handle-top"
-    class:visible={isHoveringEdge || isDragging}
+    onmouseenter={() => (isHoveringEdge = true)}
+    onmouseleave={() => (isHoveringEdge = false)}
     onmousedown={handleMouseDown}
     role="button"
     tabindex="-1"
@@ -129,7 +129,8 @@
   <!-- Right edge -->
   <div
     class="drag-handle panzoom-exclude drag-handle-right"
-    class:visible={isHoveringEdge || isDragging}
+    onmouseenter={() => (isHoveringEdge = true)}
+    onmouseleave={() => (isHoveringEdge = false)}
     onmousedown={handleMouseDown}
     role="button"
     tabindex="-1"
@@ -138,7 +139,8 @@
   <!-- Bottom edge -->
   <div
     class="drag-handle panzoom-exclude drag-handle-bottom"
-    class:visible={isHoveringEdge || isDragging}
+    onmouseenter={() => (isHoveringEdge = true)}
+    onmouseleave={() => (isHoveringEdge = false)}
     onmousedown={handleMouseDown}
     role="button"
     tabindex="-1"
@@ -147,7 +149,8 @@
   <!-- Left edge -->
   <div
     class="drag-handle panzoom-exclude drag-handle-left"
-    class:visible={isHoveringEdge || isDragging}
+    onmouseenter={() => (isHoveringEdge = true)}
+    onmouseleave={() => (isHoveringEdge = false)}
     onmousedown={handleMouseDown}
     role="button"
     tabindex="-1"
@@ -175,10 +178,7 @@
     transform-origin: center;
   }
 
-  .drag-handle.visible {
-    opacity: 1;
-  }
-
+  .drag-handles.hovering .drag-handle,
   .drag-handles.dragging .drag-handle {
     opacity: 1;
   }

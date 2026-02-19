@@ -43,7 +43,11 @@
     if (configPanelOpen) structurePanelOpen = false; // Close other panel
   }
 
-  // Load the saved design when the editor initializes
+  // Track the last loaded design to avoid resetting unsaved changes
+  // when unrelated data (e.g., data source) is refreshed via invalidateAll()
+  let lastLoadedDesign: string | null = null;
+
+  // Load the saved design when the editor initializes or the part changes
   $effect(() => {
     let savedDesign: string | null = null;
 
@@ -58,6 +62,10 @@
           break;
       }
     }
+
+    // Only reload if the design content actually changed (not just a data re-fetch)
+    if (savedDesign === lastLoadedDesign) return;
+    lastLoadedDesign = savedDesign;
 
     // Load the design into the template store
     if (savedDesign) {

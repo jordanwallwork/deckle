@@ -70,7 +70,7 @@
     {#if currentDataSourceId}
       <Button variant="danger" onclick={handleRemove}>Remove Link</Button>
     {/if}
-    <Button variant="primary" outline onclick={onClose}>Cancel</Button>
+    <Button variant="secondary" onclick={onClose}>Cancel</Button>
     {#if dataSources.length > 0}
       <Button variant="primary" onclick={handleConfirm} disabled={!selectedDataSourceId}>
         Link Data Source

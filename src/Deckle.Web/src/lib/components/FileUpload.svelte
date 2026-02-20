@@ -239,7 +239,7 @@
           </div>
           <div class="file-actions">
             <Button variant="primary" onclick={uploadFile}>Upload</Button>
-            <Button variant="secondary" outline onclick={clearSelection}>Cancel</Button>
+            <Button variant="secondary" onclick={clearSelection}>Cancel</Button>
           </div>
         {/if}
       </div>

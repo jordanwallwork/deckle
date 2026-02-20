@@ -87,7 +87,6 @@
           {#if canRevokeUser(user)}
             <Button
               variant="danger"
-              outline
               size="sm"
               onclick={() => onRemoveUser?.(user.userId, user.name || user.email, user.role)}
             >

@@ -111,7 +111,7 @@
   {/snippet}
 
   {#snippet actions()}
-    <Button variant="primary" outline onclick={onClose}>Cancel</Button>
+    <Button variant="secondary" onclick={onClose}>Cancel</Button>
     <Button variant="primary" onclick={handleConfirm}>Use This Placeholder</Button>
   {/snippet}
 </Dialog>

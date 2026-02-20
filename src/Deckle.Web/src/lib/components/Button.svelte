@@ -6,7 +6,6 @@
     size = 'md',
     type = 'button',
     disabled = false,
-    outline = false,
     onclick,
     icon,
     children,
@@ -16,7 +15,6 @@
     size?: 'sm' | 'md' | 'lg';
     type?: 'button' | 'submit' | 'reset';
     disabled?: boolean;
-    outline?: boolean;
     onclick?: (e: MouseEvent) => void;
     icon?: Snippet;
     children?: Snippet;
@@ -28,13 +26,12 @@
   {type}
   {disabled}
   {onclick}
-  class="btn {variant} {size} {className}"
+  class="btn {className}"
   class:primary={variant === 'primary'}
   class:secondary={variant === 'secondary'}
   class:danger={variant === 'danger'}
   class:text={variant === 'text'}
   class:icon={variant === 'icon'}
-  class:outline
   class:sm={size === 'sm'}
   class:md={size === 'md'}
   class:lg={size === 'lg'}
@@ -63,6 +60,15 @@
     text-decoration: none;
   }
 
+  .btn.primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
   /* Size variants */
   .btn.sm {
     padding: 0.5rem 1rem;
@@ -86,6 +92,7 @@
   .btn.primary {
     background-color: var(--color-muted-teal);
     color: white;
+    border: 2px solid transparent;
   }
 
   .btn.primary:hover:not(:disabled) {
@@ -94,25 +101,17 @@
     box-shadow: var(--shadow-md);
   }
 
-  .btn.primary:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
   /* Secondary variant */
   .btn.secondary {
-    background-color: var(--color-teal-grey);
-    color: var(--color-sage);
+    background-color: rgba(120, 160, 131, 0.1);
+    color: var(--color-muted-teal);
+    border: 2px solid var(--color-muted-teal);
   }
 
   .btn.secondary:hover:not(:disabled) {
-    background-color: var(--color-muted-teal);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-  }
-
-  .btn.secondary:active:not(:disabled) {
-    transform: translateY(0);
+    background-color: rgba(120, 160, 131, 0.2);
+    border-color: var(--color-sage);
+    color: var(--color-sage);
   }
 
   /* Danger variant */
@@ -125,10 +124,6 @@
     background-color: #c0392b;
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
-  }
-
-  .btn.danger:active:not(:disabled) {
-    transform: translateY(0);
   }
 
   /* Text variant */
@@ -153,43 +148,6 @@
 
   .btn.icon:hover:not(:disabled) {
     background-color: rgba(120, 160, 131, 0.1);
-  }
-
-  /* Outline variants */
-  .btn.outline.primary {
-    background-color: rgba(120, 160, 131, 0.1);
-    color: var(--color-muted-teal);
-    border: 2px solid var(--color-muted-teal);
-  }
-
-  .btn.outline.primary:hover:not(:disabled) {
-    background-color: rgba(120, 160, 131, 0.2);
-    border-color: var(--color-sage);
-    color: var(--color-sage);
-  }
-
-  .btn.outline.secondary {
-    background-color: rgba(120, 160, 131, 0.05);
-    color: var(--color-sage);
-    border: 2px solid var(--color-teal-grey);
-  }
-
-  .btn.outline.secondary:hover:not(:disabled) {
-    background-color: rgba(120, 160, 131, 0.15);
-    border-color: var(--color-muted-teal);
-    color: var(--color-muted-teal);
-  }
-
-  .btn.outline.danger {
-    background-color: rgba(231, 76, 60, 0.1);
-    color: #e74c3c;
-    border: 2px solid #e74c3c;
-  }
-
-  .btn.outline.danger:hover:not(:disabled) {
-    background-color: rgba(231, 76, 60, 0.2);
-    border-color: #c0392b;
-    color: #c0392b;
   }
 
   /* Disabled state */

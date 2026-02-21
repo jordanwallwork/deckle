@@ -27,14 +27,17 @@
     "typescript": "^5.9.3",
     "vite": "^7.2.2"
   },
+  "overrides": {
+    "cookie": ">=0.7.0"
+  },
   "dependencies": {
     "@exceptionless/node": "^3.1.0",
     "@panzoom/panzoom": "^4.6.1",
     "@zip.js/zip.js": "^2.8.11",
     "convert-csv-to-json": "^3.20.0",
-    "formula-evaluator": "^1.2.1",
+    "formula-evaluator": "^2.0.1",
     "html-to-image": "^1.11.13",
-    "jspdf": "^3.0.4",
+    "jspdf": "^4.2.0",
     "marked": "^17.0.1",
     "posthog-js": "^1.335.3"
   }

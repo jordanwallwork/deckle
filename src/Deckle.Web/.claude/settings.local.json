@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "Bash(cd /c/Projects/deckle/src/deckle.web && npm install jspdf@4.2.0 --save-exact 2>&1)",
+      "Bash(cd /c/Projects/deckle/src/deckle.web && npm run check 2>&1)",
+      "Bash(cd /c/Projects/deckle/src/deckle.web && npm ls jspdf 2>&1)",
+      "Bash(cd /c/Projects/deckle/src/deckle.web && npm audit 2>&1)",
+      "Bash(cd /c/Projects/deckle/src/deckle.web && npm outdated 2>&1)",
+      "Bash(tail:*)",
+      "Bash(npm view @sveltejs/kit@latest version 2>&1 && npm view @sveltejs/kit@latest dependencies.cookie 2>&1)",
+      "Bash(cd /c/Projects/deckle/src/deckle.web && npm update 2>&1)",
+      "Bash(cd /c/Projects/deckle/src/deckle.web && npm install 2>&1)",
+      "Bash(grep ERROR:*)"
+    ]
+  }
+}

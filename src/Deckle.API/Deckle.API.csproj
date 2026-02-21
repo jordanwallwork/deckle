@@ -11,19 +11,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.1.0" />
-    <PackageReference Include="AWSSDK.S3" Version="4.0.17.2" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.1.1" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.18.6" />
     <PackageReference Include="Exceptionless.AspNetCore" Version="6.1.0" />
-    <PackageReference Include="MediatR" Version="12.5.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
+    <PackageReference Include="MediatR" Version="14.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.20" />
-    <PackageReference Include="Hangfire.PostgreSql" Version="1.20.10" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.12.10" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.23" />
+    <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.46" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,8 +37,7 @@
        Roslyn compilation cannot handle (it lacks the InterceptorsNamespaces feature flag). -->
   <Target Name="RemoveOpenApiSourceGenerator" BeforeTargets="CoreCompile">
     <ItemGroup>
-      <Analyzer Remove="%(Analyzer.Identity)"
-                Condition="'%(Analyzer.Filename)' == 'Microsoft.AspNetCore.OpenApi.SourceGenerators'" />
+      <Analyzer Remove="%(Analyzer.Identity)" Condition="'%(Analyzer.Filename)' == 'Microsoft.AspNetCore.OpenApi.SourceGenerators'" />
     </ItemGroup>
   </Target>
 

@@ -6,7 +6,9 @@ const evaluator = new FormulaEvaluator();
  * Converts string rowData values to appropriate types for formula evaluation.
  * Numeric strings become numbers, "true"/"false" become booleans.
  */
-function toTypedContext(rowData: Record<string, string>): Record<string, string | number | boolean> {
+function toTypedContext(
+  rowData: Record<string, string>
+): Record<string, string | number | boolean> {
   const context: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(rowData)) {
     const lower = value.toLowerCase();
@@ -51,7 +53,10 @@ export function toIdentifier(header: string): string {
  * Strips matching surrounding quotes (single or double) from a string.
  */
 function stripQuotes(s: string): string {
-  if (s.length >= 2 && ((s[0] === '"' && s[s.length - 1] === '"') || (s[0] === "'" && s[s.length - 1] === "'"))) {
+  if (
+    s.length >= 2 &&
+    ((s[0] === '"' && s[s.length - 1] === '"') || (s[0] === "'" && s[s.length - 1] === "'"))
+  ) {
     return s.slice(1, -1);
   }
   return s;
@@ -127,7 +132,7 @@ export function evaluateExpression(
 }
 
 /** Regex for matching merge field patterns: {{expression}} or {{expression|fallback}} */
-const MERGE_FIELD_PATTERN = /\{\{([^|{}]+)(?:\|([^}]*))?\}\}/g;
+const MERGE_FIELD_PATTERN = /\{\{((?:\|\||[^|{}])+)(?:\|([^}]*))?\}\}/g;
 
 /**
  * Replaces merge field patterns with values from data source row data.
@@ -173,6 +178,6 @@ export function replaceMergeFields(
       // Evaluation failed — fall through to fallback
     }
 
-    return fallback !== undefined ? stripQuotes(fallback.trim()) : match;
+    return fallback !== undefined ? stripQuotes(fallback.trim()) : '';
   });
 }

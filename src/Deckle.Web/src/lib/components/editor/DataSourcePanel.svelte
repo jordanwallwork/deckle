@@ -8,7 +8,7 @@
   import { formatRelativeTime } from '$lib/utils/date.utils';
   import { syncDataSource } from '$lib/utils/dataSource.utils';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
-  import { toIdentifier } from '$lib/utils/mergeFields';
+  import { toIdentifier, parseDataRow } from '$lib/utils/mergeFields';
   import { ChevronLeftIcon, MinimizeIcon, TableIcon, TableRowIcon } from '$lib/components/icons';
 
   interface Props {
@@ -71,7 +71,7 @@
 
       // Set the initial row data in the store for merge field functionality
       if (spreadsheetData && spreadsheetData.length > 1) {
-        dataSourceRowStore.set(toRowObject(spreadsheetData[0], spreadsheetData[1]));
+        dataSourceRowStore.set(parseDataRow(spreadsheetData[0], spreadsheetData[1]));
       } else {
         dataSourceRowStore.set(null);
       }
@@ -84,23 +84,13 @@
     }
   }
 
-  function toRowObject(headers: string[], row: string[]): Record<string, string> {
-    return headers.reduce(
-      (obj, header, index) => {
-        obj[toIdentifier(header)] = row[index] || '';
-        return obj;
-      },
-      {} as Record<string, string>
-    );
-  }
-
   function handleRowSelect(rowIndex: number) {
     selectedRowIndex = rowIndex;
 
     if (spreadsheetData && spreadsheetData.length > 1) {
       const selectedRow = spreadsheetData[rowIndex + 1]; // +1 to skip header row
       if (selectedRow) {
-        dataSourceRowStore.set(toRowObject(spreadsheetData[0], selectedRow));
+        dataSourceRowStore.set(parseDataRow(spreadsheetData[0], selectedRow));
       }
     }
   }

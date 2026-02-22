@@ -131,6 +131,29 @@ export function evaluateExpression(
   }
 }
 
+/**
+ * Converts a single spreadsheet row into a merge-field-ready record.
+ * Header names are transformed with toIdentifier so they match the merge field
+ * syntax inserted by the editor (e.g. "Hero Name" → key "HeroName").
+ */
+export function parseDataRow(headers: string[], row: string[]): Record<string, string> {
+  const obj: Record<string, string> = {};
+  headers.forEach((header, index) => {
+    obj[toIdentifier(header)] = row[index] || '';
+  });
+  return obj;
+}
+
+/**
+ * Converts a 2D spreadsheet array (first row = headers, remaining rows = data)
+ * into an array of merge-field-ready records.
+ */
+export function parseDataRows(data: string[][]): Record<string, string>[] {
+  if (data.length < 2) return [];
+  const [headers, ...rows] = data;
+  return rows.map((row) => parseDataRow(headers, row));
+}
+
 /** Regex for matching merge field patterns: {{expression}} or {{expression|fallback}} */
 const MERGE_FIELD_PATTERN = /\{\{((?:\|\||[^|{}])+)(?:\|([^}]*))?\}\}/g;
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import Panel from './_components/Panel.svelte';
-  import { Button, DataTable } from '$lib/components';
+  import { DataTable } from '$lib/components';
   import LinkDataSourceModal from '../../../routes/(authenticated)/projects/[username]/[projectCode]/components/_components/LinkDataSourceModal.svelte';
   import { componentsApi, dataSourcesApi } from '$lib/api';
   import { invalidateAll } from '$app/navigation';
@@ -9,6 +9,7 @@
   import { syncDataSource } from '$lib/utils/dataSource.utils';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import { toIdentifier, parseDataRow } from '$lib/utils/mergeFields';
+  import ToolbarDropdownButton from './_components/ToolbarDropdownButton.svelte';
   import { ChevronLeftIcon, MinimizeIcon, TableIcon, TableRowIcon } from '$lib/components/icons';
 
   interface Props {
@@ -30,7 +31,17 @@
   let loadingData = $state(false);
   let selectedRowIndex = $state(0); // Default to first row
   type PanelMode = 'minimised' | 'row' | 'maximised';
-  let panelMode = $state<PanelMode>('minimised');
+  let panelMode = $state<PanelMode>(dataSource ? 'row' : 'minimised');
+
+  // Update panelMode when the data source is linked or unlinked
+  let previousDataSourceId: string | null = dataSource?.id ?? null;
+  $effect(() => {
+    const currentId = dataSource?.id ?? null;
+    if (currentId !== previousDataSourceId) {
+      previousDataSourceId = currentId;
+      panelMode = currentId === null ? 'minimised' : 'row';
+    }
+  });
 
   // Compute single-row view data (header + active row only)
   const singleRowData = $derived(
@@ -155,52 +166,52 @@
 <Panel title="Data Source">
   {#snippet subtitle()}
     {#if dataSource}
-      <span class="data-source-name">{dataSource.name}</span>
-    {/if}
-  {/snippet}
-  {#snippet toolbar()}
-    {#if dataSource}
-      <div class="toolbar-content">
-        {#if spreadsheetData && spreadsheetData.length > 1}
-          <div class="navigation-buttons">
-            <button
-              class="nav-button"
-              onclick={navigateToPreviousRow}
-              title="Previous row"
-              aria-label="Previous row"
-            >
-              <ChevronLeftIcon size={16} />
-            </button>
-            <button
-              class="nav-button"
-              onclick={navigateToNextRow}
-              title="Next row"
-              aria-label="Next row"
-            >
-              <ChevronLeftIcon size={16} class="rotate-180" />
-            </button>
-          </div>
-        {/if}
-        <span class="last-updated" title={new Date(dataSource.updatedAt).toLocaleString()}>
-          Last updated {formatRelativeTime(dataSource.updatedAt)}
-        </span>
-        <div class="toolbar-buttons">
+      <ToolbarDropdownButton label={dataSource.name}>
+        {#snippet children(close)}
+          <span class="dropdown-last-updated" title={new Date(dataSource.updatedAt).toLocaleString()}>
+            Last updated {formatRelativeTime(dataSource.updatedAt)}
+          </span>
+          <div class="dropdown-divider"></div>
           <button
-            onclick={handleSync}
-            class="sync-button"
-            title="Sync data from Google Sheets"
+            onclick={() => { close(); handleSync(); }}
+            class="dropdown-action"
             disabled={isSyncing}
           >
             {isSyncing ? 'Syncing...' : 'Sync'}
           </button>
           <button
-            onclick={openLinkDataSourceModal}
-            class="change-data-source-button"
-            title="Change Data Source"
+            onclick={() => { close(); openLinkDataSourceModal(); }}
+            class="dropdown-action"
           >
             Change Data Source
           </button>
-        </div>
+        {/snippet}
+      </ToolbarDropdownButton>
+    {:else if !readOnly}
+      <button onclick={openLinkDataSourceModal} class="link-data-source-button">
+        Link Data Source
+      </button>
+    {/if}
+  {/snippet}
+  {#snippet toolbar()}
+    {#if dataSource && spreadsheetData && spreadsheetData.length > 1}
+      <div class="navigation-buttons">
+        <button
+          class="nav-button"
+          onclick={navigateToPreviousRow}
+          title="Previous row"
+          aria-label="Previous row"
+        >
+          <ChevronLeftIcon size={16} />
+        </button>
+        <button
+          class="nav-button"
+          onclick={navigateToNextRow}
+          title="Next row"
+          aria-label="Next row"
+        >
+          <ChevronLeftIcon size={16} class="rotate-180" />
+        </button>
       </div>
     {/if}
     <div class="panel-controls">
@@ -213,15 +224,17 @@
       >
         <TableIcon size={16} />
       </button>
-      <button
-        class="icon-button"
-        class:active={panelMode === 'row'}
-        onclick={() => (panelMode = panelMode === 'row' ? 'minimised' : 'row')}
-        title="Show active row"
-        aria-label="Show active row"
-      >
-        <TableRowIcon size={16} />
-      </button>
+      {#if dataSource}
+        <button
+          class="icon-button"
+          class:active={panelMode === 'row'}
+          onclick={() => (panelMode = panelMode === 'row' ? 'minimised' : 'row')}
+          title="Show active row"
+          aria-label="Show active row"
+        >
+          <TableRowIcon size={16} />
+        </button>
+      {/if}
       <button
         class="icon-button"
         class:active={panelMode === 'minimised'}
@@ -265,11 +278,10 @@
           <p>No data loaded yet. Click "Sync" to load the latest data.</p>
         </div>
       {/if}
-    {:else}
+    {:else if panelMode === 'maximised'}
       <div class="empty-state">
         <p class="empty-message">No data source linked to this component.</p>
         <p class="empty-hint">Link a data source to populate this component with dynamic data.</p>
-        <Button variant="primary" onclick={openLinkDataSourceModal}>Link Data Source</Button>
       </div>
     {/if}
   {/if}
@@ -284,30 +296,42 @@
 />
 
 <style>
-  .data-source-name {
-    font-size: 0.875rem;
-    font-weight: normal;
-    color: #1a1a1a;
-  }
-
-  .toolbar-content {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .last-updated {
+  .dropdown-last-updated {
     font-size: 0.75rem;
     color: #6b7280;
+    padding: 0.125rem 0;
+    white-space: nowrap;
   }
 
-  .toolbar-buttons {
-    display: flex;
-    gap: 0.5rem;
+  .dropdown-divider {
+    height: 1px;
+    background-color: #e5e7eb;
+    margin: 0.25rem 0;
   }
 
-  .sync-button,
-  .change-data-source-button {
+  .dropdown-action {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.75rem;
+    text-align: left;
+    border: none;
+    background: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #374151;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .dropdown-action:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
+
+  .dropdown-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .link-data-source-button {
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
     border: 1px solid #d1d5db;
@@ -318,15 +342,9 @@
     white-space: nowrap;
   }
 
-  .sync-button:hover:not(:disabled),
-  .change-data-source-button:hover {
+  .link-data-source-button:hover {
     background: #f3f4f6;
     border-color: #9ca3af;
-  }
-
-  .sync-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   .navigation-buttons {

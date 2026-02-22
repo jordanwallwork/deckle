@@ -3,6 +3,7 @@
   import Panel from '$lib/components/editor/_components/Panel.svelte';
   import UndoRedoControls from '$lib/components/editor/_components/UndoRedoControls.svelte';
   import ZoomControls from '$lib/components/editor/_components/ZoomControls.svelte';
+  import ToolbarDropdownButton from '$lib/components/editor/_components/ToolbarDropdownButton.svelte';
   import MenuIcon from '$lib/components/icons/MenuIcon.svelte';
   import type { EditableComponent, ComponentShape } from '$lib/types';
   import EditableComponentView from './EditableComponent.svelte';
@@ -48,24 +49,19 @@
   );
   let gridEnabled = $state(true);
   let gridSize = $state(defaultGridSize);
-  let gridDropdownOpen = $state(false);
-  let gridDropdownRef = $state<HTMLDivElement | null>(null);
 
   // Mobile menu state
   let mobileMenuOpen = $state(false);
   let mobileMenuRef = $state<HTMLDivElement | null>(null);
 
   function handleClickOutside(event: MouseEvent) {
-    if (gridDropdownRef && !gridDropdownRef.contains(event.target as Node)) {
-      gridDropdownOpen = false;
-    }
     if (mobileMenuRef && !mobileMenuRef.contains(event.target as Node)) {
       mobileMenuOpen = false;
     }
   }
 
   $effect(() => {
-    if (gridDropdownOpen || mobileMenuOpen) {
+    if (mobileMenuOpen) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
@@ -172,53 +168,26 @@
         {showBleedSafeArea ? 'Hide' : 'Show'} Bleed/Safe Area
       </button>
       <div class="toolbar-divider"></div>
-      <div class="grid-controls" bind:this={gridDropdownRef}>
-        <div class="grid-button-group">
-          <button
-            onclick={() => (gridEnabled = !gridEnabled)}
-            class="grid-toggle"
-            title={gridEnabled
-              ? 'Disable Grid Snapping (Shift to temporarily disable)'
-              : 'Enable Grid Snapping'}
-          >
-            Grid: {gridEnabled ? 'On' : 'Off'}
-          </button>
-          <button
-            onclick={() => (gridDropdownOpen = !gridDropdownOpen)}
-            class="grid-dropdown-trigger"
-            class:open={gridDropdownOpen}
-            title="Grid settings"
-          >
-            <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor">
-              <path
-                d="M1 1l4 4 4-4"
-                stroke="currentColor"
-                stroke-width="1.5"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-        {#if gridDropdownOpen}
-          <div class="grid-dropdown">
-            <label class="grid-size-label">
-              <span>Grid Size:</span>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                step="1"
-                bind:value={gridSize}
-                class="grid-size-input"
-                title="Grid size in pixels"
-              />
-              <span class="grid-size-unit">px</span>
-            </label>
-          </div>
-        {/if}
-      </div>
+      <ToolbarDropdownButton
+        label="Grid: {gridEnabled ? 'On' : 'Off'}"
+        onLabelClick={() => (gridEnabled = !gridEnabled)}
+      >
+        {#snippet children(_close)}
+          <label class="grid-size-label">
+            <span>Grid Size:</span>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              bind:value={gridSize}
+              class="grid-size-input"
+              title="Grid size in pixels"
+            />
+            <span class="grid-size-unit">px</span>
+          </label>
+        {/snippet}
+      </ToolbarDropdownButton>
       <div class="toolbar-divider"></div>
       <ZoomControls {panzoomInstance} {panzoomElement} />
     </div>
@@ -381,82 +350,6 @@
   .export-button.error:hover {
     background: #dc2626;
     border-color: #dc2626;
-  }
-
-  .grid-controls {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-
-  .grid-button-group {
-    display: flex;
-    align-items: stretch;
-  }
-
-  .grid-toggle {
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
-    border-radius: 4px 0 0 4px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    font-weight: 500;
-    border-right: none;
-  }
-
-  .grid-toggle:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-  }
-
-  .grid-dropdown-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
-    border-radius: 0 4px 4px 0;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    color: #6b7280;
-  }
-
-  .grid-dropdown-trigger:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-  }
-
-  .grid-dropdown-trigger.open {
-    background: #f3f4f6;
-  }
-
-  .grid-dropdown-trigger svg {
-    transition: transform 0.15s ease;
-  }
-
-  .grid-dropdown-trigger.open svg {
-    transform: rotate(180deg);
-  }
-
-  .grid-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 4px;
-    padding: 0.75rem;
-    background: white;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    box-shadow:
-      0 4px 6px -1px rgb(0 0 0 / 0.1),
-      0 2px 4px -2px rgb(0 0 0 / 0.1);
-    z-index: 50;
-    min-width: 140px;
   }
 
   .grid-size-label {

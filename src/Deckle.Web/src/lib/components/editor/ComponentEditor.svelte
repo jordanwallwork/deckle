@@ -363,9 +363,7 @@
 
   /* Data source panel container */
   .data-source-container {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
+    flex: 0 0 auto;
     border-top: 1px solid #e5e5e7;
     background: white;
   }
@@ -415,15 +413,6 @@
       display: block;
     }
 
-    /* Data source panel on mobile can overlap */
-    .data-source-container.expanded {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 15;
-      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
-    }
   }
 
   /* Small mobile adjustments */

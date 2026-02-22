@@ -43,9 +43,11 @@
     if (configPanelOpen) structurePanelOpen = false; // Close other panel
   }
 
-  // Track the last loaded design to avoid resetting unsaved changes
-  // when unrelated data (e.g., data source) is refreshed via invalidateAll()
-  let lastLoadedDesign: string | null = null;
+  // Track the last loaded component+part+design to avoid resetting unsaved changes
+  // when unrelated data (e.g., data source) is refreshed via invalidateAll().
+  // The key includes component ID and part so navigating to a different component
+  // always triggers a reload, even if both designs happen to be null.
+  let lastLoadedKey: string | null = null;
 
   // Load the saved design when the editor initializes or the part changes
   $effect(() => {
@@ -63,9 +65,10 @@
       }
     }
 
-    // Only reload if the design content actually changed (not just a data re-fetch)
-    if (savedDesign === lastLoadedDesign) return;
-    lastLoadedDesign = savedDesign;
+    // Only reload if the component, part, or design content actually changed (not just a data re-fetch)
+    const currentKey = `${data.component.id}:${data.part}:${savedDesign}`;
+    if (currentKey === lastLoadedKey) return;
+    lastLoadedKey = currentKey;
 
     // Load the design into the template store
     if (savedDesign) {

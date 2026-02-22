@@ -3,7 +3,7 @@
   import TemplateRenderer from '../../TemplateRenderer.svelte';
   import MergeDataProvider from './MergeDataProvider.svelte';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
-  import { evaluateExpression } from '$lib/utils/mergeFields';
+  import { evaluateExpression, isElementVisible } from '$lib/utils/mergeFields';
 
   const MAX_ITERATIONS = 100;
 
@@ -36,12 +36,18 @@
     const base = $dataSourceRow ?? {};
     return { ...base, [element.iteratorName]: String(value) };
   }
+
+  const visible = $derived(
+    isElementVisible(element.visibilityMode, element.visibilityCondition, $dataSourceRow)
+  );
 </script>
 
-{#each iterations as value (value)}
-  <MergeDataProvider mergeData={augmentedMergeData(value)}>
-    {#each element.children as child (child.id)}
-      <TemplateRenderer element={child} {dpi} />
-    {/each}
-  </MergeDataProvider>
-{/each}
+{#if visible}
+  {#each iterations as value (value)}
+    <MergeDataProvider mergeData={augmentedMergeData(value)}>
+      {#each element.children as child (child.id)}
+        <TemplateRenderer element={child} {dpi} />
+      {/each}
+    </MergeDataProvider>
+  {/each}
+{/if}

@@ -12,6 +12,7 @@
   import ImageElementComponent from '$lib/components/editor/_components/elements/ImageElement.svelte';
   import TextElementComponent from '$lib/components/editor/_components/elements/TextElement.svelte';
   import ContainerElementComponent from '$lib/components/editor/_components/elements/ContainerElement.svelte';
+  import { initDataSourceRow } from '$lib/stores/dataSourceRow';
 
   const MAX_ITERATIONS = 100;
 
@@ -55,6 +56,13 @@
   const isVisible = $derived(
     isElementVisible(element.visibilityMode, element.visibilityCondition, mergeData)
   );
+
+  // Shadow the parent context with the current mergeData so child element components
+  // (TextElement, ImageElement, etc.) see augmented data from iterators via getDataSourceRow().
+  const childStore = initDataSourceRow(mergeData ?? null);
+  $effect(() => {
+    childStore.set(mergeData ?? null);
+  });
 </script>
 
 {#if isVisible}

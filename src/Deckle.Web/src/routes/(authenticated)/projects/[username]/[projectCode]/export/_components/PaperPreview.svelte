@@ -3,6 +3,7 @@
   import type { ContainerElement } from '$lib/components/editor/types';
   import { PAPER_DIMENSIONS } from '$lib/types';
   import StaticComponentRenderer from './StaticComponentRenderer.svelte';
+  import { fontLoader } from '$lib/stores/fontLoader';
 
   interface ComponentWithData {
     component: GameComponent;
@@ -59,6 +60,25 @@
   ): component is CardComponent | PlayerMatComponent => {
     return component.type === 'Card' || component.type === 'PlayerMat';
   };
+
+  // Load Google Fonts used in all component designs
+  $effect(() => {
+    for (const componentWithData of components) {
+      if (!isExportable(componentWithData.component)) continue;
+      const component = componentWithData.component;
+      for (const designJson of [component.frontDesign, component.backDesign]) {
+        if (!designJson) continue;
+        try {
+          const design = JSON.parse(designJson) as ContainerElement;
+          if (design.fonts && design.fonts.length > 0) {
+            fontLoader.preloadTemplateFonts(design.fonts);
+          }
+        } catch {
+          // Ignore malformed designs
+        }
+      }
+    }
+  });
 
   // Use DPI from first exportable component (assume all components have same DPI)
   const componentDpi = $derived.by(() => {

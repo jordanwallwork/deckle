@@ -9,6 +9,40 @@
     onchange: (headers: string[], rows: string[][]) => void;
   } = $props();
 
+  // Virtualization constants. ROW_HEIGHT matches cell-input CSS:
+  // padding 0.75rem top+bottom (24px) + ~17px line-height + 1px border = ~42px.
+  // A slightly conservative value keeps spacer math accurate.
+  const ROW_HEIGHT = 41;
+  const BUFFER = 5;
+
+  let containerEl: HTMLDivElement | undefined = $state();
+  let scrollTop = $state(0);
+  let containerHeight = $state(500);
+
+  $effect(() => {
+    if (!containerEl) return;
+    const observer = new ResizeObserver(() => {
+      if (containerEl) containerHeight = containerEl.clientHeight;
+    });
+    observer.observe(containerEl);
+    containerHeight = containerEl.clientHeight;
+    return () => observer.disconnect();
+  });
+
+  function handleScroll() {
+    scrollTop = containerEl?.scrollTop ?? 0;
+  }
+
+  const startIndex = $derived(Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER));
+  const endIndex = $derived(
+    Math.min(rows.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER)
+  );
+  const visibleRows = $derived(
+    rows.slice(startIndex, endIndex).map((row, i) => ({ row, rowIndex: startIndex + i }))
+  );
+  const paddingTop = $derived(startIndex * ROW_HEIGHT);
+  const paddingBottom = $derived(Math.max(0, (rows.length - endIndex) * ROW_HEIGHT));
+
   function updateHeader(index: number, value: string) {
     const newHeaders = [...headers];
     newHeaders[index] = value;
@@ -46,7 +80,7 @@
 </script>
 
 <div class="spreadsheet-editor">
-  <div class="table-container">
+  <div class="table-container" bind:this={containerEl} onscroll={handleScroll}>
     <table class="spreadsheet-table">
       <thead>
         <tr>
@@ -79,7 +113,12 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as row, rowIndex}
+        {#if paddingTop > 0}
+          <tr class="spacer" style="height: {paddingTop}px">
+            <td colspan={headers.length + 2}></td>
+          </tr>
+        {/if}
+        {#each visibleRows as { row, rowIndex } (rowIndex)}
           <tr>
             <td class="row-number">{rowIndex + 1}</td>
             {#each row as cell, colIndex}
@@ -104,6 +143,11 @@
             </td>
           </tr>
         {/each}
+        {#if paddingBottom > 0}
+          <tr class="spacer" style="height: {paddingBottom}px">
+            <td colspan={headers.length + 2}></td>
+          </tr>
+        {/if}
       </tbody>
     </table>
   </div>
@@ -119,6 +163,8 @@
 
   .table-container {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 70vh;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -131,6 +177,9 @@
   }
 
   thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     background-color: #f9fafb;
   }
 
@@ -269,6 +318,11 @@
 
   tbody tr:hover {
     background-color: #fafafa;
+  }
+
+  .spacer td {
+    padding: 0;
+    border: none;
   }
 
   .add-row-btn {

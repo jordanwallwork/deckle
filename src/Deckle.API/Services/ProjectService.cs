@@ -33,34 +33,22 @@ public partial class ProjectService : IProjectService
 
     public async Task<List<ProjectDto>> GetUserProjectsAsync(Guid userId)
     {
-        var projects = await _dbContext.UserProjects
-            .Where(up => up.UserId == userId)
-            .Include(up => up.Project)
-            .Select(up => new ProjectDto
-            {
-                Id = up.Project.Id,
-                Name = up.Project.Name,
-                Code = up.Project.Code,
-                Description = up.Project.Description,
-                CreatedAt = up.Project.CreatedAt,
-                UpdatedAt = up.Project.UpdatedAt,
-                Role = up.Role.ToString(),
-                OwnerUsername = _dbContext.UserProjects
-                    .Where(ownerUp => ownerUp.ProjectId == up.ProjectId && ownerUp.Role == ProjectRole.Owner)
-                    .Select(ownerUp => ownerUp.User.Username!)
-                    .FirstOrDefault() ?? ""
-            })
+        return await ToProjectDtos(_dbContext.UserProjects.Where(up => up.UserId == userId))
             .ToListAsync();
-
-        return projects;
     }
 
     public async Task<ProjectDto?> GetProjectByIdAsync(Guid userId, Guid projectId)
     {
-        var project = await _dbContext.UserProjects
-            .Where(up => up.UserId == userId && up.ProjectId == projectId)
-            .Include(up => up.Project)
-            .Select(up => new ProjectDto
+        return await ToProjectDtos(_dbContext.UserProjects.Where(up => up.UserId == userId && up.ProjectId == projectId))
+            .FirstOrDefaultAsync();
+    }
+
+    private IQueryable<ProjectDto> ToProjectDtos(IQueryable<UserProject> source) =>
+        source.Join(
+            _dbContext.UserProjects.Where(ownerUp => ownerUp.Role == ProjectRole.Owner),
+            up => up.ProjectId,
+            ownerUp => ownerUp.ProjectId,
+            (up, ownerUp) => new ProjectDto
             {
                 Id = up.Project.Id,
                 Name = up.Project.Name,
@@ -69,15 +57,8 @@ public partial class ProjectService : IProjectService
                 CreatedAt = up.Project.CreatedAt,
                 UpdatedAt = up.Project.UpdatedAt,
                 Role = up.Role.ToString(),
-                OwnerUsername = _dbContext.UserProjects
-                    .Where(ownerUp => ownerUp.ProjectId == up.ProjectId && ownerUp.Role == ProjectRole.Owner)
-                    .Select(ownerUp => ownerUp.User.Username!)
-                    .FirstOrDefault() ?? ""
-            })
-            .FirstOrDefaultAsync();
-
-        return project;
-    }
+                OwnerUsername = ownerUp.User.Username ?? ""
+            });
 
     public async Task<ProjectDto?> GetProjectByUsernameAndCodeAsync(Guid requestingUserId, string ownerUsername, string projectCode)
     {

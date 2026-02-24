@@ -195,7 +195,7 @@ public class ComponentService : IComponentService
         {
             "CARD" => query.Where(c => c is Card),
             "PLAYERMAT" => query.Where(c => c is PlayerMat),
-            _ => throw new ArgumentException($"Unsupported component type for samples: {componentType}")
+            _ => query.Where(_ => false)
         };
 
         var components = await query

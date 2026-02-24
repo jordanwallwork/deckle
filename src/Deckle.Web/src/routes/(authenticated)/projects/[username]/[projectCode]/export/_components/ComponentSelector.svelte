@@ -5,14 +5,28 @@
 
   let {
     components,
-    selectedComponentIds = []
+    selectedComponentIds = [],
+    rotatedComponentIds = $bindable<string[]>([])
   }: {
     components: GameComponent[];
     selectedComponentIds?: string[];
+    rotatedComponentIds?: string[];
   } = $props();
 
   // Create a set for faster lookups
   let selectedSet = $derived(new Set(selectedComponentIds));
+
+  // Create a set for rotation lookups
+  let rotatedSet = $derived(new Set(rotatedComponentIds));
+
+  // Toggle rotation for a component
+  function toggleRotation(componentId: string) {
+    if (rotatedSet.has(componentId)) {
+      rotatedComponentIds = rotatedComponentIds.filter((id) => id !== componentId);
+    } else {
+      rotatedComponentIds = [...rotatedComponentIds, componentId];
+    }
+  }
 
   // Handle checkbox toggle
   function toggleComponent(componentId: string) {
@@ -82,14 +96,38 @@
         <div class="component-group">
           <h4 class="group-title">{type}s</h4>
           {#each typeComponents as component}
-            <label class="component-item">
-              <input
-                type="checkbox"
-                checked={selectedSet.has(component.id)}
-                onchange={() => toggleComponent(component.id)}
-              />
-              <span class="component-name">{component.name}</span>
-            </label>
+            <div class="component-item">
+              <label class="component-label">
+                <input
+                  type="checkbox"
+                  checked={selectedSet.has(component.id)}
+                  onchange={() => toggleComponent(component.id)}
+                />
+                <span class="component-name">{component.name}</span>
+              </label>
+              <button
+                class="rotate-btn"
+                class:active={rotatedSet.has(component.id)}
+                onclick={() => toggleRotation(component.id)}
+                title={rotatedSet.has(component.id) ? 'Remove rotation' : 'Rotate 90°'}
+                type="button"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21.5 2v6h-6" />
+                  <path d="M21.34 15.57a10 10 0 1 1-.57-8.38" />
+                </svg>
+              </button>
+            </div>
           {/each}
         </div>
       {/each}
@@ -171,10 +209,9 @@
   .component-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.25rem;
     padding: 0.25rem;
     border-radius: 4px;
-    cursor: pointer;
     transition: background-color 0.2s;
   }
 
@@ -182,7 +219,15 @@
     background-color: #f5f5f5;
   }
 
-  .component-item input[type='checkbox'] {
+  .component-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    cursor: pointer;
+  }
+
+  .component-label input[type='checkbox'] {
     cursor: pointer;
     width: 16px;
     height: 16px;
@@ -191,5 +236,37 @@
   .component-name {
     font-size: 0.875rem;
     user-select: none;
+  }
+
+  .rotate-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: white;
+    color: #6b7280;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+
+  .rotate-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+    color: #374151;
+  }
+
+  .rotate-btn.active {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    color: #2563eb;
+  }
+
+  .rotate-btn.active:hover {
+    background: #bfdbfe;
   }
 </style>

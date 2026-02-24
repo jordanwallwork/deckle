@@ -56,6 +56,9 @@
     }
   });
 
+  // Rotated component IDs
+  let rotatedComponentIds = $state<string[]>([]);
+
   // Page elements for export
   let pageElements = $state<HTMLElement[]>([]);
 
@@ -138,7 +141,11 @@
 
     <div class="left-panel" class:open={leftPanelOpen}>
       <div class="component-selector-section">
-        <ComponentSelector components={data.allExportableComponents} {selectedComponentIds} />
+        <ComponentSelector
+          components={data.allExportableComponents}
+          {selectedComponentIds}
+          bind:rotatedComponentIds
+        />
       </div>
 
       {#if data.components.length > 0}
@@ -164,6 +171,7 @@
       <PaperPreview
         {pageSetup}
         components={data.components}
+        {rotatedComponentIds}
         bind:pageElements
         bind:paperDimensions
         projectId={data.project.id}

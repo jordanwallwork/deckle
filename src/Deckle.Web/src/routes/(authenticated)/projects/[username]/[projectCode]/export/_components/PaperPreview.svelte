@@ -14,12 +14,14 @@
   let {
     pageSetup,
     components,
+    rotatedComponentIds = [],
     pageElements = $bindable([]),
     paperDimensions = $bindable({ width: 0, height: 0 }),
     projectId
   }: {
     pageSetup: PageSetup;
     components: ComponentWithData[];
+    rotatedComponentIds?: string[];
     pageElements?: HTMLElement[];
     paperDimensions?: { width: number; height: number };
     projectId?: string;
@@ -180,30 +182,8 @@
   const printableAreaWidthPx = $derived(paperDimensionsPx.width - 2 * marginPx);
   const printableAreaHeightPx = $derived(paperDimensionsPx.height - 2 * marginPx);
 
-  // Rotation state - tracks which component instances are rotated
-  // Key format: "componentIndex-dataHash"
-  let rotationState = $state<Map<string, boolean>>(new Map());
-
-  // Generate a unique key for each instance
-  function getInstanceKey(
-    componentIndex: number,
-    mergeData: Record<string, string> | null,
-    copyIndex: number
-  ): string {
-    if (!mergeData || Object.keys(mergeData).length === 0) {
-      return `${componentIndex}-${copyIndex}`;
-    }
-    // Create a stable hash from mergeData
-    const dataStr = JSON.stringify(mergeData);
-    return `${componentIndex}-${dataStr}-${copyIndex}`;
-  }
-
-  // Toggle rotation for a component instance
-  function toggleRotation(instanceKey: string) {
-    const currentRotation = rotationState.get(instanceKey) || false;
-    rotationState.set(instanceKey, !currentRotation);
-    rotationState = new Map(rotationState); // Trigger reactivity
-  }
+  // Set of component IDs that are rotated 90 degrees
+  const rotatedSet = $derived(new Set(rotatedComponentIds));
 
   // Layout component instances on pages
   interface ComponentInstance {
@@ -214,7 +194,6 @@
     widthPx: number;
     heightPx: number;
     bleedPx: number;
-    instanceKey: string;
     isRotated: boolean;
   }
 
@@ -228,14 +207,14 @@
    * @param componentIndexOffset - Offset to add to component indices (for separate packing)
    * @param printableWidthPx - Printable area width in pixels
    * @param printableHeightPx - Printable area height in pixels
-   * @param rotationStateMap - Map of rotation states for component instances
+   * @param rotatedIds - Set of component IDs that should be rotated 90 degrees
    */
   function packComponentInstances(
     componentsTopack: ComponentWithData[],
     componentIndexOffset: number,
     printableWidthPx: number,
     printableHeightPx: number,
-    rotationStateMap: Map<string, boolean>
+    rotatedIds: Set<string>
   ): Page[] {
     const pages: Page[] = [];
     let currentPage: Page = { instances: [] };
@@ -277,19 +256,15 @@
       const instances: Record<string, string>[] =
         componentWithData.dataSourceRows.length > 0 ? componentWithData.dataSourceRows : [{}];
 
+      // Determine rotation for this component (all instances share the same rotation)
+      const isRotated = rotatedIds.has(component.id);
+
       // Create instances for this component
       for (const rowData of instances) {
         // Check for "Num" field for duplicates
         const numCopies = rowData.Num ? Math.max(1, Number.parseInt(rowData.Num, 10) || 1) : 1;
 
         for (let copyIndex = 0; copyIndex < numCopies; copyIndex++) {
-          // Generate instance key and check rotation state
-          const instanceKey = getInstanceKey(
-            componentIndex,
-            Object.keys(rowData).length > 0 ? rowData : null,
-            copyIndex
-          );
-          const isRotated = rotationStateMap.get(instanceKey) || false;
 
           // Swap dimensions if rotated
           const layoutWidthPx = isRotated ? instanceHeightPx : instanceWidthPx;
@@ -324,7 +299,6 @@
             widthPx: instanceWidthPx,
             heightPx: instanceHeightPx,
             bleedPx: component.dimensions.bleedPx,
-            instanceKey,
             isRotated
           });
 
@@ -352,10 +326,10 @@
         // Pack this single component
         const componentPages = packComponentInstances(
           [component],
-          originalIndex, // Preserve original index for rotation keys
+          originalIndex,
           printableAreaWidthPx,
           printableAreaHeightPx,
-          rotationState
+          rotatedSet
         );
 
         // Append to overall page list
@@ -370,7 +344,7 @@
         0,
         printableAreaWidthPx,
         printableAreaHeightPx,
-        rotationState
+        rotatedSet
       );
     }
   });
@@ -521,22 +495,12 @@
                       : instance.heightPx}
                     <div
                       class="component-instance"
-                      role="button"
-                      tabindex="0"
-                      onclick={() => toggleRotation(instance.instanceKey)}
-                      onkeydown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          toggleRotation(instance.instanceKey);
-                        }
-                      }}
                       style="
                         position: absolute;
                         left: {instance.x}px;
                         top: {instance.y}px;
                         width: {layoutWidthPx}px;
                         height: {layoutHeightPx}px;
-                        cursor: pointer;
                       "
                     >
                       <div
@@ -766,21 +730,7 @@
   }
 
   .component-instance {
-    pointer-events: auto;
-    transition: opacity 0.15s ease;
-  }
-
-  .component-instance:hover {
-    opacity: 0.85;
-  }
-
-  .component-instance:focus {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-  }
-
-  .component-renderer-wrapper {
-    transition: transform 0.3s ease;
+    pointer-events: none;
   }
 
   .zoom-control {

@@ -10,6 +10,7 @@
   import PaperPreview from './_components/PaperPreview.svelte';
   import ComponentSelector from './_components/ComponentSelector.svelte';
   import { GearIcon } from '$lib/components/icons';
+  import { isEditableComponent } from '$lib/utils/componentTypes';
 
   let { data }: { data: PageData } = $props();
 
@@ -95,13 +96,13 @@
 
   // Check if all components are exportable (Card or PlayerMat)
   const allExportable = $derived(
-    data.components.every((c) => c.component.type === 'Card' || c.component.type === 'PlayerMat')
+    data.components.every((c) => isEditableComponent(c.component))
   );
 
   // Get non-exportable components
   const nonExportableComponents = $derived(
     data.components
-      .filter((c) => c.component.type !== 'Card' && c.component.type !== 'PlayerMat')
+      .filter((c) => !isEditableComponent(c.component))
       .map((c) => c.component.name)
   );
 

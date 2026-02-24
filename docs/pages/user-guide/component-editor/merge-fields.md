@@ -43,9 +43,11 @@ Merge field identifiers must be alphanumeric (letters, numbers, and underscores 
 Merge fields support formula expressions using standard operators and functions:
 
 * `{{'{{'}} Price + Tax }}` - Arithmetic
-* `{{'{{'}} IF(Type = \'Fire\', "Burnt", "Wet") }}` - Conditional logic
+* `{{'{{'}} IF(Type == \'Fire\', "Burnt", "Wet") }}` - Conditional logic
 
 Because identifiers are alphanumeric, you can use them directly in expressions without any special quoting.
+
+For the full list of supported operators and functions, see the [formula-evaluator documentation](https://github.com/jordanwallwork/formula-evaluator).
 
 ---
 

@@ -1,7 +1,7 @@
 import { componentsApi, dataSourcesApi } from '$lib/api';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { hasDataSource } from '$lib/utils/componentTypes';
+import { hasDataSource, isEditableComponent } from '$lib/utils/componentTypes';
 import { parseDataRows } from '$lib/utils/mergeFields';
 
 export const load: PageServerLoad = async ({ url, fetch, parent }) => {
@@ -12,9 +12,7 @@ export const load: PageServerLoad = async ({ url, fetch, parent }) => {
     const allComponents = await componentsApi.listByProject(parentData.project.id, fetch);
 
     // Filter to only exportable components (Card and PlayerMat)
-    const exportableComponents = allComponents.filter(
-      (c) => c.type === 'Card' || c.type === 'PlayerMat'
-    );
+    const exportableComponents = allComponents.filter((c) => isEditableComponent(c));
 
     // Get component IDs from query parameter (can be single ID or comma-separated list)
     const componentsParam = url.searchParams.get('components');

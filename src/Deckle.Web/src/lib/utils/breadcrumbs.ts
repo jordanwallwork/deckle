@@ -1,5 +1,6 @@
 import type { Component, Project, GameComponent, EditableComponent } from '$lib/types';
 import type { BreadcrumbItem } from '$lib/types/breadcrumb';
+import { isCard } from '$lib/utils/componentTypes';
 
 type ProjectIdName = Project | { id: string; name: string; ownerUsername: string; code: string };
 type ComponentIdName = Component | { id: string; name: string };
@@ -53,7 +54,7 @@ export function buildEditorBreadcrumbs(
     };
 
     // Add part options for components with multiple parts (Cards)
-    if (component.type === 'Card') {
+    if (isCard(component)) {
       partItem.partOptions = [
         {
           label: 'Front',

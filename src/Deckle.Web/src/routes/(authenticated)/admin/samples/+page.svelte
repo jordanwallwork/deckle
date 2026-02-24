@@ -6,6 +6,7 @@
   import { adminApi, ApiError } from '$lib/api';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { buildAdminSamplesBreadcrumbs } from '$lib/utils/breadcrumbs';
+  import { hasDataSource } from '$lib/utils/componentTypes';
 
   let { data }: { data: PageData } = $props();
 
@@ -270,7 +271,7 @@
               </span>
             {/each}
           </div>
-          {#if component.type === 'Card' || component.type === 'PlayerMat'}
+          {#if hasDataSource(component)}
             <div class="datasource-info">
               {#if component.dataSource}
                 <span class="ds-label">Data:</span>

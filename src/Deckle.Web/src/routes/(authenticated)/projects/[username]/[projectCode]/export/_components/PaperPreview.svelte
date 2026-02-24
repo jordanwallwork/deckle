@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageSetup, CardComponent, PlayerMatComponent, GameComponent } from '$lib/types';
+  import { isEditableComponent } from '$lib/utils/componentTypes';
   import type { ContainerElement } from '$lib/components/editor/types';
   import { PAPER_DIMENSIONS } from '$lib/types';
   import StaticComponentRenderer from './StaticComponentRenderer.svelte';
@@ -56,17 +57,10 @@
     pageElements = elements;
   });
 
-  // Type guard to check if component is exportable (must be defined before use)
-  const isExportable = (
-    component: GameComponent
-  ): component is CardComponent | PlayerMatComponent => {
-    return component.type === 'Card' || component.type === 'PlayerMat';
-  };
-
   // Load Google Fonts used in all component designs
   $effect(() => {
     for (const componentWithData of components) {
-      if (!isExportable(componentWithData.component)) continue;
+      if (!isEditableComponent(componentWithData.component)) continue;
       const component = componentWithData.component;
       for (const designJson of [component.frontDesign, component.backDesign]) {
         if (!designJson) continue;
@@ -84,8 +78,8 @@
 
   // Use DPI from first exportable component (assume all components have same DPI)
   const componentDpi = $derived.by(() => {
-    const firstExportable = components.find((c) => isExportable(c.component));
-    if (firstExportable && isExportable(firstExportable.component)) {
+    const firstExportable = components.find((c) => isEditableComponent(c.component));
+    if (firstExportable && isEditableComponent(firstExportable.component)) {
       return firstExportable.component.dimensions.dpi;
     }
     return 300; // Default DPI
@@ -229,7 +223,7 @@
       const componentIndex = componentIndexOffset + localIndex;
 
       // Skip non-exportable components
-      if (!isExportable(component)) {
+      if (!isEditableComponent(component)) {
         return;
       }
 
@@ -482,7 +476,7 @@
               {#each page.instances as instance, instanceIndex (`${pageIndex}-${instanceIndex}`)}
                 {@const componentWithData = components[instance.componentIndex]}
                 {@const component = componentWithData.component}
-                {#if isExportable(component)}
+                {#if isEditableComponent(component)}
                   {@const designJson = isBack ? component.backDesign : component.frontDesign}
                   {#if designJson}
                     {@const design = JSON.parse(designJson) as ContainerElement}

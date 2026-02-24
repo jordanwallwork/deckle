@@ -260,10 +260,11 @@ public class ComponentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetSamplesForTypeAsync_InvalidType_ThrowsArgumentException()
+    public async Task GetSamplesForTypeAsync_UnsupportedType_ReturnsEmptyList()
     {
-        await Assert.ThrowsAsync<ArgumentException>(
-            () => _service.GetSamplesForTypeAsync("Dice"));
+        var result = await _service.GetSamplesForTypeAsync("Dice");
+
+        Assert.Empty(result);
     }
 
     [Fact]

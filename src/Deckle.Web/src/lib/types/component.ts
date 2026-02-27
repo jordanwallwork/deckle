@@ -24,11 +24,17 @@ export interface DataSourceInfo {
   name: string;
 }
 
+export interface FoldedDimensions {
+  widthMm: number;
+  heightMm: number;
+  thicknessMm: number;
+}
+
 export interface Component {
   id: string;
   projectId: string;
   name: string;
-  type: 'Card' | 'Dice' | 'PlayerMat';
+  type: 'Card' | 'Dice' | 'GameBoard' | 'PlayerMat';
   createdAt: string;
   updatedAt: string;
 }
@@ -67,7 +73,24 @@ export interface PlayerMatComponent extends EditableComponent {
   dataSource?: DataSourceInfo | null;
 }
 
-export type GameComponent = CardComponent | DiceComponent | PlayerMatComponent;
+export interface GameBoardComponent extends EditableComponent {
+  type: 'GameBoard';
+  presetSize?: string | null;
+  horizontal: boolean;
+  customWidthMm?: number | null;
+  customHeightMm?: number | null;
+  customHorizontalFolds?: number | null;
+  customVerticalFolds?: number | null;
+  horizontalFolds: number;
+  verticalFolds: number;
+  foldedDimensions: FoldedDimensions;
+  frontDesign?: string | null;
+  backDesign?: string | null;
+  shape: ComponentShape;
+  dataSource?: DataSourceInfo | null;
+}
+
+export type GameComponent = CardComponent | DiceComponent | GameBoardComponent | PlayerMatComponent;
 
 export interface CreateCardDto {
   name: string;
@@ -113,4 +136,25 @@ export interface UpdatePlayerMatDto {
   horizontal?: boolean;
   customWidthMm?: number | null;
   customHeightMm?: number | null;
+}
+
+export interface CreateGameBoardDto {
+  name: string;
+  presetSize?: string | null;
+  horizontal?: boolean;
+  customWidthMm?: number | null;
+  customHeightMm?: number | null;
+  customHorizontalFolds?: number | null;
+  customVerticalFolds?: number | null;
+  sample: string | null;
+}
+
+export interface UpdateGameBoardDto {
+  name: string;
+  presetSize?: string | null;
+  horizontal?: boolean;
+  customWidthMm?: number | null;
+  customHeightMm?: number | null;
+  customHorizontalFolds?: number | null;
+  customVerticalFolds?: number | null;
 }

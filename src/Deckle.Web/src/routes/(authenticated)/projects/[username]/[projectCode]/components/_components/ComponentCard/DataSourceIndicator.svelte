@@ -1,15 +1,15 @@
 <script lang="ts">
   import { Button } from '$lib/components';
-  import type { CardComponent, PlayerMatComponent } from '$lib/types';
+  import type { CardComponent, GameBoardComponent, PlayerMatComponent } from '$lib/types';
 
   let {
     component,
     projectUrlBase,
     onLinkDataSource
   }: {
-    component: CardComponent | PlayerMatComponent;
+    component: CardComponent | GameBoardComponent | PlayerMatComponent;
     projectUrlBase: string;
-    onLinkDataSource?: (component: CardComponent | PlayerMatComponent) => void;
+    onLinkDataSource?: (component: CardComponent | GameBoardComponent | PlayerMatComponent) => void;
   } = $props();
 </script>
 

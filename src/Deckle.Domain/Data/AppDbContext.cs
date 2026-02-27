@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<Component> Components { get; set; }
     public DbSet<Card> Cards { get; set; }
     public DbSet<Dice> Dices { get; set; }
+    public DbSet<GameBoard> GameBoards { get; set; }
     public DbSet<PlayerMat> PlayerMats { get; set; }
     public DbSet<Entities.File> Files { get; set; }
     public DbSet<FileDirectory> FileDirectories { get; set; }
@@ -245,6 +246,7 @@ public class AppDbContext : DbContext
             entity.HasDiscriminator<string>("ComponentType")
                 .HasValue<Card>("Card")
                 .HasValue<Dice>("Dice")
+                .HasValue<GameBoard>("GameBoard")
                 .HasValue<PlayerMat>("PlayerMat");
         });
 
@@ -290,6 +292,40 @@ public class AppDbContext : DbContext
             entity.Property(d => d.BaseColor)
                 .IsRequired()
                 .HasConversion<string>();
+        });
+
+        modelBuilder.Entity<GameBoard>(entity =>
+        {
+            entity.Property(gb => gb.Horizontal)
+                .HasColumnName("Horizontal");
+
+            entity.Property(gb => gb.PresetSize)
+                .HasConversion<string>();
+
+            entity.Property(gb => gb.CustomWidthMm)
+                .HasColumnType("decimal(10,2)");
+
+            entity.Property(gb => gb.CustomHeightMm)
+                .HasColumnType("decimal(10,2)");
+
+            entity.Property(gb => gb.FrontDesign)
+                .HasColumnType("text");
+
+            entity.Property(gb => gb.BackDesign)
+                .HasColumnType("text");
+
+            entity.Property(gb => gb.Shape)
+                .IsRequired()
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<ComponentShape>(v, (JsonSerializerOptions?)null)!
+                );
+
+            entity.HasOne(gb => gb.DataSource)
+                .WithMany()
+                .HasForeignKey("DataSourceId")
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<PlayerMat>(entity =>

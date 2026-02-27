@@ -7,7 +7,7 @@ import {
 	type FormState
 } from '$lib/utils/componentHandlers';
 import { mmToPx } from '$lib/utils/size.utils';
-import { CARD_SIZES, PLAYER_MAT_SIZES } from '$lib/constants';
+import { CARD_SIZES, GAME_BOARD_SIZES, PLAYER_MAT_SIZES } from '$lib/constants';
 
 const DPI = 300;
 const BLEED_MM = 3;
@@ -28,6 +28,15 @@ export class ComponentDialogState {
   diceStyle = $state('Numbered');
   diceColor = $state('EarthGreen');
   diceNumber = $state(1);
+
+  // Game Board
+  gameBoardSizeMode: 'preset' | 'custom' = $state('preset');
+  gameBoardPresetSize: string | null = $state('MediumBifoldRectangle');
+  gameBoardHorizontal = $state(true);
+  gameBoardCustomWidth = $state('457');
+  gameBoardCustomHeight = $state('305');
+  gameBoardCustomHorizontalFolds = $state('1');
+  gameBoardCustomVerticalFolds = $state('1');
 
   // Player Mat
   playerMatSizeMode: 'preset' | 'custom' = $state('preset');
@@ -55,6 +64,19 @@ export class ComponentDialogState {
       if (!size) return null;
       widthMm = this.cardHorizontal ? size.heightMm : size.widthMm;
       heightMm = this.cardHorizontal ? size.widthMm : size.heightMm;
+    } else if (this.selectedType === 'gameboard') {
+      if (this.gameBoardSizeMode === 'preset') {
+        const size = GAME_BOARD_SIZES.find((s) => s.value === this.gameBoardPresetSize);
+        if (!size) return null;
+        widthMm = this.gameBoardHorizontal ? size.landscapeWidthMm : size.landscapeHeightMm;
+        heightMm = this.gameBoardHorizontal ? size.landscapeHeightMm : size.landscapeWidthMm;
+      } else {
+        const w = parseFloat(this.gameBoardCustomWidth);
+        const h = parseFloat(this.gameBoardCustomHeight);
+        if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) return null;
+        widthMm = w;
+        heightMm = h;
+      }
     } else if (this.selectedType === 'playermat') {
       if (this.playerMatSizeMode === 'preset') {
         const size = PLAYER_MAT_SIZES.find((s) => s.value === this.playerMatPresetSize);
@@ -83,8 +105,32 @@ export class ComponentDialogState {
     };
   });
 
+  previewHorizontalFolds = $derived.by((): number => {
+    if (this.selectedType !== 'gameboard') return 0;
+    if (this.gameBoardSizeMode === 'preset') {
+      const size = GAME_BOARD_SIZES.find((s) => s.value === this.gameBoardPresetSize);
+      if (!size) return 0;
+      return size.isQuadFold ? 1 : (this.gameBoardHorizontal ? 0 : 1);
+    }
+    const v = parseInt(this.gameBoardCustomHorizontalFolds);
+    return isNaN(v) ? 0 : Math.max(0, v);
+  });
+
+  previewVerticalFolds = $derived.by((): number => {
+    if (this.selectedType !== 'gameboard') return 0;
+    if (this.gameBoardSizeMode === 'preset') {
+      const size = GAME_BOARD_SIZES.find((s) => s.value === this.gameBoardPresetSize);
+      if (!size) return 0;
+      return size.isQuadFold ? 1 : (this.gameBoardHorizontal ? 1 : 0);
+    }
+    const v = parseInt(this.gameBoardCustomVerticalFolds);
+    return isNaN(v) ? 0 : Math.max(0, v);
+  });
+
   showPreview = $derived(
-    (this.selectedType === 'card' || this.selectedType === 'playermat') &&
+    (this.selectedType === 'card' ||
+      this.selectedType === 'gameboard' ||
+      this.selectedType === 'playermat') &&
       this.formDimensions !== null
   );
 
@@ -123,6 +169,15 @@ export class ComponentDialogState {
       this.diceStyle = state.diceStyle;
       this.diceColor = state.diceColor;
       this.diceNumber = state.diceNumber;
+    } else if ('customHorizontalFolds' in state) {
+      this.gameBoardSizeMode = state.sizeMode;
+      this.gameBoardPresetSize = state.presetSize;
+      this.gameBoardHorizontal = state.horizontal;
+      this.gameBoardCustomWidth = state.customWidthMm;
+      this.gameBoardCustomHeight = state.customHeightMm;
+      this.gameBoardCustomHorizontalFolds = state.customHorizontalFolds;
+      this.gameBoardCustomVerticalFolds = state.customVerticalFolds;
+      this.selectedSampleId = state.selectedSampleId;
     } else if ('sizeMode' in state) {
       this.playerMatSizeMode = state.sizeMode;
       this.playerMatPresetSize = state.presetSize;
@@ -149,6 +204,18 @@ export class ComponentDialogState {
           diceStyle: this.diceStyle,
           diceColor: this.diceColor,
           diceNumber: this.diceNumber
+        };
+      case 'gameboard':
+        return {
+          componentName: this.componentName,
+          sizeMode: this.gameBoardSizeMode,
+          presetSize: this.gameBoardPresetSize,
+          horizontal: this.gameBoardHorizontal,
+          customWidthMm: this.gameBoardCustomWidth,
+          customHeightMm: this.gameBoardCustomHeight,
+          customHorizontalFolds: this.gameBoardCustomHorizontalFolds,
+          customVerticalFolds: this.gameBoardCustomVerticalFolds,
+          selectedSampleId: this.selectedSampleId
         };
       case 'playermat':
         return {
@@ -181,6 +248,15 @@ export class ComponentDialogState {
     this.diceStyle = (diceDefaults as { diceStyle: string }).diceStyle;
     this.diceColor = (diceDefaults as { diceColor: string }).diceColor;
     this.diceNumber = (diceDefaults as { diceNumber: number }).diceNumber;
+
+    const boardDefaults = getHandler('gameboard').defaults();
+    this.gameBoardSizeMode = (boardDefaults as { sizeMode: 'preset' | 'custom' }).sizeMode;
+    this.gameBoardPresetSize = (boardDefaults as { presetSize: string | null }).presetSize;
+    this.gameBoardHorizontal = (boardDefaults as { horizontal: boolean }).horizontal;
+    this.gameBoardCustomWidth = (boardDefaults as { customWidthMm: string }).customWidthMm;
+    this.gameBoardCustomHeight = (boardDefaults as { customHeightMm: string }).customHeightMm;
+    this.gameBoardCustomHorizontalFolds = (boardDefaults as { customHorizontalFolds: string }).customHorizontalFolds;
+    this.gameBoardCustomVerticalFolds = (boardDefaults as { customVerticalFolds: string }).customVerticalFolds;
 
     const matDefaults = getHandler('playermat').defaults();
     this.playerMatSizeMode = (matDefaults as { sizeMode: 'preset' | 'custom' }).sizeMode;

@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { CardComponent, PlayerMatComponent } from '$lib/types';
+  import type { CardComponent, GameBoardComponent, PlayerMatComponent } from '$lib/types';
 
   let {
     component,
     projectUrlBase,
     canEdit = false
   }: {
-    component: CardComponent | PlayerMatComponent;
+    component: CardComponent | GameBoardComponent | PlayerMatComponent;
     projectUrlBase: string;
     canEdit?: boolean;
   } = $props();

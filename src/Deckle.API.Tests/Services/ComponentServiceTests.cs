@@ -106,6 +106,23 @@ public class ComponentServiceTests : IDisposable
         return mat;
     }
 
+    private async Task<GameBoard> SeedGameBoard(Guid? projectId, string name = "Test Board")
+    {
+        var board = new GameBoard
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            Name = name,
+            PresetSize = GameBoardSize.MediumBifoldSquare,
+            Horizontal = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        _context.GameBoards.Add(board);
+        await _context.SaveChangesAsync();
+        return board;
+    }
+
     private async Task<SpreadsheetDataSource> SeedSpreadsheetDataSource(Guid? projectId, string name = "Test DS")
     {
         var ds = new SpreadsheetDataSource
@@ -783,6 +800,162 @@ public class ComponentServiceTests : IDisposable
         var stats = ComponentService.GetComponentStats(dice);
 
         Assert.Empty(stats);
+    }
+
+    #endregion
+
+    #region GameBoard Support Tests
+
+    [Fact]
+    public void GetComponentTypeName_GameBoard_ReturnsGameBoard()
+    {
+        var board = new GameBoard { Id = Guid.NewGuid(), Name = "Test", PresetSize = GameBoardSize.SmallBifoldSquare, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+
+        var result = ComponentService.GetComponentTypeName(board);
+
+        Assert.Equal("GameBoard", result);
+    }
+
+    [Fact]
+    public void GetComponentStats_GameBoard_ReturnsSizeHorizontalAndFolds()
+    {
+        var board = new GameBoard
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test",
+            PresetSize = GameBoardSize.MediumBifoldSquare,
+            Horizontal = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var stats = ComponentService.GetComponentStats(board);
+
+        Assert.True(stats.ContainsKey("Size"));
+        Assert.True(stats.ContainsKey("Horizontal"));
+        Assert.True(stats.ContainsKey("Folds"));
+        Assert.Equal("MediumBifoldSquare", stats["Size"]);
+        Assert.Equal("Yes", stats["Horizontal"]);
+    }
+
+    [Fact]
+    public void GetComponentStats_GameBoardCustomSize_ReturnsCustomForSize()
+    {
+        var board = new GameBoard
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test",
+            PresetSize = null,
+            CustomWidthMm = 500m,
+            CustomHeightMm = 300m,
+            Horizontal = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var stats = ComponentService.GetComponentStats(board);
+
+        Assert.Equal("Custom", stats["Size"]);
+        Assert.Equal("No", stats["Horizontal"]);
+    }
+
+    [Fact]
+    public void GetComponentStats_GameBoard_FoldsReflectsEffectiveFolds()
+    {
+        // MediumBifoldSquare horizontal: hFolds=0, vFolds=1
+        var board = new GameBoard
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test",
+            PresetSize = GameBoardSize.MediumBifoldSquare,
+            Horizontal = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var stats = ComponentService.GetComponentStats(board);
+
+        Assert.Equal("0H × 1V", stats["Folds"]);
+    }
+
+    [Fact]
+    public async Task GetSamplesForTypeAsync_GameBoardType_ReturnsOnlyGameBoards()
+    {
+        await SeedGameBoard(null, "Sample Board 1");
+        await SeedGameBoard(null, "Sample Board 2");
+        await SeedCard(null, "Sample Card"); // should be excluded
+
+        var result = await _service.GetSamplesForTypeAsync("GameBoard");
+
+        Assert.Equal(2, result.Count);
+        Assert.All(result, c => Assert.Equal("GameBoard", c.Type));
+    }
+
+    [Fact]
+    public async Task GetSamplesForTypeAsync_GameBoardType_CaseInsensitive()
+    {
+        await SeedGameBoard(null, "Sample Board");
+
+        var result = await _service.GetSamplesForTypeAsync("gameboard");
+
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public async Task GetSamplesForTypeAsync_GameBoardType_ExcludesProjectBoards()
+    {
+        var (_, projectId) = await SeedOwnerWithProject();
+        await SeedGameBoard(projectId, "Project Board"); // belongs to a project
+        await SeedGameBoard(null, "Sample Board");
+
+        var result = await _service.GetSamplesForTypeAsync("GameBoard");
+
+        Assert.Single(result);
+        Assert.Equal("Sample Board", result[0].Name);
+    }
+
+    [Fact]
+    public async Task GetSampleComponentsAsync_WithGameBoardTypeFilter_ReturnsOnlyGameBoards()
+    {
+        await SeedGameBoard(null, "Sample Board");
+        await SeedCard(null, "Sample Card");
+        await SeedPlayerMat(null, "Sample Mat");
+
+        var result = await _service.GetSampleComponentsAsync(componentType: "GameBoard");
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal("GameBoard", result.Components[0].Type);
+    }
+
+    [Fact]
+    public async Task SaveDesignAsync_GameBoard_SavesAndReturnsDto()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var board = await SeedGameBoard(projectId);
+        _mockAuthService
+            .Setup(a => a.GetUserProjectRoleAsync(userId, (Guid?)projectId))
+            .ReturnsAsync(ProjectRole.Owner);
+
+        var result = await _service.SaveDesignAsync(userId, board.Id, "front", "<board-front>");
+
+        Assert.NotNull(result);
+        var boardDto = Assert.IsType<GameBoardDto>(result);
+        Assert.Equal("<board-front>", boardDto.FrontDesign);
+    }
+
+    [Fact]
+    public async Task UpdateDataSourceAsync_GameBoard_LinksDataSource()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var board = await SeedGameBoard(projectId);
+        var ds = await SeedSpreadsheetDataSource(projectId);
+
+        var result = await _service.UpdateDataSourceAsync(userId, board.Id, ds.Id);
+
+        Assert.NotNull(result);
+        var boardDto = Assert.IsType<GameBoardDto>(result);
+        Assert.NotNull(boardDto.DataSource);
+        Assert.Equal(ds.Id, boardDto.DataSource.Id);
     }
 
     #endregion

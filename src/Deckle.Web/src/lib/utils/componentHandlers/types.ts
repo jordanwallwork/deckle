@@ -1,6 +1,6 @@
 import type { GameComponent } from '$lib/types';
 
-export type ComponentTypeKey = 'card' | 'dice' | 'playermat';
+export type ComponentTypeKey = 'card' | 'dice' | 'gameboard' | 'playermat';
 
 export interface CardFormState {
   componentName: string;
@@ -27,7 +27,19 @@ export interface PlayerMatFormState {
   selectedSampleId: string | null;
 }
 
-export type FormState = CardFormState | DiceFormState | PlayerMatFormState;
+export interface GameBoardFormState {
+  componentName: string;
+  sizeMode: 'preset' | 'custom';
+  presetSize: string | null;
+  horizontal: boolean;
+  customWidthMm: string;
+  customHeightMm: string;
+  customHorizontalFolds: string;
+  customVerticalFolds: string;
+  selectedSampleId: string | null;
+}
+
+export type FormState = CardFormState | DiceFormState | GameBoardFormState | PlayerMatFormState;
 
 export interface ComponentTypeHandler<TState extends FormState> {
   defaults(): TState;

@@ -6,7 +6,10 @@
   import { adminApi, ApiError } from '$lib/api';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { buildAdminSamplesBreadcrumbs } from '$lib/utils/breadcrumbs';
-  import { hasDataSource } from '$lib/utils/componentTypes';
+  const DATA_SOURCE_TYPES = new Set(['Card', 'GameBoard', 'PlayerMat']);
+  function adminHasDataSource(component: AdminSampleComponent): boolean {
+    return DATA_SOURCE_TYPES.has(component.type);
+  }
 
   let { data }: { data: PageData } = $props();
 
@@ -271,7 +274,7 @@
               </span>
             {/each}
           </div>
-          {#if hasDataSource(component)}
+          {#if adminHasDataSource(component)}
             <div class="datasource-info">
               {#if component.dataSource}
                 <span class="ds-label">Data:</span>

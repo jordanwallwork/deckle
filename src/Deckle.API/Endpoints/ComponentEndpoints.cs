@@ -59,6 +59,20 @@ public static class ComponentEndpoints
         })
         .WithName("CreateDice");
 
+        group.MapPost("gameboards", async (string projectId, HttpContext httpContext, IComponentService componentService, CreateGameBoardRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+            var parsedProjectId = ParseProjectId(projectId);
+
+            var board = await componentService.CreateComponentAsync<GameBoard, GameBoardConfig>(
+                userId, parsedProjectId,
+                new GameBoardConfig(request.Name, request.PresetSize, request.Horizontal,
+                    request.CustomWidthMm, request.CustomHeightMm,
+                    request.CustomHorizontalFolds, request.CustomVerticalFolds, request.Sample));
+            return Results.Created($"/projects/{projectId}/components/{board.Id}", new GameBoardDto(board));
+        })
+        .WithName("CreateGameBoard");
+
         group.MapPost("playermats", async (string projectId, HttpContext httpContext, IComponentService componentService, CreatePlayerMatRequest request) =>
         {
             var userId = httpContext.GetUserId();
@@ -88,6 +102,19 @@ public static class ComponentEndpoints
             return dice == null ? Results.NotFound() : Results.Ok(new DiceDto(dice));
         })
         .WithName("UpdateDice");
+
+        group.MapPut("gameboards/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdateGameBoardRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+
+            var board = await componentService.UpdateComponentAsync<GameBoard, GameBoardConfig>(userId, id,
+                new(request.Name, request.PresetSize, request.Horizontal,
+                    request.CustomWidthMm, request.CustomHeightMm,
+                    request.CustomHorizontalFolds, request.CustomVerticalFolds, request.Sample));
+
+            return board == null ? Results.NotFound() : Results.Ok(new GameBoardDto(board));
+        })
+        .WithName("UpdateGameBoard");
 
         group.MapPut("playermats/{id:guid}", async (string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdatePlayerMatRequest request) =>
         {

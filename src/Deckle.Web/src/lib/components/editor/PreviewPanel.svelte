@@ -5,7 +5,7 @@
   import ZoomControls from '$lib/components/editor/_components/ZoomControls.svelte';
   import ToolbarDropdownButton from '$lib/components/editor/_components/ToolbarDropdownButton.svelte';
   import MenuIcon from '$lib/components/icons/MenuIcon.svelte';
-  import type { EditableComponent, ComponentShape } from '$lib/types';
+  import type { EditableComponent, ComponentShape, GameBoardComponent } from '$lib/types';
   import EditableComponentView from './EditableComponent.svelte';
   import type { PanzoomObject } from '@panzoom/panzoom';
   import { templateStore } from '$lib/stores/templateElements';
@@ -32,6 +32,14 @@
   // Extract shape if the component has one
   let shape = $derived<ComponentShape | undefined>(
     'shape' in component ? (component as { shape: ComponentShape }).shape : undefined
+  );
+
+  // Extract fold counts for game boards
+  let horizontalFolds = $derived(
+    component.type === 'GameBoard' ? (component as GameBoardComponent).horizontalFolds : 0
+  );
+  let verticalFolds = $derived(
+    component.type === 'GameBoard' ? (component as GameBoardComponent).verticalFolds : 0
   );
 
   let showBleedSafeArea = $state(true);
@@ -249,7 +257,7 @@
     </div>
   {/snippet}
   <ComponentViewer {dimensions} {gridEnabled} {gridSize} onPanzoomReady={handlePanzoomReady}>
-    <EditableComponentView {dimensions} {shape} {showBleedSafeArea} />
+    <EditableComponentView {dimensions} {shape} {showBleedSafeArea} {horizontalFolds} {verticalFolds} />
   </ComponentViewer>
 </Panel>
 

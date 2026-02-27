@@ -194,6 +194,7 @@ public class ComponentService : IComponentService
         query = componentType.ToUpperInvariant() switch
         {
             "CARD" => query.Where(c => c is Card),
+            "GAMEBOARD" => query.Where(c => c is GameBoard),
             "PLAYERMAT" => query.Where(c => c is PlayerMat),
             _ => query.Where(_ => false)
         };
@@ -360,6 +361,7 @@ public class ComponentService : IComponentService
             query = componentType.ToUpperInvariant() switch
             {
                 "CARD" => query.Where(c => c is Card),
+                "GAMEBOARD" => query.Where(c => c is GameBoard),
                 "PLAYERMAT" => query.Where(c => c is PlayerMat),
                 _ => query
             };
@@ -410,6 +412,7 @@ public class ComponentService : IComponentService
     {
         Card => "Card",
         Dice => "Dice",
+        GameBoard => "GameBoard",
         PlayerMat => "PlayerMat",
         _ => component.GetType().Name
     };
@@ -420,6 +423,12 @@ public class ComponentService : IComponentService
         {
             ["Size"] = FormatEnumName(card.Size.ToString()),
             ["Horizontal"] = card.Horizontal ? "Yes" : "No"
+        },
+        GameBoard board => new Dictionary<string, string>
+        {
+            ["Size"] = board.PresetSize?.ToString() ?? "Custom",
+            ["Horizontal"] = board.Horizontal ? "Yes" : "No",
+            ["Folds"] = $"{board.EffectiveHorizontalFolds}H × {board.EffectiveVerticalFolds}V"
         },
         PlayerMat mat => new Dictionary<string, string>
         {

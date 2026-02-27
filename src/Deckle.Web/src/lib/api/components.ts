@@ -5,6 +5,8 @@ import type {
   CreateDiceDto,
   UpdateCardDto,
   UpdateDiceDto,
+  CreateGameBoardDto,
+  UpdateGameBoardDto,
   CreatePlayerMatDto,
   UpdatePlayerMatDto
 } from '$lib/types';
@@ -110,6 +112,32 @@ export const componentsApi = {
     api.put<GameComponent>(
       `${componentsBase(projectId)}/${componentId}/datasource`,
       { dataSourceId },
+      undefined,
+      fetchFn
+    ),
+
+  /**
+   * Create a new game board component
+   */
+  createGameBoard: (
+    projectId: OptionalProjectId,
+    data: CreateGameBoardDto,
+    fetchFn?: typeof fetch
+  ) =>
+    api.post<GameComponent>(`${componentsBase(projectId)}/gameboards`, data, undefined, fetchFn),
+
+  /**
+   * Update a game board component
+   */
+  updateGameBoard: (
+    projectId: OptionalProjectId,
+    componentId: string,
+    data: UpdateGameBoardDto,
+    fetchFn?: typeof fetch
+  ) =>
+    api.put<GameComponent>(
+      `${componentsBase(projectId)}/gameboards/${componentId}`,
+      data,
       undefined,
       fetchFn
     ),

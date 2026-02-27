@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { CardComponent, DiceComponent, PlayerMatComponent } from '$lib/types';
+import type { CardComponent, DiceComponent, GameBoardComponent, PlayerMatComponent } from '$lib/types';
 import {
   isEditableComponent,
   hasDataSource,
   isCard,
   isDice,
+  isGameBoard,
   isPlayerMat,
   getComponentDisplayType,
   isExportable
@@ -44,6 +45,34 @@ const mockDice: DiceComponent = {
   number: 1
 };
 
+const mockGameBoard: GameBoardComponent = {
+  id: '4',
+  projectId: 'p1',
+  name: 'Test Game Board',
+  type: 'GameBoard',
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
+  horizontal: true,
+  presetSize: 'MediumBifoldRectangle',
+  horizontalFolds: 0,
+  verticalFolds: 1,
+  dimensions: {
+    widthMm: 304.8,
+    heightMm: 228.6,
+    bleedMm: 3,
+    dpi: 300,
+    widthPx: 3601,
+    heightPx: 2701,
+    bleedPx: 35
+  },
+  foldedDimensions: {
+    widthMm: 152.4,
+    heightMm: 228.6,
+    thicknessMm: 5
+  },
+  shape: { type: 'rectangle' }
+};
+
 const mockPlayerMat: PlayerMatComponent = {
   id: '3',
   projectId: 'p1',
@@ -69,6 +98,10 @@ describe('isEditableComponent', () => {
     expect(isEditableComponent(mockCard)).toBe(true);
   });
 
+  it('returns true for GameBoard', () => {
+    expect(isEditableComponent(mockGameBoard)).toBe(true);
+  });
+
   it('returns true for PlayerMat', () => {
     expect(isEditableComponent(mockPlayerMat)).toBe(true);
   });
@@ -81,6 +114,10 @@ describe('isEditableComponent', () => {
 describe('hasDataSource', () => {
   it('returns true for Card', () => {
     expect(hasDataSource(mockCard)).toBe(true);
+  });
+
+  it('returns true for GameBoard', () => {
+    expect(hasDataSource(mockGameBoard)).toBe(true);
   });
 
   it('returns true for PlayerMat', () => {
@@ -110,6 +147,13 @@ describe('isPlayerMat', () => {
   it('returns false for Dice', () => expect(isPlayerMat(mockDice)).toBe(false));
 });
 
+describe('isGameBoard', () => {
+  it('returns true for GameBoard', () => expect(isGameBoard(mockGameBoard)).toBe(true));
+  it('returns false for Card', () => expect(isGameBoard(mockCard)).toBe(false));
+  it('returns false for Dice', () => expect(isGameBoard(mockDice)).toBe(false));
+  it('returns false for PlayerMat', () => expect(isGameBoard(mockPlayerMat)).toBe(false));
+});
+
 describe('getComponentDisplayType', () => {
   it('returns "Card" for a Card component', () => {
     expect(getComponentDisplayType(mockCard)).toBe('Card');
@@ -119,6 +163,10 @@ describe('getComponentDisplayType', () => {
     expect(getComponentDisplayType(mockDice)).toBe('Dice');
   });
 
+  it('returns "Game Board" for a GameBoard component', () => {
+    expect(getComponentDisplayType(mockGameBoard)).toBe('Game Board');
+  });
+
   it('returns "Player Mat" for a PlayerMat component', () => {
     expect(getComponentDisplayType(mockPlayerMat)).toBe('Player Mat');
   });
@@ -126,6 +174,7 @@ describe('getComponentDisplayType', () => {
 
 describe('isExportable', () => {
   it('returns true for Card', () => expect(isExportable(mockCard)).toBe(true));
+  it('returns true for GameBoard', () => expect(isExportable(mockGameBoard)).toBe(true));
   it('returns true for PlayerMat', () => expect(isExportable(mockPlayerMat)).toBe(true));
   it('returns false for Dice', () => expect(isExportable(mockDice)).toBe(false));
 });

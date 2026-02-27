@@ -433,6 +433,11 @@
                             </a>
                         </li>
                         <li class="d-flex">
+                            <a href="#iterator" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
+                                Iterator
+                            </a>
+                        </li>
+                        <li class="d-flex">
                             <a href="#component-settings" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
                                 Component settings
                             </a>
@@ -483,7 +488,7 @@
 <p>The Structure Tree shows all the elements in your design as a nested list. The top-level node represents the component itself (e.g. &quot;My Card — Front&quot;).</p>
 <p><strong>Click</strong> an element to select it and view its settings in the Configuration panel.</p>
 <p><strong>Double-click</strong> an element's name to rename it — this is useful for keeping track of elements in complex designs.</p>
-<p><strong>Hover</strong> over a container (or the root) to reveal a <strong>+</strong> button for adding new elements. You can add three types: <strong>Container</strong>, <strong>Text</strong>, and <strong>Image</strong>.</p>
+<p><strong>Hover</strong> over a container (or the root) to reveal a <strong>+</strong> button for adding new elements. You can add four types: <strong>Container</strong>, <strong>Text</strong>, <strong>Image</strong>, and <strong>Iterator</strong>.</p>
 <p><strong>Drag</strong> elements by their handle to reorder them or move them into a different container.</p>
 <p><strong>Right-click</strong> any element for a context menu with options to duplicate, show/hide, lock/unlock, or delete it.</p>
 <p>Locked elements show a lock icon, and hidden elements appear faded.</p>
@@ -587,6 +592,26 @@ Tip: Locked elements can't be clicked on the canvas, so you won't accidentally m
 <li><strong>Background colour</strong></li>
 <li><strong>Padding</strong> — uniform or per-side</li>
 </ul>
+
+                        <h2 id="iterator" pl-9="xs,sm">
+                            <a href="#iterator" title="Iterator" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">
+                                <span class="icon-link-simple | pos-absolute top-50 left-50 t-tY-50 t-tX-50 | fs-4"></span>
+                            </a>
+                    Iterator</h2>
+<p>An Iterator repeats its child elements for each value in a numeric range. This is useful for creating rows of symbols, pip tracks, or any pattern that scales with data — for example, rendering one icon per hit point.</p>
+<p>Iterators can be added inside any container (or the root), but not inside another iterator.</p>
+<p>In addition to the shared settings, an iterator has:</p>
+<ul>
+<li><strong>Variable Name</strong> — the name of the loop variable exposed to child elements (default: <code>i</code>). Use it in text content or expressions as a <a href="/component-editor/merge-fields/">merge field</a>, e.g. <code>{{ i }}</code></li>
+<li><strong>From</strong> — the range start (inclusive). Accepts a number or a formula expression evaluated against the active data-source row</li>
+<li><strong>To</strong> — the range end (inclusive). Also accepts a formula expression</li>
+</ul>
+<p>The iterator renders its children once for each integer step from <strong>From</strong> to <strong>To</strong>. Steps are always whole numbers; fractional results are rounded. The maximum range is 100 iterations.</p>
+<aside class="widget widget-alert">
+<div class="alert alert-info">
+Tip: Set &quot;From&quot; or &quot;To&quot; to a merge field expression — for example, <code>{{ &quot;{{&quot; }} HitPoints }}</code> — to have the repeat count driven by your data source.
+</div>
+</aside>
 
                         <h2 id="component-settings" pl-9="xs,sm">
                             <a href="#component-settings" title="Component settings" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">

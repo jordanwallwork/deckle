@@ -508,9 +508,10 @@ Tip: Hover over a column header in the Data Source panel to see the generated me
 <p>Merge fields support formula expressions using standard operators and functions:</p>
 <ul>
 <li><code>{{ Price + Tax }}</code> - Arithmetic</li>
-<li><code>{{ IF(Type = \'Fire\', &quot;Burnt&quot;, &quot;Wet&quot;) }}</code> - Conditional logic</li>
+<li><code>{{ IF(Type == \'Fire\', &quot;Burnt&quot;, &quot;Wet&quot;) }}</code> - Conditional logic</li>
 </ul>
 <p>Because identifiers are alphanumeric, you can use them directly in expressions without any special quoting.</p>
+<p>For the full list of supported operators and functions, see the <a href="https://github.com/jordanwallwork/formula-evaluator">formula-evaluator documentation</a>.</p>
 <hr>
 
                         <h2 id="default-amp-fallback-values" pl-9="xs,sm">

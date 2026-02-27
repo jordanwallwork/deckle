@@ -87,7 +87,9 @@ public class AuthenticationExtensionsTests
         var user = MakeUser();
 
         // Should return early without throwing
-        InvokeAddUserClaimsToIdentity(null, user, "test@test.com", "Test", null);
+        var exception = Record.Exception(() => InvokeAddUserClaimsToIdentity(null, user, "test@test.com", "Test", null));
+
+        Assert.Null(exception);
     }
 
     [Fact]

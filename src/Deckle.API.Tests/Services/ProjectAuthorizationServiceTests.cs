@@ -502,8 +502,11 @@ public class ProjectAuthorizationServiceTests : IDisposable
         // Arrange
         var (userId, projectId) = await SeedUserWithProjectRole(ProjectRole.Owner);
 
-        // Act & Assert (no exception expected)
-        await _service.EnsureCanModifyResourcesAsync(userId, projectId);
+        // Act
+        var exception = await Record.ExceptionAsync(() => _service.EnsureCanModifyResourcesAsync(userId, projectId));
+
+        // Assert
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -512,8 +515,11 @@ public class ProjectAuthorizationServiceTests : IDisposable
         // Arrange
         var (userId, projectId) = await SeedUserWithProjectRole(ProjectRole.Collaborator);
 
-        // Act & Assert (no exception expected - all members can modify resources)
-        await _service.EnsureCanModifyResourcesAsync(userId, projectId);
+        // Act (no exception expected - all members can modify resources)
+        var exception = await Record.ExceptionAsync(() => _service.EnsureCanModifyResourcesAsync(userId, projectId));
+
+        // Assert
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -538,8 +544,11 @@ public class ProjectAuthorizationServiceTests : IDisposable
         // Arrange
         var (userId, projectId) = await SeedUserWithProjectRole(ProjectRole.Owner);
 
-        // Act & Assert (no exception expected)
-        await _service.EnsureCanDeleteResourcesAsync(userId, projectId);
+        // Act
+        var exception = await Record.ExceptionAsync(() => _service.EnsureCanDeleteResourcesAsync(userId, projectId));
+
+        // Assert
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -577,8 +586,11 @@ public class ProjectAuthorizationServiceTests : IDisposable
         // Arrange
         var (userId, projectId) = await SeedUserWithProjectRole(ProjectRole.Owner);
 
-        // Act & Assert (no exception expected)
-        await _service.EnsureCanManageDataSourcesAsync(userId, projectId);
+        // Act
+        var exception = await Record.ExceptionAsync(() => _service.EnsureCanManageDataSourcesAsync(userId, projectId));
+
+        // Assert
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -616,8 +628,11 @@ public class ProjectAuthorizationServiceTests : IDisposable
         // Arrange
         var (userId, projectId) = await SeedUserWithProjectRole(ProjectRole.Owner);
 
-        // Act & Assert (no exception expected)
-        await _service.EnsureCanModifyProjectAsync(userId, projectId);
+        // Act
+        var exception = await Record.ExceptionAsync(() => _service.EnsureCanModifyProjectAsync(userId, projectId));
+
+        // Assert
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -655,8 +670,11 @@ public class ProjectAuthorizationServiceTests : IDisposable
         // Arrange
         var (userId, projectId) = await SeedUserWithProjectRole(ProjectRole.Owner);
 
-        // Act & Assert (no exception expected)
-        await _service.EnsureCanManageUsersAsync(userId, projectId);
+        // Act
+        var exception = await Record.ExceptionAsync(() => _service.EnsureCanManageUsersAsync(userId, projectId));
+
+        // Assert
+        Assert.Null(exception);
     }
 
     [Fact]
@@ -694,8 +712,11 @@ public class ProjectAuthorizationServiceTests : IDisposable
         // Arrange
         var (userId, projectId) = await SeedUserWithProjectRole(ProjectRole.Owner);
 
-        // Act & Assert (no exception expected)
-        await _service.EnsureCanDeleteProjectAsync(userId, projectId);
+        // Act
+        var exception = await Record.ExceptionAsync(() => _service.EnsureCanDeleteProjectAsync(userId, projectId));
+
+        // Assert
+        Assert.Null(exception);
     }
 
     [Fact]

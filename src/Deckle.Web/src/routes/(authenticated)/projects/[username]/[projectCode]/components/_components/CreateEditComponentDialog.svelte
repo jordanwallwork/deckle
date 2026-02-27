@@ -5,9 +5,10 @@
 		ComponentTypeSelector,
 		CardConfigForm,
 		DiceConfigForm,
+		GameBoardConfigForm,
 		PlayerMatConfigForm
 	} from '$lib/components';
-	import type { GameComponent, CardComponent, PlayerMatComponent } from '$lib/types';
+	import type { GameComponent, CardComponent, GameBoardComponent, PlayerMatComponent } from '$lib/types';
 	import { ComponentDialogState } from './CreateEditComponentDialog.svelte.ts';
 	import ComponentPreview from './ComponentPreview.svelte';
 
@@ -22,6 +23,8 @@
 		editComponent: GameComponent | null;
 		onsaved: () => void;
 	} = $props();
+
+	const showPreviewTypes = ['card', 'gameboard', 'playermat'] as const;
 
 	const state = new ComponentDialogState();
 
@@ -73,6 +76,19 @@
 						bind:componentName={state.componentName}
 						bind:diceNumber={state.diceNumber}
 					/>
+				{:else if state.selectedType === 'gameboard'}
+					<GameBoardConfigForm
+						bind:componentName={state.componentName}
+						bind:sizeMode={state.gameBoardSizeMode}
+						bind:presetSize={state.gameBoardPresetSize}
+						bind:horizontal={state.gameBoardHorizontal}
+						bind:customWidthMm={state.gameBoardCustomWidth}
+						bind:customHeightMm={state.gameBoardCustomHeight}
+						bind:customHorizontalFolds={state.gameBoardCustomHorizontalFolds}
+						bind:customVerticalFolds={state.gameBoardCustomVerticalFolds}
+						samples={state.samples as GameBoardComponent[]}
+						bind:selectedSampleId={state.selectedSampleId}
+					/>
 				{:else if state.selectedType === 'playermat'}
 					<PlayerMatConfigForm
 						bind:componentName={state.componentName}
@@ -97,6 +113,8 @@
 					previewDesign={state.previewDesign}
 					previewDimensions={state.previewDimensions}
 					previewShape={state.previewShape}
+					horizontalFolds={state.previewHorizontalFolds}
+					verticalFolds={state.previewVerticalFolds}
 				/>
 			{/if}
 		</div>

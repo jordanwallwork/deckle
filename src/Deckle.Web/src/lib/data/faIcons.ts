@@ -71,7 +71,7 @@ export async function loadFaIcons(): Promise<FaIcon[]> {
   }
 
   // Deduplicate concurrent requests
-  if (inflight) return inflight;
+  if (inflight !== null) return inflight;
 
   inflight = fetch(METADATA_URL)
     .then((res) => {
@@ -92,3 +92,4 @@ export async function loadFaIcons(): Promise<FaIcon[]> {
 
   return inflight;
 }
+

@@ -13,7 +13,7 @@ describe('admin page load', () => {
 
   it('returns user for Administrator role', async () => {
     const result = await load(makeEvent('Administrator'));
-    expect(result.user).toMatchObject({ role: 'Administrator' });
+    expect(result!.user).toMatchObject({ role: 'Administrator' });
   });
 
   it('throws a 403 error for non-administrator users', async () => {

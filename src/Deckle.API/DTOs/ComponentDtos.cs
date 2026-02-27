@@ -6,6 +6,7 @@ namespace Deckle.API.DTOs;
 
 [JsonDerivedType(typeof(CardDto), typeDiscriminator: "Card")]
 [JsonDerivedType(typeof(DiceDto), typeDiscriminator: "Dice")]
+[JsonDerivedType(typeof(GameBoardDto), typeDiscriminator: "GameBoard")]
 [JsonDerivedType(typeof(PlayerMatDto), typeDiscriminator: "PlayerMat")]
 public abstract record ComponentDto
 {
@@ -44,6 +45,7 @@ public static class ComponentExtensions
         {
             Card card => new CardDto(card),
             Dice dice => new DiceDto(dice),
+            GameBoard board => new GameBoardDto(board),
             PlayerMat playerMat => new PlayerMatDto(playerMat),
             _ => throw new InvalidOperationException($"Unknown component type: {c.GetType().Name}")
         };
@@ -136,6 +138,67 @@ public record PlayerMatDto : ComponentDto
             : null;
     }
 }
+
+public record GameBoardDto : ComponentDto
+{
+    public string? PresetSize { get; init; }
+    public required bool Horizontal { get; init; }
+    public decimal? CustomWidthMm { get; init; }
+    public decimal? CustomHeightMm { get; init; }
+    public int? CustomHorizontalFolds { get; init; }
+    public int? CustomVerticalFolds { get; init; }
+    public required int HorizontalFolds { get; init; }
+    public required int VerticalFolds { get; init; }
+    public required Dimensions Dimensions { get; init; }
+    public required FoldedDimensions FoldedDimensions { get; init; }
+    public string? FrontDesign { get; init; }
+    public string? BackDesign { get; init; }
+    public required ComponentShape Shape { get; init; }
+    public DataSourceInfo? DataSource { get; init; }
+
+    public GameBoardDto() : base("GameBoard") { }
+
+    [SetsRequiredMembers]
+    public GameBoardDto(GameBoard board) : base("GameBoard", board)
+    {
+        PresetSize = board.PresetSize?.ToString();
+        Horizontal = board.Horizontal;
+        CustomWidthMm = board.CustomWidthMm;
+        CustomHeightMm = board.CustomHeightMm;
+        CustomHorizontalFolds = board.CustomHorizontalFolds;
+        CustomVerticalFolds = board.CustomVerticalFolds;
+        HorizontalFolds = board.EffectiveHorizontalFolds;
+        VerticalFolds = board.EffectiveVerticalFolds;
+        Dimensions = board.GetDimensions();
+        FoldedDimensions = board.GetFoldedDimensions();
+        FrontDesign = board.FrontDesign;
+        BackDesign = board.BackDesign;
+        Shape = board.Shape;
+        DataSource = board.DataSource != null
+            ? new DataSourceInfo(board.DataSource.Id, board.DataSource.Name)
+            : null;
+    }
+}
+
+public record CreateGameBoardRequest(
+    string Name,
+    GameBoardSize? PresetSize,
+    bool Horizontal = true,
+    decimal? CustomWidthMm = null,
+    decimal? CustomHeightMm = null,
+    int? CustomHorizontalFolds = null,
+    int? CustomVerticalFolds = null,
+    Guid? Sample = null);
+
+public record UpdateGameBoardRequest(
+    string Name,
+    GameBoardSize? PresetSize,
+    bool Horizontal = true,
+    decimal? CustomWidthMm = null,
+    decimal? CustomHeightMm = null,
+    int? CustomHorizontalFolds = null,
+    int? CustomVerticalFolds = null,
+    Guid? Sample = null);
 
 public record CreatePlayerMatRequest(
     string Name,

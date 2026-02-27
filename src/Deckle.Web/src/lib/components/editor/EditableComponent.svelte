@@ -8,12 +8,28 @@
   let {
     dimensions,
     shape,
-    showBleedSafeArea = false
+    showBleedSafeArea = false,
+    horizontalFolds = 0,
+    verticalFolds = 0
   }: {
     dimensions: Dimensions;
     shape?: ComponentShape;
     showBleedSafeArea?: boolean;
+    horizontalFolds?: number;
+    verticalFolds?: number;
   } = $props();
+
+  let horizontalFoldPositions = $derived(
+    Array.from({ length: horizontalFolds }, (_, i) =>
+      dimensions.bleedPx + (dimensions.heightPx * (i + 1)) / (horizontalFolds + 1)
+    )
+  );
+
+  let verticalFoldPositions = $derived(
+    Array.from({ length: verticalFolds }, (_, i) =>
+      dimensions.bleedPx + (dimensions.widthPx * (i + 1)) / (verticalFolds + 1)
+    )
+  );
 
   // Calculate border radius for different areas when shape is a rectangle
   let borderRadius = $derived(
@@ -68,6 +84,20 @@
   {#each $templateStore.root.children as child (child.id)}
     <TemplateRenderer element={child} dpi={dimensions.dpi} />
   {/each}
+  {#if showBleedSafeArea}
+    {#each horizontalFoldPositions as y (y)}
+      <div
+        class="fold-line fold-line-h"
+        style="top: {y}px; left: {dimensions.bleedPx}px; width: {dimensions.widthPx}px;"
+      ></div>
+    {/each}
+    {#each verticalFoldPositions as x (x)}
+      <div
+        class="fold-line fold-line-v"
+        style="top: {dimensions.bleedPx}px; left: {x}px; height: {dimensions.heightPx}px;"
+      ></div>
+    {/each}
+  {/if}
 </div>
 
 <style>
@@ -102,5 +132,21 @@
     border-radius: var(--border-radius-bleed);
     pointer-events: none;
     z-index: 1;
+  }
+
+  .fold-line {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .fold-line-h {
+    height: 0;
+    border-top: 1px dashed var(--bleed-area-color, #ff0000);
+  }
+
+  .fold-line-v {
+    width: 0;
+    border-left: 1px dashed var(--bleed-area-color, #ff0000);
   }
 </style>

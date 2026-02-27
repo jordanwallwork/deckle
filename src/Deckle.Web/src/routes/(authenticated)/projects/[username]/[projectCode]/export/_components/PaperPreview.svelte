@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageSetup, CardComponent, PlayerMatComponent, GameComponent } from '$lib/types';
-  import { isEditableComponent } from '$lib/utils/componentTypes';
+  import { isEditableComponent, isGameBoard } from '$lib/utils/componentTypes';
   import type { ContainerElement } from '$lib/components/editor/types';
   import { PAPER_DIMENSIONS } from '$lib/types';
   import StaticComponentRenderer from './StaticComponentRenderer.svelte';
@@ -16,6 +16,8 @@
     pageSetup,
     components,
     rotatedComponentIds = [],
+    slicedComponentIds = [],
+    exportBacksComponentIds = [],
     pageElements = $bindable([]),
     paperDimensions = $bindable({ width: 0, height: 0 }),
     projectId
@@ -23,6 +25,8 @@
     pageSetup: PageSetup;
     components: ComponentWithData[];
     rotatedComponentIds?: string[];
+    slicedComponentIds?: string[];
+    exportBacksComponentIds?: string[];
     pageElements?: HTMLElement[];
     paperDimensions?: { width: number; height: number };
     projectId?: string;
@@ -179,6 +183,12 @@
   // Set of component IDs that are rotated 90 degrees
   const rotatedSet = $derived(new Set(rotatedComponentIds));
 
+  // Set of component IDs that are sliced along fold lines
+  const slicedSet = $derived(new Set(slicedComponentIds));
+
+  // Set of component IDs that should have back designs exported
+  const exportBacksSet = $derived(new Set(exportBacksComponentIds));
+
   // Layout component instances on pages
   interface ComponentInstance {
     componentIndex: number;
@@ -189,6 +199,10 @@
     heightPx: number;
     bleedPx: number;
     isRotated: boolean;
+    // For sliced game board sections: viewport into the full design
+    isSlicedSection?: boolean;
+    viewportOffsetXPx?: number;
+    viewportOffsetYPx?: number;
   }
 
   interface Page {
@@ -202,13 +216,15 @@
    * @param printableWidthPx - Printable area width in pixels
    * @param printableHeightPx - Printable area height in pixels
    * @param rotatedIds - Set of component IDs that should be rotated 90 degrees
+   * @param slicedIds - Set of component IDs that should be sliced along fold lines
    */
   function packComponentInstances(
     componentsTopack: ComponentWithData[],
     componentIndexOffset: number,
     printableWidthPx: number,
     printableHeightPx: number,
-    rotatedIds: Set<string>
+    rotatedIds: Set<string>,
+    slicedIds: Set<string>
   ): Page[] {
     const pages: Page[] = [];
     let currentPage: Page = { instances: [] };
@@ -253,52 +269,127 @@
       // Determine rotation for this component (all instances share the same rotation)
       const isRotated = rotatedIds.has(component.id);
 
+      // Determine if this component is sliced (GameBoard with fold lines)
+      const isSliced =
+        slicedIds.has(component.id) &&
+        isGameBoard(component) &&
+        (component.horizontalFolds > 0 || component.verticalFolds > 0);
+
       // Create instances for this component
       for (const rowData of instances) {
         // Check for "Num" field for duplicates
         const numCopies = rowData.Num ? Math.max(1, Number.parseInt(rowData.Num, 10) || 1) : 1;
 
         for (let copyIndex = 0; copyIndex < numCopies; copyIndex++) {
+          if (isSliced && isGameBoard(component)) {
+            // Split this board into sections along its fold lines.
+            // horizontalFolds = number of horizontal fold lines → rows = horizontalFolds + 1
+            // verticalFolds = number of vertical fold lines → cols = verticalFolds + 1
+            const rows = component.horizontalFolds + 1;
+            const cols = component.verticalFolds + 1;
+            const sectionContentW = component.dimensions.widthPx / cols;
+            const sectionContentH = component.dimensions.heightPx / rows;
+            const boardBleed = component.dimensions.bleedPx;
+            const mergeData = Object.keys(rowData).length > 0 ? rowData : null;
 
-          // Swap dimensions if rotated
-          const layoutWidthPx = isRotated ? instanceHeightPx : instanceWidthPx;
-          const layoutHeightPx = isRotated ? instanceWidthPx : instanceHeightPx;
+            // 3mm bleed around each sliced section
+            const sectionBleedPx = Math.round((3 * component.dimensions.dpi) / 25.4);
 
-          // Check if instance fits in current row
-          if (currentX + layoutWidthPx > printableWidthPx) {
-            // Move to next row
-            currentX = 0;
-            currentY += rowHeight;
-            rowHeight = 0;
-          }
+            for (let sRow = 0; sRow < rows; sRow++) {
+              for (let sCol = 0; sCol < cols; sCol++) {
+                // Sections include 3mm bleed on all sides
+                const sectionW = sectionContentW + 2 * sectionBleedPx;
+                const sectionH = sectionContentH + 2 * sectionBleedPx;
+                const layoutW = isRotated ? sectionH : sectionW;
+                const layoutH = isRotated ? sectionW : sectionH;
 
-          // Check if instance fits on current page
-          if (currentY + layoutHeightPx > printableHeightPx) {
-            // Start new page
-            if (currentPage.instances.length > 0) {
-              pages.push(currentPage);
+                if (currentX + layoutW > printableWidthPx) {
+                  currentX = 0;
+                  currentY += rowHeight;
+                  rowHeight = 0;
+                }
+
+                if (currentY + layoutH > printableHeightPx) {
+                  if (currentPage.instances.length > 0) {
+                    pages.push(currentPage);
+                  }
+                  currentPage = { instances: [] };
+                  currentX = 0;
+                  currentY = 0;
+                  rowHeight = 0;
+                }
+
+                // Viewport offset: start sectionBleedPx before the section content.
+                // For outer sections this pulls from the board's own bleed;
+                // for inner sections it pulls content from the adjacent section.
+                const vpOffsetX = Math.max(
+                  0,
+                  boardBleed + sCol * sectionContentW - sectionBleedPx
+                );
+                const vpOffsetY = Math.max(
+                  0,
+                  boardBleed + sRow * sectionContentH - sectionBleedPx
+                );
+
+                currentPage.instances.push({
+                  componentIndex,
+                  x: currentX,
+                  y: currentY,
+                  mergeData,
+                  widthPx: sectionW,
+                  heightPx: sectionH,
+                  bleedPx: sectionBleedPx,
+                  isRotated,
+                  isSlicedSection: true,
+                  viewportOffsetXPx: vpOffsetX,
+                  viewportOffsetYPx: vpOffsetY
+                });
+
+                currentX += layoutW;
+                rowHeight = Math.max(rowHeight, layoutH);
+              }
             }
-            currentPage = { instances: [] };
-            currentX = 0;
-            currentY = 0;
-            rowHeight = 0;
+          } else {
+            // Swap dimensions if rotated
+            const layoutWidthPx = isRotated ? instanceHeightPx : instanceWidthPx;
+            const layoutHeightPx = isRotated ? instanceWidthPx : instanceHeightPx;
+
+            // Check if instance fits in current row
+            if (currentX + layoutWidthPx > printableWidthPx) {
+              // Move to next row
+              currentX = 0;
+              currentY += rowHeight;
+              rowHeight = 0;
+            }
+
+            // Check if instance fits on current page
+            if (currentY + layoutHeightPx > printableHeightPx) {
+              // Start new page
+              if (currentPage.instances.length > 0) {
+                pages.push(currentPage);
+              }
+              currentPage = { instances: [] };
+              currentX = 0;
+              currentY = 0;
+              rowHeight = 0;
+            }
+
+            // Add instance to current page
+            currentPage.instances.push({
+              componentIndex,
+              x: currentX,
+              y: currentY,
+              mergeData: Object.keys(rowData).length > 0 ? rowData : null,
+              widthPx: instanceWidthPx,
+              heightPx: instanceHeightPx,
+              bleedPx: component.dimensions.bleedPx,
+              isRotated
+            });
+
+            // Update position for next instance (use layout dimensions)
+            currentX += layoutWidthPx;
+            rowHeight = Math.max(rowHeight, layoutHeightPx);
           }
-
-          // Add instance to current page
-          currentPage.instances.push({
-            componentIndex,
-            x: currentX,
-            y: currentY,
-            mergeData: Object.keys(rowData).length > 0 ? rowData : null,
-            widthPx: instanceWidthPx,
-            heightPx: instanceHeightPx,
-            bleedPx: component.dimensions.bleedPx,
-            isRotated
-          });
-
-          // Update position for next instance (use layout dimensions)
-          currentX += layoutWidthPx;
-          rowHeight = Math.max(rowHeight, layoutHeightPx);
         }
       }
     });
@@ -323,7 +414,8 @@
           originalIndex,
           printableAreaWidthPx,
           printableAreaHeightPx,
-          rotatedSet
+          rotatedSet,
+          slicedSet
         );
 
         // Append to overall page list
@@ -338,39 +430,34 @@
         0,
         printableAreaWidthPx,
         printableAreaHeightPx,
-        rotatedSet
+        rotatedSet,
+        slicedSet
       );
     }
   });
 
-  // Generate back pages with horizontally mirrored positions
+  // Generate back pages with horizontally mirrored positions, filtered per component
   const backPages = $derived.by((): Page[] => {
-    if (!pageSetup.exportBacks) {
-      return [];
-    }
-
     return pages.map((frontPage) => {
-      const backPageInstances: ComponentInstance[] = frontPage.instances.map((instance) => {
-        // Mirror the x position, accounting for rotation
-        const layoutWidth = instance.isRotated ? instance.heightPx : instance.widthPx;
-        const mirroredX = printableAreaWidthPx - (instance.x + layoutWidth);
-        return {
-          ...instance,
-          x: mirroredX
-        };
-      });
-
-      return { instances: backPageInstances };
+      const backInstances: ComponentInstance[] = frontPage.instances
+        .filter((instance) => exportBacksSet.has(components[instance.componentIndex].component.id))
+        .map((instance) => {
+          // Mirror the x position, accounting for rotation
+          const layoutWidth = instance.isRotated ? instance.heightPx : instance.widthPx;
+          const mirroredX = printableAreaWidthPx - (instance.x + layoutWidth);
+          return { ...instance, x: mirroredX };
+        });
+      return { instances: backInstances };
     });
   });
 
-  // Combine front and back pages
+  // Combine front and back pages (only include back pages that have instances)
   const allPages = $derived.by((): Array<{ page: Page; isBack: boolean }> => {
     const result: Array<{ page: Page; isBack: boolean }> = [];
 
     for (let i = 0; i < pages.length; i++) {
       result.push({ page: pages[i], isBack: false });
-      if (backPages.length > i) {
+      if (i < backPages.length && backPages[i].instances.length > 0) {
         result.push({ page: backPages[i], isBack: true });
       }
     }
@@ -480,45 +567,89 @@
                   {@const designJson = isBack ? component.backDesign : component.frontDesign}
                   {#if designJson}
                     {@const design = JSON.parse(designJson) as ContainerElement}
-                    {@const rotation = instance.isRotated ? (isBack ? -90 : 90) : 0}
-                    {@const layoutWidthPx = instance.isRotated
-                      ? instance.heightPx
-                      : instance.widthPx}
-                    {@const layoutHeightPx = instance.isRotated
-                      ? instance.widthPx
-                      : instance.heightPx}
-                    <div
-                      class="component-instance"
-                      style="
-                        position: absolute;
-                        left: {instance.x}px;
-                        top: {instance.y}px;
-                        width: {layoutWidthPx}px;
-                        height: {layoutHeightPx}px;
-                      "
-                    >
+                    {#if instance.isSlicedSection && instance.viewportOffsetXPx !== undefined && instance.viewportOffsetYPx !== undefined}
+                      <!-- Sliced game board section: clip to section content, viewport into full design -->
+                      {@const sliceRotation = instance.isRotated ? (isBack ? -90 : 90) : 0}
+                      {@const sliceLayoutW = instance.isRotated ? instance.heightPx : instance.widthPx}
+                      {@const sliceLayoutH = instance.isRotated ? instance.widthPx : instance.heightPx}
                       <div
-                        class="component-renderer-wrapper"
+                        class="component-instance"
                         style="
-                          transform: rotate({rotation}deg) {rotation === 90
-                          ? 'translateY(-100%)'
-                          : rotation === -90
-                            ? 'translateX(-100%)'
-                            : ''};
-                          transform-origin: top left;
-                          width: {instance.widthPx}px;
-                          height: {instance.heightPx}px;
+                          position: absolute;
+                          left: {instance.x}px;
+                          top: {instance.y}px;
+                          width: {sliceLayoutW}px;
+                          height: {sliceLayoutH}px;
+                          overflow: hidden;
                         "
                       >
-                        <StaticComponentRenderer
-                          {design}
-                          dimensions={component.dimensions}
-                          shape={component.shape}
-                          mergeData={instance.mergeData}
-                          {projectId}
-                        />
+                        <div
+                          style="
+                            transform: rotate({sliceRotation}deg) {sliceRotation === 90 ? 'translateY(-100%)' : sliceRotation === -90 ? 'translateX(-100%)' : ''};
+                            transform-origin: top left;
+                            width: {instance.widthPx}px;
+                            height: {instance.heightPx}px;
+                            overflow: hidden;
+                            position: relative;
+                          "
+                        >
+                          <div
+                            style="
+                              position: absolute;
+                              transform: translate({-instance.viewportOffsetXPx}px, {-instance.viewportOffsetYPx}px);
+                            "
+                          >
+                            <StaticComponentRenderer
+                              {design}
+                              dimensions={component.dimensions}
+                              shape={component.shape}
+                              mergeData={instance.mergeData}
+                              {projectId}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    {:else}
+                      {@const rotation = instance.isRotated ? (isBack ? -90 : 90) : 0}
+                      {@const layoutWidthPx = instance.isRotated
+                        ? instance.heightPx
+                        : instance.widthPx}
+                      {@const layoutHeightPx = instance.isRotated
+                        ? instance.widthPx
+                        : instance.heightPx}
+                      <div
+                        class="component-instance"
+                        style="
+                          position: absolute;
+                          left: {instance.x}px;
+                          top: {instance.y}px;
+                          width: {layoutWidthPx}px;
+                          height: {layoutHeightPx}px;
+                        "
+                      >
+                        <div
+                          class="component-renderer-wrapper"
+                          style="
+                            transform: rotate({rotation}deg) {rotation === 90
+                            ? 'translateY(-100%)'
+                            : rotation === -90
+                              ? 'translateX(-100%)'
+                              : ''};
+                            transform-origin: top left;
+                            width: {instance.widthPx}px;
+                            height: {instance.heightPx}px;
+                          "
+                        >
+                          <StaticComponentRenderer
+                            {design}
+                            dimensions={component.dimensions}
+                            shape={component.shape}
+                            mergeData={instance.mergeData}
+                            {projectId}
+                          />
+                        </div>
+                      </div>
+                    {/if}
                   {/if}
                 {/if}
               {/each}

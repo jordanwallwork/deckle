@@ -31,6 +31,17 @@ export interface PlayerMatSize {
   heightMm: number;
 }
 
+export interface GameBoardPresetSize {
+  value: string;
+  label: string;
+  group: 'Square' | 'Rectangle';
+  /** Unfolded width in landscape orientation (mm) */
+  landscapeWidthMm: number;
+  /** Unfolded height in landscape orientation (mm) */
+  landscapeHeightMm: number;
+  isQuadFold: boolean;
+}
+
 // Card size options
 export const CARD_SIZES: readonly CardSize[] = [
   { value: 'MiniAmerican', label: 'Mini American', widthMm: 41, heightMm: 63 },
@@ -76,6 +87,28 @@ export const DICE_COLORS: readonly DiceColor[] = [
   { value: 'NebularPurple', label: 'Nebular Purple', hex: '#872a92', colorblindFriendly: false },
   { value: 'PlutoBrown', label: 'Pluto Brown', hex: '#8e4400', colorblindFriendly: false },
   { value: 'StarWhite', label: 'Star White', hex: '#ffffff', colorblindFriendly: false }
+] as const;
+
+// Game board preset size options
+export const GAME_BOARD_SIZES: readonly GameBoardPresetSize[] = [
+  // Square bi-folds
+  { value: 'SmallBifoldSquare',        label: 'Small Bi-fold Square',        group: 'Square',    landscapeWidthMm: 304.8, landscapeHeightMm: 152.4, isQuadFold: false },
+  { value: 'MediumBifoldSquare',       label: 'Medium Bi-fold Square',       group: 'Square',    landscapeWidthMm: 457.2, landscapeHeightMm: 228.6, isQuadFold: false },
+  { value: 'LargeBifoldSquare',        label: 'Large Bi-fold Square',        group: 'Square',    landscapeWidthMm: 533.4, landscapeHeightMm: 266.7, isQuadFold: false },
+  { value: 'ExtraLargeBifoldSquare',   label: 'Extra Large Bi-fold Square',  group: 'Square',    landscapeWidthMm: 609.6, landscapeHeightMm: 304.8, isQuadFold: false },
+  // Square quad-folds
+  { value: 'SmallQuadFoldSquare',      label: 'Small Quad-fold Square',      group: 'Square',    landscapeWidthMm: 304.8, landscapeHeightMm: 304.8, isQuadFold: true  },
+  { value: 'MediumQuadFoldSquare',     label: 'Medium Quad-fold Square',     group: 'Square',    landscapeWidthMm: 457.2, landscapeHeightMm: 457.2, isQuadFold: true  },
+  { value: 'LargeQuadFoldSquare',      label: 'Large Quad-fold Square',      group: 'Square',    landscapeWidthMm: 533.4, landscapeHeightMm: 533.4, isQuadFold: true  },
+  { value: 'ExtraLargeQuadFoldSquare', label: 'Extra Large Quad-fold Square',group: 'Square',    landscapeWidthMm: 609.6, landscapeHeightMm: 609.6, isQuadFold: true  },
+  // Rectangle bi-folds
+  { value: 'SmallBifoldRectangle',     label: 'Small Bi-fold Rectangle',     group: 'Rectangle', landscapeWidthMm: 203.2, landscapeHeightMm: 152.4, isQuadFold: false },
+  { value: 'MediumBifoldRectangle',    label: 'Medium Bi-fold Rectangle',    group: 'Rectangle', landscapeWidthMm: 304.8, landscapeHeightMm: 228.6, isQuadFold: false },
+  { value: 'LargeBifoldRectangle',     label: 'Large Bi-fold Rectangle',     group: 'Rectangle', landscapeWidthMm: 381.0, landscapeHeightMm: 266.7, isQuadFold: false },
+  // Rectangle quad-folds
+  { value: 'SmallQuadFoldRectangle',   label: 'Small Quad-fold Rectangle',   group: 'Rectangle', landscapeWidthMm: 304.8, landscapeHeightMm: 203.2, isQuadFold: true  },
+  { value: 'MediumQuadFoldRectangle',  label: 'Medium Quad-fold Rectangle',  group: 'Rectangle', landscapeWidthMm: 457.2, landscapeHeightMm: 304.8, isQuadFold: true  },
+  { value: 'LargeQuadFoldRectangle',   label: 'Large Quad-fold Rectangle',   group: 'Rectangle', landscapeWidthMm: 533.4, landscapeHeightMm: 381.0, isQuadFold: true  },
 ] as const;
 
 // Player mat size options

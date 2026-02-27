@@ -6,12 +6,14 @@
     headerActions?: Snippet;
     /** Main content */
     children: Snippet;
+    /** Override the default padding */
+    overridePadding?: string;
   }
 
-  let { headerActions, children }: Props = $props();
+  let { headerActions, children, overridePadding }: Props = $props();
 </script>
 
-<div class="page-header">
+<div class="page-header" style:padding={overridePadding}>
   <div class="header-content">
     {@render children()}
     {#if headerActions}

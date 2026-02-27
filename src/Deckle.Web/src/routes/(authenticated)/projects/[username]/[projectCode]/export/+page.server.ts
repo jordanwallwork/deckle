@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ url, fetch, parent }) => {
     // Load all components for the project to show in the selector
     const allComponents = await componentsApi.listByProject(parentData.project.id, fetch);
 
-    // Filter to only exportable components (Card and PlayerMat)
+    // Filter to only exportable components (Card, GameBoard, and PlayerMat)
     const exportableComponents = allComponents.filter((c) => isEditableComponent(c));
 
     // Get component IDs from query parameter (can be single ID or comma-separated list)

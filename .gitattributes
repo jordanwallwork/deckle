@@ -1,0 +1,15 @@
+# Normalize all text files to LF in the repo and on checkout.
+# This overrides core.autocrlf for everyone working on the project.
+* text=auto eol=lf
+
+# Explicitly binary — never touch line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary

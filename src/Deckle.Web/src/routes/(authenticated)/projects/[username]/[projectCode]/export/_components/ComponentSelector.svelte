@@ -2,24 +2,27 @@
   import type { GameComponent } from '$lib/types';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { isEditableComponent, isGameBoard } from '$lib/utils/componentTypes';
 
   let {
     components,
     selectedComponentIds = [],
-    rotatedComponentIds = $bindable<string[]>([])
+    rotatedComponentIds = $bindable<string[]>([]),
+    slicedComponentIds = $bindable<string[]>([]),
+    exportBacksComponentIds = $bindable<string[]>([])
   }: {
     components: GameComponent[];
     selectedComponentIds?: string[];
     rotatedComponentIds?: string[];
+    slicedComponentIds?: string[];
+    exportBacksComponentIds?: string[];
   } = $props();
 
-  // Create a set for faster lookups
   let selectedSet = $derived(new Set(selectedComponentIds));
-
-  // Create a set for rotation lookups
   let rotatedSet = $derived(new Set(rotatedComponentIds));
+  let slicedSet = $derived(new Set(slicedComponentIds));
+  let exportBacksSet = $derived(new Set(exportBacksComponentIds));
 
-  // Toggle rotation for a component
   function toggleRotation(componentId: string) {
     if (rotatedSet.has(componentId)) {
       rotatedComponentIds = rotatedComponentIds.filter((id) => id !== componentId);
@@ -28,28 +31,38 @@
     }
   }
 
-  // Handle checkbox toggle
+  function toggleSliced(componentId: string) {
+    if (slicedSet.has(componentId)) {
+      slicedComponentIds = slicedComponentIds.filter((id) => id !== componentId);
+    } else {
+      slicedComponentIds = [...slicedComponentIds, componentId];
+    }
+  }
+
+  function toggleExportBacks(componentId: string) {
+    if (exportBacksSet.has(componentId)) {
+      exportBacksComponentIds = exportBacksComponentIds.filter((id) => id !== componentId);
+    } else {
+      exportBacksComponentIds = [...exportBacksComponentIds, componentId];
+    }
+  }
+
   function toggleComponent(componentId: string) {
     const newSelected = selectedSet.has(componentId)
       ? selectedComponentIds.filter((id) => id !== componentId)
       : [...selectedComponentIds, componentId];
-
-    // Update URL with new selection
     updateUrl(newSelected);
   }
 
-  // Handle select all
   function selectAll() {
     const allIds = components.map((c) => c.id);
     updateUrl(allIds);
   }
 
-  // Handle clear all
   function clearAll() {
     updateUrl([]);
   }
 
-  // Update URL with new component selection
   function updateUrl(componentIds: string[]) {
     const url = new URL($page.url);
     if (componentIds.length > 0) {
@@ -64,7 +77,6 @@
     });
   }
 
-  // Group components by type for better organization
   const componentsByType = $derived.by(() => {
     const groups: Record<string, GameComponent[]> = {};
     for (const component of components) {
@@ -96,37 +108,57 @@
         <div class="component-group">
           <h4 class="group-title">{type}s</h4>
           {#each typeComponents as component}
+            {@const isSelected = selectedSet.has(component.id)}
+            {@const isRotated = rotatedSet.has(component.id)}
+            {@const isSliced = slicedSet.has(component.id)}
+            {@const isExportingBacks = exportBacksSet.has(component.id)}
+            {@const board = isGameBoard(component) ? component : null}
+            {@const hasFolds =
+              board !== null && (board.horizontalFolds > 0 || board.verticalFolds > 0)}
+            {@const canExportBacks = isEditableComponent(component)}
             <div class="component-item">
-              <label class="component-label">
-                <input
-                  type="checkbox"
-                  checked={selectedSet.has(component.id)}
-                  onchange={() => toggleComponent(component.id)}
-                />
-                <span class="component-name">{component.name}</span>
-              </label>
-              <button
-                class="rotate-btn"
-                class:active={rotatedSet.has(component.id)}
-                onclick={() => toggleRotation(component.id)}
-                title={rotatedSet.has(component.id) ? 'Remove rotation' : 'Rotate 90°'}
-                type="button"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M21.5 2v6h-6" />
-                  <path d="M21.34 15.57a10 10 0 1 1-.57-8.38" />
-                </svg>
-              </button>
+              <div class="component-row">
+                <label class="component-label">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onchange={() => toggleComponent(component.id)}
+                  />
+                  <span class="component-name">{component.name}</span>
+                </label>
+              </div>
+              {#if isSelected}
+                <div class="component-actions">
+                  <button
+                    class="action-btn"
+                    class:active={isRotated}
+                    onclick={() => toggleRotation(component.id)}
+                    type="button"
+                  >
+                    Rotate
+                  </button>
+                  {#if canExportBacks}
+                    <button
+                      class="action-btn"
+                      class:active={isExportingBacks}
+                      onclick={() => toggleExportBacks(component.id)}
+                      type="button"
+                    >
+                      Export Backs
+                    </button>
+                  {/if}
+                  {#if hasFolds}
+                    <button
+                      class="action-btn"
+                      class:active={isSliced}
+                      onclick={() => toggleSliced(component.id)}
+                      type="button"
+                    >
+                      Slice Along Cut Lines
+                    </button>
+                  {/if}
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -208,8 +240,7 @@
 
   .component-item {
     display: flex;
-    align-items: center;
-    gap: 0.25rem;
+    flex-direction: column;
     padding: 0.25rem;
     border-radius: 4px;
     transition: background-color 0.2s;
@@ -219,54 +250,69 @@
     background-color: #f5f5f5;
   }
 
+  .component-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
   .component-label {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     flex: 1;
     cursor: pointer;
+    min-width: 0;
   }
 
   .component-label input[type='checkbox'] {
     cursor: pointer;
     width: 16px;
     height: 16px;
+    flex-shrink: 0;
   }
 
   .component-name {
     font-size: 0.875rem;
     user-select: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .rotate-btn {
+  .component-actions {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding-top: 0.25rem;
+    padding-left: 1.5rem;
+  }
+
+  .action-btn {
+    padding: 0.2rem 0.5rem;
     border: 1px solid #d1d5db;
     border-radius: 4px;
     background: white;
-    color: #6b7280;
+    color: #374151;
     cursor: pointer;
-    flex-shrink: 0;
+    font-size: 0.775rem;
+    font-weight: 500;
     transition: all 0.15s ease;
+    white-space: nowrap;
   }
 
-  .rotate-btn:hover {
+  .action-btn:hover {
     background: #f3f4f6;
     border-color: #9ca3af;
-    color: #374151;
   }
 
-  .rotate-btn.active {
+  .action-btn.active {
     background: #dbeafe;
     border-color: #3b82f6;
     color: #2563eb;
   }
 
-  .rotate-btn.active:hover {
+  .action-btn.active:hover {
     background: #bfdbfe;
   }
 </style>

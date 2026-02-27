@@ -2,20 +2,19 @@ import type {
   GameComponent,
   CardComponent,
   DiceComponent,
+  GameBoardComponent,
   PlayerMatComponent,
   EditableComponent
 } from '$lib/types';
 
 // Type guard for components that can be edited (have front/back designs)
-// Both Card and PlayerMat extend EditableComponent
-export function isEditableComponent(c: GameComponent): c is CardComponent | PlayerMatComponent {
-  return c.type === 'Card' || c.type === 'PlayerMat';
+export function isEditableComponent(c: GameComponent): c is CardComponent | GameBoardComponent | PlayerMatComponent {
+  return c.type === 'Card' || c.type === 'GameBoard' || c.type === 'PlayerMat';
 }
 
 // Type guard for components that can have a data source
-// Both Card and PlayerMat have dataSource property
-export function hasDataSource(c: GameComponent): c is CardComponent | PlayerMatComponent {
-  return c.type === 'Card' || c.type === 'PlayerMat';
+export function hasDataSource(c: GameComponent): c is CardComponent | GameBoardComponent | PlayerMatComponent {
+  return c.type === 'Card' || c.type === 'GameBoard' || c.type === 'PlayerMat';
 }
 
 // Specific component type guards
@@ -25,6 +24,10 @@ export function isCard(c: GameComponent): c is CardComponent {
 
 export function isDice(c: GameComponent): c is DiceComponent {
   return c.type === 'Dice';
+}
+
+export function isGameBoard(c: GameComponent): c is GameBoardComponent {
+  return c.type === 'GameBoard';
 }
 
 export function isPlayerMat(c: GameComponent): c is PlayerMatComponent {
@@ -38,6 +41,8 @@ export function getComponentDisplayType(c: GameComponent): string {
       return 'Card';
     case 'Dice':
       return 'Dice';
+    case 'GameBoard':
+      return 'Game Board';
     case 'PlayerMat':
       return 'Player Mat';
     default:

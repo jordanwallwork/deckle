@@ -39,7 +39,7 @@ describe('root layout load', () => {
 
     const result = await load(makeEvent('/projects'));
 
-    expect(result.user).toEqual(user);
+    expect(result!.user).toEqual(user);
   });
 
   it('redirects to /account/setup when user has no username and is not on setup or landing page', async () => {
@@ -58,7 +58,7 @@ describe('root layout load', () => {
 
     const result = await load(makeEvent('/account/setup'));
 
-    expect(result.user).toEqual(user);
+    expect(result!.user).toEqual(user);
   });
 
   it('does not redirect when user has no username but is on the landing page', async () => {
@@ -67,7 +67,7 @@ describe('root layout load', () => {
 
     const result = await load(makeEvent('/'));
 
-    expect(result.user).toEqual(user);
+    expect(result!.user).toEqual(user);
   });
 
   it('returns undefined user when authApi.me throws a non-redirect error', async () => {
@@ -75,7 +75,7 @@ describe('root layout load', () => {
 
     const result = await load(makeEvent('/projects'));
 
-    expect(result.user).toBeUndefined();
+    expect(result!.user).toBeUndefined();
   });
 
   it('re-throws SvelteKit redirect errors', async () => {

@@ -2,7 +2,7 @@
   let {
     onSelectType
   }: {
-    onSelectType: (type: 'card' | 'dice' | 'playermat') => void;
+    onSelectType: (type: 'card' | 'dice' | 'gameboard' | 'playermat') => void;
   } = $props();
 </script>
 
@@ -16,6 +16,11 @@
     <div class="type-icon">🎲</div>
     <h4>Dice</h4>
     <p>Design custom dice with various colors and styles</p>
+  </button>
+  <button class="type-card" onclick={() => onSelectType('gameboard')}>
+    <div class="type-icon">🗺️</div>
+    <h4>Game Board</h4>
+    <p>Create foldable game boards in square or rectangle formats</p>
   </button>
   <button class="type-card" onclick={() => onSelectType('playermat')}>
     <div class="type-icon">📋</div>

@@ -45,9 +45,9 @@ describe('export page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.allExportableComponents).toHaveLength(2);
-    expect(result.components).toHaveLength(0);
-    expect(result.project).toEqual(project);
+    expect(result!.allExportableComponents).toHaveLength(2);
+    expect(result!.components).toHaveLength(0);
+    expect(result!.project).toEqual(project);
   });
 
   it('returns empty components list for empty components param', async () => {
@@ -55,7 +55,7 @@ describe('export page load', () => {
 
     const result = await load(makeEvent({ components: '' }));
 
-    expect(result.components).toHaveLength(0);
+    expect(result!.components).toHaveLength(0);
   });
 
   it('loads the selected component when a component ID is provided', async () => {
@@ -65,10 +65,10 @@ describe('export page load', () => {
 
     const result = await load(makeEvent({ components: 'c1' }));
 
-    expect(result.components).toHaveLength(1);
-    expect(result.components[0].component).toEqual(card);
-    expect(result.components[0].dataSource).toBeNull();
-    expect(result.components[0].dataSourceRows).toEqual([]);
+    expect(result!.components).toHaveLength(1);
+    expect(result!.components[0].component).toEqual(card);
+    expect(result!.components[0].dataSource).toBeNull();
+    expect(result!.components[0].dataSourceRows).toEqual([]);
   });
 
   it('loads data source rows when the component has a linked data source', async () => {
@@ -82,8 +82,8 @@ describe('export page load', () => {
 
     const result = await load(makeEvent({ components: 'c1' }));
 
-    expect(result.components[0].dataSource).toEqual(fullDataSource);
-    expect(result.components[0].dataSourceRows.length).toBeGreaterThan(0);
+    expect(result!.components[0].dataSource).toEqual(fullDataSource);
+    expect(result!.components[0].dataSourceRows.length).toBeGreaterThan(0);
   });
 
   it('continues without data source if loading it fails', async () => {
@@ -94,8 +94,8 @@ describe('export page load', () => {
 
     const result = await load(makeEvent({ components: 'c1' }));
 
-    expect(result.components[0].dataSource).toBeNull();
-    expect(result.components[0].dataSourceRows).toEqual([]);
+    expect(result!.components[0].dataSource).toBeNull();
+    expect(result!.components[0].dataSourceRows).toEqual([]);
   });
 
   it('loads multiple components when comma-separated IDs are provided', async () => {
@@ -108,7 +108,7 @@ describe('export page load', () => {
 
     const result = await load(makeEvent({ components: 'c1,c2' }));
 
-    expect(result.components).toHaveLength(2);
+    expect(result!.components).toHaveLength(2);
   });
 
   it('throws a 500 error when listByProject fails unexpectedly', async () => {
@@ -127,6 +127,6 @@ describe('export page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.allExportableComponents.map((c: any) => c.id)).toEqual(['c1', 'pm1']);
+    expect(result!.allExportableComponents.map((c: any) => c.id)).toEqual(['c1', 'pm1']);
   });
 });

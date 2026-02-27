@@ -12,6 +12,8 @@ public static class WebApplicationExtensions
 {
     public static async Task<WebApplication> ConfigurePipelineAsync(this WebApplication app)
     {
+        LogStartupConfigurationWarnings(app);
+
         app.UseExceptionless();
         app.UseExceptionHandler();
 
@@ -72,6 +74,21 @@ public static class WebApplicationExtensions
         app.MapAdminEndpoints();
 
         return app;
+    }
+
+    private static void LogStartupConfigurationWarnings(WebApplication app)
+    {
+        if (app.Environment.IsDevelopment())
+            return;
+
+        var logger = app.Services.GetRequiredService<ILogger<WebApplication>>();
+        var config = app.Configuration;
+
+        if (string.IsNullOrWhiteSpace(config["CookieDomain"]))
+            logger.LogWarning("CookieDomain not configured. Cookies will not be shared between API and Web domains on Railway.");
+
+        if (string.IsNullOrWhiteSpace(config["FrontendUrl"]))
+            logger.LogWarning("FrontendUrl not configured in production. CORS will block all requests.");
     }
 
     private static async Task ApplyMigrationsAsync(this WebApplication app)

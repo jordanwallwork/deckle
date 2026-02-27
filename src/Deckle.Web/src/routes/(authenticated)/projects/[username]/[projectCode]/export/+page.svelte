@@ -154,7 +154,6 @@
           bind:rotatedComponentIds
           bind:slicedComponentIds
           bind:exportBacksComponentIds
-          instanceCounts={data.instanceCounts}
         />
       </div>
 

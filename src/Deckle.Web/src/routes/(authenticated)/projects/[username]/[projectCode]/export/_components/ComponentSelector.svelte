@@ -9,15 +9,13 @@
     selectedComponentIds = [],
     rotatedComponentIds = $bindable<string[]>([]),
     slicedComponentIds = $bindable<string[]>([]),
-    exportBacksComponentIds = $bindable<string[]>([]),
-    instanceCounts = {}
+    exportBacksComponentIds = $bindable<string[]>([])
   }: {
     components: GameComponent[];
     selectedComponentIds?: string[];
     rotatedComponentIds?: string[];
     slicedComponentIds?: string[];
     exportBacksComponentIds?: string[];
-    instanceCounts?: Record<string, number>;
   } = $props();
 
   let selectedSet = $derived(new Set(selectedComponentIds));
@@ -114,7 +112,6 @@
             {@const isRotated = rotatedSet.has(component.id)}
             {@const isSliced = slicedSet.has(component.id)}
             {@const isExportingBacks = exportBacksSet.has(component.id)}
-            {@const count = instanceCounts[component.id] ?? 1}
             {@const board = isGameBoard(component) ? component : null}
             {@const hasFolds =
               board !== null && (board.horizontalFolds > 0 || board.verticalFolds > 0)}
@@ -129,7 +126,6 @@
                   />
                   <span class="component-name">{component.name}</span>
                 </label>
-                <span class="instance-count">({count})</span>
               </div>
               {#if isSelected}
                 <div class="component-actions">
@@ -281,13 +277,6 @@
     user-select: none;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .instance-count {
-    font-size: 0.8rem;
-    color: #9ca3af;
-    flex-shrink: 0;
     white-space: nowrap;
   }
 

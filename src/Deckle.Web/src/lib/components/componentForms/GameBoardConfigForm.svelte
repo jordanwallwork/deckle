@@ -75,6 +75,19 @@
     return 2.5 * Math.pow(2, hf + vf);
   });
 
+  const customFoldedSize = $derived(() => {
+    if (sizeMode !== 'custom') return null;
+    const w = parseFloat(customWidthMm);
+    const h = parseFloat(customHeightMm);
+    const hf = parseInt(customHorizontalFolds);
+    const vf = parseInt(customVerticalFolds);
+    if (isNaN(w) || isNaN(h) || isNaN(hf) || isNaN(vf)) return null;
+    if (hf === 0 && vf === 0) return null;
+    const fw = vf > 0 ? w / vf : w;
+    const fh = hf > 0 ? h / hf : h;
+    return { fw, fh };
+  });
+
   const customWidthValid = $derived(() => {
     if (sizeMode !== 'custom') return true;
     const v = parseFloat(customWidthMm);
@@ -210,11 +223,16 @@
       {/if}
     </FormField>
 
-    {#if customThicknessMm() !== null}
+    {#if customFoldedSize() !== null || customThicknessMm() !== null}
       <p class="dimension-hint">
-        Folded thickness: {customThicknessMm()}mm <span
-          class="thickness-info"
-          title="Estimated thickness when folded, based on 2.5mm board material">ⓘ</span>
+        {#if customFoldedSize() !== null}
+          Folded: {customFoldedSize()!.fw}×{customFoldedSize()!.fh}mm
+        {/if}
+        {#if customThicknessMm() !== null}
+          {customFoldedSize() !== null ? '— ' : ''}Folded thickness: {customThicknessMm()}mm <span
+            class="thickness-info"
+            title="Estimated thickness when folded, based on 2.5mm board material">ⓘ</span>
+        {/if}
       </p>
     {/if}
   {/if}

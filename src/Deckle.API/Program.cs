@@ -17,6 +17,9 @@ builder.Services.AddDeckleCors(builder.Configuration, builder.Environment);
 // API services (OpenAPI, problem details, JSON options)
 builder.Services.AddDeckleApiServices();
 
+// Rate limiting
+builder.Services.AddDeckleRateLimiting();
+
 // Infrastructure (HttpClient, email, R2 storage, background services)
 builder.Services.AddDeckleInfrastructure(builder.Configuration);
 

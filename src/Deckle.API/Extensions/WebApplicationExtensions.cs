@@ -44,6 +44,7 @@ public static class WebApplicationExtensions
         app.UseCors();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseRateLimiter();
 
         // Hangfire dashboard with Administrator-only access
         // Must be registered after UseAuthentication/UseAuthorization

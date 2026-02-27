@@ -140,6 +140,7 @@ public static class ProjectEndpoints
 
             return Results.Ok(invitedUser);
         })
+        .RequireRateLimiting("invite")
         .WithName("InviteUserToProject");
 
         group.MapDelete("{id:guid}/users/{userId:guid}", async (

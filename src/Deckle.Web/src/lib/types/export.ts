@@ -15,7 +15,6 @@ export interface PageSetup {
   marginInches: number;
   unit: MeasurementUnit;
   cropMarks: boolean;
-  exportBacks: boolean;
   separateComponentPages: boolean;
 }
 
@@ -31,6 +30,5 @@ export const DEFAULT_PAGE_SETUP: PageSetup = {
   marginInches: 0.25,
   unit: 'inches',
   cropMarks: true,
-  exportBacks: false,
   separateComponentPages: false
 };

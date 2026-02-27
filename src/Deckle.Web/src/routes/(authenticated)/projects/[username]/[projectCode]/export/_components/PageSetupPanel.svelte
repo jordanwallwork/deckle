@@ -253,20 +253,6 @@
     </div>
   </FieldWrapper>
 
-  <FieldWrapper label="Export Backs" htmlFor="exportBacks">
-    <div class="checkbox-wrapper">
-      <input
-        type="checkbox"
-        id="exportBacks"
-        bind:checked={pageSetup.exportBacks}
-        class="checkbox-input"
-      />
-      <label for="exportBacks" class="checkbox-label">
-        Export back designs on separate pages
-      </label>
-    </div>
-  </FieldWrapper>
-
   {#if shouldShowSeparatePages}
     <FieldWrapper label="Separate Pages" htmlFor="separateComponentPages">
       <div class="checkbox-wrapper">

@@ -17,6 +17,7 @@
     components,
     rotatedComponentIds = [],
     slicedComponentIds = [],
+    exportBacksComponentIds = [],
     pageElements = $bindable([]),
     paperDimensions = $bindable({ width: 0, height: 0 }),
     projectId
@@ -25,6 +26,7 @@
     components: ComponentWithData[];
     rotatedComponentIds?: string[];
     slicedComponentIds?: string[];
+    exportBacksComponentIds?: string[];
     pageElements?: HTMLElement[];
     paperDimensions?: { width: number; height: number };
     projectId?: string;
@@ -183,6 +185,9 @@
 
   // Set of component IDs that are sliced along fold lines
   const slicedSet = $derived(new Set(slicedComponentIds));
+
+  // Set of component IDs that should have back designs exported
+  const exportBacksSet = $derived(new Set(exportBacksComponentIds));
 
   // Layout component instances on pages
   interface ComponentInstance {
@@ -431,34 +436,28 @@
     }
   });
 
-  // Generate back pages with horizontally mirrored positions
+  // Generate back pages with horizontally mirrored positions, filtered per component
   const backPages = $derived.by((): Page[] => {
-    if (!pageSetup.exportBacks) {
-      return [];
-    }
-
     return pages.map((frontPage) => {
-      const backPageInstances: ComponentInstance[] = frontPage.instances.map((instance) => {
-        // Mirror the x position, accounting for rotation
-        const layoutWidth = instance.isRotated ? instance.heightPx : instance.widthPx;
-        const mirroredX = printableAreaWidthPx - (instance.x + layoutWidth);
-        return {
-          ...instance,
-          x: mirroredX
-        };
-      });
-
-      return { instances: backPageInstances };
+      const backInstances: ComponentInstance[] = frontPage.instances
+        .filter((instance) => exportBacksSet.has(components[instance.componentIndex].component.id))
+        .map((instance) => {
+          // Mirror the x position, accounting for rotation
+          const layoutWidth = instance.isRotated ? instance.heightPx : instance.widthPx;
+          const mirroredX = printableAreaWidthPx - (instance.x + layoutWidth);
+          return { ...instance, x: mirroredX };
+        });
+      return { instances: backInstances };
     });
   });
 
-  // Combine front and back pages
+  // Combine front and back pages (only include back pages that have instances)
   const allPages = $derived.by((): Array<{ page: Page; isBack: boolean }> => {
     const result: Array<{ page: Page; isBack: boolean }> = [];
 
     for (let i = 0; i < pages.length; i++) {
       result.push({ page: pages[i], isBack: false });
-      if (backPages.length > i) {
+      if (i < backPages.length && backPages[i].instances.length > 0) {
         result.push({ page: backPages[i], isBack: true });
       }
     }

@@ -2,25 +2,28 @@
   import type { GameComponent } from '$lib/types';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { isGameBoard } from '$lib/utils/componentTypes';
+  import { isEditableComponent, isGameBoard } from '$lib/utils/componentTypes';
 
   let {
     components,
     selectedComponentIds = [],
     rotatedComponentIds = $bindable<string[]>([]),
     slicedComponentIds = $bindable<string[]>([]),
+    exportBacksComponentIds = $bindable<string[]>([]),
     instanceCounts = {}
   }: {
     components: GameComponent[];
     selectedComponentIds?: string[];
     rotatedComponentIds?: string[];
     slicedComponentIds?: string[];
+    exportBacksComponentIds?: string[];
     instanceCounts?: Record<string, number>;
   } = $props();
 
   let selectedSet = $derived(new Set(selectedComponentIds));
   let rotatedSet = $derived(new Set(rotatedComponentIds));
   let slicedSet = $derived(new Set(slicedComponentIds));
+  let exportBacksSet = $derived(new Set(exportBacksComponentIds));
 
   function toggleRotation(componentId: string) {
     if (rotatedSet.has(componentId)) {
@@ -35,6 +38,14 @@
       slicedComponentIds = slicedComponentIds.filter((id) => id !== componentId);
     } else {
       slicedComponentIds = [...slicedComponentIds, componentId];
+    }
+  }
+
+  function toggleExportBacks(componentId: string) {
+    if (exportBacksSet.has(componentId)) {
+      exportBacksComponentIds = exportBacksComponentIds.filter((id) => id !== componentId);
+    } else {
+      exportBacksComponentIds = [...exportBacksComponentIds, componentId];
     }
   }
 
@@ -102,10 +113,12 @@
             {@const isSelected = selectedSet.has(component.id)}
             {@const isRotated = rotatedSet.has(component.id)}
             {@const isSliced = slicedSet.has(component.id)}
+            {@const isExportingBacks = exportBacksSet.has(component.id)}
             {@const count = instanceCounts[component.id] ?? 1}
             {@const board = isGameBoard(component) ? component : null}
             {@const hasFolds =
               board !== null && (board.horizontalFolds > 0 || board.verticalFolds > 0)}
+            {@const canExportBacks = isEditableComponent(component)}
             <div class="component-item">
               <div class="component-row">
                 <label class="component-label">
@@ -128,6 +141,16 @@
                   >
                     Rotate
                   </button>
+                  {#if canExportBacks}
+                    <button
+                      class="action-btn"
+                      class:active={isExportingBacks}
+                      onclick={() => toggleExportBacks(component.id)}
+                      type="button"
+                    >
+                      Export Backs
+                    </button>
+                  {/if}
                   {#if hasFolds}
                     <button
                       class="action-btn"

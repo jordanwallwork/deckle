@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text;
 using System.Text.Json;
 using Deckle.API.DTOs;
 using Deckle.API.Filters;
@@ -231,86 +232,78 @@ public static class DataSourceEndpoints
     {
         var rows = new List<string[]>();
         var fields = new List<string>();
-        var field = new System.Text.StringBuilder();
+        var field = new StringBuilder();
         bool inQuotes = false;
         int i = 0;
 
         while (i < csvText.Length)
         {
             char c = csvText[i];
-
             if (inQuotes)
-            {
-                if (c == '"')
-                {
-                    // Check for escaped quote ""
-                    if (i + 1 < csvText.Length && csvText[i + 1] == '"')
-                    {
-                        field.Append('"');
-                        i += 2;
-                    }
-                    else
-                    {
-                        // End of quoted field
-                        inQuotes = false;
-                        i++;
-                    }
-                }
-                else
-                {
-                    field.Append(c);
-                    i++;
-                }
-            }
+                i = ProcessQuotedChar(c, i, csvText, field, ref inQuotes);
             else
-            {
-                if (c == '"' && field.Length == 0)
-                {
-                    // Start of quoted field
-                    inQuotes = true;
-                    i++;
-                }
-                else if (c == ',')
-                {
-                    fields.Add(field.ToString().Trim());
-                    field.Clear();
-                    i++;
-                }
-                else if (c == '\r' || c == '\n')
-                {
-                    // End of row
-                    fields.Add(field.ToString().Trim());
-                    field.Clear();
-                    if (fields.Any(f => f.Length > 0))
-                    {
-                        rows.Add(fields.ToArray());
-                    }
-                    fields.Clear();
-                    // Skip \r\n pair
-                    if (c == '\r' && i + 1 < csvText.Length && csvText[i + 1] == '\n')
-                    {
-                        i += 2;
-                    }
-                    else
-                    {
-                        i++;
-                    }
-                }
-                else
-                {
-                    field.Append(c);
-                    i++;
-                }
-            }
+                i = ProcessUnquotedChar(c, i, csvText, field, fields, rows, ref inQuotes);
         }
 
         // Handle last field/row
         fields.Add(field.ToString().Trim());
         if (fields.Any(f => f.Length > 0))
-        {
             rows.Add(fields.ToArray());
-        }
 
         return rows;
+    }
+
+    private static int ProcessQuotedChar(char c, int i, string csvText, StringBuilder field, ref bool inQuotes)
+    {
+        if (c != '"')
+        {
+            field.Append(c);
+            return i + 1;
+        }
+
+        // Escaped quote ""
+        if (i + 1 < csvText.Length && csvText[i + 1] == '"')
+        {
+            field.Append('"');
+            return i + 2;
+        }
+
+        // End of quoted field
+        inQuotes = false;
+        return i + 1;
+    }
+
+    private static int ProcessUnquotedChar(char c, int i, string csvText, StringBuilder field, List<string> fields, List<string[]> rows, ref bool inQuotes)
+    {
+        if (c == '"' && field.Length == 0)
+        {
+            inQuotes = true;
+            return i + 1;
+        }
+
+        if (c == ',')
+        {
+            fields.Add(field.ToString().Trim());
+            field.Clear();
+            return i + 1;
+        }
+
+        if (c == '\r' || c == '\n')
+            return ProcessNewline(c, i, csvText, field, fields, rows);
+
+        field.Append(c);
+        return i + 1;
+    }
+
+    private static int ProcessNewline(char c, int i, string csvText, StringBuilder field, List<string> fields, List<string[]> rows)
+    {
+        fields.Add(field.ToString().Trim());
+        field.Clear();
+        if (fields.Any(f => f.Length > 0))
+            rows.Add(fields.ToArray());
+        fields.Clear();
+
+        // Skip \r\n pair
+        return c == '\r' && i + 1 < csvText.Length && csvText[i + 1] == '\n' ? i + 2 : i + 1;
     }
 }

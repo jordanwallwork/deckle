@@ -122,7 +122,7 @@
 
       // Determine PDF orientation and dimensions based on paper size
       const pdfOrientation = pageSetup.orientation === 'portrait' ? 'p' : 'l';
-      const pdfFormat = pageSetup.paperSize === 'A4' ? 'a4' : 'letter';
+      const pdfFormat = pageSetup.paperSize === 'A4' ? 'a4' : pageSetup.paperSize === 'A3' ? 'a3' : 'letter';
 
       // Create PDF with same dimensions as the paper
       const pdf = new jsPDF({
@@ -208,9 +208,10 @@
     value={pageSetup.paperSize}
     options={[
       { value: 'A4', label: 'A4' },
+      { value: 'A3', label: 'A3' },
       { value: 'USLetter', label: 'US Letter' }
     ]}
-    onchange={(value) => (pageSetup.paperSize = value as 'A4' | 'USLetter')}
+    onchange={(value) => (pageSetup.paperSize = value as 'A4' | 'A3' | 'USLetter')}
   />
 
   <SelectField

@@ -23,7 +23,7 @@ describe('authenticated layout load', () => {
   });
 
   it('includes the return URL in the login redirect', async () => {
-    const thrown = await load(makeEvent(undefined, '/projects?page=2')).catch((e) => e);
+    const thrown = await Promise.resolve(load(makeEvent(undefined, '/projects?page=2'))).catch((e: any) => e);
     expect(thrown.location).toContain('returnUrl=');
     expect(thrown.location).toContain(encodeURIComponent('/projects?page=2'));
   });

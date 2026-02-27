@@ -50,10 +50,10 @@ describe('admin samples page load', () => {
 
     const result = await load(makeEvent(adminUser));
 
-    expect(result.currentPage).toBe(1);
-    expect(result.currentPageSize).toBe(20);
-    expect(result.currentSearch).toBe('');
-    expect(result.currentType).toBe('');
+    expect(result!.currentPage).toBe(1);
+    expect(result!.currentPageSize).toBe(20);
+    expect(result!.currentSearch).toBe('');
+    expect(result!.currentType).toBe('');
   });
 
   it('parses page, pageSize, search, and type from query params', async () => {
@@ -64,10 +64,10 @@ describe('admin samples page load', () => {
       makeEvent(adminUser, { page: '2', pageSize: '50', search: 'test', type: 'Card' })
     );
 
-    expect(result.currentPage).toBe(2);
-    expect(result.currentPageSize).toBe(50);
-    expect(result.currentSearch).toBe('test');
-    expect(result.currentType).toBe('Card');
+    expect(result!.currentPage).toBe(2);
+    expect(result!.currentPageSize).toBe(50);
+    expect(result!.currentSearch).toBe('test');
+    expect(result!.currentType).toBe('Card');
   });
 
   it('redirects to / when no user is present', async () => {

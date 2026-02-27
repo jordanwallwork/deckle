@@ -52,7 +52,7 @@ describe('ApiClient.request', () => {
 
   it('always includes credentials in the request', async () => {
     mockFetch.mockResolvedValue(okResponse({ id: 1 }));
-    await api.get('/test', undefined, mockFetch);
+    await api.get('/test', undefined, mockFetch as typeof fetch);
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ credentials: 'include' })
@@ -61,7 +61,7 @@ describe('ApiClient.request', () => {
 
   it('always sets Content-Type to application/json', async () => {
     mockFetch.mockResolvedValue(okResponse({}));
-    await api.post('/test', { name: 'x' }, undefined, mockFetch);
+    await api.post('/test', { name: 'x' }, undefined, mockFetch as typeof fetch);
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
@@ -72,7 +72,7 @@ describe('ApiClient.request', () => {
 
   it('serializes the body as JSON for POST', async () => {
     mockFetch.mockResolvedValue(okResponse({ id: 1 }, 201));
-    await api.post('/projects', { name: 'My Project' }, undefined, mockFetch);
+    await api.post('/projects', { name: 'My Project' }, undefined, mockFetch as typeof fetch);
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ name: 'My Project' }) })
@@ -81,7 +81,7 @@ describe('ApiClient.request', () => {
 
   it('serializes the body as JSON for PUT', async () => {
     mockFetch.mockResolvedValue(okResponse({}));
-    await api.put('/projects/1', { name: 'Updated' }, undefined, mockFetch);
+    await api.put('/projects/1', { name: 'Updated' }, undefined, mockFetch as typeof fetch);
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ name: 'Updated' }) })
@@ -90,7 +90,7 @@ describe('ApiClient.request', () => {
 
   it('sends no body for GET', async () => {
     mockFetch.mockResolvedValue(okResponse({ data: [] }));
-    await api.get('/projects', undefined, mockFetch);
+    await api.get('/projects', undefined, mockFetch as typeof fetch);
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ method: 'GET' })
@@ -101,7 +101,7 @@ describe('ApiClient.request', () => {
 
   it('returns undefined for a 204 No Content response', async () => {
     mockFetch.mockResolvedValue({ ok: true, status: 204, headers: { get: () => null }, json: async () => ({}) });
-    const result = await api.delete('/projects/1', undefined, mockFetch);
+    const result = await api.delete('/projects/1', undefined, mockFetch as typeof fetch);
     expect(result).toBeUndefined();
   });
 
@@ -112,7 +112,7 @@ describe('ApiClient.request', () => {
       headers: { get: (h: string) => (h === 'content-length' ? '0' : null) },
       json: async () => ({})
     });
-    const result = await api.get('/test', undefined, mockFetch);
+    const result = await api.get('/test', undefined, mockFetch as typeof fetch);
     expect(result).toBeUndefined();
   });
 
@@ -120,7 +120,7 @@ describe('ApiClient.request', () => {
     mockFetch.mockResolvedValue(errorResponse(404, { error: 'Resource not found' }));
     let thrown: unknown;
     try {
-      await api.get('/missing', undefined, mockFetch);
+      await api.get('/missing', undefined, mockFetch as typeof fetch);
     } catch (err) {
       thrown = err;
     }
@@ -131,14 +131,14 @@ describe('ApiClient.request', () => {
 
   it('uses the "message" field from JSON when "error" is absent', async () => {
     mockFetch.mockResolvedValue(errorResponse(500, { message: 'Internal error' }));
-    await expect(api.get('/test', undefined, mockFetch)).rejects.toMatchObject({
+    await expect(api.get('/test', undefined, mockFetch as typeof fetch)).rejects.toMatchObject({
       message: 'Internal error'
     });
   });
 
   it('falls back to "HTTP status: statusText" when the response body has no error/message', async () => {
     mockFetch.mockResolvedValue(errorResponse(503, {}));
-    await expect(api.get('/test', undefined, mockFetch)).rejects.toMatchObject({
+    await expect(api.get('/test', undefined, mockFetch as typeof fetch)).rejects.toMatchObject({
       status: 503
     });
   });
@@ -148,7 +148,7 @@ describe('ApiClient.request', () => {
     mockFetch.mockResolvedValue(errorResponse(400, body));
     let thrown: unknown;
     try {
-      await api.post('/test', {}, undefined, mockFetch);
+      await api.post('/test', {}, undefined, mockFetch as typeof fetch);
     } catch (err) {
       thrown = err;
     }

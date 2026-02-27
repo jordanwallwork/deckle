@@ -37,10 +37,10 @@ describe('image library page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.directoryContents).toEqual(directoryContents);
-    expect(result.allDirectories).toEqual(allDirectories);
-    expect(result.quota).toEqual(quota);
-    expect(result.currentPath).toBe('');
+    expect(result!.directoryContents).toEqual(directoryContents);
+    expect(result!.allDirectories).toEqual(allDirectories);
+    expect(result!.quota).toEqual(quota);
+    expect(result!.currentPath).toBe('');
   });
 
   it('builds breadcrumbs for nested paths', async () => {
@@ -50,12 +50,12 @@ describe('image library page load', () => {
 
     const result = await load(makeEvent('folder1/subfolder'));
 
-    expect(result.breadcrumbs).toEqual([
+    expect(result!.breadcrumbs).toEqual([
       { path: '', name: 'Home' },
       { path: 'folder1', name: 'folder1' },
       { path: 'folder1/subfolder', name: 'subfolder' }
     ]);
-    expect(result.currentPath).toBe('folder1/subfolder');
+    expect(result!.currentPath).toBe('folder1/subfolder');
   });
 
   it('returns a single Home breadcrumb for the root path', async () => {
@@ -65,7 +65,7 @@ describe('image library page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.breadcrumbs).toEqual([{ path: '', name: 'Home' }]);
+    expect(result!.breadcrumbs).toEqual([{ path: '', name: 'Home' }]);
   });
 
   it('continues with null quota when getQuota fails', async () => {
@@ -75,7 +75,7 @@ describe('image library page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.quota).toBeNull();
+    expect(result!.quota).toBeNull();
   });
 
   it('throws a 404 error when the directory is not found', async () => {

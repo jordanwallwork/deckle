@@ -33,7 +33,7 @@
 </svelte:head>
 
 <div class="layout">
-  <TopBar user={data.user} />
+  <TopBar user={data.user ?? null} />
   <div class="main-content">
     {@render children()}
   </div>

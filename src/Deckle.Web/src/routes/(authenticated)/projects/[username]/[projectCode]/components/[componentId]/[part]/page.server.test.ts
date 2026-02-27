@@ -54,7 +54,7 @@ describe('component editor page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.dataSources).toEqual(dataSources);
+    expect(result!.dataSources).toEqual(dataSources);
   });
 
   it('loads data source details when component has a linked data source', async () => {
@@ -66,7 +66,7 @@ describe('component editor page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.dataSource).toEqual(fullDataSource);
+    expect(result!.dataSource).toEqual(fullDataSource);
   });
 
   it('continues without data source if loading it fails', async () => {
@@ -76,7 +76,7 @@ describe('component editor page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.dataSource).toBeNull();
+    expect(result!.dataSource).toBeNull();
   });
 
   it('continues without dataSources list if loading it fails', async () => {
@@ -86,7 +86,7 @@ describe('component editor page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.dataSources).toEqual([]);
+    expect(result!.dataSources).toEqual([]);
   });
 
   it('throws 404 when the component has no dimensions (inner error caught by outer try/catch)', async () => {
@@ -108,6 +108,6 @@ describe('component editor page load', () => {
 
     const result = await load(makeEvent());
 
-    expect(result.project).toEqual(project);
+    expect(result!.project).toEqual(project);
   });
 });

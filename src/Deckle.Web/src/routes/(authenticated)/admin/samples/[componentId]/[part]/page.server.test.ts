@@ -38,8 +38,8 @@ describe('admin sample editor page load', () => {
 
     const result = await load(makeEvent('c1', 'front'));
 
-    expect(result.component).toEqual(card);
-    expect(result.part).toBe('front');
+    expect(result!.component).toEqual(card);
+    expect(result!.part).toBe('front');
   });
 
   it('returns the component and part for a valid back request', async () => {
@@ -48,7 +48,7 @@ describe('admin sample editor page load', () => {
 
     const result = await load(makeEvent('c1', 'back'));
 
-    expect(result.part).toBe('back');
+    expect(result!.part).toBe('back');
   });
 
   it('throws 404 when the component has no dimensions (inner error caught by outer try/catch)', async () => {

@@ -56,7 +56,9 @@
     const h = horiz ? size.landscapeHeightMm : size.landscapeWidthMm;
     const folded = size.isQuadFold
       ? `Folded: ${w / 2}×${h / 2}mm`
-      : `Folded: ${w / 2}×${h}mm`;
+      : horiz
+        ? `Folded: ${w / 2}×${h}mm`
+        : `Folded: ${w}×${h / 2}mm`;
     return `${w}×${h}mm unfolded — ${folded}`;
   }
 
@@ -67,7 +69,7 @@
 
   const presetThicknessMm = $derived(selectedPreset ? getPresetThicknessMm(selectedPreset) : null);
 
-  const customThicknessMm = $derived(() => {
+  const customThicknessMm = $derived.by(() => {
     if (sizeMode !== 'custom') return null;
     const hf = parseInt(customHorizontalFolds);
     const vf = parseInt(customVerticalFolds);
@@ -75,7 +77,7 @@
     return 2.5 * Math.pow(2, hf + vf);
   });
 
-  const customFoldedSize = $derived(() => {
+  const customFoldedSize = $derived.by(() => {
     if (sizeMode !== 'custom') return null;
     const w = parseFloat(customWidthMm);
     const h = parseFloat(customHeightMm);
@@ -83,30 +85,30 @@
     const vf = parseInt(customVerticalFolds);
     if (isNaN(w) || isNaN(h) || isNaN(hf) || isNaN(vf)) return null;
     if (hf === 0 && vf === 0) return null;
-    const fw = vf > 0 ? w / vf : w;
-    const fh = hf > 0 ? h / hf : h;
+    const fw = w / Math.pow(2, vf);
+    const fh = h / Math.pow(2, hf);
     return { fw, fh };
   });
 
-  const customWidthValid = $derived(() => {
+  const customWidthValid = $derived.by(() => {
     if (sizeMode !== 'custom') return true;
     const v = parseFloat(customWidthMm);
     return !isNaN(v) && v >= 304 && v <= 914;
   });
 
-  const customHeightValid = $derived(() => {
+  const customHeightValid = $derived.by(() => {
     if (sizeMode !== 'custom') return true;
     const v = parseFloat(customHeightMm);
     return !isNaN(v) && v >= 152 && v <= 635;
   });
 
-  const customHFoldsValid = $derived(() => {
+  const customHFoldsValid = $derived.by(() => {
     if (sizeMode !== 'custom') return true;
     const v = parseInt(customHorizontalFolds);
     return !isNaN(v) && v >= 0 && v <= 2;
   });
 
-  const customVFoldsValid = $derived(() => {
+  const customVFoldsValid = $derived.by(() => {
     if (sizeMode !== 'custom') return true;
     const v = parseInt(customVerticalFolds);
     return !isNaN(v) && v >= 0 && v <= 2;
@@ -175,7 +177,7 @@
         max="914"
         step="1"
       />
-      {#if !customWidthValid()}
+      {#if !customWidthValid}
         <p class="field-error">Width must be between 304mm and 914mm</p>
       {/if}
     </FormField>
@@ -190,7 +192,7 @@
         max="635"
         step="1"
       />
-      {#if !customHeightValid()}
+      {#if !customHeightValid}
         <p class="field-error">Height must be between 152mm and 635mm</p>
       {/if}
     </FormField>
@@ -204,7 +206,7 @@
         max="2"
         step="1"
       />
-      {#if !customHFoldsValid()}
+      {#if !customHFoldsValid}
         <p class="field-error">Horizontal folds must be 0, 1, or 2</p>
       {/if}
     </FormField>
@@ -218,18 +220,18 @@
         max="2"
         step="1"
       />
-      {#if !customVFoldsValid()}
+      {#if !customVFoldsValid}
         <p class="field-error">Vertical folds must be 0, 1, or 2</p>
       {/if}
     </FormField>
 
-    {#if customFoldedSize() !== null || customThicknessMm() !== null}
+    {#if customFoldedSize !== null || customThicknessMm !== null}
       <p class="dimension-hint">
-        {#if customFoldedSize() !== null}
-          Folded: {customFoldedSize()!.fw}×{customFoldedSize()!.fh}mm
+        {#if customFoldedSize !== null}
+          Folded: {customFoldedSize.fw}×{customFoldedSize.fh}mm
         {/if}
-        {#if customThicknessMm() !== null}
-          {customFoldedSize() !== null ? '— ' : ''}Folded thickness: {customThicknessMm()}mm <span
+        {#if customThicknessMm !== null}
+          {customFoldedSize !== null ? '— ' : ''}Folded thickness: {customThicknessMm}mm <span
             class="thickness-info"
             title="Estimated thickness when folded, based on 2.5mm board material">ⓘ</span>
         {/if}

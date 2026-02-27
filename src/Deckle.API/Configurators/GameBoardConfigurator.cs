@@ -24,6 +24,8 @@ public class GameBoardConfigurator : IConfigurator<GameBoard, GameBoardConfig>
 
     public async Task<GameBoard> CreateAsync(Guid userId, Guid? projectId, GameBoardConfig config)
     {
+        await ValidateAsync(config);
+
         var board = new GameBoard
         {
             Id = Guid.NewGuid(),

@@ -284,6 +284,15 @@ public class GameBoardConfiguratorTests
             Times.Never);
     }
 
+    [Fact]
+    public async Task CreateAsync_InvalidConfig_ThrowsArgumentException()
+    {
+        var invalidConfig = new GameBoardConfig("Test", null, true, null, null, null, null, null);
+        var userId = Guid.NewGuid();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _configurator.CreateAsync(userId, null, invalidConfig));
+    }
+
     #endregion
 
     #region UpdateAsync Tests

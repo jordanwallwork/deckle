@@ -46,6 +46,7 @@ public static class DataSourceEndpoints
 
             return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
         })
+        .RequireRateLimiting("strict")
         .WithName("CreateDataSource");
 
         group.MapPut("{id:guid}", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, UpdateDataSourceRequest request) =>

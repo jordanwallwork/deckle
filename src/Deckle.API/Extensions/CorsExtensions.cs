@@ -38,10 +38,7 @@ public static class CorsExtensions
         if (string.IsNullOrWhiteSpace(frontendUrl))
         {
             if (!environment.IsDevelopment())
-            {
-                Console.WriteLine("WARNING: FrontendUrl not configured in production. CORS will block all requests.");
                 return false;
-            }
 
             // Development fallback
             return IsLocalhostDevelopmentOrigin(origin);

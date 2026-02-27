@@ -79,17 +79,7 @@ public static class AuthenticationExtensions
         IConfiguration configuration)
     {
         var cookieDomain = configuration["CookieDomain"];
-
-        if (!string.IsNullOrWhiteSpace(cookieDomain))
-        {
-            options.Cookie.Domain = cookieDomain;
-            Console.WriteLine($"Cookie domain set to: {cookieDomain}");
-        }
-        else
-        {
-            options.Cookie.Domain = null;
-            Console.WriteLine("WARNING: CookieDomain not configured. Cookies will not be shared between API and Web domains on Railway.");
-        }
+        options.Cookie.Domain = string.IsNullOrWhiteSpace(cookieDomain) ? null : cookieDomain;
     }
 
     private static void ConfigureGoogleOptions(GoogleOptions options, IConfiguration configuration)

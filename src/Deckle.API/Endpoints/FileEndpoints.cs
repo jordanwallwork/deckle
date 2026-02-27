@@ -93,6 +93,7 @@ public static class FileEndpoints
             var file = await fileService.ConfirmUploadAsync(userId, fileId);
             return Results.Ok(file);
         })
+        .RequireRateLimiting("strict")
         .WithName("ConfirmFileUpload")
         .WithDescription("Confirm that a file upload has completed successfully");
 

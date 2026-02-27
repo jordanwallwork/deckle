@@ -7,8 +7,11 @@ using Exceptionless;
 using Hangfire;
 using Hangfire.PostgreSql;
 using MediatR;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 namespace Deckle.API.Extensions;
 
@@ -82,6 +85,46 @@ public static class ServiceCollectionExtensions
 
         // Background services
         services.AddHostedService<FileCleanupService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddDeckleRateLimiting(this IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            // "strict" — 10 requests/minute per user.
+            // Applied to: username enumeration check, Google Sheets creation (outbound calls), file confirm.
+            options.AddPolicy("strict", context =>
+            {
+                var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.Connection.RemoteIpAddress?.ToString()
+                    ?? "unknown";
+                return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+            });
+
+            // "invite" — 5 requests per 10 minutes per user.
+            // Applied to: project invite endpoint.
+            options.AddPolicy("invite", context =>
+            {
+                var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.Connection.RemoteIpAddress?.ToString()
+                    ?? "unknown";
+                return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
+                    Window = TimeSpan.FromMinutes(10),
+                    QueueLimit = 0
+                });
+            });
+        });
 
         return services;
     }

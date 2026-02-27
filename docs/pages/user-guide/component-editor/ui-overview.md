@@ -28,7 +28,7 @@ The Structure Tree shows all the elements in your design as a nested list. The t
 
 **Double-click** an element's name to rename it — this is useful for keeping track of elements in complex designs.
 
-**Hover** over a container (or the root) to reveal a **+** button for adding new elements. You can add three types: **Container**, **Text**, and **Image**.
+**Hover** over a container (or the root) to reveal a **+** button for adding new elements. You can add four types: **Container**, **Text**, **Image**, and **Iterator**.
 
 **Drag** elements by their handle to reorder them or move them into a different container.
 
@@ -106,6 +106,22 @@ All element types share these options:
 - **Flex options** — direction, wrapping, alignment (via a visual grid), and gap between children
 - **Background colour**
 - **Padding** — uniform or per-side
+
+## Iterator
+
+An Iterator repeats its child elements for each value in a numeric range. This is useful for creating rows of symbols, pip tracks, or any pattern that scales with data — for example, rendering one icon per hit point.
+
+Iterators can be added inside any container (or the root), but not inside another iterator.
+
+In addition to the shared settings, an iterator has:
+
+- **Variable Name** — the name of the loop variable exposed to child elements (default: `i`). Use it in text content or expressions as a [merge field](/component-editor/merge-fields/), e.g. `{{ "{{" }} i }}`
+- **From** — the range start (inclusive). Accepts a number or a formula expression evaluated against the active data-source row
+- **To** — the range end (inclusive). Also accepts a formula expression
+
+The iterator renders its children once for each integer step from **From** to **To**. Steps are always whole numbers; fractional results are rounded. The maximum range is 100 iterations.
+
+{% alert 'Tip: Set "From" or "To" to a merge field expression — for example, `{{ "{{" }} HitPoints }}` — to have the repeat count driven by your data source.' 'info' %}
 
 ## Component settings
 

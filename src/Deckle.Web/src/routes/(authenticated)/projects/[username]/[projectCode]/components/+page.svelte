@@ -14,6 +14,7 @@
   import type { GameComponent } from '$lib/types';
   import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { buildComponentsBreadcrumbs } from '$lib/utils/breadcrumbs';
+  import { isEditableComponent, hasDataSource } from '$lib/utils/componentTypes';
 
   let { data }: { data: PageData } = $props();
 
@@ -34,7 +35,7 @@
 
   // Get exportable components (Card and PlayerMat only)
   const exportableComponents = $derived(
-    data.components.filter((c) => c.type === 'Card' || c.type === 'PlayerMat')
+    data.components.filter((c) => isEditableComponent(c))
   );
 
   // Check if there are any exportable components
@@ -184,7 +185,7 @@
 <LinkDataSourceModal
   bind:show={showLinkDataSourceModal}
   dataSources={data.dataSources || []}
-  currentDataSourceId={componentToLink?.type === 'Card' || componentToLink?.type === 'PlayerMat'
+  currentDataSourceId={componentToLink && hasDataSource(componentToLink)
     ? componentToLink.dataSource?.id
     : null}
   onConfirm={handleConfirmLinkDataSource}

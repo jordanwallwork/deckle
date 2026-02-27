@@ -97,6 +97,7 @@ public static partial class AuthEndpoints
             return Results.Ok(new UsernameAvailabilityResponse(isAvailable));
         })
         .RequireAuthorization()
+        .RequireRateLimiting("strict")
         .WithName("CheckUsernameAvailability");
 
         group.MapPost("/username", async (SetUsernameRequest request, ClaimsPrincipal user, IUserService userService, IPublisher publisher, HttpContext context) =>

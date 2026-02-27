@@ -60,6 +60,9 @@
   // Rotated component IDs
   let rotatedComponentIds = $state<string[]>([]);
 
+  // Sliced component IDs (GameBoards split along fold lines)
+  let slicedComponentIds = $state<string[]>([]);
+
   // Page elements for export
   let pageElements = $state<HTMLElement[]>([]);
 
@@ -146,6 +149,8 @@
           components={data.allExportableComponents}
           {selectedComponentIds}
           bind:rotatedComponentIds
+          bind:slicedComponentIds
+          instanceCounts={data.instanceCounts}
         />
       </div>
 
@@ -173,6 +178,7 @@
         {pageSetup}
         components={data.components}
         {rotatedComponentIds}
+        {slicedComponentIds}
         bind:pageElements
         bind:paperDimensions
         projectId={data.project.id}

@@ -11,8 +11,27 @@ export const load: PageServerLoad = async ({ url, fetch, parent }) => {
     // Load all components for the project to show in the selector
     const allComponents = await componentsApi.listByProject(parentData.project.id, fetch);
 
-    // Filter to only exportable components (Card and PlayerMat)
+    // Filter to only exportable components (Card, GameBoard, and PlayerMat)
     const exportableComponents = allComponents.filter((c) => isEditableComponent(c));
+
+    // Compute instance counts from linked data sources (rowCount is a cached/synced value)
+    const instanceCounts: Record<string, number> = {};
+    try {
+      const allDataSources = await dataSourcesApi.getAll(parentData.project.id, fetch);
+      const dataSourceMap = new Map(allDataSources.map((ds) => [ds.id, ds]));
+      for (const component of exportableComponents) {
+        if (hasDataSource(component) && component.dataSource) {
+          const ds = dataSourceMap.get(component.dataSource.id);
+          instanceCounts[component.id] = Math.max(1, ds?.rowCount ?? 1);
+        } else {
+          instanceCounts[component.id] = 1;
+        }
+      }
+    } catch {
+      for (const component of exportableComponents) {
+        instanceCounts[component.id] = 1;
+      }
+    }
 
     // Get component IDs from query parameter (can be single ID or comma-separated list)
     const componentsParam = url.searchParams.get('components');
@@ -21,6 +40,7 @@ export const load: PageServerLoad = async ({ url, fetch, parent }) => {
     if (!componentsParam) {
       return {
         allExportableComponents: exportableComponents,
+        instanceCounts,
         components: [],
         project: parentData.project
       };
@@ -34,6 +54,7 @@ export const load: PageServerLoad = async ({ url, fetch, parent }) => {
     if (componentIds.length === 0) {
       return {
         allExportableComponents: exportableComponents,
+        instanceCounts,
         components: [],
         project: parentData.project
       };
@@ -78,6 +99,7 @@ export const load: PageServerLoad = async ({ url, fetch, parent }) => {
 
     return {
       allExportableComponents: exportableComponents,
+      instanceCounts,
       components: componentsWithData,
       project: parentData.project
     };

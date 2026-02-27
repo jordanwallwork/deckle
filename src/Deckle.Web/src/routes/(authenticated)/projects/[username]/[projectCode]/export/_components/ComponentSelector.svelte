@@ -117,30 +117,6 @@
                   <span class="component-name">{component.name}</span>
                 </label>
                 <span class="instance-count">({count})</span>
-                {#if !isSelected}
-                  <button
-                    class="rotate-btn"
-                    class:active={isRotated}
-                    onclick={() => toggleRotation(component.id)}
-                    title={isRotated ? 'Remove rotation' : 'Rotate 90°'}
-                    type="button"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M21.5 2v6h-6" />
-                      <path d="M21.34 15.57a10 10 0 1 1-.57-8.38" />
-                    </svg>
-                  </button>
-                {/if}
               </div>
               {#if isSelected}
                 <div class="component-actions">
@@ -290,38 +266,6 @@
     color: #9ca3af;
     flex-shrink: 0;
     white-space: nowrap;
-  }
-
-  .rotate-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
-    color: #6b7280;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: all 0.15s ease;
-  }
-
-  .rotate-btn:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-    color: #374151;
-  }
-
-  .rotate-btn.active {
-    background: #dbeafe;
-    border-color: #3b82f6;
-    color: #2563eb;
-  }
-
-  .rotate-btn.active:hover {
-    background: #bfdbfe;
   }
 
   .component-actions {

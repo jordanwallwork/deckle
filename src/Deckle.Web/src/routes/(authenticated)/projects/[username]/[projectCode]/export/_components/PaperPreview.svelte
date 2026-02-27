@@ -293,8 +293,10 @@
             for (let sRow = 0; sRow < rows; sRow++) {
               for (let sCol = 0; sCol < cols; sCol++) {
                 // Sections include 3mm bleed on all sides
-                const layoutW = sectionContentW + 2 * sectionBleedPx;
-                const layoutH = sectionContentH + 2 * sectionBleedPx;
+                const sectionW = sectionContentW + 2 * sectionBleedPx;
+                const sectionH = sectionContentH + 2 * sectionBleedPx;
+                const layoutW = isRotated ? sectionH : sectionW;
+                const layoutH = isRotated ? sectionW : sectionH;
 
                 if (currentX + layoutW > printableWidthPx) {
                   currentX = 0;
@@ -329,10 +331,10 @@
                   x: currentX,
                   y: currentY,
                   mergeData,
-                  widthPx: layoutW,
-                  heightPx: layoutH,
+                  widthPx: sectionW,
+                  heightPx: sectionH,
                   bleedPx: sectionBleedPx,
-                  isRotated: false,
+                  isRotated,
                   isSlicedSection: true,
                   viewportOffsetXPx: vpOffsetX,
                   viewportOffsetYPx: vpOffsetY
@@ -568,30 +570,44 @@
                     {@const design = JSON.parse(designJson) as ContainerElement}
                     {#if instance.isSlicedSection && instance.viewportOffsetXPx !== undefined && instance.viewportOffsetYPx !== undefined}
                       <!-- Sliced game board section: clip to section content, viewport into full design -->
+                      {@const sliceRotation = instance.isRotated ? (isBack ? -90 : 90) : 0}
+                      {@const sliceLayoutW = instance.isRotated ? instance.heightPx : instance.widthPx}
+                      {@const sliceLayoutH = instance.isRotated ? instance.widthPx : instance.heightPx}
                       <div
                         class="component-instance"
                         style="
                           position: absolute;
                           left: {instance.x}px;
                           top: {instance.y}px;
-                          width: {instance.widthPx}px;
-                          height: {instance.heightPx}px;
+                          width: {sliceLayoutW}px;
+                          height: {sliceLayoutH}px;
                           overflow: hidden;
                         "
                       >
                         <div
                           style="
-                            position: absolute;
-                            transform: translate({-instance.viewportOffsetXPx}px, {-instance.viewportOffsetYPx}px);
+                            transform: rotate({sliceRotation}deg) {sliceRotation === 90 ? 'translateY(-100%)' : sliceRotation === -90 ? 'translateX(-100%)' : ''};
+                            transform-origin: top left;
+                            width: {instance.widthPx}px;
+                            height: {instance.heightPx}px;
+                            overflow: hidden;
+                            position: relative;
                           "
                         >
-                          <StaticComponentRenderer
-                            {design}
-                            dimensions={component.dimensions}
-                            shape={component.shape}
-                            mergeData={instance.mergeData}
-                            {projectId}
-                          />
+                          <div
+                            style="
+                              position: absolute;
+                              transform: translate({-instance.viewportOffsetXPx}px, {-instance.viewportOffsetYPx}px);
+                            "
+                          >
+                            <StaticComponentRenderer
+                              {design}
+                              dimensions={component.dimensions}
+                              shape={component.shape}
+                              mergeData={instance.mergeData}
+                              {projectId}
+                            />
+                          </div>
                         </div>
                       </div>
                     {:else}

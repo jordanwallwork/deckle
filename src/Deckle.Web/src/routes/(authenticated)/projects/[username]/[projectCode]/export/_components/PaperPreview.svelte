@@ -287,11 +287,14 @@
             const boardBleed = component.dimensions.bleedPx;
             const mergeData = Object.keys(rowData).length > 0 ? rowData : null;
 
+            // 3mm bleed around each sliced section
+            const sectionBleedPx = Math.round((3 * component.dimensions.dpi) / 25.4);
+
             for (let sRow = 0; sRow < rows; sRow++) {
               for (let sCol = 0; sCol < cols; sCol++) {
-                // Sections have no bleed — the outer container clips exactly to content
-                const layoutW = sectionContentW;
-                const layoutH = sectionContentH;
+                // Sections include 3mm bleed on all sides
+                const layoutW = sectionContentW + 2 * sectionBleedPx;
+                const layoutH = sectionContentH + 2 * sectionBleedPx;
 
                 if (currentX + layoutW > printableWidthPx) {
                   currentX = 0;
@@ -309,18 +312,30 @@
                   rowHeight = 0;
                 }
 
+                // Viewport offset: start sectionBleedPx before the section content.
+                // For outer sections this pulls from the board's own bleed;
+                // for inner sections it pulls content from the adjacent section.
+                const vpOffsetX = Math.max(
+                  0,
+                  boardBleed + sCol * sectionContentW - sectionBleedPx
+                );
+                const vpOffsetY = Math.max(
+                  0,
+                  boardBleed + sRow * sectionContentH - sectionBleedPx
+                );
+
                 currentPage.instances.push({
                   componentIndex,
                   x: currentX,
                   y: currentY,
                   mergeData,
-                  widthPx: sectionContentW,
-                  heightPx: sectionContentH,
-                  bleedPx: 0,
+                  widthPx: layoutW,
+                  heightPx: layoutH,
+                  bleedPx: sectionBleedPx,
                   isRotated: false,
                   isSlicedSection: true,
-                  viewportOffsetXPx: boardBleed + sCol * sectionContentW,
-                  viewportOffsetYPx: boardBleed + sRow * sectionContentH
+                  viewportOffsetXPx: vpOffsetX,
+                  viewportOffsetYPx: vpOffsetY
                 });
 
                 currentX += layoutW;

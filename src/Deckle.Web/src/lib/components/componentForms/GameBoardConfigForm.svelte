@@ -60,6 +60,21 @@
     return `${w}×${h}mm unfolded — ${folded}`;
   }
 
+  function getPresetThicknessMm(size: GameBoardPresetSize): number {
+    // bi-fold = 1 fold total → 2.5 × 2^1 = 5mm; quad-fold = 2 folds → 2.5 × 2^2 = 10mm
+    return 2.5 * Math.pow(2, size.isQuadFold ? 2 : 1);
+  }
+
+  const presetThicknessMm = $derived(selectedPreset ? getPresetThicknessMm(selectedPreset) : null);
+
+  const customThicknessMm = $derived(() => {
+    if (sizeMode !== 'custom') return null;
+    const hf = parseInt(customHorizontalFolds);
+    const vf = parseInt(customVerticalFolds);
+    if (isNaN(hf) || isNaN(vf) || hf < 0 || vf < 0) return null;
+    return 2.5 * Math.pow(2, hf + vf);
+  });
+
   const customWidthValid = $derived(() => {
     if (sizeMode !== 'custom') return true;
     const v = parseFloat(customWidthMm);
@@ -120,7 +135,14 @@
     </FormField>
 
     {#if selectedPreset}
-      <p class="dimension-hint">{getPresetDimensions(selectedPreset, horizontal)}</p>
+      <p class="dimension-hint">
+        {getPresetDimensions(selectedPreset, horizontal)}
+        {#if presetThicknessMm !== null}
+          — Folded thickness: {presetThicknessMm}mm <span
+            class="thickness-info"
+            title="Estimated thickness when folded, based on 2.5mm board material">ⓘ</span>
+        {/if}
+      </p>
     {/if}
 
     {#if showHorizontalToggle}
@@ -187,6 +209,14 @@
         <p class="field-error">Vertical folds must be 0, 1, or 2</p>
       {/if}
     </FormField>
+
+    {#if customThicknessMm() !== null}
+      <p class="dimension-hint">
+        Folded thickness: {customThicknessMm()}mm <span
+          class="thickness-info"
+          title="Estimated thickness when folded, based on 2.5mm board material">ⓘ</span>
+      </p>
+    {/if}
   {/if}
 
   {#if matchingSamples.length > 0}
@@ -233,6 +263,12 @@
     font-size: 0.8rem;
     color: var(--color-muted-teal);
     margin: 0.25rem 0 0.75rem 0;
+  }
+
+  .thickness-info {
+    cursor: help;
+    opacity: 0.7;
+    font-size: 0.75em;
   }
 
   .horizontal-toggle {

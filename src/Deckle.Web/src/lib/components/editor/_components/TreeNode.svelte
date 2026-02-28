@@ -39,7 +39,8 @@
   const dataSourceRow = getDataSourceRow();
 
   const hasChildren = $derived(
-    (element.type === 'container' || element.type === 'iterator') && element.children.length > 0
+    (element.type === 'container' || element.type === 'iterator' || element.type === 'shape') &&
+      element.children.length > 0
   );
   const isSelected = $derived(selectedId === element.id);
   const isHovered = $derived($templateStore.hoveredElementId === element.id);
@@ -124,8 +125,8 @@
     e.preventDefault();
     e.stopPropagation();
 
-    // Only allow drop on containers, iterators, or root
-    if (element.type === 'container' || element.type === 'iterator' || isRoot) {
+    // Only allow drop on containers, iterators, shapes, or root
+    if (element.type === 'container' || element.type === 'iterator' || element.type === 'shape' || isRoot) {
       e.dataTransfer.dropEffect = 'move';
       isDragOver = true;
     }
@@ -148,10 +149,10 @@
     // Don't drop on yourself
     if (draggedId === element.id) return;
 
-    // If the dragged element is an iterator, only allow dropping into containers (not root, not iterators)
+    // If the dragged element is an iterator, only allow dropping into containers or shapes (not root, not iterators)
     const draggedElement = templateStore.getElement(draggedId);
     if (draggedElement?.type === 'iterator') {
-      if (isRoot || element.type !== 'container') return;
+      if (isRoot || (element.type !== 'container' && element.type !== 'shape')) return;
     }
 
     // Drop into container or root
@@ -202,8 +203,8 @@
       action: handleDuplicate
     });
 
-    // Add submenu for container and iterator elements
-    if (element.type === 'container' || element.type === 'iterator') {
+    // Add submenu for container, iterator, and shape elements
+    if (element.type === 'container' || element.type === 'iterator' || element.type === 'shape') {
       const submenuItems: ContextMenuItem[] = [
         {
           label: 'Container',
@@ -216,11 +217,15 @@
         {
           label: 'Image',
           action: () => handleAddElement('image')
+        },
+        {
+          label: 'Shape',
+          action: () => handleAddElement('shape')
         }
       ];
 
-      // Only allow adding iterators inside containers (not inside other iterators)
-      if (element.type === 'container') {
+      // Only allow adding iterators inside containers or shapes (not inside other iterators)
+      if (element.type === 'container' || element.type === 'shape') {
         submenuItems.push({
           label: 'Iterator',
           action: () => handleAddElement('iterator')
@@ -342,7 +347,7 @@
       {/if}
 
       <div class="node-actions">
-        {#if element.type === 'container' || element.type === 'iterator'}
+        {#if element.type === 'container' || element.type === 'iterator' || element.type === 'shape'}
           <button
             class="action-button"
             onclick={(e) => {
@@ -375,7 +380,7 @@
     {/if}
   </div>
 
-  {#if hasChildren && expanded && (element.type === 'container' || element.type === 'iterator')}
+  {#if hasChildren && expanded && (element.type === 'container' || element.type === 'iterator' || element.type === 'shape')}
     <div class="node-children" transition:slide={{ duration: 200 }}>
       {#each element.children as child, index (child.id)}
         <DropTarget parentId={isRoot ? 'root' : element.id} insertIndex={index} depth={depth + 1} />

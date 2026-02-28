@@ -4,13 +4,15 @@
     ContainerElement,
     TextElement,
     ImageElement,
-    IteratorElement
+    IteratorElement,
+    ShapeElement
   } from './types';
   import ElementWrapper from './_components/element-wrapper/ElementWrapper.svelte';
   import TextElementComponent from './_components/elements/TextElement.svelte';
   import ContainerElementComponent from './_components/elements/ContainerElement.svelte';
   import ImageElementComponent from './_components/elements/ImageElement.svelte';
   import IteratorElementComponent from './_components/elements/IteratorElement.svelte';
+  import ShapeElementComponent from './_components/elements/ShapeElement.svelte';
 
   let { element, dpi }: { element: TemplateElement; dpi: number } = $props();
 </script>
@@ -29,4 +31,8 @@
   </ElementWrapper>
 {:else if element.type === 'iterator'}
   <IteratorElementComponent element={element as IteratorElement} {dpi} />
+{:else if element.type === 'shape'}
+  <ElementWrapper {element} {dpi}>
+    <ShapeElementComponent element={element as ShapeElement} {dpi} />
+  </ElementWrapper>
 {/if}

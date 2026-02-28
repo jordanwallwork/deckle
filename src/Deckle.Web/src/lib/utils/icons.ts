@@ -13,6 +13,8 @@ export function getElementIcon(type: ElementType): string {
       return 'M2 2h12v12H2zM5.5 4a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM2 11l3-3 3 3 3-3 3 3';
     case 'iterator':
       return 'M4 4h8M4 8h8M4 12h8M2 4v0M2 8v0M2 12v0';
+    case 'shape':
+      return 'M8 2L13 5V11L8 14L3 11V5L8 2Z';
     default:
       return '';
   }

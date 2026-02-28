@@ -4,17 +4,18 @@ import type {
   TextElement,
   IteratorElement,
   ContainerElement,
+  ShapeElement,
   TemplateElement
 } from './types';
 import { mmToPx } from '$lib/utils/size.utils';
 
 /**
- * Type guard for elements that have children (container or iterator).
+ * Type guard for elements that have children (container, iterator, or shape).
  */
 export function elementHasChildren(
   element: TemplateElement
-): element is ContainerElement | IteratorElement {
-  return element.type === 'container' || element.type === 'iterator';
+): element is ContainerElement | IteratorElement | ShapeElement {
+  return element.type === 'container' || element.type === 'iterator' || element.type === 'shape';
 }
 
 export function getElementLabel(el: BaseElement): string {
@@ -31,6 +32,10 @@ export function getElementLabel(el: BaseElement): string {
   if (el.type === 'iterator') {
     const iter = el as IteratorElement;
     return `Iterator (${iter.iteratorName}: ${iter.fromExpression}..${iter.toExpression})`;
+  }
+  if (el.type === 'shape') {
+    const shape = el as ShapeElement;
+    return shape.shapeType.charAt(0).toUpperCase() + shape.shapeType.slice(1);
   }
   return el.type.charAt(0).toUpperCase() + el.type.slice(1);
 }

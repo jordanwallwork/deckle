@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createElementOfType } from './elementFactory';
-import type { ContainerElement, TextElement, ImageElement, IteratorElement } from './types';
+import type { ContainerElement, TextElement, ImageElement, IteratorElement, ShapeElement } from './types';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -9,7 +9,7 @@ describe('createElementOfType', () => {
   // Common properties
   // --------------------------------------------------------------------------
 
-  it.each(['container', 'text', 'image', 'iterator'] as const)(
+  it.each(['container', 'text', 'image', 'iterator', 'shape'] as const)(
     '%s element has a valid UUID id',
     (type) => {
       const el = createElementOfType(type);
@@ -17,7 +17,7 @@ describe('createElementOfType', () => {
     }
   );
 
-  it.each(['container', 'text', 'image', 'iterator'] as const)(
+  it.each(['container', 'text', 'image', 'iterator', 'shape'] as const)(
     '%s element generates a unique id on each call',
     (type) => {
       const a = createElementOfType(type);
@@ -26,14 +26,14 @@ describe('createElementOfType', () => {
     }
   );
 
-  it.each(['container', 'text', 'image', 'iterator'] as const)(
+  it.each(['container', 'text', 'image', 'iterator', 'shape'] as const)(
     '%s element has visibilityMode "show"',
     (type) => {
       expect(createElementOfType(type).visibilityMode).toBe('show');
     }
   );
 
-  it.each(['container', 'text', 'image', 'iterator'] as const)(
+  it.each(['container', 'text', 'image', 'iterator', 'shape'] as const)(
     '%s element has opacity 1',
     (type) => {
       expect(createElementOfType(type).opacity).toBe(1);
@@ -141,6 +141,31 @@ describe('createElementOfType', () => {
 
     it('starts with an empty children array', () => {
       const el = createElementOfType('iterator') as IteratorElement;
+      expect(el.children).toEqual([]);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Shape
+  // --------------------------------------------------------------------------
+
+  describe('shape', () => {
+    it('has type "shape"', () => {
+      expect(createElementOfType('shape').type).toBe('shape');
+    });
+
+    it('has default shapeType "circle"', () => {
+      const el = createElementOfType('shape') as ShapeElement;
+      expect(el.shapeType).toBe('circle');
+    });
+
+    it('has default dimensions of 100×100 px', () => {
+      const el = createElementOfType('shape') as ShapeElement;
+      expect(el.dimensions).toEqual({ width: 100, height: 100 });
+    });
+
+    it('starts with an empty children array', () => {
+      const el = createElementOfType('shape') as ShapeElement;
       expect(el.children).toEqual([]);
     });
   });

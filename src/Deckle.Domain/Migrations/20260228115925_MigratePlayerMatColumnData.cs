@@ -28,24 +28,13 @@ namespace Deckle.Domain.Migrations
                   AND "PlayerMat_CustomWidthMm"  IS NULL;
                 """);
 
-            // Similarly, PlayerMat's Shape was stored in PlayerMat_Shape before AddGameBoard
-            // moved it to the shared Shape column. Copy any un-migrated shape data across.
-            migrationBuilder.Sql(
-                """
-                UPDATE "Components"
-                SET "Shape" = "PlayerMat_Shape"
-                WHERE "ComponentType" = 'PlayerMat'
-                  AND "Shape"          IS NULL
-                  AND "PlayerMat_Shape" IS NOT NULL;
-                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             // Data migrations are intentionally not reversed — the source columns
-            // (CustomHeightMm, CustomWidthMm, PresetSize, PlayerMat_Shape) still exist
-            // and retain their original values.
+            // (CustomHeightMm, CustomWidthMm, PresetSize) still exist and retain their original values.
         }
     }
 }

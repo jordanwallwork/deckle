@@ -8,18 +8,23 @@
   const background = $derived(backgroundStyle(element.background));
   const boxShadow = $derived(boxShadowStyle(element.shadow));
   const dropShadowFilter = $derived(shadowToDropShadow(element.shadow));
-  const clipPath = $derived(getClipPath(element.shapeType));
+  const clipPath = $derived(getClipPath(element.shapeType, element.id));
 
-  function getClipPath(shapeType: string): string | undefined {
+  // Heart path in objectBoundingBox units (0–1). Uses cubic Bézier curves for smooth lobes.
+  // Points: bottom tip (0.5,1), left lobe peak (0.25,0), centre dip (0.5,0.25), right lobe peak (0.75,0).
+  const heartPath =
+    'M 0.5,1 C 0.2,0.8 0,0.6 0,0.4 C 0,0.1 0.15,0 0.25,0 C 0.38,0 0.5,0.1 0.5,0.25 C 0.5,0.1 0.62,0 0.75,0 C 0.85,0 1,0.1 1,0.4 C 1,0.6 0.8,0.8 0.5,1 Z';
+
+  function getClipPath(shapeType: string, id: string): string | undefined {
     switch (shapeType) {
       case 'circle':
-        return 'circle(50% at 50% 50%)';
+        return 'ellipse(50% 50% at 50% 50%)';
       case 'hexagon':
         return 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
       case 'triangle':
         return 'polygon(50% 0%, 100% 100%, 0% 100%)';
       case 'heart':
-        return 'polygon(50% 30%, 61% 22%, 73% 20%, 83% 26%, 88% 36%, 87% 48%, 82% 57%, 73% 67%, 62% 75%, 50% 83%, 38% 75%, 27% 67%, 18% 57%, 13% 48%, 12% 36%, 17% 26%, 27% 20%, 39% 22%)';
+        return `url(#heart-clip-${id})`;
       default:
         return undefined;
     }
@@ -36,6 +41,20 @@
       .join(' ');
   }
 </script>
+
+<!--
+  Heart shape uses an SVG clipPath with objectBoundingBox units so the Bézier curves scale
+  with the element. The SVG is zero-sized and invisible but the defs remain available for URL refs.
+-->
+{#if element.shapeType === 'heart'}
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+    <defs>
+      <clipPath id="heart-clip-{element.id}" clipPathUnits="objectBoundingBox">
+        <path d={heartPath} />
+      </clipPath>
+    </defs>
+  </svg>
+{/if}
 
 <!--
   Shapes with clip-path use an outer wrapper with filter:drop-shadow so the shadow follows

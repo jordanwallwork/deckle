@@ -4,7 +4,7 @@
 
 export type ElementType = 'container' | 'text' | 'image' | 'iterator' | 'shape';
 
-export type ShapeType = 'circle' | 'square' | 'hexagon' | 'triangle' | 'heart';
+export type ShapeType = 'circle' | 'hexagon' | 'triangle' | 'heart';
 
 export type Position = 'absolute' | 'relative';
 export type Display = 'flex' | 'block' | 'inline';

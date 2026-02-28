@@ -21,7 +21,7 @@
       case 'heart':
         return 'polygon(50% 30%, 61% 22%, 73% 20%, 83% 26%, 88% 36%, 87% 48%, 82% 57%, 73% 67%, 62% 75%, 50% 83%, 38% 75%, 27% 67%, 18% 57%, 13% 48%, 12% 36%, 17% 26%, 27% 20%, 39% 22%)';
       default:
-        return undefined; // 'square' — rectangular, no clip needed
+        return undefined;
     }
   }
 
@@ -38,9 +38,8 @@
 </script>
 
 <!--
-  Shapes with clip-path (circle, hexagon, triangle, heart) use an outer wrapper with
-  filter:drop-shadow so the shadow follows the shape silhouette. Squares use box-shadow
-  directly since there is no clip-path to contend with.
+  Shapes with clip-path use an outer wrapper with filter:drop-shadow so the shadow follows
+  the shape silhouette.
 -->
 {#if clipPath}
   <div

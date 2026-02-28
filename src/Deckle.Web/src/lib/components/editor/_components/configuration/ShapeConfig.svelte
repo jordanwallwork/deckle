@@ -57,7 +57,6 @@
     value={element.shapeType}
     options={[
       { value: 'circle', label: 'Circle' },
-      { value: 'square', label: 'Square' },
       { value: 'hexagon', label: 'Hexagon' },
       { value: 'triangle', label: 'Triangle' },
       { value: 'heart', label: 'Heart' }

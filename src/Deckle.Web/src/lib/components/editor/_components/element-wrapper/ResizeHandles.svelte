@@ -59,7 +59,7 @@
   // Get current dimensions
   function getCurrentDimensions() {
     const dims =
-      element.type === 'container' || element.type === 'text' || element.type === 'image'
+      element.type === 'container' || element.type === 'text' || element.type === 'image' || element.type === 'shape'
         ? (element as any).dimensions
         : undefined;
 
@@ -109,7 +109,7 @@
 
     // Check if dimensions are percentages and need conversion
     const elementDims =
-      element.type === 'container' || element.type === 'text' || element.type === 'image'
+      element.type === 'container' || element.type === 'text' || element.type === 'image' || element.type === 'shape'
         ? (element as any).dimensions
         : undefined;
 
@@ -223,7 +223,7 @@
     // History is saved once at the start of the drag operation
     const updates: any = {
       dimensions: {
-        ...(element.type === 'container' || element.type === 'text' || element.type === 'image'
+        ...(element.type === 'container' || element.type === 'text' || element.type === 'image' || element.type === 'shape'
           ? (element as any).dimensions
           : {})
       }

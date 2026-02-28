@@ -58,13 +58,8 @@
 
   // Get current dimensions
   function getCurrentDimensions() {
-    const dims =
-      element.type === 'container' || element.type === 'text' || element.type === 'image' || element.type === 'shape'
-        ? (element as any).dimensions
-        : undefined;
-
-    const width = dims?.width;
-    const height = dims?.height;
+    const width = element.dimensions?.width;
+    const height = element.dimensions?.height;
 
     return {
       width: typeof width === 'number' ? width : 100,
@@ -108,15 +103,10 @@
     const targetElement = resizeHandlesEl?.parentElement;
 
     // Check if dimensions are percentages and need conversion
-    const elementDims =
-      element.type === 'container' || element.type === 'text' || element.type === 'image' || element.type === 'shape'
-        ? (element as any).dimensions
-        : undefined;
-
     const widthIsPercentage =
-      typeof elementDims?.width === 'string' && elementDims.width.includes('%');
+      typeof element.dimensions?.width === 'string' && element.dimensions.width.includes('%');
     const heightIsPercentage =
-      typeof elementDims?.height === 'string' && elementDims.height.includes('%');
+      typeof element.dimensions?.height === 'string' && element.dimensions.height.includes('%');
 
     // If dimensions are percentages, get the actual rendered pixel size
     if (targetElement && (widthIsPercentage || heightIsPercentage)) {
@@ -222,11 +212,7 @@
     // Use updateElementWithoutHistory to avoid creating a history entry for each pixel change
     // History is saved once at the start of the drag operation
     const updates: any = {
-      dimensions: {
-        ...(element.type === 'container' || element.type === 'text' || element.type === 'image' || element.type === 'shape'
-          ? (element as any).dimensions
-          : {})
-      }
+      dimensions: { ...element.dimensions }
     };
 
     // Only update dimensions that are actually being changed by the resize handle

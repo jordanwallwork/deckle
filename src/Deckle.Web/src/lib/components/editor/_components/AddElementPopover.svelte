@@ -1,6 +1,6 @@
 <script lang="ts">
   import { templateStore } from '$lib/stores/templateElements';
-  import type { ElementType, TemplateElement, ContainerElement, IteratorElement } from '../types';
+  import type { ElementType, TemplateElement, ContainerElement, IteratorElement, ShapeElement } from '../types';
 
   let {
     isOpen = $bindable(false),
@@ -81,6 +81,16 @@
           children: []
         } as IteratorElement;
         break;
+
+      case 'shape':
+        newElement = {
+          ...baseElement,
+          type: 'shape',
+          shapeType: 'circle',
+          dimensions: { width: 100, height: 100 },
+          children: []
+        } as ShapeElement;
+        break;
     }
 
     templateStore.addElement(newElement, parentId);
@@ -92,7 +102,9 @@
   const parentElement = $derived(
     parentId && parentId !== 'root' ? templateStore.getElement(parentId) : null
   );
-  const isParentContainer = $derived(parentElement?.type === 'container');
+  const isParentContainer = $derived(
+    parentElement?.type === 'container' || parentElement?.type === 'shape'
+  );
 </script>
 
 {#if isOpen}
@@ -145,6 +157,17 @@
         <path d="M2 11L5 8L8 11L11 8L14 11" stroke="currentColor" stroke-width="1.5" fill="none" />
       </svg>
       Image
+    </button>
+    <button class="popover-item" onclick={() => addElement('shape')}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path
+          d="M8 2L13 5V11L8 14L3 11V5L8 2Z"
+          stroke="currentColor"
+          stroke-width="1.5"
+          fill="none"
+        />
+      </svg>
+      Shape
     </button>
     {#if isParentContainer}
       <button class="popover-item" onclick={() => addElement('iterator')}>

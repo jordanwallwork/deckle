@@ -2,7 +2,9 @@
 // Base Types and Enums
 // ============================================================================
 
-export type ElementType = 'container' | 'text' | 'image' | 'iterator';
+export type ElementType = 'container' | 'text' | 'image' | 'iterator' | 'shape';
+
+export type ShapeType = 'circle' | 'hexagon' | 'triangle' | 'heart';
 
 export type Position = 'absolute' | 'relative';
 export type Display = 'flex' | 'block' | 'inline';
@@ -233,10 +235,23 @@ export interface IteratorElement extends BaseElement {
 }
 
 // ============================================================================
+// Shape Element
+// ============================================================================
+
+export interface ShapeElement extends BaseElement {
+  type: 'shape';
+  shapeType: ShapeType;
+  children: TemplateElement[];
+  background?: Background;
+  shadow?: Shadow | Shadow[];
+  overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
+}
+
+// ============================================================================
 // Union Type for All Elements
 // ============================================================================
 
-export type TemplateElement = ContainerElement | TextElement | ImageElement | IteratorElement;
+export type TemplateElement = ContainerElement | TextElement | ImageElement | IteratorElement | ShapeElement;
 
 // ============================================================================
 // Root Template Interface

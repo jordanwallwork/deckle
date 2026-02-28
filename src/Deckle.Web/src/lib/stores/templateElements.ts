@@ -2,14 +2,15 @@ import { writable, derived, type Writable } from 'svelte/store';
 import type {
   TemplateElement,
   ContainerElement,
-  IteratorElement
+  IteratorElement,
+  ShapeElement
 } from '$lib/components/editor/types';
 
-/** Type guard for elements with children arrays (container or iterator). */
-function hasChildren(
-  element: TemplateElement
-): element is ContainerElement | IteratorElement {
-  return element.type === 'container' || element.type === 'iterator';
+type ParentElement = ContainerElement | IteratorElement | ShapeElement;
+
+/** Type guard for elements with children arrays (container, iterator, or shape). */
+function hasChildren(element: TemplateElement): element is ParentElement {
+  return element.type === 'container' || element.type === 'iterator' || element.type === 'shape';
 }
 
 export interface TemplateStore {
@@ -249,11 +250,11 @@ function createTemplateStore() {
           }
         }
 
-        // Iterators can only be placed inside containers (not root, not other iterators)
+        // Iterators can only be placed inside containers or shapes (not root, not other iterators)
         if (element.type === 'iterator') {
           if (!newParentId || newParentId === 'root') return store;
           const targetParent = findElementById(store.root, newParentId);
-          if (!targetParent || targetParent.type !== 'container') return store;
+          if (!targetParent || (targetParent.type !== 'container' && targetParent.type !== 'shape')) return store;
         }
 
         saveHistory(store);
@@ -427,13 +428,13 @@ function addElementToContainer(
   };
 }
 
-// Helper to add element to a child that has children (container or iterator)
+// Helper to add element to a child that has children (container, iterator, or shape)
 function addElementToChildContainer(
-  parent: ContainerElement | IteratorElement,
+  parent: ParentElement,
   parentId: string,
   element: TemplateElement,
   insertIndex?: number
-): ContainerElement | IteratorElement {
+): ParentElement {
   if (parent.id === parentId) {
     return {
       ...parent,
@@ -491,11 +492,11 @@ function removeElementFromContainer(
   };
 }
 
-// Helper to remove element from a child that has children (container or iterator)
+// Helper to remove element from a child that has children (container, iterator, or shape)
 function removeElementFromChildContainer(
-  parent: ContainerElement | IteratorElement,
+  parent: ParentElement,
   targetId: string
-): { element: ContainerElement | IteratorElement; removed: boolean } {
+): { element: ParentElement; removed: boolean } {
   const hasChild = parent.children.some((child: TemplateElement) => child.id === targetId);
   if (hasChild) {
     return {
@@ -555,12 +556,12 @@ function updateElementInContainer(
   };
 }
 
-// Helper to update element in a child that has children (container or iterator)
+// Helper to update element in a child that has children (container, iterator, or shape)
 function updateElementInChildContainer(
-  parent: ContainerElement | IteratorElement,
+  parent: ParentElement,
   targetId: string,
   updates: Partial<TemplateElement>
-): ContainerElement | IteratorElement {
+): ParentElement {
   if (parent.id === targetId) {
     return { ...parent, ...updates } as ContainerElement | IteratorElement;
   }
@@ -583,7 +584,7 @@ function updateElementInChildContainer(
 
 // Helper function to find parent and index of an element
 function findParentAndIndex(
-  container: ContainerElement | IteratorElement,
+  container: ParentElement,
   targetId: string,
   parentId: string = 'root'
 ): { parentId: string; index: number } | null {

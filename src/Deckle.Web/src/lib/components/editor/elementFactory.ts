@@ -1,4 +1,4 @@
-import type { TemplateElement, ElementType } from './types';
+import type { TemplateElement, ElementType, ShapeElement } from './types';
 
 /**
  * Factory function to create new template elements with default values
@@ -40,6 +40,16 @@ export function createElementOfType(type: ElementType): TemplateElement {
       toExpression: '3',
       children: []
     };
+  } else if (type === 'shape') {
+    return {
+      id: crypto.randomUUID(),
+      type: 'shape',
+      visibilityMode: 'show',
+      opacity: 1,
+      shapeType: 'circle',
+      dimensions: { width: 100, height: 100 },
+      children: []
+    } as ShapeElement;
   } else {
     // image
     return {

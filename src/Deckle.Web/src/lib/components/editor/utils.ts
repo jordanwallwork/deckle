@@ -5,6 +5,7 @@ import type {
   IteratorElement,
   ContainerElement,
   ShapeElement,
+  GridElement,
   TemplateElement
 } from './types';
 import { mmToPx } from '$lib/utils/size.utils';
@@ -36,6 +37,16 @@ export function getElementLabel(el: BaseElement): string {
   if (el.type === 'shape') {
     const shape = el as ShapeElement;
     return shape.shapeType.charAt(0).toUpperCase() + shape.shapeType.slice(1);
+  }
+  if (el.type === 'grid') {
+    const grid = el as GridElement;
+    const variantLabel =
+      grid.variant === 'checkerboard'
+        ? 'Checkerboard'
+        : grid.variant === 'offset-checkerboard'
+          ? 'Offset Checkerboard'
+          : 'Hexagonal';
+    return `Grid (${variantLabel})`;
   }
   return el.type.charAt(0).toUpperCase() + el.type.slice(1);
 }

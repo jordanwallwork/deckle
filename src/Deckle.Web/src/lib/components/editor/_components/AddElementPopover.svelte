@@ -1,6 +1,6 @@
 <script lang="ts">
   import { templateStore } from '$lib/stores/templateElements';
-  import type { ElementType, TemplateElement, ContainerElement, IteratorElement, ShapeElement } from '../types';
+  import type { ElementType, TemplateElement, ContainerElement, IteratorElement, ShapeElement, GridElement } from '../types';
 
   let {
     isOpen = $bindable(false),
@@ -91,6 +91,18 @@
           children: []
         } as ShapeElement;
         break;
+
+      case 'grid':
+        newElement = {
+          ...baseElement,
+          type: 'grid',
+          variant: 'checkerboard',
+          itemSize: 20,
+          cells: [],
+          dimensions: { width: 100, height: 100 },
+          background: { color: '#cccccc' }
+        } as GridElement;
+        break;
     }
 
     templateStore.addElement(newElement, parentId);
@@ -168,6 +180,15 @@
         />
       </svg>
       Shape
+    </button>
+    <button class="popover-item" onclick={() => addElement('grid')}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" fill="none" />
+        <rect x="9" y="1" width="6" height="6" stroke="currentColor" stroke-width="1.5" fill="none" />
+        <rect x="1" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" fill="none" />
+        <rect x="9" y="9" width="6" height="6" stroke="currentColor" stroke-width="1.5" fill="none" />
+      </svg>
+      Grid
     </button>
     {#if isParentContainer}
       <button class="popover-item" onclick={() => addElement('iterator')}>

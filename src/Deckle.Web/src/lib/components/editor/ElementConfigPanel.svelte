@@ -5,9 +5,10 @@
   import ImageConfig from './_components/configuration/ImageConfig.svelte';
   import IteratorConfig from './_components/configuration/IteratorConfig.svelte';
   import ShapeConfig from './_components/configuration/ShapeConfig.svelte';
+  import GridConfig from './_components/configuration/GridConfig.svelte';
   import ComponentConfig from './_components/configuration/ComponentConfig.svelte';
   import { templateStore } from '$lib/stores/templateElements';
-  import type { ContainerElement, TextElement, ImageElement, IteratorElement, ShapeElement } from './types';
+  import type { ContainerElement, TextElement, ImageElement, IteratorElement, ShapeElement, GridElement } from './types';
   import type { EditableComponent } from '$lib/types';
 
   let {
@@ -40,6 +41,8 @@
         <IteratorConfig element={selectedElement as IteratorElement} />
       {:else if selectedElement.type === 'shape'}
         <ShapeConfig element={selectedElement as ShapeElement} />
+      {:else if selectedElement.type === 'grid'}
+        <GridConfig element={selectedElement as GridElement} />
       {/if}
     {:else}
       <div class="empty-state">

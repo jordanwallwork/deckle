@@ -1,4 +1,4 @@
-import type { TemplateElement, ElementType, ShapeElement } from './types';
+import type { TemplateElement, ElementType, ShapeElement, GridElement } from './types';
 
 /**
  * Factory function to create new template elements with default values
@@ -50,6 +50,18 @@ export function createElementOfType(type: ElementType): TemplateElement {
       dimensions: { width: 100, height: 100 },
       children: []
     } as ShapeElement;
+  } else if (type === 'grid') {
+    return {
+      id: crypto.randomUUID(),
+      type: 'grid',
+      visibilityMode: 'show',
+      opacity: 1,
+      variant: 'checkerboard',
+      itemSize: 20,
+      cells: [],
+      dimensions: { width: 100, height: 100 },
+      background: { color: '#cccccc' }
+    } as GridElement;
   } else {
     // image
     return {

@@ -2,7 +2,9 @@
 // Base Types and Enums
 // ============================================================================
 
-export type ElementType = 'container' | 'text' | 'image' | 'iterator' | 'shape';
+export type ElementType = 'container' | 'text' | 'image' | 'iterator' | 'shape' | 'grid';
+
+export type GridVariant = 'checkerboard' | 'offset-checkerboard' | 'hexagonal';
 
 export type ShapeType = 'circle' | 'hexagon' | 'triangle' | 'heart';
 
@@ -248,10 +250,32 @@ export interface ShapeElement extends BaseElement {
 }
 
 // ============================================================================
+// Grid Element
+// ============================================================================
+
+export interface GridCell {
+  id: string;
+  row: number;
+  col: number;
+  background?: Background;
+  border?: Border;
+  opacity?: number;
+}
+
+export interface GridElement extends BaseElement {
+  type: 'grid';
+  variant: GridVariant;
+  itemSize: number; // Size in pixels of each cell (side length for hexagons, side for squares)
+  cells: GridCell[][];  // 2D array [row][col] — synced automatically from dimensions + itemSize
+  background?: Background; // Default cell fill
+  border?: Border; // Default cell border (squares only)
+}
+
+// ============================================================================
 // Union Type for All Elements
 // ============================================================================
 
-export type TemplateElement = ContainerElement | TextElement | ImageElement | IteratorElement | ShapeElement;
+export type TemplateElement = ContainerElement | TextElement | ImageElement | IteratorElement | ShapeElement | GridElement;
 
 // ============================================================================
 // Root Template Interface

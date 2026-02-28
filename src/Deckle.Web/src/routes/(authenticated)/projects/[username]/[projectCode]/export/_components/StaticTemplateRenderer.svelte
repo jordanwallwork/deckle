@@ -4,7 +4,8 @@
     ContainerElement,
     TextElement,
     ImageElement,
-    IteratorElement
+    IteratorElement,
+    GridElement
   } from '$lib/components/editor/types';
   import StaticTemplateRenderer from './StaticTemplateRenderer.svelte';
   import { dimensionValue, spacingToCss } from '$lib/components/editor/utils';
@@ -12,6 +13,7 @@
   import ImageElementComponent from '$lib/components/editor/_components/elements/ImageElement.svelte';
   import TextElementComponent from '$lib/components/editor/_components/elements/TextElement.svelte';
   import ContainerElementComponent from '$lib/components/editor/_components/elements/ContainerElement.svelte';
+  import GridElementComponent from '$lib/components/editor/_components/elements/GridElement.svelte';
   import { initDataSourceRow } from '$lib/stores/dataSourceRow';
 
   const MAX_ITERATIONS = 100;
@@ -107,6 +109,8 @@
             <StaticTemplateRenderer element={child} {dpi} {mergeData} {projectId} />
           {/each}
         </ContainerElementComponent>
+      {:else if element.type === 'grid'}
+        <GridElementComponent element={element as GridElement} {dpi} />
       {/if}
     </div>
   {/if}

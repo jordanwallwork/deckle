@@ -5,7 +5,8 @@
     TextElement,
     ImageElement,
     IteratorElement,
-    ShapeElement
+    ShapeElement,
+    GridElement
   } from './types';
   import ElementWrapper from './_components/element-wrapper/ElementWrapper.svelte';
   import TextElementComponent from './_components/elements/TextElement.svelte';
@@ -13,6 +14,7 @@
   import ImageElementComponent from './_components/elements/ImageElement.svelte';
   import IteratorElementComponent from './_components/elements/IteratorElement.svelte';
   import ShapeElementComponent from './_components/elements/ShapeElement.svelte';
+  import GridElementComponent from './_components/elements/GridElement.svelte';
 
   let { element, dpi }: { element: TemplateElement; dpi: number } = $props();
 </script>
@@ -34,5 +36,9 @@
 {:else if element.type === 'shape'}
   <ElementWrapper {element} {dpi}>
     <ShapeElementComponent element={element as ShapeElement} {dpi} />
+  </ElementWrapper>
+{:else if element.type === 'grid'}
+  <ElementWrapper {element} {dpi}>
+    <GridElementComponent element={element as GridElement} {dpi} />
   </ElementWrapper>
 {/if}

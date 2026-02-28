@@ -240,6 +240,11 @@ export interface IteratorElement extends BaseElement {
 // Shape Element
 // ============================================================================
 
+export interface ShapeBorder {
+  thickness: number; // in pixels
+  color: string;
+}
+
 export interface ShapeElement extends BaseElement {
   type: 'shape';
   shapeType: ShapeType;
@@ -247,6 +252,7 @@ export interface ShapeElement extends BaseElement {
   background?: Background;
   shadow?: Shadow | Shadow[];
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
+  shapeBorder?: ShapeBorder;
 }
 
 // ============================================================================

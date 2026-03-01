@@ -1,7 +1,8 @@
 <script lang="ts">
-  import type { GridElement, GridCell, GridVariant } from '../../types';
+  import type { GridElement, GridCell, GridVariant, ShapeElement as ShapeElementType } from '../../types';
   import { templateStore } from '$lib/stores/templateElements';
   import { dimensionToPx, backgroundStyle, borderStyle } from '../../utils';
+  import ShapeElement from './ShapeElement.svelte';
   import { untrack } from 'svelte';
 
   let { element, dpi }: { element: GridElement; dpi: number } = $props();
@@ -11,7 +12,6 @@
     top: number;
     width: number;
     height: number;
-    clipPath?: string;
   }
 
   interface GridLayout {
@@ -85,8 +85,7 @@
         left: col * hexW + (row % 2 === 1 ? hexW / 2 : 0),
         top: row * vertStep,
         width: hexW,
-        height: hexH,
-        clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+        height: hexH
       })
     };
   }
@@ -156,6 +155,27 @@
 
   const defaultBackground = $derived(backgroundStyle(element.background));
   const defaultBorder = $derived(borderStyle(element.border, dpi));
+
+  // Build a synthetic ShapeElement for a hexagonal cell so that ShapeElement handles
+  // all clip-path and border rendering (avoiding duplication of that logic here).
+  function makeCellShape(cell: GridCell | undefined, fallbackId: string): ShapeElementType {
+    const border = cell?.border ?? element.border;
+    const borderWidth =
+      typeof border?.width === 'number'
+        ? border.width
+        : parseFloat(String(border?.width ?? 0)) || 0;
+    return {
+      id: cell?.id ?? fallbackId,
+      type: 'shape',
+      visibilityMode: 'show',
+      shapeType: 'hexagon',
+      children: [],
+      background: cell?.background ?? element.background,
+      ...(borderWidth > 0
+        ? { shapeBorder: { thickness: borderWidth, color: border?.color ?? '#000000' } }
+        : {})
+    };
+  }
 </script>
 
 <div class="grid-element">
@@ -164,17 +184,37 @@
       {#each { length: layout.colsPerRow[ri] } as _, ci}
         {@const rect = layout.getCellRect(ri, ci)}
         {@const cell = element.cells[ri]?.[ci]}
-        <div
-          class="grid-cell"
-          style:left="{rect.left}px"
-          style:top="{rect.top}px"
-          style:width="{rect.width}px"
-          style:height="{rect.height}px"
-          style:clip-path={rect.clipPath}
-          style={cell?.background ? backgroundStyle(cell.background) : defaultBackground}
-          style:border={cell?.border ? borderStyle(cell.border, dpi) : defaultBorder}
-          style:opacity={cell?.opacity}
-        ></div>
+
+        {#if element.variant === 'hexagonal'}
+          <div
+            class="grid-cell"
+            style:left="{rect.left}px"
+            style:top="{rect.top}px"
+            style:width="{rect.width}px"
+            style:height="{rect.height}px"
+            style:opacity={cell?.opacity}
+          >
+            <ShapeElement
+              element={makeCellShape(cell, `${element.id}-cell-r${ri}-c${ci}`)}
+              {dpi}
+            />
+          </div>
+        {:else}
+          <div
+            class="grid-cell"
+            style:left="{rect.left}px"
+            style:top="{rect.top}px"
+            style:width="{rect.width}px"
+            style:height="{rect.height}px"
+            style={[
+              cell?.background ? backgroundStyle(cell.background) : defaultBackground,
+              cell?.border ? borderStyle(cell.border, dpi) : defaultBorder
+            ]
+              .filter(Boolean)
+              .join('; ')}
+            style:opacity={cell?.opacity}
+          ></div>
+        {/if}
       {/each}
     {/each}
   {/if}

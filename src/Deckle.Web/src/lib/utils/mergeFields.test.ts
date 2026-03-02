@@ -6,7 +6,9 @@ import {
   parseDataRows,
   evaluateVisibility,
   isElementVisible,
-  evaluateExpression
+  evaluateExpression,
+  colToLetter,
+  cellReferenceFields
 } from './mergeFields';
 
 describe('toIdentifier', () => {
@@ -144,6 +146,36 @@ describe('isElementVisible', () => {
   it('evaluates the condition when mode is "conditional"', () => {
     expect(isElementVisible('conditional', 'IsVisible', { IsVisible: 'true' })).toBe(true);
     expect(isElementVisible('conditional', 'IsVisible', { IsVisible: 'false' })).toBe(false);
+  });
+});
+
+describe('colToLetter', () => {
+  it('converts single-letter columns', () => {
+    expect(colToLetter(0)).toBe('A');
+    expect(colToLetter(25)).toBe('Z');
+  });
+
+  it('converts double-letter columns', () => {
+    expect(colToLetter(26)).toBe('AA');
+    expect(colToLetter(27)).toBe('AB');
+    expect(colToLetter(51)).toBe('AZ');
+    expect(colToLetter(52)).toBe('BA');
+  });
+});
+
+describe('cellReferenceFields', () => {
+  it('returns correct fields for the top-left cell', () => {
+    expect(cellReferenceFields(0, 0)).toEqual({ CellRef: 'A1', CellX: '1', CellY: '1' });
+  });
+
+  it('returns correct fields for an interior cell', () => {
+    expect(cellReferenceFields(2, 3)).toEqual({ CellRef: 'D3', CellX: '4', CellY: '3' });
+  });
+
+  it('uses 1-based X and Y', () => {
+    const { CellX, CellY } = cellReferenceFields(0, 0);
+    expect(CellX).toBe('1');
+    expect(CellY).toBe('1');
   });
 });
 

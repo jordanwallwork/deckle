@@ -3,14 +3,15 @@ import type {
   TemplateElement,
   ContainerElement,
   IteratorElement,
-  ShapeElement
+  ShapeElement,
+  GridElement
 } from '$lib/components/editor/types';
 
-type ParentElement = ContainerElement | IteratorElement | ShapeElement;
+type ParentElement = ContainerElement | IteratorElement | ShapeElement | GridElement;
 
-/** Type guard for elements with children arrays (container, iterator, or shape). */
+/** Type guard for elements with children arrays (container, iterator, shape, or grid). */
 function hasChildren(element: TemplateElement): element is ParentElement {
-  return element.type === 'container' || element.type === 'iterator' || element.type === 'shape';
+  return element.type === 'container' || element.type === 'iterator' || element.type === 'shape' || element.type === 'grid';
 }
 
 export interface TemplateStore {
@@ -250,11 +251,11 @@ function createTemplateStore() {
           }
         }
 
-        // Iterators can only be placed inside containers or shapes (not root, not other iterators)
+        // Iterators can only be placed inside containers, shapes, or grids (not root, not other iterators)
         if (element.type === 'iterator') {
           if (!newParentId || newParentId === 'root') return store;
           const targetParent = findElementById(store.root, newParentId);
-          if (!targetParent || (targetParent.type !== 'container' && targetParent.type !== 'shape')) return store;
+          if (!targetParent || (targetParent.type !== 'container' && targetParent.type !== 'shape' && targetParent.type !== 'grid')) return store;
         }
 
         saveHistory(store);
@@ -385,14 +386,15 @@ function findElementById(element: TemplateElement, targetId: string): TemplateEl
 
 // Helper function to insert element at specific index (or end if undefined)
 function insertAtIndex(
-  children: TemplateElement[],
+  children: TemplateElement[] | undefined,
   element: TemplateElement,
   index?: number
 ): TemplateElement[] {
-  if (index === undefined || index < 0 || index >= children.length) {
-    return [...children, element];
+  const arr = children ?? [];
+  if (index === undefined || index < 0 || index >= arr.length) {
+    return [...arr, element];
   }
-  return [...children.slice(0, index), element, ...children.slice(index)];
+  return [...arr.slice(0, index), element, ...arr.slice(index)];
 }
 
 // Helper function to add element immutably (creates new references for the entire path)
@@ -442,7 +444,7 @@ function addElementToChildContainer(
     };
   }
 
-  const newChildren = parent.children.map((child: TemplateElement) => {
+  const newChildren = (parent.children ?? []).map((child: TemplateElement) => {
     if (hasChildren(child)) {
       const found = findElementById(child, parentId);
       if (found) {
@@ -497,19 +499,20 @@ function removeElementFromChildContainer(
   parent: ParentElement,
   targetId: string
 ): { element: ParentElement; removed: boolean } {
-  const hasChild = parent.children.some((child: TemplateElement) => child.id === targetId);
+  const children = parent.children ?? [];
+  const hasChild = children.some((child: TemplateElement) => child.id === targetId);
   if (hasChild) {
     return {
       element: {
         ...parent,
-        children: parent.children.filter((child: TemplateElement) => child.id !== targetId)
+        children: children.filter((child: TemplateElement) => child.id !== targetId)
       },
       removed: true
     };
   }
 
   let removed = false;
-  const newChildren = parent.children.map((child: TemplateElement) => {
+  const newChildren = children.map((child: TemplateElement) => {
     if (!removed && hasChildren(child)) {
       const found = findElementById(child, targetId);
       if (found) {
@@ -566,7 +569,7 @@ function updateElementInChildContainer(
     return { ...parent, ...updates } as ContainerElement | IteratorElement;
   }
 
-  const newChildren = parent.children.map((child: TemplateElement): TemplateElement => {
+  const newChildren = (parent.children ?? []).map((child: TemplateElement): TemplateElement => {
     if (child.id === targetId) {
       return { ...child, ...updates } as TemplateElement;
     }
@@ -588,14 +591,15 @@ function findParentAndIndex(
   targetId: string,
   parentId: string = 'root'
 ): { parentId: string; index: number } | null {
+  const children = container.children ?? [];
   // Check if target is in direct children
-  const index = container.children.findIndex((child: TemplateElement) => child.id === targetId);
+  const index = children.findIndex((child: TemplateElement) => child.id === targetId);
   if (index !== -1) {
     return { parentId, index };
   }
 
   // Recursively search in nested containers and iterators
-  for (const child of container.children) {
+  for (const child of children) {
     if (hasChildren(child)) {
       const found = findParentAndIndex(child, targetId, child.id);
       if (found) return found;

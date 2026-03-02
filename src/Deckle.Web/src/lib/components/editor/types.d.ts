@@ -273,6 +273,7 @@ export interface GridElement extends BaseElement {
   variant: GridVariant;
   itemSize: number; // Size in pixels of each cell (side length for hexagons, side for squares)
   cells: GridCell[][];  // 2D array [row][col] — synced automatically from dimensions + itemSize
+  children: TemplateElement[]; // Template rendered inside every cell
   background?: Background; // Default cell fill
   border?: Border; // Default cell border (squares only)
 }

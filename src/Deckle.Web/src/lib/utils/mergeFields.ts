@@ -154,6 +154,40 @@ export function parseDataRows(data: string[][]): Record<string, string>[] {
   return rows.map((row) => parseDataRow(headers, row));
 }
 
+/**
+ * Converts a 0-based column index to an Excel-style letter reference.
+ * col 0 → "A", col 25 → "Z", col 26 → "AA", col 51 → "AZ", col 52 → "BA", etc.
+ */
+export function colToLetter(col: number): string {
+  let result = '';
+  let n = col;
+  do {
+    result = String.fromCharCode(65 + (n % 26)) + result;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return result;
+}
+
+/**
+ * Returns the Excel-style cell reference merge fields for a grid cell.
+ * Both row and col are 0-based indices; CellX and CellY are 1-based numbers.
+ *
+ * @example
+ * cellReferenceFields(0, 0) // { CellRef: 'A1', CellX: '1', CellY: '1' }
+ * cellReferenceFields(2, 3) // { CellRef: 'D3', CellX: '4', CellY: '3' }
+ */
+export function cellReferenceFields(
+  row: number,
+  col: number
+): { CellRef: string; CellX: string; CellY: string } {
+  const rowNum = row + 1;
+  return {
+    CellRef: `${colToLetter(col)}${rowNum}`,
+    CellX: String(col + 1),
+    CellY: String(rowNum)
+  };
+}
+
 /** Regex for matching merge field patterns: {{expression}} or {{expression|fallback}} */
 const MERGE_FIELD_PATTERN = /\{\{((?:\|\||[^|{}])+)(?:\|([^}]*))?\}\}/g;
 

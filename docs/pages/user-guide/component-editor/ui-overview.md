@@ -28,7 +28,7 @@ The Structure Tree shows all the elements in your design as a nested list. The t
 
 **Double-click** an element's name to rename it — this is useful for keeping track of elements in complex designs.
 
-**Hover** over a container (or the root) to reveal a **+** button for adding new elements. You can add four types: **Container**, **Text**, **Image**, and **Iterator**.
+**Hover** over a container (or the root) to reveal a **+** button for adding new elements. You can add: **Container**, **Text**, **Image**, **Shape**, **Grid**, and **Iterator**. The Iterator option is only available when hovering over a container, shape, or grid (not at the root level).
 
 **Drag** elements by their handle to reorder them or move them into a different container.
 
@@ -122,6 +122,49 @@ In addition to the shared settings, an iterator has:
 The iterator renders its children once for each integer step from **From** to **To**. Steps are always whole numbers; fractional results are rounded. The maximum range is 100 iterations.
 
 {% alert 'Tip: Set "From" or "To" to a merge field expression — for example, `{{ "{{" }} HitPoints }}` — to have the repeat count driven by your data source.' 'info' %}
+
+## Shape
+
+A Shape element renders a filled geometric form. It is useful for decorative elements, tokens, badges, and map tiles.
+
+In addition to the shared settings, a shape has:
+
+- **Shape** — choose from: Circle, Hexagon, Triangle, or Heart
+- **Width / Height** — size of the element's bounding box
+- **Color** — fill colour of the shape
+- **Border** — thickness (px) and colour of a border that follows the shape outline; set thickness to `0` to disable
+
+Shape elements can contain child elements. Children are clipped to the shape outline, so any content placed inside will be masked to the shape silhouette.
+
+{% alert 'Note: Shapes use CSS clip-path for masking. Shadows are rendered as filter: drop-shadow so they follow the shape silhouette — inset shadows are not supported for clipped shapes.' 'info' %}
+
+## Grid
+
+A Grid element tiles cells in a repeating pattern across its area. It is useful for game boards, hex maps, pip tracks, and any tiled layout. Child elements added to a Grid are rendered inside every cell.
+
+In addition to the shared settings, a grid has:
+
+- **Variant** — the tiling pattern:
+  - **Checkerboard** — square tiles in a regular grid
+  - **Offset Checkerboard** — square tiles where odd rows are shifted by half a cell width (brick-wall layout)
+  - **Hexagonal** — pointy-top hexagons arranged in offset rows
+- **Cell size** — size of each cell in px. For square variants this is the side length; for hexagons it is the circumradius (equal to the side length)
+- **Cell color** — default background fill applied to all cells
+- **Cell border** — default border width and colour applied to all cells (square variants only)
+
+The grid automatically recomputes the number of rows and columns as you resize the element or change the cell size.
+
+### Cell reference merge fields
+
+Inside Grid child elements, three special merge fields are available in addition to any data source fields:
+
+| Field | Description | Example |
+| --- | --- | --- |
+| `{{ "{{" }} CellX }}` | Column number (1-based) | `1`, `2`, `3` |
+| `{{ "{{" }} CellY }}` | Row number (1-based) | `1`, `2`, `3` |
+| `{{ "{{" }} CellRef }}` | Spreadsheet-style reference | `A1`, `B2`, `C3` |
+
+{% alert 'Tip: Use `{{ "{{" }} CellRef }}` to label cells in a board game grid, or use `{{ "{{" }} CellX }}` and `{{ "{{" }} CellY }}` in formulas to conditionally style specific positions.' 'info' %}
 
 ## Component settings
 

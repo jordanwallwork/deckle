@@ -9,6 +9,12 @@
   const boxShadow = $derived(boxShadowStyle(element.shadow));
   const dropShadowFilter = $derived(shadowToDropShadow(element.shadow));
   const clipPath = $derived(getClipPath(element.shapeType, element.id));
+  const hasBorder = $derived(
+    !!element.shapeBorder && element.shapeBorder.thickness > 0
+  );
+  const borderInset = $derived(
+    hasBorder ? `${element.shapeBorder!.thickness * 2}px` : undefined
+  );
 
   // Heart path in objectBoundingBox units (0–1). Uses cubic Bézier curves for smooth lobes.
   // Points: bottom tip (0.5,1), left lobe peak (0.25,0), centre dip (0.5,0.25), right lobe peak (0.75,0).
@@ -59,6 +65,10 @@
 <!--
   Shapes with clip-path use an outer wrapper with filter:drop-shadow so the shadow follows
   the shape silhouette.
+
+  When a shapeBorder is configured, the outer div is filled with the border color and clipped,
+  and a scaled-down inner div with the fill color sits centred inside it — giving the appearance
+  of a solid border that follows the shape outline.
 -->
 {#if clipPath}
   <div
@@ -67,18 +77,41 @@
     style:height="100%"
     style:filter={dropShadowFilter}
   >
-    <div
-      class="shape-element"
-      style:width="100%"
-      style:height="100%"
-      style:clip-path={clipPath}
-      style:overflow="hidden"
-      style={background}
-    >
-      {#each element.children as child (child.id)}
-        <TemplateRenderer element={child} {dpi} />
-      {/each}
-    </div>
+    {#if hasBorder}
+      <div
+        class="shape-border"
+        style:width="100%"
+        style:height="100%"
+        style:clip-path={clipPath}
+        style:background-color={element.shapeBorder!.color}
+      >
+        <div
+          class="shape-element"
+          style:width="calc(100% - {borderInset})"
+          style:height="calc(100% - {borderInset})"
+          style:clip-path={clipPath}
+          style:overflow="hidden"
+          style={background}
+        >
+          {#each element.children as child (child.id)}
+            <TemplateRenderer element={child} {dpi} />
+          {/each}
+        </div>
+      </div>
+    {:else}
+      <div
+        class="shape-element"
+        style:width="100%"
+        style:height="100%"
+        style:clip-path={clipPath}
+        style:overflow="hidden"
+        style={background}
+      >
+        {#each element.children as child (child.id)}
+          <TemplateRenderer element={child} {dpi} />
+        {/each}
+      </div>
+    {/if}
   </div>
 {:else}
   <div
@@ -98,6 +131,12 @@
 <style>
   .shape-wrapper {
     position: relative;
+  }
+
+  .shape-border {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .shape-element {

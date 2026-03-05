@@ -240,6 +240,11 @@ export interface IteratorElement extends BaseElement {
 // Shape Element
 // ============================================================================
 
+export interface ShapeBorder {
+  thickness: number; // in pixels
+  color: string;
+}
+
 export interface ShapeElement extends BaseElement {
   type: 'shape';
   shapeType: ShapeType;
@@ -247,6 +252,7 @@ export interface ShapeElement extends BaseElement {
   background?: Background;
   shadow?: Shadow | Shadow[];
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
+  shapeBorder?: ShapeBorder;
 }
 
 // ============================================================================
@@ -267,6 +273,7 @@ export interface GridElement extends BaseElement {
   variant: GridVariant;
   itemSize: number; // Size in pixels of each cell (side length for hexagons, side for squares)
   cells: GridCell[][];  // 2D array [row][col] — synced automatically from dimensions + itemSize
+  children: TemplateElement[]; // Template rendered inside every cell
   background?: Background; // Default cell fill
   border?: Border; // Default cell border (squares only)
 }

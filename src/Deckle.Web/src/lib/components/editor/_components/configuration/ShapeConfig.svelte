@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ShapeElement, ShapeType, VisibilityMode } from '../../types';
+  import type { ShapeElement, ShapeType, VisibilityMode, ShapeBorder } from '../../types';
   import { templateStore } from '$lib/stores/templateElements';
   import ConfigSection from '../config-controls/ConfigSection.svelte';
   import TextField from '../config-controls/TextField.svelte';
@@ -105,6 +105,31 @@
         background: { ...element.background, color }
       })}
   />
+
+  <Fields>
+    <NumberField
+      label="Border"
+      id="border-thickness"
+      value={element.shapeBorder?.thickness ?? 0}
+      min={0}
+      max={100}
+      step={1}
+      unit="px"
+      onchange={(thickness) =>
+        updateElement({
+          shapeBorder: { color: element.shapeBorder?.color ?? '#000000', thickness }
+        })}
+    />
+    <ColorPicker
+      label="Border color"
+      id="border-color"
+      value={element.shapeBorder?.color ?? '#000000'}
+      onchange={(color) =>
+        updateElement({
+          shapeBorder: { thickness: element.shapeBorder?.thickness ?? 0, color }
+        })}
+    />
+  </Fields>
 </ConfigSection>
 
 <style>

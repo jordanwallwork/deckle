@@ -9,7 +9,7 @@
   } from '$lib/components/editor/types';
   import StaticTemplateRenderer from './StaticTemplateRenderer.svelte';
   import { dimensionValue, spacingToCss } from '$lib/components/editor/utils';
-  import { isElementVisible, evaluateExpression } from '$lib/utils/mergeFields';
+  import { isElementVisible, evaluateExpression, cellReferenceFields } from '$lib/utils/mergeFields';
   import ImageElementComponent from '$lib/components/editor/_components/elements/ImageElement.svelte';
   import TextElementComponent from '$lib/components/editor/_components/elements/TextElement.svelte';
   import ContainerElementComponent from '$lib/components/editor/_components/elements/ContainerElement.svelte';
@@ -110,7 +110,11 @@
           {/each}
         </ContainerElementComponent>
       {:else if element.type === 'grid'}
-        <GridElementComponent element={element as GridElement} {dpi} />
+        {#snippet gridCellChildren(child: TemplateElement, row: number, col: number)}
+          {@const cellMergeData = { ...(mergeData ?? {}), ...cellReferenceFields(row, col) }}
+          <StaticTemplateRenderer element={child} {dpi} mergeData={cellMergeData} {projectId} />
+        {/snippet}
+        <GridElementComponent element={element as GridElement} {dpi} cellChildren={gridCellChildren} />
       {/if}
     </div>
   {/if}

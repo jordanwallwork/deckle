@@ -1,17 +1,36 @@
 <script lang="ts">
-  import type { GridElement, GridCell, GridVariant } from '../../types';
+  import type { GridElement, GridCell, GridVariant, ShapeElement as ShapeElementType, TemplateElement } from '../../types';
   import { templateStore } from '$lib/stores/templateElements';
   import { dimensionToPx, backgroundStyle, borderStyle } from '../../utils';
-  import { untrack } from 'svelte';
+  import ShapeElement from './ShapeElement.svelte';
+  import TemplateRenderer from '../../TemplateRenderer.svelte';
+  import MergeDataProvider from './MergeDataProvider.svelte';
+  import { getDataSourceRow } from '$lib/stores/dataSourceRow';
+  import { cellReferenceFields } from '$lib/utils/mergeFields';
+  import { untrack, type Snippet } from 'svelte';
 
-  let { element, dpi }: { element: GridElement; dpi: number } = $props();
+  let {
+    element,
+    dpi,
+    cellChildren
+  }: {
+    element: GridElement;
+    dpi: number;
+    /** Optional override for rendering each child inside a cell. Defaults to TemplateRenderer. */
+    cellChildren?: Snippet<[TemplateElement, number, number]>;
+  } = $props();
+
+  const dataSourceRow = getDataSourceRow();
+
+  function cellMergeData(row: number, col: number): Record<string, string> {
+    return { ...($dataSourceRow ?? {}), ...cellReferenceFields(row, col) };
+  }
 
   interface CellRect {
     left: number;
     top: number;
     width: number;
     height: number;
-    clipPath?: string;
   }
 
   interface GridLayout {
@@ -61,12 +80,13 @@
   }
 
   function computeHexagonalLayout(width: number, height: number, itemSize: number): GridLayout {
-    // Pointy-top hexagons. itemSize = circumradius (side length).
-    // Bounding box: width = sqrt(3)*itemSize, height = 2*itemSize
-    // Vertical step between row centres = 1.5*itemSize (rows overlap by 0.5*itemSize)
-    const hexW = Math.sqrt(3) * itemSize;
-    const hexH = 2 * itemSize;
-    const vertStep = 1.5 * itemSize;
+    // Pointy-top hexagons. itemSize = flat-to-flat distance (short diameter).
+    // Circumradius R = itemSize / sqrt(3).
+    // Bounding box: width = itemSize, height = (2/sqrt(3))*itemSize ≈ 1.155*itemSize
+    // Vertical step between row centres = (sqrt(3)/2)*itemSize ≈ 0.866*itemSize
+    const hexW = itemSize;
+    const hexH = (2 / Math.sqrt(3)) * itemSize;
+    const vertStep = (Math.sqrt(3) / 2) * itemSize;
 
     // Number of rows where the bottom of the last row fits within height
     const rows = Math.max(0, Math.floor((height - hexH) / vertStep) + 1);
@@ -85,8 +105,7 @@
         left: col * hexW + (row % 2 === 1 ? hexW / 2 : 0),
         top: row * vertStep,
         width: hexW,
-        height: hexH,
-        clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)'
+        height: hexH
       })
     };
   }
@@ -156,6 +175,27 @@
 
   const defaultBackground = $derived(backgroundStyle(element.background));
   const defaultBorder = $derived(borderStyle(element.border, dpi));
+
+  // Build a synthetic ShapeElement for a hexagonal cell so that ShapeElement handles
+  // all clip-path and border rendering (avoiding duplication of that logic here).
+  function makeCellShape(cell: GridCell | undefined, fallbackId: string): ShapeElementType {
+    const border = cell?.border ?? element.border;
+    const borderWidth =
+      typeof border?.width === 'number'
+        ? border.width
+        : parseFloat(String(border?.width ?? 0)) || 0;
+    return {
+      id: cell?.id ?? fallbackId,
+      type: 'shape',
+      visibilityMode: 'show',
+      shapeType: 'hexagon',
+      children: element.children ?? [],
+      background: cell?.background ?? element.background,
+      ...(borderWidth > 0
+        ? { shapeBorder: { thickness: borderWidth, color: border?.color ?? '#000000' } }
+        : {})
+    };
+  }
 </script>
 
 <div class="grid-element">
@@ -164,17 +204,51 @@
       {#each { length: layout.colsPerRow[ri] } as _, ci}
         {@const rect = layout.getCellRect(ri, ci)}
         {@const cell = element.cells[ri]?.[ci]}
-        <div
-          class="grid-cell"
-          style:left="{rect.left}px"
-          style:top="{rect.top}px"
-          style:width="{rect.width}px"
-          style:height="{rect.height}px"
-          style:clip-path={rect.clipPath}
-          style={cell?.background ? backgroundStyle(cell.background) : defaultBackground}
-          style:border={cell?.border ? borderStyle(cell.border, dpi) : defaultBorder}
-          style:opacity={cell?.opacity}
-        ></div>
+
+        {#if element.variant === 'hexagonal'}
+          <MergeDataProvider mergeData={cellMergeData(ri, ci)}>
+            <div
+              class="grid-cell"
+              style:left="{rect.left}px"
+              style:top="{rect.top}px"
+              style:width="{rect.width}px"
+              style:height="{rect.height}px"
+              style:opacity={cell?.opacity}
+            >
+              <ShapeElement
+                element={makeCellShape(cell, `${element.id}-cell-r${ri}-c${ci}`)}
+                {dpi}
+              />
+            </div>
+          </MergeDataProvider>
+        {:else}
+          <div
+            class="grid-cell"
+            style:left="{rect.left}px"
+            style:top="{rect.top}px"
+            style:width="{rect.width}px"
+            style:height="{rect.height}px"
+            style={[
+              cell?.background ? backgroundStyle(cell.background) : defaultBackground,
+              cell?.border ? borderStyle(cell.border, dpi) : defaultBorder
+            ]
+              .filter(Boolean)
+              .join('; ')}
+            style:opacity={cell?.opacity}
+          >
+            {#if cellChildren}
+              {#each (element.children ?? []) as child (child.id)}
+                {@render cellChildren(child, ri, ci)}
+              {/each}
+            {:else}
+              <MergeDataProvider mergeData={cellMergeData(ri, ci)}>
+                {#each (element.children ?? []) as child (child.id)}
+                  <TemplateRenderer element={child} {dpi} />
+                {/each}
+              </MergeDataProvider>
+            {/if}
+          </div>
+        {/if}
       {/each}
     {/each}
   {/if}
@@ -191,5 +265,9 @@
   .grid-cell {
     position: absolute;
     box-sizing: border-box;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 </style>

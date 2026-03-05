@@ -99,8 +99,10 @@
           variant: 'checkerboard',
           itemSize: 20,
           cells: [],
+          children: [],
           dimensions: { width: 100, height: 100 },
-          background: { color: '#cccccc' }
+          background: { color: '#cccccc' },
+          border: { width: 2, style: 'solid', color: '#000000' }
         } as GridElement;
         break;
     }
@@ -115,7 +117,7 @@
     parentId && parentId !== 'root' ? templateStore.getElement(parentId) : null
   );
   const isParentContainer = $derived(
-    parentElement?.type === 'container' || parentElement?.type === 'shape'
+    parentElement?.type === 'container' || parentElement?.type === 'shape' || parentElement?.type === 'grid'
   );
 </script>
 

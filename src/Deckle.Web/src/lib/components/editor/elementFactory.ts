@@ -59,8 +59,10 @@ export function createElementOfType(type: ElementType): TemplateElement {
       variant: 'checkerboard',
       itemSize: 20,
       cells: [],
+      children: [],
       dimensions: { width: 100, height: 100 },
-      background: { color: '#cccccc' }
+      background: { color: '#cccccc' },
+      border: { width: 2, style: 'solid', color: '#000000' }
     } as GridElement;
   } else {
     // image

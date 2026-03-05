@@ -438,6 +438,21 @@
                             </a>
                         </li>
                         <li class="d-flex">
+                            <a href="#shape" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
+                                Shape
+                            </a>
+                        </li>
+                        <li class="d-flex">
+                            <a href="#grid" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
+                                Grid
+                            </a>
+                        </li>
+                        <li class="d-flex">
+                            <a href="#cell-reference-merge-fields" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
+                                Cell reference merge fields
+                            </a>
+                        </li>
+                        <li class="d-flex">
                             <a href="#component-settings" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
                                 Component settings
                             </a>
@@ -488,7 +503,7 @@
 <p>The Structure Tree shows all the elements in your design as a nested list. The top-level node represents the component itself (e.g. &quot;My Card — Front&quot;).</p>
 <p><strong>Click</strong> an element to select it and view its settings in the Configuration panel.</p>
 <p><strong>Double-click</strong> an element's name to rename it — this is useful for keeping track of elements in complex designs.</p>
-<p><strong>Hover</strong> over a container (or the root) to reveal a <strong>+</strong> button for adding new elements. You can add four types: <strong>Container</strong>, <strong>Text</strong>, <strong>Image</strong>, and <strong>Iterator</strong>.</p>
+<p><strong>Hover</strong> over a container (or the root) to reveal a <strong>+</strong> button for adding new elements. You can add: <strong>Container</strong>, <strong>Text</strong>, <strong>Image</strong>, <strong>Shape</strong>, <strong>Grid</strong>, and <strong>Iterator</strong>. The Iterator option is only available when hovering over a container, shape, or grid (not at the root level).</p>
 <p><strong>Drag</strong> elements by their handle to reorder them or move them into a different container.</p>
 <p><strong>Right-click</strong> any element for a context menu with options to duplicate, show/hide, lock/unlock, or delete it.</p>
 <p>Locked elements show a lock icon, and hidden elements appear faded.</p>
@@ -610,6 +625,85 @@ Tip: Locked elements can't be clicked on the canvas, so you won't accidentally m
 <aside class="widget widget-alert">
 <div class="alert alert-info">
 Tip: Set &quot;From&quot; or &quot;To&quot; to a merge field expression — for example, <code>{{ &quot;{{&quot; }} HitPoints }}</code> — to have the repeat count driven by your data source.
+</div>
+</aside>
+
+                        <h2 id="shape" pl-9="xs,sm">
+                            <a href="#shape" title="Shape" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">
+                                <span class="icon-link-simple | pos-absolute top-50 left-50 t-tY-50 t-tX-50 | fs-4"></span>
+                            </a>
+                    Shape</h2>
+<p>A Shape element renders a filled geometric form. It is useful for decorative elements, tokens, badges, and map tiles.</p>
+<p>In addition to the shared settings, a shape has:</p>
+<ul>
+<li><strong>Shape</strong> — choose from: Circle, Hexagon, Triangle, or Heart</li>
+<li><strong>Width / Height</strong> — size of the element's bounding box</li>
+<li><strong>Color</strong> — fill colour of the shape</li>
+<li><strong>Border</strong> — thickness (px) and colour of a border that follows the shape outline; set thickness to <code>0</code> to disable</li>
+</ul>
+<p>Shape elements can contain child elements. Children are clipped to the shape outline, so any content placed inside will be masked to the shape silhouette.</p>
+<aside class="widget widget-alert">
+<div class="alert alert-info">
+Note: Shapes use CSS clip-path for masking. Shadows are rendered as filter: drop-shadow so they follow the shape silhouette — inset shadows are not supported for clipped shapes.
+</div>
+</aside>
+
+                        <h2 id="grid" pl-9="xs,sm">
+                            <a href="#grid" title="Grid" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">
+                                <span class="icon-link-simple | pos-absolute top-50 left-50 t-tY-50 t-tX-50 | fs-4"></span>
+                            </a>
+                    Grid</h2>
+<p>A Grid element tiles cells in a repeating pattern across its area. It is useful for game boards, hex maps, pip tracks, and any tiled layout. Child elements added to a Grid are rendered inside every cell.</p>
+<p>In addition to the shared settings, a grid has:</p>
+<ul>
+<li><strong>Variant</strong> — the tiling pattern:
+<ul>
+<li><strong>Checkerboard</strong> — square tiles in a regular grid</li>
+<li><strong>Offset Checkerboard</strong> — square tiles where odd rows are shifted by half a cell width (brick-wall layout)</li>
+<li><strong>Hexagonal</strong> — pointy-top hexagons arranged in offset rows</li>
+</ul>
+</li>
+<li><strong>Cell size</strong> — size of each cell in px. For square variants this is the side length; for hexagons it is the circumradius (equal to the side length)</li>
+<li><strong>Cell color</strong> — default background fill applied to all cells</li>
+<li><strong>Cell border</strong> — default border width and colour applied to all cells (square variants only)</li>
+</ul>
+<p>The grid automatically recomputes the number of rows and columns as you resize the element or change the cell size.</p>
+
+                        <h3 id="cell-reference-merge-fields" pl-9="xs,sm">
+                            <a href="#cell-reference-merge-fields" title="Cell reference merge fields" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">
+                                <span class="icon-link-simple | pos-absolute top-50 left-50 t-tY-50 t-tX-50 | fs-4"></span>
+                            </a>
+                    Cell reference merge fields</h3>
+<p>Inside Grid child elements, three special merge fields are available in addition to any data source fields:</p>
+<div class="o-auto w-100 table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{{ CellX }}</code></td>
+<td>Column number (1-based)</td>
+<td><code>1</code>, <code>2</code>, <code>3</code></td>
+</tr>
+<tr>
+<td><code>{{ CellY }}</code></td>
+<td>Row number (1-based)</td>
+<td><code>1</code>, <code>2</code>, <code>3</code></td>
+</tr>
+<tr>
+<td><code>{{ CellRef }}</code></td>
+<td>Spreadsheet-style reference</td>
+<td><code>A1</code>, <code>B2</code>, <code>C3</code></td>
+</tr>
+</tbody>
+</table></div>
+<aside class="widget widget-alert">
+<div class="alert alert-info">
+Tip: Use <code>{{ &quot;{{&quot; }} CellRef }}</code> to label cells in a board game grid, or use <code>{{ &quot;{{&quot; }} CellX }}</code> and <code>{{ &quot;{{&quot; }} CellY }}</code> in formulas to conditionally style specific positions.
 </div>
 </aside>
 

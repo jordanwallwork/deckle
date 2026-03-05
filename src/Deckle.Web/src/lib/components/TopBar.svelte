@@ -3,10 +3,28 @@
   import type { CurrentUser } from '$lib/types';
   import Avatar from './Avatar.svelte';
   import LogoMark from './LogoMark.svelte';
-  import { ChevronDownIcon, SettingsIcon, LogoutIcon } from './icons';
+  import { SettingsIcon, LogoutIcon, MenuIcon } from './icons';
+  import { topbarProject } from '$lib/stores/topbarProject';
+  import { topbarTabs } from '$lib/stores/topbarTabs';
+  import { page } from '$app/stores';
 
-  let { user }: { user: CurrentUser | null } = $props();
+  let { user, maxScreen = false }: { user: CurrentUser | null; maxScreen?: boolean } = $props();
   let showDropdown = $state(false);
+  let showOwnerPopover = $state(false);
+  let showHamburger = $state(false);
+
+  function toggleHamburger(): void {
+    showHamburger = !showHamburger;
+    if (showHamburger) showDropdown = false;
+  }
+
+  function closeHamburger(): void {
+    showHamburger = false;
+  }
+
+  function isActiveTab(tabPath: string): boolean {
+    return $page.url.pathname === tabPath;
+  }
 
   function toggleDropdown(): void {
     showDropdown = !showDropdown;
@@ -14,6 +32,14 @@
 
   function closeDropdown(): void {
     showDropdown = false;
+  }
+
+  function toggleOwnerPopover(): void {
+    showOwnerPopover = !showOwnerPopover;
+  }
+
+  function closeOwnerPopover(): void {
+    showOwnerPopover = false;
   }
 
   async function handleSignOut(): Promise<void> {
@@ -36,9 +62,54 @@
         <LogoMark width="28" height="28" class="logomark" />
         <span class="brand-name">Deckle</span>
       </a>
+      {#if $topbarProject}
+        <span class="project-breadcrumb">
+          <span class="project-owner">{$topbarProject.ownerName}</span>
+          <span class="project-separator">/</span>
+          <span class="owner-ellipsis-wrapper">
+            <button
+              class="owner-ellipsis-btn"
+              onclick={toggleOwnerPopover}
+              aria-label="Show project owner">…</button
+            >
+            {#if showOwnerPopover}
+              <div class="owner-popover">{$topbarProject.ownerName}</div>
+              <button
+                class="dropdown-overlay"
+                onclick={closeOwnerPopover}
+                aria-label="Close owner popover"
+              ></button>
+            {/if}
+          </span>
+          <a href={$topbarProject.projectUrl} class="project-name">{$topbarProject.projectName}</a>
+        </span>
+      {/if}
     </div>
 
     <div class="topbar-right">
+      {#if $topbarTabs.length > 0}
+        <div class="hamburger-menu" class:visible={maxScreen}>
+          <button class="hamburger-btn" onclick={toggleHamburger} aria-label="Open navigation menu">
+            <MenuIcon size={20} />
+          </button>
+          {#if showHamburger}
+            <div class="hamburger-dropdown">
+              {#each $topbarTabs as tab}
+                <a
+                  href={tab.path}
+                  class="hamburger-item"
+                  class:active={isActiveTab(tab.path)}
+                  onclick={closeHamburger}
+                >
+                  {tab.name}
+                </a>
+              {/each}
+            </div>
+            <button class="dropdown-overlay" onclick={closeHamburger} aria-label="Close menu"
+            ></button>
+          {/if}
+        </div>
+      {/if}
       {#if user}
         <div class="user-menu">
           <button class="user-info" onclick={toggleDropdown}>
@@ -49,10 +120,6 @@
               variant="light"
               class="user-avatar"
             />
-            <div class="user-details">
-              <span class="user-name">{user.name}</span>
-            </div>
-            <ChevronDownIcon size={16} class="chevron" />
           </button>
 
           {#if showDropdown}
@@ -101,6 +168,42 @@
   .topbar-left {
     display: flex;
     align-items: center;
+    min-width: 0;
+  }
+
+  .project-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 0.75rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9375rem;
+    min-width: 0;
+  }
+
+  .project-separator {
+    opacity: 0.5;
+    font-weight: 300;
+  }
+
+  .project-owner {
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .project-name {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: white;
+    text-decoration: none;
+  }
+
+  .project-name:hover {
+    text-decoration: underline;
   }
 
   .topbar-right {
@@ -150,26 +253,44 @@
     background-color: rgba(255, 255, 255, 0.1);
   }
 
-  .user-details {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    min-width: 0;
+  .owner-ellipsis-wrapper {
+    display: none;
+    position: relative;
+    align-items: center;
   }
 
-  .user-name {
-    font-weight: 500;
+  .owner-ellipsis-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 0.125rem;
+    line-height: 1;
+    font-family: inherit;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .owner-ellipsis-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .owner-popover {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    color: var(--color-sage);
     font-size: 0.875rem;
-    color: white;
+    font-weight: 500;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid rgba(52, 73, 86, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
-  }
-
-  .user-info :global(.chevron) {
-    flex-shrink: 0;
-    opacity: 0.7;
+    z-index: 89;
   }
 
   .dropdown-overlay {
@@ -249,18 +370,91 @@
     opacity: 1;
   }
 
+  .hamburger-menu {
+    display: none;
+    position: relative;
+  }
+
+  .hamburger-menu.visible {
+    display: flex;
+  }
+
+  .hamburger-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+  }
+
+  .hamburger-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .hamburger-dropdown {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    min-width: 180px;
+    background-color: white;
+    border: 1px solid rgba(52, 73, 86, 0.15);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    z-index: 89;
+  }
+
+  .hamburger-item {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: var(--color-sage);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+  }
+
+  .hamburger-item:hover {
+    background-color: rgba(120, 160, 131, 0.1);
+  }
+
+  .hamburger-item.active {
+    font-weight: 600;
+    background-color: rgba(120, 160, 131, 0.08);
+    border-left: 3px solid var(--color-sage);
+    padding-left: calc(1rem - 3px);
+  }
+
   @media (max-width: 768px) {
     .topbar-content {
       padding: 0 1rem;
     }
+  }
 
-    .user-name {
-      max-width: 120px;
+  @media (max-width: 640px) {
+    .hamburger-menu {
+      display: flex;
+    }
+  }
+
+  @media (max-width: 650px) {
+    .project-owner,
+    .project-separator {
+      display: none;
+    }
+
+    .owner-ellipsis-wrapper {
+      display: flex;
     }
   }
 
   @media (max-width: 480px) {
-    .user-details {
+    .brand-name {
       display: none;
     }
 
@@ -269,3 +463,4 @@
     }
   }
 </style>
+

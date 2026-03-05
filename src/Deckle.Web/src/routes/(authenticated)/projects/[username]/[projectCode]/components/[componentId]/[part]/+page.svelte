@@ -1,19 +1,12 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { setMaxScreen } from '$lib/stores/maxScreen';
-  import { buildEditorBreadcrumbs } from '$lib/utils/breadcrumbs';
   import ComponentEditor from '$lib/components/editor/ComponentEditor.svelte';
 
   let { data }: { data: PageData } = $props();
 
   // Capitalize the part name for display (e.g., "front" -> "Front")
   const partLabel = $derived(data.part.charAt(0).toUpperCase() + data.part.slice(1));
-
-  // Update breadcrumbs for this page
-  $effect(() => {
-    setBreadcrumbs(buildEditorBreadcrumbs(data.project, data.component, partLabel));
-  });
 
   // Enable max screen mode (hides tabs, footer, removes padding)
   $effect(() => {
@@ -31,3 +24,4 @@
 </svelte:head>
 
 <ComponentEditor {data} readOnly={data.project.role === 'Viewer'} />
+

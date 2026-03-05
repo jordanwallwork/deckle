@@ -540,35 +540,6 @@
       </div>
     {/if}
 
-    <!-- Breadcrumbs -->
-    <nav class="breadcrumbs">
-      {#each data.breadcrumbs as crumb, index}
-        {#if index > 0}
-          <span class="breadcrumb-separator">/</span>
-        {/if}
-        {#if index === data.breadcrumbs.length - 1}
-          <span class="breadcrumb-current">{crumb.name}</span>
-        {:else if crumb.path === ''}
-          <!-- Root breadcrumb is a drop target -->
-          <button
-            class="breadcrumb-link breadcrumb-drop-target"
-            class:drag-over={isRootDropTarget}
-            onclick={() => navigateToPath(crumb.path)}
-            ondragover={handleRootDragOver}
-            ondragleave={handleRootDragLeave}
-            ondrop={handleRootDrop}
-            type="button"
-          >
-            {crumb.name}
-          </button>
-        {:else}
-          <button class="breadcrumb-link" onclick={() => navigateToPath(crumb.path)} type="button">
-            {crumb.name}
-          </button>
-        {/if}
-      {/each}
-    </nav>
-
     {#if availableTags.length > 0}
       <div class="filter-section">
         <div class="filter-header">
@@ -623,7 +594,8 @@
             onItemDropped={(dragData) => handleMoveToFolder(directory.id, dragData)}
             selectable={true}
             isSelected={isItemSelected(directory.id)}
-            onSelectionChange={(selected, shiftKey) => handleFolderSelectionChange(directory.id, selected, shiftKey)}
+            onSelectionChange={(selected, shiftKey) =>
+              handleFolderSelectionChange(directory.id, selected, shiftKey)}
             selectedIds={selectedIdsArray}
             {allItems}
           />
@@ -780,56 +752,6 @@
     color: var(--color-muted-teal);
   }
 
-  /* Breadcrumbs */
-  .breadcrumbs {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .breadcrumb-link {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: 0.875rem;
-    color: var(--color-sage);
-    cursor: pointer;
-    text-decoration: none;
-  }
-
-  .breadcrumb-link:hover {
-    text-decoration: underline;
-  }
-
-  .breadcrumb-drop-target {
-    padding: 0.25rem 0.5rem;
-    margin: -0.25rem -0.5rem;
-    border-radius: var(--radius-sm);
-    transition: all 0.15s ease;
-  }
-
-  .breadcrumb-drop-target.drag-over {
-    background-color: rgba(120, 160, 131, 0.2);
-    box-shadow: inset 0 0 0 2px var(--color-sage);
-  }
-
-  .breadcrumb-separator {
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-  }
-
-  .breadcrumb-current {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-text);
-  }
-
   .filter-section {
     background-color: #f8f9fa;
     border: 1px solid #e9ecef;
@@ -984,3 +906,4 @@
     cursor: not-allowed;
   }
 </style>
+

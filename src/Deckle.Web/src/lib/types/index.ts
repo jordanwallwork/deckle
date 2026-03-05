@@ -6,7 +6,6 @@ export * from './dataSource';
 export * from './panelLayout';
 export * from './button';
 export * from './badge';
-export * from './breadcrumb';
 export * from './export';
 export * from './file';
 export * from './validation';

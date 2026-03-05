@@ -16,20 +16,11 @@ export const load: PageServerLoad = async ({ params, parent, fetch }) => {
       filesApi.getQuota(fetch).catch(() => null) // Optional - don't fail if quota fetch fails
     ]);
 
-    // Build breadcrumb path from URL segments
-    const breadcrumbs: { path: string; name: string }[] = [{ path: '', name: 'Home' }];
-    let currentPath = '';
-    for (const segment of pathSegments) {
-      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
-      breadcrumbs.push({ path: currentPath, name: segment });
-    }
-
     return {
       project,
       directoryContents,
       allDirectories,
       currentPath: path,
-      breadcrumbs,
       quota
     };
   } catch (err) {
@@ -44,3 +35,4 @@ export const load: PageServerLoad = async ({ params, parent, fetch }) => {
     throw error(500, 'Failed to load files');
   }
 };
+

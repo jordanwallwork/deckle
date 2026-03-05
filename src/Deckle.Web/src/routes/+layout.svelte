@@ -33,7 +33,7 @@
 </svelte:head>
 
 <div class="layout">
-  <TopBar user={data.user ?? null} />
+  <TopBar user={data.user ?? null} maxScreen={$maxScreen} />
   <div class="main-content">
     {@render children()}
   </div>

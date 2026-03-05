@@ -3,8 +3,6 @@
   import { config } from '$lib/config';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { buildDataSourceBreadcrumbs } from '$lib/utils/breadcrumbs';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { Button, DataTable } from '$lib/components';
 
   let { data }: { data: PageData } = $props();
@@ -34,19 +32,6 @@
   let isEditingName = $state(false);
   let editedName = $state('');
   let savingName = $state(false);
-
-  // Update breadcrumbs when dataSource is loaded
-  $effect(() => {
-    if (dataSource) {
-      setBreadcrumbs(
-        buildDataSourceBreadcrumbs(
-          data.project,
-          dataSource.id,
-          dataSource.name
-        )
-      );
-    }
-  });
 
   onMount(async () => {
     await loadDataSource();
@@ -232,7 +217,10 @@
         </a>
       {/if}
       {#if dataSource.type === 'Spreadsheet'}
-        <a href={`${projectUrlBase}/data-sources/${dataSource.id}/edit`} style="text-decoration: none;">
+        <a
+          href={`${projectUrlBase}/data-sources/${dataSource.id}/edit`}
+          style="text-decoration: none;"
+        >
           <Button variant="secondary" size="sm">Edit</Button>
         </a>
       {/if}
@@ -438,3 +426,4 @@
     color: var(--color-sage);
   }
 </style>
+

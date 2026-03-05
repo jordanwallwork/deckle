@@ -3,8 +3,6 @@
   import { Button, Dialog, DeleteConfirmationDialog } from '$lib/components';
   import { goto, invalidateAll } from '$app/navigation';
   import { ApiError, dataSourcesApi } from '$lib/api';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
-  import { buildAdminDataSourcesBreadcrumbs } from '$lib/utils/breadcrumbs';
 
   let { data }: { data: PageData } = $props();
 
@@ -49,7 +47,10 @@
     errorMessage = '';
 
     try {
-      const created = await dataSourcesApi.createSpreadsheet({ type: 'Spreadsheet', name: newName.trim() });
+      const created = await dataSourcesApi.createSpreadsheet({
+        type: 'Spreadsheet',
+        name: newName.trim()
+      });
       closeCreateModal();
       await goto(`/admin/data-sources/${created.id}`);
     } catch (err) {
@@ -98,10 +99,6 @@
   }
 
   const totalPages = $derived(Math.ceil(data.dataSourcesResponse.length / data.currentPageSize));
-
-  $effect(() => {
-    setBreadcrumbs(buildAdminDataSourcesBreadcrumbs());
-  });
 </script>
 
 <svelte:head>
@@ -539,3 +536,4 @@
     }
   }
 </style>
+

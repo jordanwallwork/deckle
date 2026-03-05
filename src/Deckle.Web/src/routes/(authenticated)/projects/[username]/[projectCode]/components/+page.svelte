@@ -2,29 +2,18 @@
   import type { PageData } from './$types';
   import { componentsApi } from '$lib/api';
   import { invalidateAll, goto } from '$app/navigation';
-  import {
-    Button,
-    ConfirmDialog,
-    EmptyState,
-    TabContent
-  } from '$lib/components';
+  import { Button, ConfirmDialog, EmptyState, TabContent } from '$lib/components';
   import ComponentCard from './_components/ComponentCard.svelte';
+  import AddComponentCard from './_components/AddComponentCard.svelte';
   import LinkDataSourceModal from './_components/LinkDataSourceModal.svelte';
   import CreateEditComponentDialog from './_components/CreateEditComponentDialog.svelte';
   import type { GameComponent } from '$lib/types';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
-  import { buildComponentsBreadcrumbs } from '$lib/utils/breadcrumbs';
   import { isEditableComponent, hasDataSource } from '$lib/utils/componentTypes';
 
   let { data }: { data: PageData } = $props();
 
   // Helper to build project URL base
   const projectUrlBase = $derived(`/projects/${data.project.ownerUsername}/${data.project.code}`);
-
-  // Update breadcrumbs for this page
-  $effect(() => {
-    setBreadcrumbs(buildComponentsBreadcrumbs(data.project));
-  });
 
   // Permission checks based on user role
   const canEdit = $derived(data.project.role !== 'Viewer'); // Collaborators, Admins, and Owners can edit
@@ -34,9 +23,7 @@
   ); // Only Owners and Admins can link data sources
 
   // Get exportable components (Card and PlayerMat only)
-  const exportableComponents = $derived(
-    data.components.filter((c) => isEditableComponent(c))
-  );
+  const exportableComponents = $derived(data.components.filter((c) => isEditableComponent(c)));
 
   // Check if there are any exportable components
   const hasExportableComponents = $derived(exportableComponents.length > 0);
@@ -144,17 +131,20 @@
   {/snippet}
 
   {#if data.components && data.components.length > 0}
-  <div class="components-list">
-    {#each data.components as component}
-      <ComponentCard
-        {component}
-        {projectUrlBase}
-        onEdit={canEdit ? handleEdit : undefined}
-        onDelete={canDelete ? handleDeleteClick : undefined}
-        onLinkDataSource={canLinkDataSource ? handleLinkDataSource : undefined}
-      />
-    {/each}
-  </div>
+    <div class="components-list">
+      {#each data.components as component}
+        <ComponentCard
+          {component}
+          {projectUrlBase}
+          onEdit={canEdit ? handleEdit : undefined}
+          onDelete={canDelete ? handleDeleteClick : undefined}
+          onLinkDataSource={canLinkDataSource ? handleLinkDataSource : undefined}
+        />
+      {/each}
+      {#if canEdit}
+        <AddComponentCard onclick={openCreateDialog} />
+      {/if}
+    </div>
   {:else}
     <EmptyState
       title="No components yet"
@@ -199,3 +189,4 @@
     gap: 1rem;
   }
 </style>
+

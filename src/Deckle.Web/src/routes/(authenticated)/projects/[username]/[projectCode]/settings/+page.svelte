@@ -3,19 +3,12 @@
   import { projectsApi, ApiError } from '$lib/api';
   import { goto, invalidateAll } from '$app/navigation';
   import { DeleteConfirmationDialog, ConfirmDialog, TabContent } from '$lib/components';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
-  import { buildSettingsBreadcrumbs } from '$lib/utils/breadcrumbs';
   import ProjectDetailsCard from './_components/ProjectDetailsCard.svelte';
   import UserListCard from './_components/UserListCard.svelte';
   import DangerZoneCard from './_components/DangerZoneCard.svelte';
   import InviteUserDialog from './_components/InviteUserDialog.svelte';
 
   let { data }: { data: PageData } = $props();
-
-  // Update breadcrumbs for this page
-  $effect(() => {
-    setBreadcrumbs(buildSettingsBreadcrumbs(data.project));
-  });
 
   // Delete project
   let showDeleteDialog = $state(false);
@@ -172,3 +165,4 @@
     margin-bottom: 1rem;
   }
 </style>
+

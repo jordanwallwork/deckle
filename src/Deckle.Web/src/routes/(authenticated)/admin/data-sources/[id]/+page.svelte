@@ -8,8 +8,6 @@
   } from '$lib/components';
   import { goto } from '$app/navigation';
   import { ApiError, dataSourcesApi } from '$lib/api';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
-  import { buildAdminDataSourceEditorBreadcrumbs } from '$lib/utils/breadcrumbs';
 
   interface SampleDataJson {
     headers: string[];
@@ -84,10 +82,6 @@
   async function handleNameChange(newName: string) {
     name = newName;
   }
-
-  $effect(() => {
-    setBreadcrumbs(buildAdminDataSourceEditorBreadcrumbs(name, data.dataSource.id));
-  });
 </script>
 
 <svelte:head>
@@ -186,3 +180,4 @@
     }
   }
 </style>
+

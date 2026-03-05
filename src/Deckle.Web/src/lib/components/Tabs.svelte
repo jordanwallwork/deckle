@@ -43,11 +43,11 @@
   .tab-link {
     position: relative;
     display: block;
-    padding: 1rem 1.25rem;
+    padding: 0.75rem 1.25rem;
     color: var(--color-text-secondary);
     text-decoration: none;
     font-weight: 500;
-    font-size: 0.9375rem;
+    font-size: 0.9rem;
     transition: all 0.2s ease;
     border-bottom: 2px solid transparent;
   }
@@ -74,4 +74,11 @@
       padding: 0.875rem 1rem;
     }
   }
+
+  @media (max-width: 640px) {
+    .tabs-bar {
+      display: none;
+    }
+  }
 </style>
+

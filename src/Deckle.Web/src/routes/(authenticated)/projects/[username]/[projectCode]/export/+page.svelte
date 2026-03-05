@@ -2,7 +2,6 @@
   import type { PageData } from './$types';
   import type { PageSetup } from '$lib/types';
   import { DEFAULT_PAGE_SETUP } from '$lib/types';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import { setMaxScreen } from '$lib/stores/maxScreen';
   import { page } from '$app/stores';
   import { browser } from '$app/environment';
@@ -85,15 +84,6 @@
   // Helper to build project URL base
   const projectUrlBase = $derived(`/projects/${data.project.ownerUsername}/${data.project.code}`);
 
-  // Update breadcrumbs for this page
-  $effect(() => {
-    setBreadcrumbs([
-      { label: 'Projects', href: '/projects' },
-      { label: data.project.name, href: projectUrlBase },
-      { label: 'Export', href: `${projectUrlBase}/export` }
-    ]);
-  });
-
   // Enable max screen mode (hides tabs, footer, removes padding)
   $effect(() => {
     setMaxScreen(true);
@@ -101,15 +91,11 @@
   });
 
   // Check if all components are exportable (Card or PlayerMat)
-  const allExportable = $derived(
-    data.components.every((c) => isEditableComponent(c.component))
-  );
+  const allExportable = $derived(data.components.every((c) => isEditableComponent(c.component)));
 
   // Get non-exportable components
   const nonExportableComponents = $derived(
-    data.components
-      .filter((c) => !isEditableComponent(c.component))
-      .map((c) => c.component.name)
+    data.components.filter((c) => !isEditableComponent(c.component)).map((c) => c.component.name)
   );
 
   // Generate export filename based on components
@@ -172,34 +158,34 @@
     </div>
 
     <div class="right-panel">
-    {#if data.components.length === 0}
-      <div class="empty-preview">
-        <p>Select components to export from the left panel</p>
-      </div>
-    {:else if allExportable}
-      <PaperPreview
-        {pageSetup}
-        components={data.components}
-        {rotatedComponentIds}
-        {slicedComponentIds}
-        {exportBacksComponentIds}
-        bind:pageElements
-        bind:paperDimensions
-        projectId={data.project.id}
-      />
-    {:else}
-      <div class="error-message">
-        <div>
-          <p>Some components cannot be exported:</p>
-          <ul>
-            {#each nonExportableComponents as name}
-              <li>{name}</li>
-            {/each}
-          </ul>
-          <p>Export is only available for Card and Player Mat components.</p>
+      {#if data.components.length === 0}
+        <div class="empty-preview">
+          <p>Select components to export from the left panel</p>
         </div>
-      </div>
-    {/if}
+      {:else if allExportable}
+        <PaperPreview
+          {pageSetup}
+          components={data.components}
+          {rotatedComponentIds}
+          {slicedComponentIds}
+          {exportBacksComponentIds}
+          bind:pageElements
+          bind:paperDimensions
+          projectId={data.project.id}
+        />
+      {:else}
+        <div class="error-message">
+          <div>
+            <p>Some components cannot be exported:</p>
+            <ul>
+              {#each nonExportableComponents as name}
+                <li>{name}</li>
+              {/each}
+            </ul>
+            <p>Export is only available for Card and Player Mat components.</p>
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
@@ -390,3 +376,4 @@
     }
   }
 </style>
+

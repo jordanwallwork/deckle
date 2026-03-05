@@ -4,8 +4,6 @@
   import { Button, Dialog, CardConfigForm, PlayerMatConfigForm } from '$lib/components';
   import { goto, invalidateAll } from '$app/navigation';
   import { adminApi, ApiError } from '$lib/api';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
-  import { buildAdminSamplesBreadcrumbs } from '$lib/utils/breadcrumbs';
   const DATA_SOURCE_TYPES = new Set(['Card', 'GameBoard', 'PlayerMat']);
   function adminHasDataSource(component: AdminSampleComponent): boolean {
     return DATA_SOURCE_TYPES.has(component.type);
@@ -873,3 +871,4 @@
     color: #6b7280;
   }
 </style>
+

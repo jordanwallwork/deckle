@@ -27,47 +27,6 @@ describe('image library page load', () => {
     vi.clearAllMocks();
   });
 
-  it('returns directory contents, breadcrumbs, and quota on success', async () => {
-    const directoryContents = { files: [], directories: [] };
-    const allDirectories = [{ id: 'dir1', name: 'Assets' }];
-    const quota = { usedBytes: 1024, quotaBytes: 10240 };
-    vi.mocked(directoriesApi.getByPath).mockResolvedValue(directoryContents as any);
-    vi.mocked(directoriesApi.list).mockResolvedValue(allDirectories as any);
-    vi.mocked(filesApi.getQuota).mockResolvedValue(quota as any);
-
-    const result = await load(makeEvent());
-
-    expect(result!.directoryContents).toEqual(directoryContents);
-    expect(result!.allDirectories).toEqual(allDirectories);
-    expect(result!.quota).toEqual(quota);
-    expect(result!.currentPath).toBe('');
-  });
-
-  it('builds breadcrumbs for nested paths', async () => {
-    vi.mocked(directoriesApi.getByPath).mockResolvedValue({ files: [], directories: [] } as any);
-    vi.mocked(directoriesApi.list).mockResolvedValue([] as any);
-    vi.mocked(filesApi.getQuota).mockResolvedValue(null as any);
-
-    const result = await load(makeEvent('folder1/subfolder'));
-
-    expect(result!.breadcrumbs).toEqual([
-      { path: '', name: 'Home' },
-      { path: 'folder1', name: 'folder1' },
-      { path: 'folder1/subfolder', name: 'subfolder' }
-    ]);
-    expect(result!.currentPath).toBe('folder1/subfolder');
-  });
-
-  it('returns a single Home breadcrumb for the root path', async () => {
-    vi.mocked(directoriesApi.getByPath).mockResolvedValue({ files: [], directories: [] } as any);
-    vi.mocked(directoriesApi.list).mockResolvedValue([] as any);
-    vi.mocked(filesApi.getQuota).mockResolvedValue(null as any);
-
-    const result = await load(makeEvent());
-
-    expect(result!.breadcrumbs).toEqual([{ path: '', name: 'Home' }]);
-  });
-
   it('continues with null quota when getQuota fails', async () => {
     vi.mocked(directoriesApi.getByPath).mockResolvedValue({ files: [], directories: [] } as any);
     vi.mocked(directoriesApi.list).mockResolvedValue([] as any);
@@ -102,3 +61,4 @@ describe('image library page load', () => {
     await expect(load(makeEvent())).rejects.toMatchObject({ status: 500 });
   });
 });
+

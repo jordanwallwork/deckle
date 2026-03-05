@@ -3,11 +3,12 @@
   import type { CurrentUser } from '$lib/types';
   import Avatar from './Avatar.svelte';
   import LogoMark from './LogoMark.svelte';
-  import { ChevronDownIcon, SettingsIcon, LogoutIcon } from './icons';
+  import { SettingsIcon, LogoutIcon } from './icons';
   import { topbarProject } from '$lib/stores/topbarProject';
 
   let { user }: { user: CurrentUser | null } = $props();
   let showDropdown = $state(false);
+  let showOwnerPopover = $state(false);
 
   function toggleDropdown(): void {
     showDropdown = !showDropdown;
@@ -15,6 +16,14 @@
 
   function closeDropdown(): void {
     showDropdown = false;
+  }
+
+  function toggleOwnerPopover(): void {
+    showOwnerPopover = !showOwnerPopover;
+  }
+
+  function closeOwnerPopover(): void {
+    showOwnerPopover = false;
   }
 
   async function handleSignOut(): Promise<void> {
@@ -41,6 +50,21 @@
         <span class="project-breadcrumb">
           <span class="project-owner">{$topbarProject.ownerName}</span>
           <span class="project-separator">/</span>
+          <span class="owner-ellipsis-wrapper">
+            <button
+              class="owner-ellipsis-btn"
+              onclick={toggleOwnerPopover}
+              aria-label="Show project owner">…</button
+            >
+            {#if showOwnerPopover}
+              <div class="owner-popover">{$topbarProject.ownerName}</div>
+              <button
+                class="dropdown-overlay"
+                onclick={closeOwnerPopover}
+                aria-label="Close owner popover"
+              ></button>
+            {/if}
+          </span>
           <a href={$topbarProject.projectUrl} class="project-name">{$topbarProject.projectName}</a>
         </span>
       {/if}
@@ -57,10 +81,6 @@
               variant="light"
               class="user-avatar"
             />
-            <div class="user-details">
-              <span class="user-name">{user.name}</span>
-            </div>
-            <ChevronDownIcon size={16} class="chevron" />
           </button>
 
           {#if showDropdown}
@@ -194,26 +214,44 @@
     background-color: rgba(255, 255, 255, 0.1);
   }
 
-  .user-details {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    min-width: 0;
+  .owner-ellipsis-wrapper {
+    display: none;
+    position: relative;
+    align-items: center;
   }
 
-  .user-name {
-    font-weight: 500;
+  .owner-ellipsis-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0 0.125rem;
+    line-height: 1;
+    font-family: inherit;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .owner-ellipsis-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .owner-popover {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    color: var(--color-sage);
     font-size: 0.875rem;
-    color: white;
+    font-weight: 500;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid rgba(52, 73, 86, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
-  }
-
-  .user-info :global(.chevron) {
-    flex-shrink: 0;
-    opacity: 0.7;
+    z-index: 89;
   }
 
   .dropdown-overlay {
@@ -297,14 +335,21 @@
     .topbar-content {
       padding: 0 1rem;
     }
+  }
 
-    .user-name {
-      max-width: 120px;
+  @media (max-width: 650px) {
+    .project-owner,
+    .project-separator {
+      display: none;
+    }
+
+    .owner-ellipsis-wrapper {
+      display: flex;
     }
   }
 
   @media (max-width: 480px) {
-    .user-details {
+    .brand-name {
       display: none;
     }
 

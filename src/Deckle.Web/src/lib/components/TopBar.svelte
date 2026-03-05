@@ -4,6 +4,7 @@
   import Avatar from './Avatar.svelte';
   import LogoMark from './LogoMark.svelte';
   import { ChevronDownIcon, SettingsIcon, LogoutIcon } from './icons';
+  import { topbarProject } from '$lib/stores/topbarProject';
 
   let { user }: { user: CurrentUser | null } = $props();
   let showDropdown = $state(false);
@@ -36,6 +37,13 @@
         <LogoMark width="28" height="28" class="logomark" />
         <span class="brand-name">Deckle</span>
       </a>
+      {#if $topbarProject}
+        <span class="project-breadcrumb">
+          <span class="project-owner">{$topbarProject.ownerName}</span>
+          <span class="project-separator">/</span>
+          <a href={$topbarProject.projectUrl} class="project-name">{$topbarProject.projectName}</a>
+        </span>
+      {/if}
     </div>
 
     <div class="topbar-right">
@@ -101,6 +109,42 @@
   .topbar-left {
     display: flex;
     align-items: center;
+    min-width: 0;
+  }
+
+  .project-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 0.75rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9375rem;
+    min-width: 0;
+  }
+
+  .project-separator {
+    opacity: 0.5;
+    font-weight: 300;
+  }
+
+  .project-owner {
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .project-name {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: white;
+    text-decoration: none;
+  }
+
+  .project-name:hover {
+    text-decoration: underline;
   }
 
   .topbar-right {
@@ -269,3 +313,4 @@
     }
   }
 </style>
+

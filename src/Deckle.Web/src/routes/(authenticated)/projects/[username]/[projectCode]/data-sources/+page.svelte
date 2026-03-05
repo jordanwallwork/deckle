@@ -2,8 +2,6 @@
   import type { PageData } from './$types';
   import type { DataSource as DataSourceType, DataSourceSyncStatus } from '$lib/types';
   import { Card, Dialog, Button, EmptyState, ConfirmDialog, TabContent } from '$lib/components';
-  import { buildDataSourcesBreadcrumbs } from '$lib/utils/breadcrumbs';
-  import { setBreadcrumbs } from '$lib/stores/breadcrumb';
   import type { CreateGoogleSheetsDataSourceDto } from '$lib/types';
   import { dataSourcesApi, ApiError } from '$lib/api';
   import { formatRelativeTime } from '$lib/utils/date.utils';
@@ -23,11 +21,6 @@
 
   // Helper to build project URL base
   const projectUrlBase = $derived(`/projects/${data.project.ownerUsername}/${data.project.code}`);
-
-  // Update breadcrumbs for this page
-  $effect(() => {
-    setBreadcrumbs(buildDataSourcesBreadcrumbs(data.project));
-  });
 
   // Type chooser dialog
   let showTypeChooser = $state(false);
@@ -380,10 +373,18 @@
   </div>
 
   {#snippet actions()}
-    <Button variant="secondary" onclick={() => (showSpreadsheetModal = false)} disabled={creatingSpreadsheet}>
+    <Button
+      variant="secondary"
+      onclick={() => (showSpreadsheetModal = false)}
+      disabled={creatingSpreadsheet}
+    >
       Cancel
     </Button>
-    <Button variant="primary" onclick={createSpreadsheet} disabled={creatingSpreadsheet || !spreadsheetName.trim()}>
+    <Button
+      variant="primary"
+      onclick={createSpreadsheet}
+      disabled={creatingSpreadsheet || !spreadsheetName.trim()}
+    >
       {creatingSpreadsheet ? 'Creating...' : 'Create'}
     </Button>
   {/snippet}
@@ -556,3 +557,4 @@
     color: var(--color-muted-teal);
   }
 </style>
+

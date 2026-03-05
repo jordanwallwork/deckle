@@ -1,14 +1,25 @@
 <script lang="ts">
   import type { LayoutData } from './$types';
-  import { initBreadcrumbs } from '$lib/stores/breadcrumb';
   import { getMaxScreen } from '$lib/stores/maxScreen';
-  import { buildProjectBreadcrumbs } from '$lib/utils/breadcrumbs';
-  import { Breadcrumb, Tabs } from '$lib/components';
-  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import { topbarProject } from '$lib/stores/topbarProject';
+  import { Tabs } from '$lib/components';
+  import { onDestroy } from 'svelte';
 
   let { data, children }: { data: LayoutData; children: any } = $props();
 
   const maxScreen = getMaxScreen();
+
+  $effect(() => {
+    topbarProject.set({
+      ownerName: data.project.ownerUsername,
+      projectName: data.project.name,
+      projectUrl: `/projects/${data.project.ownerUsername}/${data.project.code}/components`
+    });
+  });
+
+  onDestroy(() => {
+    topbarProject.set(null);
+  });
 
   // Helper to build project URL base
   const projectUrlBase = $derived(`/projects/${data.project.ownerUsername}/${data.project.code}`);
@@ -37,14 +48,7 @@
         ]
       : [])
   ]);
-
-  // Initialize breadcrumbs context
-  const breadcrumbs = initBreadcrumbs(buildProjectBreadcrumbs(data.project));
 </script>
-
-<PageHeader overridePadding="0.5rem">
-  <Breadcrumb items={$breadcrumbs} />
-</PageHeader>
 
 {#if !$maxScreen}
   <Tabs {tabs} />
@@ -67,3 +71,4 @@
     padding: 0;
   }
 </style>
+

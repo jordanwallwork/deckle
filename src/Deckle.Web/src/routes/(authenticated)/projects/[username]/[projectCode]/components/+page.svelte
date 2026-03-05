@@ -4,6 +4,7 @@
   import { invalidateAll, goto } from '$app/navigation';
   import { Button, ConfirmDialog, EmptyState, TabContent } from '$lib/components';
   import ComponentCard from './_components/ComponentCard.svelte';
+  import AddComponentCard from './_components/AddComponentCard.svelte';
   import LinkDataSourceModal from './_components/LinkDataSourceModal.svelte';
   import CreateEditComponentDialog from './_components/CreateEditComponentDialog.svelte';
   import type { GameComponent } from '$lib/types';
@@ -140,6 +141,9 @@
           onLinkDataSource={canLinkDataSource ? handleLinkDataSource : undefined}
         />
       {/each}
+      {#if canEdit}
+        <AddComponentCard onclick={openCreateDialog} />
+      {/if}
     </div>
   {:else}
     <EmptyState

@@ -108,14 +108,16 @@
 			</div>
 
 			{#if state.showPreview && state.previewDimensions}
-				<ComponentPreview
-					selectedType={state.selectedType}
-					previewDesign={state.previewDesign}
-					previewDimensions={state.previewDimensions}
-					previewShape={state.previewShape}
-					horizontalFolds={state.previewHorizontalFolds}
-					verticalFolds={state.previewVerticalFolds}
-				/>
+				<div class="preview-column">
+					<ComponentPreview
+						selectedType={state.selectedType}
+						previewDesign={state.previewDesign}
+						previewDimensions={state.previewDimensions}
+						previewShape={state.previewShape}
+						horizontalFolds={state.previewHorizontalFolds}
+						verticalFolds={state.previewVerticalFolds}
+					/>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -159,5 +161,11 @@
 	.form-column {
 		flex: 1;
 		min-width: 0;
+	}
+
+	@media (max-width: 640px) {
+		.preview-column {
+			display: none;
+		}
 	}
 </style>

@@ -4,7 +4,7 @@ namespace Deckle.Domain.Entities;
 /// Base class for all data source types.
 /// Uses TPH (Table Per Hierarchy) inheritance with DataSourceType as discriminator.
 /// </summary>
-public abstract class DataSource
+public abstract class DataSource : ISizeAware
 {
     public Guid Id { get; set; }
 
@@ -17,9 +17,12 @@ public abstract class DataSource
 
     public DataSourceType Type { get; set; }
 
+    [TrackByteSize]
     public List<string>? Headers { get; set; }
 
     public int? RowCount { get; set; }
+
+    public long TotalByteSize { get; set; }
 
     public DateTime CreatedAt { get; set; }
 

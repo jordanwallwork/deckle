@@ -141,6 +141,10 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(ds => ds.Id);
 
+            entity.Property(ds => ds.TotalByteSize)
+                .IsRequired()
+                .HasDefaultValue(0L);
+
             entity.Property(ds => ds.Name)
                 .IsRequired()
                 .HasMaxLength(255);
@@ -252,6 +256,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Card>(entity =>
         {
+            entity.Property(c => c.TotalByteSize)
+                .IsRequired()
+                .HasDefaultValue(0L);
+
             entity.Property(c => c.Horizontal)
                 .HasColumnName("Horizontal");
 
@@ -296,6 +304,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<GameBoard>(entity =>
         {
+            entity.Property(gb => gb.TotalByteSize)
+                .IsRequired()
+                .HasDefaultValue(0L);
+
             entity.Property(gb => gb.Horizontal)
                 .HasColumnName("Horizontal");
 
@@ -330,6 +342,10 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<PlayerMat>(entity =>
         {
+            entity.Property(pm => pm.TotalByteSize)
+                .IsRequired()
+                .HasDefaultValue(0L);
+
             entity.Property(pm => pm.Horizontal)
                 .HasColumnName("Horizontal");
 

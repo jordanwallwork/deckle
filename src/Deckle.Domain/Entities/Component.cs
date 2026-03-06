@@ -90,10 +90,14 @@ public abstract class Component : IComponent
     public Project? Project { get; set; }
 }
 
-public abstract class EditableComponent : Component, IEditableComponent
+public abstract class EditableComponent : Component, IEditableComponent, ISizeAware
 {
+    public long TotalByteSize { get; set; }
+
     // Abstract properties that derived classes must implement
+    [TrackByteSize]
     public abstract string? FrontDesign { get; set; }
+    [TrackByteSize]
     public abstract string? BackDesign { get; set; }
     public abstract ComponentShape Shape { get; set; }
 

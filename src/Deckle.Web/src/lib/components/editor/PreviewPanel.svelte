@@ -11,6 +11,7 @@
   import { templateStore } from '$lib/stores/templateElements';
   import { componentsApi } from '$lib/api';
   import { saveActionStore } from '$lib/stores/saveAction';
+  import { zoomToElementStore } from '$lib/stores/zoomToElement';
   import { goto } from '$app/navigation';
 
   let {
@@ -79,6 +80,62 @@
     panzoomInstance = instance;
     panzoomElement = element;
   }
+
+  function zoomToElement(elementId: string) {
+    if (!panzoomInstance || !panzoomElement) return;
+
+    const viewerEl = panzoomElement.parentElement as HTMLDivElement;
+    if (!viewerEl) return;
+
+    const targetEl = viewerEl.querySelector(`[data-element-id="${elementId}"]`);
+    if (!targetEl) return;
+
+    const viewerRect = viewerEl.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+    const currentScale = panzoomInstance.getScale();
+    const currentPan = panzoomInstance.getPan();
+
+    // Viewer center in screen coords (acts as the panzoom transform origin reference)
+    const viewerCenterX = viewerRect.left + viewerRect.width / 2;
+    const viewerCenterY = viewerRect.top + viewerRect.height / 2;
+
+    // Target element center in screen coords
+    const targetCenterX = targetRect.left + targetRect.width / 2;
+    const targetCenterY = targetRect.top + targetRect.height / 2;
+
+    // Natural (unscaled) dimensions of the target element
+    const naturalW = targetRect.width / currentScale;
+    const naturalH = targetRect.height / currentScale;
+
+    // New scale to fit the element with padding (70% of viewer)
+    const newScale = Math.min(
+      (viewerRect.width * 0.7) / naturalW,
+      (viewerRect.height * 0.7) / naturalH,
+      5
+    );
+
+    // Target's natural center position relative to the panzoom content center
+    // Derived from: targetCenterX = viewerCenterX + dx * currentScale + currentPan.x
+    const dx = (targetCenterX - viewerCenterX - currentPan.x) / currentScale;
+    const dy = (targetCenterY - viewerCenterY - currentPan.y) / currentScale;
+
+    // New pan to center the element at the viewer center at the new scale
+    // viewerCenterX = viewerCenterX + dx * newScale + newPanX  =>  newPanX = -dx * newScale
+    const newPanX = -dx * newScale;
+    const newPanY = -dy * newScale;
+
+    panzoomInstance.zoom(newScale);
+    panzoomInstance.pan(newPanX, newPanY);
+  }
+
+  // Handle zoom-to-element requests from context menus
+  $effect(() => {
+    const elementId = $zoomToElementStore;
+    if (elementId) {
+      zoomToElement(elementId);
+      zoomToElementStore.set(null);
+    }
+  });
 
   function handleExport() {
     // Clear any previous error

@@ -10,6 +10,7 @@
   import Portal from '$lib/components/Portal.svelte';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import { isElementVisible } from '$lib/utils/mergeFields';
+  import { zoomToElementStore } from '$lib/stores/zoomToElement';
 
   let {
     element,
@@ -124,6 +125,13 @@
 
   function getContextMenuItems(): ContextMenuItem[] {
     const items: ContextMenuItem[] = [];
+
+    // Zoom to selection
+    items.push({
+      label: 'Zoom to Selection',
+      action: () => zoomToElementStore.set(element.id)
+    });
+    items.push({ divider: true });
 
     // Duplicate action
     items.push({

@@ -41,6 +41,7 @@
           }
         ]
       : []),
+    { name: 'Tabletop', path: `${projectUrlBase}/tabletop` },
     ...(data.project.role === 'Owner' || data.project.role === 'Admin'
       ? [
           {

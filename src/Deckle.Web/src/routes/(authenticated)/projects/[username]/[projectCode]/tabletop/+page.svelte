@@ -482,6 +482,15 @@
       <h2>Components</h2>
     </div>
 
+    <div class="sidebar-setup">
+      <a
+        href="/projects/{data.project.ownerUsername}/{data.project.code}/tabletop/game-setup"
+        class="setup-btn"
+      >
+        Configure Game Setup
+      </a>
+    </div>
+
     <div class="component-list">
       {#if data.components.length === 0}
         <p class="empty">No components yet.</p>
@@ -752,6 +761,33 @@
     font-size: 1rem;
     flex-shrink: 0;
     cursor: grab;
+  }
+
+  .sidebar-setup {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+  }
+
+  .setup-btn {
+    display: block;
+    width: 100%;
+    padding: 0.4375rem 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #374151;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 5px;
+    text-decoration: none;
+    text-align: center;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+  }
+
+  .setup-btn:hover {
+    background: #e0f2fe;
+    color: #0369a1;
+    border-color: #bae6fd;
   }
 
   .sidebar-footer {

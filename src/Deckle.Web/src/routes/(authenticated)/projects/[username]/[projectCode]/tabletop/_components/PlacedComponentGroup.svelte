@@ -7,22 +7,22 @@
   let {
     component,
     loading,
-    dataSourceRows,
+    topDataSourceRow,
+    topFlipped = false,
     projectId,
-    mmScale,
-    flipped = false
+    mmScale
   }: {
     component: GameComponent;
     loading: boolean;
-    dataSourceRows: Record<string, string>[];
+    topDataSourceRow: Record<string, string>;
+    topFlipped?: boolean;
     projectId: string;
     mmScale: number;
-    flipped?: boolean;
   } = $props();
 
   let design = $derived.by((): ContainerElement | null => {
     if (!isEditableComponent(component)) return null;
-    const raw = flipped ? component.backDesign : component.frontDesign;
+    const raw = topFlipped ? component.backDesign : component.frontDesign;
     if (!raw) return null;
     try {
       return JSON.parse(raw);
@@ -32,9 +32,6 @@
   });
 
   let dims = $derived(isEditableComponent(component) ? component.dimensions : null);
-
-  // Instances: one per data source row, or one blank instance
-  let instances = $derived(dataSourceRows.length > 0 ? dataSourceRows : [{}]);
 
   // Trim area in canvas pixels — scale from physical mm so all components are proportional
   // regardless of their source DPI
@@ -47,27 +44,18 @@
   // Source-pixel bleed offset (used in translate before scale)
   let bleedPx = $derived(dims ? dims.bleedPx : 0);
 
-  // Stack visual offset (canvas px per ghost layer)
-  const STACK_OFFSET = 5;
-  let numGhosts = $derived(instances.length > 1 ? Math.min(instances.length - 1, 2) : 0);
-
-  let totalW = $derived(trimW + numGhosts * STACK_OFFSET);
-  let totalH = $derived(trimH + numGhosts * STACK_OFFSET);
-
-  function mergeDataFor(row: Record<string, string>): Record<string, string> | null {
-    return Object.keys(row).length > 0 ? row : null;
-  }
+  let mergeData = $derived(Object.keys(topDataSourceRow).length > 0 ? topDataSourceRow : null);
 </script>
 
-<div class="group-wrapper" style="width: {totalW}px; height: {totalH}px;">
+<div class="group-wrapper" style="width: {trimW}px; height: {trimH}px;">
   {#if loading}
     <!-- Skeleton while data source loads -->
     <div
       class="skeleton"
       style="
         position: absolute;
-        top: {numGhosts * STACK_OFFSET}px;
-        left: {numGhosts * STACK_OFFSET}px;
+        top: 0;
+        left: 0;
         width: {trimW}px;
         height: {trimH}px;
       "
@@ -77,39 +65,13 @@
       </div>
     </div>
   {:else if design && dims}
-    <!-- Ghost cards (stack depth effect) -->
-    {#if numGhosts >= 2}
-      <div
-        class="ghost-card"
-        style="
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: {trimW}px;
-          height: {trimH}px;
-        "
-      ></div>
-    {/if}
-    {#if numGhosts >= 1}
-      <div
-        class="ghost-card"
-        style="
-          position: absolute;
-          top: {STACK_OFFSET}px;
-          left: {STACK_OFFSET}px;
-          width: {trimW}px;
-          height: {trimH}px;
-        "
-      ></div>
-    {/if}
-
     <!-- Top card: clipped to trim area, bleed hidden -->
     <div
       class="trim-clip"
       style="
         position: absolute;
-        top: {numGhosts * STACK_OFFSET}px;
-        left: {numGhosts * STACK_OFFSET}px;
+        top: 0;
+        left: 0;
         width: {trimW}px;
         height: {trimH}px;
         overflow: hidden;
@@ -128,24 +90,20 @@
           {design}
           dimensions={dims}
           shape={'shape' in component ? (component.shape as ComponentShape) : undefined}
-          mergeData={mergeDataFor(instances[0])}
+          {mergeData}
           {projectId}
         />
       </div>
     </div>
 
-    <!-- Instance count badge -->
-    {#if instances.length > 1}
-      <div class="count-badge">{instances.length}</div>
-    {/if}
-  {:else if flipped && isEditableComponent(component) && dims}
+  {:else if topFlipped && isEditableComponent(component) && dims}
     <!-- Blank white back face -->
     <div
       class="trim-clip blank-back"
       style="
         position: absolute;
-        top: {numGhosts * STACK_OFFSET}px;
-        left: {numGhosts * STACK_OFFSET}px;
+        top: 0;
+        left: 0;
         width: {trimW}px;
         height: {trimH}px;
         overflow: hidden;
@@ -214,13 +172,6 @@
     to { transform: rotate(360deg); }
   }
 
-  /* Ghost cards for stack effect */
-  .ghost-card {
-    background: #d1d5db;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  }
-
   /* Trim clip: clips renderer to the trim area */
   .trim-clip {
     border-radius: 4px;
@@ -229,26 +180,6 @@
 
   .blank-back {
     background: white;
-  }
-
-  /* Instance count badge */
-  .count-badge {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #3b82f6;
-    color: white;
-    font-size: 11px;
-    font-weight: 700;
-    min-width: 20px;
-    height: 20px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 5px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-    pointer-events: none;
   }
 
   /* No-design placeholder */

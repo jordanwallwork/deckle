@@ -3,6 +3,7 @@
   import { setMaxScreen } from '$lib/stores/maxScreen';
   import { dataSourcesApi } from '$lib/api';
   import { isEditableComponent, hasDataSource, getComponentDisplayType } from '$lib/utils/componentTypes';
+  import { parseDataRow } from '$lib/utils/mergeFields';
   import type { GameComponent } from '$lib/types';
   import type { ContainerElement } from '$lib/components/editor/types';
   import { fontLoader } from '$lib/stores/fontLoader';
@@ -20,20 +21,33 @@
   // regardless of their source DPI
   const MM_SCALE = 3.54;
 
-  interface PlacedItem {
+  // Stack ghost offset in canvas pixels (world-space, not rotated)
+  const STACK_OFFSET = 5;
+
+  interface PlacedInstance {
     instanceId: string;
+    dataSourceRow: Record<string, string>;
+    flipped: boolean;
+    rotation: number;
+  }
+
+  // A group holds one or more instances stacked at the same canvas position.
+  // instances[instances.length - 1] is the top (visible) card.
+  interface PlacedGroup {
+    groupId: string;
     component: GameComponent;
     x: number;
     y: number;
     loading: boolean;
-    dataSourceRows: Record<string, string>[];
-    rotation: number;
-    flipped: boolean;
+    instances: PlacedInstance[];
   }
 
+  // activeGroupId: which group is selected
+  // activeInstanceId: which instance within that group (null = whole group selected)
+  let activeGroupId = $state<string | null>(null);
   let activeInstanceId = $state<string | null>(null);
 
-  let placedItems = $state<PlacedItem[]>([]);
+  let placedGroups = $state<PlacedGroup[]>([]);
   let nextId = 0;
 
   // Sidebar drag state
@@ -82,7 +96,7 @@
     const x = (event.clientX - rect.left + el.scrollLeft) / zoom;
     const y = (event.clientY - rect.top + el.scrollTop) / zoom;
 
-    const instanceId = `placed-${nextId++}`;
+    const groupId = `group-${nextId++}`;
     const needsData = hasDataSource(component) && !!(component as any).dataSource;
 
     // Preload fonts if editable
@@ -97,67 +111,99 @@
       }
     }
 
-    const item: PlacedItem = {
-      instanceId,
+    // Start with a single blank instance; replace with data rows once loaded
+    const group: PlacedGroup = {
+      groupId,
       component,
       x,
       y,
       loading: needsData,
-      dataSourceRows: [],
-      rotation: 0,
-      flipped: false
+      instances: [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }]
     };
-    placedItems.push(item);
+    placedGroups.push(group);
 
     if (needsData) {
       const dataSource = (component as any).dataSource as { id: string };
       try {
         const result = await dataSourcesApi.getData(dataSource.id);
         const rows = result.data;
-        let dataRows: Record<string, string>[] = [];
+        let instances: PlacedInstance[];
         if (rows.length > 1) {
           const headers = rows[0];
-          dataRows = rows.slice(1).map((row) => {
-            const record: Record<string, string> = {};
-            headers.forEach((h, i) => {
-              record[h] = row[i] ?? '';
-            });
-            return record;
+          // One instance per data row — each carries its own row data
+          instances = rows.slice(1).map((row) => {
+            const record = parseDataRow(headers, row);
+            return { instanceId: `inst-${nextId++}`, dataSourceRow: record, flipped: false, rotation: 0 };
           });
+        } else {
+          instances = [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
         }
-        const idx = placedItems.findIndex((p) => p.instanceId === instanceId);
+        const idx = placedGroups.findIndex((g) => g.groupId === groupId);
         if (idx !== -1) {
-          placedItems[idx] = { ...placedItems[idx], dataSourceRows: dataRows, loading: false };
+          placedGroups[idx] = { ...placedGroups[idx], instances, loading: false };
         }
       } catch (err) {
         console.error('Failed to load data source data:', err);
-        const idx = placedItems.findIndex((p) => p.instanceId === instanceId);
+        const idx = placedGroups.findIndex((g) => g.groupId === groupId);
         if (idx !== -1) {
-          placedItems[idx] = { ...placedItems[idx], loading: false };
+          placedGroups[idx] = { ...placedGroups[idx], loading: false };
         }
       }
     }
   }
 
-  function removeItem(instanceId: string) {
-    if (activeInstanceId === instanceId) activeInstanceId = null;
-    placedItems = placedItems.filter((p) => p.instanceId !== instanceId);
+  function removeGroup(groupId: string) {
+    if (activeGroupId === groupId) {
+      activeGroupId = null;
+      activeInstanceId = null;
+    }
+    placedGroups = placedGroups.filter((g) => g.groupId !== groupId);
   }
 
-  // Canvas reposition drag state (pointer events, not HTML5 drag)
+  // --- Bounds helpers for drag-to-merge detection ---
+
+  function getGroupBounds(group: PlacedGroup): { x: number; y: number; w: number; h: number } {
+    // Positions and dimensions are in logical (pre-zoom) canvas pixels
+    let w = 100;
+    let h = 140;
+    if (isEditableComponent(group.component)) {
+      const dims = group.component.dimensions;
+      w = dims.widthMm * MM_SCALE;
+      h = dims.heightMm * MM_SCALE;
+    }
+    return { x: group.x, y: group.y, w, h };
+  }
+
+  function boundsOverlap(
+    a: { x: number; y: number; w: number; h: number },
+    b: { x: number; y: number; w: number; h: number }
+  ): boolean {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  // --- Canvas reposition drag state (pointer events, not HTML5 drag) ---
+
   let repositioningId = $state<string | null>(null);
   let pendingRepoId: string | null = null;
   let repoOffsetX = 0;
   let repoOffsetY = 0;
   let pointerDownX = 0;
   let pointerDownY = 0;
+  // Tracks whether the last pointer interaction ended as a drag, so click handlers can suppress
+  let lastInteractionWasDrag = false;
   const DRAG_THRESHOLD = 4; // px before drag activates
+  // When a single instance is selected and a drag starts, we split it into its own group
+  let pendingInstanceSplit = false;
+  let splitGroupId: string | null = null; // id of the newly-created group after a split
 
-  function handleItemPointerDown(event: PointerEvent, item: PlacedItem) {
+  function handleItemPointerDown(event: PointerEvent, group: PlacedGroup) {
     if ((event.target as HTMLElement).closest('.remove-btn')) return;
     event.preventDefault();
-    activeInstanceId = item.instanceId;
-    pendingRepoId = item.instanceId;
+    // Split unless the whole group is explicitly selected (double-click = group, anything else = single instance)
+    pendingInstanceSplit = !(activeGroupId === group.groupId && activeInstanceId === null);
+    splitGroupId = null;
+    activeGroupId = group.groupId;
+    pendingRepoId = group.groupId;
     const el = event.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
     // Store click offset in screen pixels; divided by zoom in move handler
@@ -168,42 +214,126 @@
     el.setPointerCapture(event.pointerId);
   }
 
-  function handleItemPointerMove(event: PointerEvent, item: PlacedItem) {
-    if (pendingRepoId !== item.instanceId || !canvasEl) return;
+  function handleItemPointerMove(event: PointerEvent, group: PlacedGroup) {
+    if (pendingRepoId !== group.groupId || !canvasEl) return;
     // Activate drag only after moving past the threshold
-    if (repositioningId !== item.instanceId) {
+    const alreadyDragging = repositioningId === group.groupId || (splitGroupId !== null && repositioningId === splitGroupId);
+    if (!alreadyDragging) {
       const dx = event.clientX - pointerDownX;
       const dy = event.clientY - pointerDownY;
       if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
-      repositioningId = item.instanceId;
+      repositioningId = group.groupId;
     }
+
+    // On first move past threshold: split the top instance into its own group if needed
+    if (pendingInstanceSplit) {
+      pendingInstanceSplit = false;
+      const sourceIdx = placedGroups.findIndex((g) => g.groupId === group.groupId);
+      if (sourceIdx !== -1 && placedGroups[sourceIdx].instances.length > 1) {
+        const topInst = placedGroups[sourceIdx].instances[placedGroups[sourceIdx].instances.length - 1];
+        placedGroups[sourceIdx].instances.splice(placedGroups[sourceIdx].instances.length - 1, 1);
+        const newGroupId = `group-${nextId++}`;
+        const newGroup: PlacedGroup = {
+          groupId: newGroupId,
+          component: group.component,
+          x: placedGroups[sourceIdx].x,
+          y: placedGroups[sourceIdx].y,
+          loading: false,
+          instances: [topInst]
+        };
+        placedGroups.push(newGroup);
+        splitGroupId = newGroupId;
+        repositioningId = newGroupId;
+        activeGroupId = newGroupId;
+        activeInstanceId = null;
+      }
+      // If only 1 instance, skip splitting — just drag the whole (single-instance) group
+    }
+
     const canvasRect = canvasEl.getBoundingClientRect();
     // Positions are in zoomed-pixel space; divide by zoom to get logical canvas coords
     const scrolledX = event.clientX - canvasRect.left + canvasEl.scrollLeft;
     const scrolledY = event.clientY - canvasRect.top + canvasEl.scrollTop;
     const x = (scrolledX - repoOffsetX) / zoom;
     const y = (scrolledY - repoOffsetY) / zoom;
-    const idx = placedItems.findIndex((p) => p.instanceId === item.instanceId);
+    const movingGroupId = splitGroupId ?? group.groupId;
+    const idx = placedGroups.findIndex((g) => g.groupId === movingGroupId);
     if (idx !== -1) {
-      placedItems[idx].x = Math.max(0, x);
-      placedItems[idx].y = Math.max(0, y);
+      placedGroups[idx].x = Math.max(0, x);
+      placedGroups[idx].y = Math.max(0, y);
     }
   }
 
-  function handleItemPointerUp(_event: PointerEvent, item: PlacedItem) {
-    if (pendingRepoId === item.instanceId) {
-      pendingRepoId = null;
-      repositioningId = null;
+  function handleItemPointerUp(_event: PointerEvent, group: PlacedGroup) {
+    if (pendingRepoId !== group.groupId) return;
+    pendingRepoId = null;
+    const wasDragging = repositioningId !== null;
+    const movingGroupId = splitGroupId ?? group.groupId;
+    repositioningId = null;
+    splitGroupId = null;
+    pendingInstanceSplit = false;
+    lastInteractionWasDrag = wasDragging;
+
+    if (!wasDragging) return;
+
+    // Check if the dragged group overlaps another group of the same component — if so, merge them
+    const draggedIdx = placedGroups.findIndex((g) => g.groupId === movingGroupId);
+    if (draggedIdx === -1) return;
+
+    const draggedGroup = placedGroups[draggedIdx];
+    const draggedBounds = getGroupBounds(draggedGroup);
+
+    // Find the topmost (last in array = highest z) overlapping group of the same component
+    let targetGroupId: string | null = null;
+    for (let i = placedGroups.length - 1; i >= 0; i--) {
+      const g = placedGroups[i];
+      if (g.groupId !== movingGroupId &&
+          g.component.id === draggedGroup.component.id &&
+          boundsOverlap(draggedBounds, getGroupBounds(g))) {
+        targetGroupId = g.groupId;
+        break;
+      }
     }
+
+    if (!targetGroupId) return;
+
+    // Merge: move all instances from dragged group into target group
+    const draggedInstances = [...draggedGroup.instances];
+    placedGroups.splice(draggedIdx, 1);
+    const newTargetIdx = placedGroups.findIndex((g) => g.groupId === targetGroupId);
+    if (newTargetIdx !== -1) {
+      placedGroups[newTargetIdx].instances.push(...draggedInstances);
+      activeGroupId = targetGroupId;
+      activeInstanceId = null; // whole group selected after merge
+    }
+  }
+
+  // Single click: select top instance of group
+  function handleGroupClick(_event: MouseEvent, group: PlacedGroup) {
+    if (lastInteractionWasDrag) {
+      lastInteractionWasDrag = false;
+      return;
+    }
+    const topInst = group.instances[group.instances.length - 1];
+    activeGroupId = group.groupId;
+    activeInstanceId = topInst.instanceId;
+  }
+
+  // Double click: select entire group
+  function handleGroupDblClick(_event: MouseEvent, group: PlacedGroup) {
+    activeGroupId = group.groupId;
+    activeInstanceId = null;
   }
 
   function clearCanvas() {
+    activeGroupId = null;
     activeInstanceId = null;
-    placedItems = [];
+    placedGroups = [];
   }
 
   function handleCanvasClick(event: MouseEvent) {
     if (!(event.target as HTMLElement).closest('.placed-item')) {
+      activeGroupId = null;
       activeInstanceId = null;
     }
   }
@@ -212,28 +342,55 @@
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
 
     if (event.key === 'Escape') {
+      activeGroupId = null;
       activeInstanceId = null;
       return;
     }
 
-    if (!activeInstanceId) return;
-    const idx = placedItems.findIndex((p) => p.instanceId === activeInstanceId);
+    if (!activeGroupId) return;
+    const idx = placedGroups.findIndex((g) => g.groupId === activeGroupId);
     if (idx === -1) return;
+
+    const topInstIdx = placedGroups[idx].instances.length - 1;
 
     if (event.key === 'q') {
       event.preventDefault();
-      placedItems[idx].rotation = (placedItems[idx].rotation + 90) % 360;
+      if (activeInstanceId === null) {
+        // Whole group: rotate all instances counter-clockwise
+        placedGroups[idx].instances = placedGroups[idx].instances
+          .map((inst) => ({ ...inst, rotation: (inst.rotation - 90 + 360) % 360 }));
+      } else {
+        // Single instance: rotate only the top counter-clockwise
+        placedGroups[idx].instances[topInstIdx].rotation =
+          (placedGroups[idx].instances[topInstIdx].rotation - 90 + 360) % 360;
+      }
     } else if (event.key === 'e') {
       event.preventDefault();
-      placedItems[idx].rotation = ((placedItems[idx].rotation - 90) + 360) % 360;
+      if (activeInstanceId === null) {
+        // Whole group: rotate all instances clockwise
+        placedGroups[idx].instances = placedGroups[idx].instances
+          .map((inst) => ({ ...inst, rotation: (inst.rotation + 90) % 360 }));
+      } else {
+        // Single instance: rotate only the top clockwise
+        placedGroups[idx].instances[topInstIdx].rotation =
+          (placedGroups[idx].instances[topInstIdx].rotation + 90) % 360;
+      }
     } else if (event.key === 'f') {
       event.preventDefault();
-      placedItems[idx].flipped = !placedItems[idx].flipped;
+      if (activeInstanceId === null) {
+        // Whole group selected: flip all instances and reverse order (A,B,C → C̄,B̄,Ā)
+        placedGroups[idx].instances = placedGroups[idx].instances
+          .map((inst) => ({ ...inst, flipped: !inst.flipped }))
+          .reverse();
+      } else {
+        // Single instance selected: flip only the top instance
+        placedGroups[idx].instances[topInstIdx].flipped = !placedGroups[idx].instances[topInstIdx].flipped;
+      }
     } else if (event.key === 'u') {
       event.preventDefault();
       if (idx > 0) {
-        const item = placedItems.splice(idx, 1)[0];
-        placedItems.splice(idx - 1, 0, item);
+        const [item] = placedGroups.splice(idx, 1);
+        placedGroups.splice(idx - 1, 0, item);
       }
     }
   }
@@ -360,7 +517,7 @@
       {/if}
     </div>
 
-    {#if placedItems.length > 0}
+    {#if placedGroups.length > 0}
       <div class="sidebar-footer">
         <button class="clear-btn" onclick={clearCanvas}>Clear canvas</button>
       </div>
@@ -391,7 +548,7 @@
         +
       </button>
     </div>
-    {#if placedItems.length === 0}
+    {#if placedGroups.length === 0}
       <div class="canvas-empty">
         <div class="canvas-empty-icon">⬛</div>
         <p>Drag components from the sidebar to place them here</p>
@@ -409,32 +566,69 @@
       onclick={handleCanvasClick}
     >
       <div class="canvas-inner" style="min-width: {3000 * zoom}px; min-height: {3000 * zoom}px;">
-        {#each placedItems as item (item.instanceId)}
+        {#each placedGroups as group (group.groupId)}
+          {@const topInst = group.instances[group.instances.length - 1]}
+          {@const trimW = isEditableComponent(group.component) ? Math.round(group.component.dimensions.widthMm * MM_SCALE * zoom) : 100}
+          {@const trimH = isEditableComponent(group.component) ? Math.round(group.component.dimensions.heightMm * MM_SCALE * zoom) : 140}
+          {@const numGhosts = group.instances.length > 1 ? Math.min(group.instances.length - 1, 2) : 0}
+          {@const rotRad = (topInst.rotation * Math.PI) / 180}
+          {@const boundW = Math.round(trimW * Math.abs(Math.cos(rotRad)) + trimH * Math.abs(Math.sin(rotRad)))}
+          {@const boundH = Math.round(trimW * Math.abs(Math.sin(rotRad)) + trimH * Math.abs(Math.cos(rotRad)))}
+          {@const placedW = boundW + numGhosts * STACK_OFFSET}
+          {@const placedH = boundH + numGhosts * STACK_OFFSET}
           <div
             class="placed-item"
-            class:repositioning={repositioningId === item.instanceId}
-            class:active={activeInstanceId === item.instanceId}
-            style="position: absolute; left: {item.x * zoom}px; top: {item.y * zoom}px; transform: rotate({item.rotation}deg);"
-            onpointerdown={(e) => handleItemPointerDown(e, item)}
-            onpointermove={(e) => handleItemPointerMove(e, item)}
-            onpointerup={(e) => handleItemPointerUp(e, item)}
+            class:repositioning={repositioningId === group.groupId}
+            class:active={activeGroupId === group.groupId}
+            class:group-selected={activeGroupId === group.groupId && activeInstanceId === null}
+            style="position: absolute; left: {group.x * zoom}px; top: {group.y * zoom}px; width: {placedW}px; height: {placedH}px;"
+            onpointerdown={(e) => handleItemPointerDown(e, group)}
+            onpointermove={(e) => handleItemPointerMove(e, group)}
+            onpointerup={(e) => handleItemPointerUp(e, group)}
+            onclick={(e) => handleGroupClick(e, group)}
+            ondblclick={(e) => handleGroupDblClick(e, group)}
           >
+            <!-- Ghost cards: world-space orientation (not rotated), always stack to top-left -->
+            {#if numGhosts >= 2}
+              <div
+                class="ghost-card"
+                style="position: absolute; top: 0; left: 0; width: {boundW}px; height: {boundH}px;"
+              ></div>
+            {/if}
+            {#if numGhosts >= 1}
+              <div
+                class="ghost-card"
+                style="position: absolute; top: {STACK_OFFSET}px; left: {STACK_OFFSET}px; width: {boundW}px; height: {boundH}px;"
+              ></div>
+            {/if}
+
+            <!-- UI chrome: not rotated -->
             <button
               class="remove-btn"
-              onclick={() => removeItem(item.instanceId)}
+              onclick={() => removeGroup(group.groupId)}
               title="Remove"
-              aria-label="Remove {item.component.name}"
+              aria-label="Remove {group.component.name}"
             >
               ×
             </button>
-            <PlacedComponentGroup
-              component={item.component}
-              loading={item.loading}
-              dataSourceRows={item.dataSourceRows}
-              projectId={data.project.id}
-              mmScale={MM_SCALE * zoom}
-              flipped={item.flipped}
-            />
+            {#if group.instances.length > 1}
+              <div class="count-badge">{group.instances.length}</div>
+            {/if}
+
+            <!-- Card visual: rotated, centered in the rotated bounding box area -->
+            <div
+              class="rotating-wrapper"
+              style="left: {numGhosts * STACK_OFFSET + boundW / 2}px; top: {numGhosts * STACK_OFFSET + boundH / 2}px; transform: translate(-50%, -50%) rotate({topInst.rotation}deg);"
+            >
+              <PlacedComponentGroup
+                component={group.component}
+                loading={group.loading}
+                topDataSourceRow={topInst.dataSourceRow}
+                topFlipped={topInst.flipped}
+                projectId={data.project.id}
+                mmScale={MM_SCALE * zoom}
+              />
+            </div>
           </div>
         {/each}
       </div>
@@ -700,8 +894,6 @@
     position: absolute;
     cursor: grab;
     touch-action: none;
-    transform-origin: center center;
-    /* Ensure count badge / remove btn can overflow */
   }
 
   .placed-item.repositioning {
@@ -709,8 +901,28 @@
     z-index: 100;
   }
 
+  /* Ghost cards: world-space orientation, always stack to top-left regardless of card rotation */
+  .ghost-card {
+    position: absolute;
+    background: #d1d5db;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Card visual wrapper: rotated, centered in bounding box */
+  .rotating-wrapper {
+    position: absolute;
+  }
+
   .placed-item.active {
     outline: 2px solid #3b82f6;
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  /* Whole-group selection gets a distinct green outline */
+  .placed-item.active.group-selected {
+    outline: 2px solid #10b981;
     outline-offset: 4px;
     border-radius: 4px;
   }
@@ -738,5 +950,25 @@
 
   .placed-item:hover .remove-btn {
     display: flex;
+  }
+
+  .count-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #3b82f6;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+    z-index: 10;
   }
 </style>

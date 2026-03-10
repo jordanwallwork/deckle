@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Deckle.API.DTOs;
 
 public record GoogleUserInfo(
@@ -10,6 +12,11 @@ public record GoogleUserInfo(
     string? Locale
 );
 
+public record ExternalLinkDto(
+    [property: JsonPropertyName("label")] string Label,
+    [property: JsonPropertyName("url")] string Url
+);
+
 public record CurrentUserDto
 {
     public string? Id { get; init; }
@@ -18,7 +25,14 @@ public record CurrentUserDto
     public string? Name { get; init; }
     public string? Picture { get; init; }
     public string? Role { get; init; }
+    public string? Bio { get; init; }
+    public List<ExternalLinkDto>? ExternalLinks { get; init; }
 }
+
+public record UpdateProfileRequest(
+    string? Bio,
+    List<ExternalLinkDto>? ExternalLinks
+);
 
 public record SetUsernameRequest(string Username);
 

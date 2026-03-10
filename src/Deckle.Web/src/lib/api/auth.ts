@@ -3,7 +3,8 @@ import type {
   CurrentUser,
   UsernameAvailabilityResponse,
   SetUsernameRequest,
-  SetUsernameResponse
+  SetUsernameResponse,
+  UpdateProfileRequest
 } from '$lib/types';
 
 /**
@@ -25,5 +26,16 @@ export const authApi = {
    * Set the current user's username
    */
   setUsername: (request: SetUsernameRequest, fetchFn?: typeof fetch) =>
-    api.post<SetUsernameResponse>('/auth/username', request, undefined, fetchFn)
+    api.post<SetUsernameResponse>('/auth/username', request, undefined, fetchFn),
+
+  /**
+   * Get current user's full profile (including bio and external links)
+   */
+  getProfile: (fetchFn?: typeof fetch) => api.get<CurrentUser>('/auth/profile', undefined, fetchFn),
+
+  /**
+   * Update current user's profile (bio and external links)
+   */
+  updateProfile: (request: UpdateProfileRequest, fetchFn?: typeof fetch) =>
+    api.put<void>('/auth/profile', request, undefined, fetchFn)
 };

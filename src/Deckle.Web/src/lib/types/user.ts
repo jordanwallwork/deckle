@@ -14,7 +14,12 @@ export interface User {
   lastLoginAt?: string;
 }
 
-// Current user DTO from /auth/me endpoint
+export interface ExternalLink {
+  label: string;
+  url: string;
+}
+
+// Current user DTO from /auth/me and /auth/profile endpoints
 export interface CurrentUser {
   id?: string;
   email?: string;
@@ -22,6 +27,13 @@ export interface CurrentUser {
   name?: string;
   picture?: string;
   role?: string;
+  bio?: string;
+  externalLinks?: ExternalLink[];
+}
+
+export interface UpdateProfileRequest {
+  bio?: string | null;
+  externalLinks?: ExternalLink[] | null;
 }
 
 // Admin user management types

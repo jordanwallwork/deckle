@@ -78,6 +78,12 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            entity.Property(u => u.Bio)
+                .HasMaxLength(1000);
+
+            entity.Property(u => u.ExternalLinks)
+                .HasColumnType("jsonb");
+
             entity.Property(u => u.StorageQuotaMb)
                 .IsRequired()
                 .HasDefaultValue(50);

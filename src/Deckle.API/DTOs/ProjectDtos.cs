@@ -12,6 +12,10 @@ public record ProjectDto
     public required string OwnerUsername { get; init; }
 }
 
+public record GameSetupDto(string? Data);
+
+public record SaveGameSetupRequest(string Data);
+
 public record CreateProjectRequest(string Name, string Code, string? Description);
 
 public record UpdateProjectRequest(string Name, string? Description);

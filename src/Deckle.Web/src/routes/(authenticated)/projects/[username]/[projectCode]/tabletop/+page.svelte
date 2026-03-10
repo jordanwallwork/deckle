@@ -16,13 +16,52 @@
     return () => setMaxScreen(false);
   });
 
-  // Physical scale: screen pixels per mm
-  // 3.54 px/mm ≈ 90 DPI display, so all components render at the same physical scale
-  // regardless of their source DPI
   const MM_SCALE = 3.54;
-
-  // Stack ghost offset in canvas pixels (world-space, not rotated)
   const STACK_OFFSET = 5;
+  const ZONE_PADDING = 48;
+
+  // ── Zone definitions ──────────────────────────────────────────────────────
+
+  interface ZoneDef {
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+    minWidth: number;
+    minHeight: number;
+  }
+
+  const ZONES: ZoneDef[] = [
+    { id: 'play_area', label: 'Play Area', x: 40, y: 40, minWidth: 900, minHeight: 580 },
+    { id: 'sideboard', label: 'Sideboard', x: 980, y: 40, minWidth: 340, minHeight: 440 },
+  ];
+
+  function getZoneSize(zone: ZoneDef): { width: number; height: number } {
+    let width = zone.minWidth;
+    let height = zone.minHeight;
+    for (const g of placedGroups) {
+      if (g.zoneId !== zone.id) continue;
+      const b = getGroupBounds(g);
+      width = Math.max(width, g.x - zone.x + b.w + ZONE_PADDING);
+      height = Math.max(height, g.y - zone.y + b.h + ZONE_PADDING);
+    }
+    return { width, height };
+  }
+
+  function getZoneAt(canvasX: number, canvasY: number): ZoneDef | null {
+    for (const zone of ZONES) {
+      const { width, height } = getZoneSize(zone);
+      if (
+        canvasX >= zone.x && canvasX <= zone.x + width &&
+        canvasY >= zone.y && canvasY <= zone.y + height
+      ) {
+        return zone;
+      }
+    }
+    return null;
+  }
+
+  // ── Placed items ──────────────────────────────────────────────────────────
 
   interface PlacedInstance {
     instanceId: string;
@@ -31,27 +70,43 @@
     rotation: number;
   }
 
-  // A group holds one or more instances stacked at the same canvas position.
-  // instances[instances.length - 1] is the top (visible) card.
   interface PlacedGroup {
     groupId: string;
     component: GameComponent;
+    zoneId: string;
     x: number;
     y: number;
     loading: boolean;
     instances: PlacedInstance[];
   }
 
-  // activeGroupId: which group is selected
-  // activeInstanceId: which instance within that group (null = whole group selected)
   let activeGroupId = $state<string | null>(null);
   let activeInstanceId = $state<string | null>(null);
-
   let placedGroups = $state<PlacedGroup[]>([]);
   let nextId = 0;
 
-  // Sidebar drag state
+  // Instances currently sitting in the Game Box (keyed by componentId).
+  // Only populated after instances have been returned from the canvas.
+  let boxInstances = $state<Record<string, PlacedInstance[]>>({});
+
+  // A component appears in the Game Box if it has known box instances, or has
+  // never been placed (so its instances are implicitly all in the box).
+  const placedComponentIds = $derived(new Set(placedGroups.map((g) => g.component.id)));
+  const gameBoxComponents = $derived(
+    data.components.filter((c) => (c.id in boxInstances) || !placedComponentIds.has(c.id))
+  );
+  // How many instances of each component are currently in the box (undefined = unknown/full set)
+  const boxInstanceCounts = $derived(
+    Object.fromEntries(
+      Object.entries(boxInstances).map(([id, insts]) => [id, insts.length])
+    ) as Record<string, number>
+  );
+
+  // ── Sidebar drag ──────────────────────────────────────────────────────────
+
+  let sidebarEl = $state<HTMLElement | null>(null);
   let draggingId = $state<string | null>(null);
+  let dragOverZoneId = $state<string | null>(null);
 
   function handleDragStart(event: DragEvent, component: GameComponent) {
     draggingId = component.id;
@@ -61,28 +116,26 @@
 
   function handleDragEnd() {
     draggingId = null;
+    dragOverZoneId = null;
   }
 
-  // Canvas drop state
-  let isDragOver = $state(false);
-  let canvasEl = $state<HTMLElement | null>(null);
+  // ── Zone drop handlers ────────────────────────────────────────────────────
 
-  function handleDragOver(event: DragEvent) {
+  function handleZoneDragOver(event: DragEvent, zone: ZoneDef) {
     event.preventDefault();
     event.dataTransfer!.dropEffect = 'copy';
-    isDragOver = true;
+    dragOverZoneId = zone.id;
   }
 
-  function handleDragLeave(event: DragEvent) {
-    // Only clear if leaving the canvas itself (not a child element)
+  function handleZoneDragLeave(event: DragEvent, _zone: ZoneDef) {
     if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)) {
-      isDragOver = false;
+      dragOverZoneId = null;
     }
   }
 
-  async function handleDrop(event: DragEvent) {
+  async function handleZoneDrop(event: DragEvent, zone: ZoneDef) {
     event.preventDefault();
-    isDragOver = false;
+    dragOverZoneId = null;
 
     const componentId = event.dataTransfer?.getData('text/plain');
     if (!componentId) return;
@@ -90,37 +143,44 @@
     const component = data.components.find((c) => c.id === componentId);
     if (!component) return;
 
-    // Calculate drop position relative to canvas, accounting for scroll and zoom
-    const el = event.currentTarget as HTMLElement;
+    const el = canvasEl!;
     const rect = el.getBoundingClientRect();
-    const x = (event.clientX - rect.left + el.scrollLeft) / zoom;
-    const y = (event.clientY - rect.top + el.scrollTop) / zoom;
+    const canvasX = (event.clientX - rect.left + el.scrollLeft) / zoom;
+    const canvasY = (event.clientY - rect.top + el.scrollTop) / zoom;
 
-    const groupId = `group-${nextId++}`;
-    const needsData = hasDataSource(component) && !!(component as any).dataSource;
+    const { width, height } = getZoneSize(zone);
+    const x = Math.max(zone.x + 10, Math.min(canvasX, zone.x + width - 10));
+    const y = Math.max(zone.y + 32, Math.min(canvasY, zone.y + height - 10));
 
-    // Preload fonts if editable
+    // Preload fonts if applicable
     if (isEditableComponent(component) && component.frontDesign) {
       try {
         const design = JSON.parse(component.frontDesign) as ContainerElement;
-        if (design.fonts?.length) {
-          fontLoader.preloadTemplateFonts(design.fonts);
-        }
-      } catch {
-        // ignore
-      }
+        if (design.fonts?.length) fontLoader.preloadTemplateFonts(design.fonts);
+      } catch { /* ignore */ }
     }
 
-    // Start with a single blank instance; replace with data rows once loaded
-    const group: PlacedGroup = {
+    const groupId = `group-${nextId++}`;
+
+    // If we have instances sitting in the Game Box, reuse them directly
+    const knownBoxInsts = boxInstances[componentId];
+    if (knownBoxInsts && knownBoxInsts.length > 0) {
+      delete boxInstances[componentId];
+      placedGroups.push({ groupId, component, zoneId: zone.id, x, y, loading: false, instances: knownBoxInsts });
+      return;
+    }
+
+    // First placement: load from data source (or create a blank instance)
+    const needsData = hasDataSource(component) && !!(component as any).dataSource;
+    placedGroups.push({
       groupId,
       component,
+      zoneId: zone.id,
       x,
       y,
       loading: needsData,
       instances: [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }]
-    };
-    placedGroups.push(group);
+    });
 
     if (needsData) {
       const dataSource = (component as any).dataSource as { id: string };
@@ -130,7 +190,6 @@
         let instances: PlacedInstance[];
         if (rows.length > 1) {
           const headers = rows[0];
-          // One instance per data row — each carries its own row data
           instances = rows.slice(1).map((row) => {
             const record = parseDataRow(headers, row);
             return { instanceId: `inst-${nextId++}`, dataSourceRow: record, flipped: false, rotation: 0 };
@@ -152,7 +211,12 @@
     }
   }
 
-  function removeGroup(groupId: string) {
+  function returnGroupToBox(groupId: string) {
+    const group = placedGroups.find((g) => g.groupId === groupId);
+    if (group) {
+      const existing = boxInstances[group.component.id] ?? [];
+      boxInstances[group.component.id] = [...existing, ...group.instances];
+    }
     if (activeGroupId === groupId) {
       activeGroupId = null;
       activeInstanceId = null;
@@ -160,10 +224,13 @@
     placedGroups = placedGroups.filter((g) => g.groupId !== groupId);
   }
 
-  // --- Bounds helpers for drag-to-merge detection ---
+  function removeGroup(groupId: string) {
+    returnGroupToBox(groupId);
+  }
+
+  // ── Bounds helpers ────────────────────────────────────────────────────────
 
   function getGroupBounds(group: PlacedGroup): { x: number; y: number; w: number; h: number } {
-    // Positions and dimensions are in logical (pre-zoom) canvas pixels
     let w = 100;
     let h = 140;
     if (isEditableComponent(group.component)) {
@@ -181,43 +248,46 @@
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   }
 
-  // --- Canvas reposition drag state (pointer events, not HTML5 drag) ---
+  // ── Repositioning (pointer events) ────────────────────────────────────────
 
   let repositioningId = $state<string | null>(null);
+  let repoOverZoneId = $state<string | null>(null);
+  let repoOverSidebar = $state(false);
   let pendingRepoId: string | null = null;
   let repoOffsetX = 0;
   let repoOffsetY = 0;
   let pointerDownX = 0;
   let pointerDownY = 0;
-  // Tracks whether the last pointer interaction ended as a drag, so click handlers can suppress
+  let preRepoX = 0;
+  let preRepoY = 0;
   let lastInteractionWasDrag = false;
-  const DRAG_THRESHOLD = 4; // px before drag activates
-  // When a single instance is selected and a drag starts, we split it into its own group
+  const DRAG_THRESHOLD = 4;
   let pendingInstanceSplit = false;
-  let splitGroupId: string | null = null; // id of the newly-created group after a split
+  let splitGroupId: string | null = null;
 
   function handleItemPointerDown(event: PointerEvent, group: PlacedGroup) {
     if ((event.target as HTMLElement).closest('.remove-btn')) return;
     event.preventDefault();
-    // Split unless the whole group is explicitly selected (double-click = group, anything else = single instance)
     pendingInstanceSplit = !(activeGroupId === group.groupId && activeInstanceId === null);
     splitGroupId = null;
     activeGroupId = group.groupId;
     pendingRepoId = group.groupId;
     const el = event.currentTarget as HTMLElement;
     const rect = el.getBoundingClientRect();
-    // Store click offset in screen pixels; divided by zoom in move handler
     repoOffsetX = event.clientX - rect.left;
     repoOffsetY = event.clientY - rect.top;
     pointerDownX = event.clientX;
     pointerDownY = event.clientY;
+    preRepoX = group.x;
+    preRepoY = group.y;
     el.setPointerCapture(event.pointerId);
   }
 
   function handleItemPointerMove(event: PointerEvent, group: PlacedGroup) {
     if (pendingRepoId !== group.groupId || !canvasEl) return;
-    // Activate drag only after moving past the threshold
-    const alreadyDragging = repositioningId === group.groupId || (splitGroupId !== null && repositioningId === splitGroupId);
+    const alreadyDragging =
+      repositioningId === group.groupId ||
+      (splitGroupId !== null && repositioningId === splitGroupId);
     if (!alreadyDragging) {
       const dx = event.clientX - pointerDownX;
       const dy = event.clientY - pointerDownY;
@@ -225,7 +295,6 @@
       repositioningId = group.groupId;
     }
 
-    // On first move past threshold: split the top instance into its own group if needed
     if (pendingInstanceSplit) {
       pendingInstanceSplit = false;
       const sourceIdx = placedGroups.findIndex((g) => g.groupId === group.groupId);
@@ -236,6 +305,7 @@
         const newGroup: PlacedGroup = {
           groupId: newGroupId,
           component: group.component,
+          zoneId: group.zoneId,
           x: placedGroups[sourceIdx].x,
           y: placedGroups[sourceIdx].y,
           loading: false,
@@ -247,11 +317,9 @@
         activeGroupId = newGroupId;
         activeInstanceId = null;
       }
-      // If only 1 instance, skip splitting — just drag the whole (single-instance) group
     }
 
     const canvasRect = canvasEl.getBoundingClientRect();
-    // Positions are in zoomed-pixel space; divide by zoom to get logical canvas coords
     const scrolledX = event.clientX - canvasRect.left + canvasEl.scrollLeft;
     const scrolledY = event.clientY - canvasRect.top + canvasEl.scrollTop;
     const x = (scrolledX - repoOffsetX) / zoom;
@@ -261,6 +329,16 @@
     if (idx !== -1) {
       placedGroups[idx].x = Math.max(0, x);
       placedGroups[idx].y = Math.max(0, y);
+      const b = getGroupBounds(placedGroups[idx]);
+      repoOverZoneId = getZoneAt(placedGroups[idx].x + b.w / 2, placedGroups[idx].y + b.h / 2)?.id ?? null;
+    }
+
+    // Track whether pointer is over the Game Box sidebar
+    if (sidebarEl) {
+      const sr = sidebarEl.getBoundingClientRect();
+      repoOverSidebar =
+        event.clientX >= sr.left && event.clientX <= sr.right &&
+        event.clientY >= sr.top && event.clientY <= sr.bottom;
     }
   }
 
@@ -273,23 +351,44 @@
     splitGroupId = null;
     pendingInstanceSplit = false;
     lastInteractionWasDrag = wasDragging;
+    repoOverZoneId = null;
+
+    const wasOverSidebar = repoOverSidebar;
+    repoOverSidebar = false;
 
     if (!wasDragging) return;
 
-    // Check if the dragged group overlaps another group of the same component — if so, merge them
+    // Dropped on Game Box → return to box
+    if (wasOverSidebar) {
+      removeGroup(movingGroupId);
+      return;
+    }
+
     const draggedIdx = placedGroups.findIndex((g) => g.groupId === movingGroupId);
     if (draggedIdx === -1) return;
 
     const draggedGroup = placedGroups[draggedIdx];
-    const draggedBounds = getGroupBounds(draggedGroup);
 
-    // Find the topmost (last in array = highest z) overlapping group of the same component
+    // Validate zone — snap back if dropped outside any zone
+    const b = getGroupBounds(draggedGroup);
+    const targetZone = getZoneAt(draggedGroup.x + b.w / 2, draggedGroup.y + b.h / 2);
+    if (!targetZone) {
+      placedGroups[draggedIdx].x = preRepoX;
+      placedGroups[draggedIdx].y = preRepoY;
+      return;
+    }
+    placedGroups[draggedIdx].zoneId = targetZone.id;
+
+    // Check for merge with overlapping group of same component
+    const draggedBounds = getGroupBounds(draggedGroup);
     let targetGroupId: string | null = null;
     for (let i = placedGroups.length - 1; i >= 0; i--) {
       const g = placedGroups[i];
-      if (g.groupId !== movingGroupId &&
-          g.component.id === draggedGroup.component.id &&
-          boundsOverlap(draggedBounds, getGroupBounds(g))) {
+      if (
+        g.groupId !== movingGroupId &&
+        g.component.id === draggedGroup.component.id &&
+        boundsOverlap(draggedBounds, getGroupBounds(g))
+      ) {
         targetGroupId = g.groupId;
         break;
       }
@@ -297,18 +396,18 @@
 
     if (!targetGroupId) return;
 
-    // Merge: move all instances from dragged group into target group
     const draggedInstances = [...draggedGroup.instances];
     placedGroups.splice(draggedIdx, 1);
     const newTargetIdx = placedGroups.findIndex((g) => g.groupId === targetGroupId);
     if (newTargetIdx !== -1) {
       placedGroups[newTargetIdx].instances.push(...draggedInstances);
       activeGroupId = targetGroupId;
-      activeInstanceId = null; // whole group selected after merge
+      activeInstanceId = null;
     }
   }
 
-  // Single click: select top instance of group
+  // ── Selection ─────────────────────────────────────────────────────────────
+
   function handleGroupClick(_event: MouseEvent, group: PlacedGroup) {
     if (lastInteractionWasDrag) {
       lastInteractionWasDrag = false;
@@ -319,15 +418,20 @@
     activeInstanceId = topInst.instanceId;
   }
 
-  // Double click: select entire group
   function handleGroupDblClick(_event: MouseEvent, group: PlacedGroup) {
     activeGroupId = group.groupId;
     activeInstanceId = null;
   }
 
   function clearCanvas() {
+    // Return all instances on the canvas back to the Game Box
+    for (const group of placedGroups) {
+      const existing = boxInstances[group.component.id] ?? [];
+      boxInstances[group.component.id] = [...existing, ...group.instances];
+    }
     activeGroupId = null;
     activeInstanceId = null;
+    repoOverSidebar = false;
     placedGroups = [];
   }
 
@@ -337,6 +441,8 @@
       activeInstanceId = null;
     }
   }
+
+  // ── Keyboard ──────────────────────────────────────────────────────────────
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
@@ -356,35 +462,30 @@
     if (event.key === 'q') {
       event.preventDefault();
       if (activeInstanceId === null) {
-        // Whole group: rotate all instances counter-clockwise
         placedGroups[idx].instances = placedGroups[idx].instances
           .map((inst) => ({ ...inst, rotation: (inst.rotation - 90 + 360) % 360 }));
       } else {
-        // Single instance: rotate only the top counter-clockwise
         placedGroups[idx].instances[topInstIdx].rotation =
           (placedGroups[idx].instances[topInstIdx].rotation - 90 + 360) % 360;
       }
     } else if (event.key === 'e') {
       event.preventDefault();
       if (activeInstanceId === null) {
-        // Whole group: rotate all instances clockwise
         placedGroups[idx].instances = placedGroups[idx].instances
           .map((inst) => ({ ...inst, rotation: (inst.rotation + 90) % 360 }));
       } else {
-        // Single instance: rotate only the top clockwise
         placedGroups[idx].instances[topInstIdx].rotation =
           (placedGroups[idx].instances[topInstIdx].rotation + 90) % 360;
       }
     } else if (event.key === 'f') {
       event.preventDefault();
       if (activeInstanceId === null) {
-        // Whole group selected: flip all instances and reverse order (A,B,C → C̄,B̄,Ā)
         placedGroups[idx].instances = placedGroups[idx].instances
           .map((inst) => ({ ...inst, flipped: !inst.flipped }))
           .reverse();
       } else {
-        // Single instance selected: flip only the top instance
-        placedGroups[idx].instances[topInstIdx].flipped = !placedGroups[idx].instances[topInstIdx].flipped;
+        placedGroups[idx].instances[topInstIdx].flipped =
+          !placedGroups[idx].instances[topInstIdx].flipped;
       }
     } else if (event.key === 'u') {
       event.preventDefault();
@@ -395,27 +496,19 @@
     }
   }
 
-  // Zoom state
+  // ── Zoom ──────────────────────────────────────────────────────────────────
+
   let zoom = $state(1);
   const minZoom = 0.25;
   const maxZoom = 4;
   const zoomStep = 0.25;
-
   const zoomPercentage = $derived(Math.round(zoom * 100));
 
-  function zoomIn() {
-    zoom = Math.min(zoom + zoomStep, maxZoom);
-  }
+  function zoomIn() { zoom = Math.min(zoom + zoomStep, maxZoom); }
+  function zoomOut() { zoom = Math.max(zoom - zoomStep, minZoom); }
+  function resetZoom() { zoom = 1; }
 
-  function zoomOut() {
-    zoom = Math.max(zoom - zoomStep, minZoom);
-  }
-
-  function resetZoom() {
-    zoom = 1;
-  }
-
-  // Ctrl+wheel zoom and pinch-to-zoom
+  let canvasEl = $state<HTMLElement | null>(null);
   let pinchStartDistance = 0;
   let pinchStartZoom = 1;
 
@@ -462,6 +555,14 @@
     };
   });
 
+  // Canvas min dimensions grow with zone content
+  const canvasMinWidth = $derived(
+    Math.max(...ZONES.map((z) => { const s = getZoneSize(z); return z.x + s.width + 120; }))
+  );
+  const canvasMinHeight = $derived(
+    Math.max(...ZONES.map((z) => { const s = getZoneSize(z); return z.y + s.height + 80; }))
+  );
+
   function getDimensionLabel(component: GameComponent): string {
     if (!isEditableComponent(component)) return '';
     const { widthMm, heightMm } = component.dimensions;
@@ -476,12 +577,12 @@
 </svelte:head>
 
 <div class="tabletop-layout">
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <h2>Components</h2>
-    </div>
-
+  <!-- Sidebar / Game Box -->
+  <div
+    class="sidebar"
+    class:game-box-drop-target={repoOverSidebar}
+    bind:this={sidebarEl}
+  >
     <div class="sidebar-setup">
       <a
         href="/projects/{data.project.ownerUsername}/{data.project.code}/tabletop/game-setup"
@@ -491,32 +592,43 @@
       </a>
     </div>
 
+    <div class="sidebar-header">
+      <h2>Game Box</h2>
+      {#if repoOverSidebar}
+        <span class="game-box-return-hint">Drop to return</span>
+      {/if}
+    </div>
+
     <div class="component-list">
       {#if data.components.length === 0}
         <p class="empty">No components yet.</p>
+      {:else if gameBoxComponents.length === 0}
+        <p class="empty">All components are on the table.</p>
       {:else}
-        {#each data.components as component (component.id)}
+        {#each gameBoxComponents as component (component.id)}
           <div
             class="component-item"
             class:dragging={draggingId === component.id}
             draggable="true"
             role="button"
             tabindex="0"
-            aria-label="Drag {component.name} to canvas"
+            aria-label="Drag {component.name} to a zone"
             ondragstart={(e) => handleDragStart(e, component)}
             ondragend={handleDragEnd}
           >
             <div class="component-info">
-              <span class="component-name">{component.name}</span>
+              <div class="component-name-row">
+                <span class="component-name">{component.name}</span>
+                {#if boxInstanceCounts[component.id] !== undefined && boxInstanceCounts[component.id] > 1}
+                  <span class="instance-count">({boxInstanceCounts[component.id]})</span>
+                {/if}
+              </div>
               <div class="component-meta">
                 <span class="type-badge type-{component.type.toLowerCase()}"
                   >{getComponentDisplayType(component)}</span
                 >
                 {#if isEditableComponent(component)}
                   <span class="dim-label">{getDimensionLabel(component)}</span>
-                {/if}
-                {#if hasDataSource(component) && (component as any).dataSource}
-                  <span class="ds-badge" title="Has data source">DS</span>
                 {/if}
               </div>
             </div>
@@ -534,47 +646,44 @@
   </div>
 
   <!-- Canvas -->
-  <div class="canvas-area" class:drag-over={isDragOver}>
+  <div class="canvas-area">
     <!-- Zoom controls -->
     <div class="zoom-control">
-      <button
-        class="zoom-btn"
-        onclick={zoomOut}
-        disabled={zoom <= minZoom}
-        title="Zoom out"
-      >
-        −
-      </button>
-      <button class="zoom-reset" onclick={resetZoom} title="Reset zoom to 100%">
-        {zoomPercentage}%
-      </button>
-      <button
-        class="zoom-btn"
-        onclick={zoomIn}
-        disabled={zoom >= maxZoom}
-        title="Zoom in"
-      >
-        +
-      </button>
+      <button class="zoom-btn" onclick={zoomOut} disabled={zoom <= minZoom} title="Zoom out">−</button>
+      <button class="zoom-reset" onclick={resetZoom} title="Reset zoom to 100%">{zoomPercentage}%</button>
+      <button class="zoom-btn" onclick={zoomIn} disabled={zoom >= maxZoom} title="Zoom in">+</button>
     </div>
-    {#if placedGroups.length === 0}
-      <div class="canvas-empty">
-        <div class="canvas-empty-icon">⬛</div>
-        <p>Drag components from the sidebar to place them here</p>
-      </div>
-    {/if}
 
     <div
       class="canvas-scroll"
       bind:this={canvasEl}
       role="region"
-      aria-label="Tabletop canvas. Drag components from the sidebar to place them."
-      ondragover={handleDragOver}
-      ondragleave={handleDragLeave}
-      ondrop={handleDrop}
+      aria-label="Tabletop canvas. Drag components from the Game Box into a zone."
       onclick={handleCanvasClick}
     >
-      <div class="canvas-inner" style="min-width: {3000 * zoom}px; min-height: {3000 * zoom}px;">
+      <div
+        class="canvas-inner"
+        style="min-width: {canvasMinWidth * zoom}px; min-height: {canvasMinHeight * zoom}px;"
+      >
+        <!-- Zones -->
+        {#each ZONES as zone (zone.id)}
+          {@const size = getZoneSize(zone)}
+          {@const isDropTarget = dragOverZoneId === zone.id || repoOverZoneId === zone.id}
+          <div
+            class="zone"
+            class:zone-drop-target={isDropTarget}
+            style="left: {zone.x * zoom}px; top: {zone.y * zoom}px; width: {size.width * zoom}px; height: {size.height * zoom}px;"
+            ondragover={(e) => handleZoneDragOver(e, zone)}
+            ondragleave={(e) => handleZoneDragLeave(e, zone)}
+            ondrop={(e) => handleZoneDrop(e, zone)}
+            role="region"
+            aria-label="{zone.label} zone"
+          >
+            <span class="zone-label" class:zone-label-active={isDropTarget}>{zone.label}</span>
+          </div>
+        {/each}
+
+        <!-- Placed items -->
         {#each placedGroups as group (group.groupId)}
           {@const topInst = group.instances[group.instances.length - 1]}
           {@const trimW = isEditableComponent(group.component) ? Math.round(group.component.dimensions.widthMm * MM_SCALE * zoom) : 100}
@@ -597,7 +706,6 @@
             onclick={(e) => handleGroupClick(e, group)}
             ondblclick={(e) => handleGroupDblClick(e, group)}
           >
-            <!-- Ghost cards: world-space orientation (not rotated), always stack to top-left -->
             {#if numGhosts >= 2}
               <div
                 class="ghost-card"
@@ -611,20 +719,16 @@
               ></div>
             {/if}
 
-            <!-- UI chrome: not rotated -->
             <button
               class="remove-btn"
               onclick={() => removeGroup(group.groupId)}
               title="Remove"
               aria-label="Remove {group.component.name}"
-            >
-              ×
-            </button>
+            >×</button>
             {#if group.instances.length > 1}
               <div class="count-badge">{group.instances.length}</div>
             {/if}
 
-            <!-- Card visual: rotated, centered in the rotated bounding box area -->
             <div
               class="rotating-wrapper"
               style="left: {numGhosts * STACK_OFFSET + boundW / 2}px; top: {numGhosts * STACK_OFFSET + boundH / 2}px; transform: translate(-50%, -50%) rotate({topInst.rotation}deg);"
@@ -664,8 +768,21 @@
     overflow: hidden;
   }
 
+  .sidebar-setup {
+    padding: 0.75rem 0.75rem 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .sidebar.game-box-drop-target {
+    background: #eff6ff;
+    border-right-color: #93c5fd;
+  }
+
   .sidebar-header {
-    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 1rem 0.5rem;
     border-bottom: 1px solid #e0e0e0;
     flex-shrink: 0;
   }
@@ -679,10 +796,24 @@
     letter-spacing: 0.06em;
   }
 
+  .game-box-return-hint {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: #3b82f6;
+    margin-left: auto;
+  }
+
   .component-list {
     flex: 1;
     overflow-y: auto;
     padding: 0.375rem 0;
+  }
+
+  .empty {
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+    color: #9ca3af;
+    text-align: center;
   }
 
   .component-item {
@@ -692,7 +823,6 @@
     padding: 0.5rem 0.75rem;
     cursor: grab;
     transition: background 0.1s ease;
-    border-radius: 0;
     gap: 0.5rem;
   }
 
@@ -712,6 +842,13 @@
     min-width: 0;
   }
 
+  .component-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
   .component-name {
     font-size: 0.8125rem;
     color: #111827;
@@ -719,6 +856,13 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .instance-count {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 400;
+    flex-shrink: 0;
   }
 
   .component-meta {
@@ -747,26 +891,11 @@
     color: #9ca3af;
   }
 
-  .ds-badge {
-    font-size: 0.625rem;
-    font-weight: 700;
-    padding: 1px 4px;
-    border-radius: 3px;
-    background: #fef3c7;
-    color: #92400e;
-  }
-
   .drag-handle {
     color: #d1d5db;
     font-size: 1rem;
     flex-shrink: 0;
     cursor: grab;
-  }
-
-  .sidebar-setup {
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid #e0e0e0;
-    flex-shrink: 0;
   }
 
   .setup-btn {
@@ -820,19 +949,9 @@
     position: relative;
     min-width: 0;
     min-height: 0;
-    background:
-      radial-gradient(circle, #d1d5db 1px, transparent 1px);
+    background: radial-gradient(circle, #d1d5db 1px, transparent 1px);
     background-size: 24px 24px;
     background-color: #f3f4f6;
-  }
-
-  .canvas-area.drag-over .canvas-scroll {
-    outline: 3px dashed #3b82f6;
-    outline-offset: -3px;
-  }
-
-  .canvas-area.drag-over {
-    background-color: #eff6ff;
   }
 
   .canvas-scroll {
@@ -843,6 +962,40 @@
 
   .canvas-inner {
     position: relative;
+  }
+
+  /* Zones */
+  .zone {
+    position: absolute;
+    border: 2px dashed #c4c9d4;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.35);
+    box-sizing: border-box;
+    transition: border-color 0.15s, background 0.15s;
+    pointer-events: auto;
+  }
+
+  .zone-drop-target {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.07);
+  }
+
+  .zone-label {
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #b0b7c3;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    pointer-events: none;
+    user-select: none;
+    transition: color 0.15s;
+  }
+
+  .zone-label-active {
+    color: #3b82f6;
   }
 
   /* Zoom controls */
@@ -899,37 +1052,12 @@
     font-size: 0.875rem;
   }
 
-  .canvas-empty {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    pointer-events: none;
-    user-select: none;
-  }
-
-  .canvas-empty-icon {
-    font-size: 2.5rem;
-    opacity: 0.15;
-  }
-
-  .canvas-empty p {
-    font-size: 0.9375rem;
-    color: #9ca3af;
-    text-align: center;
-    max-width: 220px;
-    line-height: 1.5;
-  }
-
   /* Placed items */
   .placed-item {
     position: absolute;
     cursor: grab;
     touch-action: none;
+    z-index: 1;
   }
 
   .placed-item.repositioning {
@@ -937,7 +1065,6 @@
     z-index: 100;
   }
 
-  /* Ghost cards: world-space orientation, always stack to top-left regardless of card rotation */
   .ghost-card {
     position: absolute;
     background: #d1d5db;
@@ -945,7 +1072,6 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
 
-  /* Card visual wrapper: rotated, centered in bounding box */
   .rotating-wrapper {
     position: absolute;
   }
@@ -956,7 +1082,6 @@
     border-radius: 4px;
   }
 
-  /* Whole-group selection gets a distinct green outline */
   .placed-item.active.group-selected {
     outline: 2px solid #10b981;
     outline-offset: 4px;

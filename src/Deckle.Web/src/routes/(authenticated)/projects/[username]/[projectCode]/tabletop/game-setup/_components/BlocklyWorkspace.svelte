@@ -5,9 +5,10 @@
   interface Props {
     components: GameComponent[];
     storageKey: string;
+    initialState?: string | null;
   }
 
-  let { components, storageKey }: Props = $props();
+  let { components, storageKey, initialState = null }: Props = $props();
 
   let containerEl = $state<HTMLDivElement | null>(null);
 
@@ -21,13 +22,25 @@
         : [['(no components)', '__none__']];
   });
 
-  // ── Exported method for the parent's "Clear all" button ────────────────────
+  // ── Exported methods for the parent ────────────────────────────────────────
   let _workspace: any = null;
+  let _Blockly: any = null;
+
   export function clear() {
     _workspace?.clear();
     try {
       localStorage.removeItem(storageKey);
     } catch { /* ignore */ }
+  }
+
+  export function getState(): string | null {
+    if (!_workspace || !_Blockly) return null;
+    try {
+      const state = _Blockly.serialization.workspaces.save(_workspace);
+      return JSON.stringify(state);
+    } catch {
+      return null;
+    }
   }
 
   // ── Workspace lifecycle ─────────────────────────────────────────────────────
@@ -41,6 +54,7 @@
       const Blockly = await import('blockly');
       if (disposed) return;
 
+      _Blockly = Blockly;
       registerBlocks(Blockly);
 
       _workspace = Blockly.inject(containerEl!, {
@@ -58,11 +72,15 @@
         grid: { spacing: 20, length: 3, colour: '#e5e7eb', snap: true },
       });
 
-      // Restore persisted workspace
+      // Restore persisted workspace — prefer server-saved state, fall back to localStorage
       try {
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-          Blockly.serialization.workspaces.load(JSON.parse(saved), _workspace);
+        const serverState = initialState ?? localStorage.getItem(storageKey);
+        if (serverState) {
+          Blockly.serialization.workspaces.load(JSON.parse(serverState), _workspace);
+          // Sync localStorage with server state so they start in agreement
+          if (initialState) {
+            localStorage.setItem(storageKey, initialState);
+          }
         }
       } catch { /* ignore corrupt data */ }
 
@@ -91,6 +109,7 @@
       disposed = true;
       _workspace?.dispose();
       _workspace = null;
+      _Blockly = null;
     };
   });
 
@@ -207,6 +226,85 @@
       };
     }
 
+    if (!Blockly.Blocks['player_count']) {
+      Blockly.Blocks['player_count'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('Player Count');
+          this.setOutput(true, 'Number');
+          this.setColour(120);
+          this.setTooltip('The current number of players');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['set_player_count']) {
+      Blockly.Blocks['set_player_count'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('Set Player Count to')
+            .appendField(new Blockly.FieldNumber(2, 1), 'COUNT');
+          this.setPreviousStatement(true);
+          this.setNextStatement(true);
+          this.setColour(120);
+          this.setTooltip('Set the number of players to an exact value');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['determine_player_count']) {
+      Blockly.Blocks['determine_player_count'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('Determine Player Count (min:')
+            .appendField(new Blockly.FieldNumber(2, 1), 'MIN')
+            .appendField(', max:')
+            .appendField(new Blockly.FieldNumber(4, 1), 'MAX')
+            .appendField(')');
+          this.setPreviousStatement(true);
+          this.setNextStatement(true);
+          this.setColour(120);
+          this.setTooltip('Ask players to choose a player count within the given range, setting Player Count');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['player']) {
+      Blockly.Blocks['player'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('Player (')
+            .appendField(new Blockly.FieldNumber(1, 1), 'NUM')
+            .appendField(')');
+          this.setOutput(true, 'PLAYER');
+          this.setColour(120);
+          this.setTooltip('The player identified by the given number');
+        },
+      };
+    }
+
+    // ── Components ────────────────────────────────────────────────────────────
+    if (!Blockly.Blocks['component_move']) {
+      Blockly.Blocks['component_move'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('Move')
+            .appendField(new Blockly.FieldDropdown(() => getComponents()), 'COMPONENT');
+          this.appendValueInput('FROM_ZONE')
+            .setCheck('ZONE')
+            .appendField('from');
+          this.appendValueInput('TO_ZONE')
+            .setCheck('ZONE')
+            .appendField('to');
+          this.setPreviousStatement(true);
+          this.setNextStatement(true);
+          this.setColour(210);
+          this.setTooltip('Move a component from one zone to another');
+          this.setInputsInline(true);
+        },
+      };
+    }
+
     // ── Logic ─────────────────────────────────────────────────────────────────
     if (!Blockly.Blocks['game_conditional']) {
       Blockly.Blocks['game_conditional'] = {
@@ -256,9 +354,19 @@
           name: 'Players',
           colour: '120',
           contents: [
+            { kind: 'block', type: 'player_count' },
+            { kind: 'block', type: 'set_player_count' },
+            { kind: 'block', type: 'determine_player_count' },
+            { kind: 'block', type: 'player' },
             { kind: 'block', type: 'game_for_each_player' },
             { kind: 'block', type: 'game_determine_first_player' },
           ],
+        },
+        {
+          kind: 'category',
+          name: 'Components',
+          colour: '210',
+          contents: [{ kind: 'block', type: 'component_move' }],
         },
         {
           kind: 'category',

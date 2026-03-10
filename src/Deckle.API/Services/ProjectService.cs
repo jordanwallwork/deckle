@@ -18,6 +18,8 @@ public interface IProjectService
     public Task<(ProjectUserDto? user, string? inviterName)?> InviteUserToProjectAsync(Guid userId, Guid projectId, string email, string roleString);
     public Task<bool> RemoveUserFromProjectAsync(Guid requestingUserId, Guid projectId, Guid targetUserId);
     public Task DeleteProjectAsync(Guid userId, Guid projectId);
+    public Task<GameSetupDto?> GetGameSetupAsync(Guid userId, Guid projectId);
+    public Task<GameSetupDto?> SaveGameSetupAsync(Guid userId, Guid projectId, string data);
 }
 
 public partial class ProjectService : IProjectService
@@ -436,6 +438,33 @@ public partial class ProjectService : IProjectService
 
         _dbContext.Projects.Remove(userProject.Project);
         await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<GameSetupDto?> GetGameSetupAsync(Guid userId, Guid projectId)
+    {
+        if (!await _authService.HasProjectAccessAsync(userId, projectId))
+            return null;
+
+        var gameSetup = await _dbContext.Projects
+            .Where(p => p.Id == projectId)
+            .Select(p => p.GameSetup)
+            .FirstOrDefaultAsync();
+
+        // Returns GameSetupDto even when column is null (null means no setup saved yet)
+        return new GameSetupDto(gameSetup);
+    }
+
+    public async Task<GameSetupDto?> SaveGameSetupAsync(Guid userId, Guid projectId, string data)
+    {
+        var userProject = await _authService.GetUserProjectAsync(userId, projectId);
+        if (userProject == null)
+            return null;
+
+        userProject.Project.GameSetup = data;
+        userProject.Project.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
+        return new GameSetupDto(data);
     }
 
     private static int GetRolePriority(string role)

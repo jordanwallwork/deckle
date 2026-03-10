@@ -174,6 +174,22 @@ public static class ProjectEndpoints
         })
         .WithName("DeleteProject");
 
+        group.MapGet("{id:guid}/game-setup", async (Guid id, HttpContext httpContext, IProjectService projectService) =>
+        {
+            var userId = httpContext.GetUserId();
+            var result = await projectService.GetGameSetupAsync(userId, id);
+            return result == null ? Results.NotFound() : Results.Ok(result);
+        })
+        .WithName("GetGameSetup");
+
+        group.MapPut("{id:guid}/game-setup", async (Guid id, HttpContext httpContext, IProjectService projectService, SaveGameSetupRequest request) =>
+        {
+            var userId = httpContext.GetUserId();
+            var result = await projectService.SaveGameSetupAsync(userId, id, request.Data);
+            return result == null ? Results.NotFound() : Results.Ok(result);
+        })
+        .WithName("SaveGameSetup");
+
         return group;
     }
 }

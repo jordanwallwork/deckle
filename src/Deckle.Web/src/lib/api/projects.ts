@@ -55,5 +55,17 @@ export const projectsApi = {
   /**
    * Delete a project
    */
-  delete: (id: string, fetchFn?: typeof fetch) => api.delete(`/projects/${id}`, undefined, fetchFn)
+  delete: (id: string, fetchFn?: typeof fetch) => api.delete(`/projects/${id}`, undefined, fetchFn),
+
+  /**
+   * Get the saved game setup for a project
+   */
+  getGameSetup: (id: string, fetchFn?: typeof fetch) =>
+    api.get<{ data: string | null }>(`/projects/${id}/game-setup`, undefined, fetchFn),
+
+  /**
+   * Save the game setup for a project
+   */
+  saveGameSetup: (id: string, data: string, fetchFn?: typeof fetch) =>
+    api.put<{ data: string }>(`/projects/${id}/game-setup`, { data }, undefined, fetchFn)
 };

@@ -20,4 +20,7 @@ public class Project
     public ICollection<Component> Components { get; set; } = [];
     public ICollection<File> Files { get; set; } = [];
     public ICollection<FileDirectory> FileDirectories { get; set; } = [];
+
+    /// <summary>Serialised Blockly workspace state for the project's game setup.</summary>
+    public string? GameSetup { get; set; }
 }

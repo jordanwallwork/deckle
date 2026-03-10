@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { setMaxScreen } from '$lib/stores/maxScreen';
+  import { projectsApi } from '$lib/api';
   import BlocklyWorkspace from './_components/BlocklyWorkspace.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -17,10 +18,32 @@
   const storageKey = $derived(`game-setup-${data.project.id}`);
 
   let workspaceRef = $state<ReturnType<typeof BlocklyWorkspace> | null>(null);
+  let saving = $state(false);
+  let saveStatus = $state<'idle' | 'saved' | 'error'>('idle');
+  let saveStatusTimer: ReturnType<typeof setTimeout> | null = null;
 
   function handleClear() {
     if (confirm('Clear all setup steps? This cannot be undone.')) {
       workspaceRef?.clear();
+      saveStatus = 'idle';
+    }
+  }
+
+  async function handleSave() {
+    const state = workspaceRef?.getState();
+    if (state == null) return;
+
+    saving = true;
+    if (saveStatusTimer) clearTimeout(saveStatusTimer);
+
+    try {
+      await projectsApi.saveGameSetup(data.project.id, state);
+      saveStatus = 'saved';
+    } catch {
+      saveStatus = 'error';
+    } finally {
+      saving = false;
+      saveStatusTimer = setTimeout(() => (saveStatus = 'idle'), 3000);
     }
   }
 </script>
@@ -36,6 +59,9 @@
     <h1 class="topbar-title">Game Setup</h1>
     <div class="topbar-actions">
       <button class="clear-btn" onclick={handleClear}>Clear all</button>
+      <button class="save-btn" onclick={handleSave} disabled={saving}>
+        {saving ? 'Saving…' : saveStatus === 'saved' ? 'Saved!' : saveStatus === 'error' ? 'Error' : 'Save'}
+      </button>
     </div>
   </div>
 
@@ -45,6 +71,7 @@
       bind:this={workspaceRef}
       components={data.components}
       {storageKey}
+      initialState={data.savedGameSetup}
     />
   </div>
 </div>
@@ -114,6 +141,28 @@
     background: #fef2f2;
     color: #dc2626;
     border-color: #fca5a5;
+  }
+
+  .save-btn {
+    font-size: 0.8125rem;
+    padding: 0.3125rem 0.875rem;
+    background: #2563eb;
+    color: white;
+    border: 1px solid #1d4ed8;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.1s;
+    min-width: 70px;
+  }
+
+  .save-btn:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
+
+  .save-btn:disabled {
+    opacity: 0.65;
+    cursor: default;
   }
 
   .workspace-area {

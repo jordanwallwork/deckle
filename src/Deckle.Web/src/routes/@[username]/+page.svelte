@@ -21,33 +21,24 @@
     Teaser: 'Teaser'
   };
 
-  const LINK_ICONS: Record<string, string> = {
-    'x': '𝕏',
-    'twitter': '𝕏',
-    'bluesky': '🦋',
-    'discord': '💬',
-    'ko-fi': '☕',
-    'kofi': '☕',
-    'patreon': '🎨',
-    'portfolio': '🖼️',
-    'website': '🌐',
-    'github': '🐙',
-    'itch': '🎮',
-    'itch.io': '🎮'
-  };
-
-  function getLinkIcon(label: string): string {
-    const key = label.toLowerCase().replace(/[\s.]/g, '');
-    for (const [k, v] of Object.entries(LINK_ICONS)) {
-      if (key.includes(k)) return v;
+  function getFaviconUrl(url: string): string {
+    try {
+      const hostname = new URL(url).hostname;
+      return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+    } catch {
+      return '';
     }
-    return '🔗';
   }
 </script>
 
 <svelte:head>
   <title>{profile.name ?? profile.username} (@{profile.username}) · Deckle</title>
-  <meta name="description" content={profile.bio ? profile.bio.slice(0, 160) : `${profile.username}'s public profile on Deckle`} />
+  <meta
+    name="description"
+    content={profile.bio
+      ? profile.bio.slice(0, 160)
+      : `${profile.username}'s public profile on Deckle`}
+  />
 </svelte:head>
 
 <div class="profile-page">
@@ -73,8 +64,15 @@
       <ul class="links-list">
         {#each profile.externalLinks as link}
           <li>
-            <a href={link.url} target="_blank" rel="noopener noreferrer" class="link-item">
-              <span class="link-icon" aria-hidden="true">{getLinkIcon(link.label)}</span>
+            <a href={link.url} target="_blank" rel="noopener noreferrer nofollow" class="link-item">
+              <img
+                class="link-icon"
+                src={getFaviconUrl(link.url)}
+                alt=""
+                aria-hidden="true"
+                width="16"
+                height="16"
+              />
               <span class="link-label">{link.label}</span>
             </a>
           </li>
@@ -171,13 +169,31 @@
     line-height: 1.7;
   }
 
-  .bio-content :global(p) { margin: 0 0 0.75em 0; }
-  .bio-content :global(p:last-child) { margin-bottom: 0; }
-  .bio-content :global(strong) { font-weight: 700; color: var(--color-sage); }
-  .bio-content :global(em) { font-style: italic; }
-  .bio-content :global(a) { color: var(--color-muted-teal); text-decoration: underline; }
-  .bio-content :global(a:hover) { color: var(--color-sage); }
-  .bio-content :global(ul), .bio-content :global(ol) { margin: 0.5em 0; padding-left: 1.5em; }
+  .bio-content :global(p) {
+    margin: 0 0 0.75em 0;
+  }
+  .bio-content :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  .bio-content :global(strong) {
+    font-weight: 700;
+    color: var(--color-sage);
+  }
+  .bio-content :global(em) {
+    font-style: italic;
+  }
+  .bio-content :global(a) {
+    color: var(--color-muted-teal);
+    text-decoration: underline;
+  }
+  .bio-content :global(a:hover) {
+    color: var(--color-sage);
+  }
+  .bio-content :global(ul),
+  .bio-content :global(ol) {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+  }
 
   /* Links */
   .links-list {
@@ -201,7 +217,9 @@
     font-weight: 500;
     color: var(--color-sage);
     text-decoration: none;
-    transition: background-color 0.15s, border-color 0.15s;
+    transition:
+      background-color 0.15s,
+      border-color 0.15s;
   }
 
   .link-item:hover {
@@ -210,8 +228,10 @@
   }
 
   .link-icon {
-    font-size: 1rem;
-    line-height: 1;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border-radius: 2px;
   }
 
   /* Projects */
@@ -276,12 +296,27 @@
     line-height: 1.6;
   }
 
-  .project-description :global(p) { margin: 0 0 0.5em 0; }
-  .project-description :global(p:last-child) { margin-bottom: 0; }
-  .project-description :global(strong) { font-weight: 700; }
-  .project-description :global(em) { font-style: italic; }
-  .project-description :global(a) { color: var(--color-muted-teal); text-decoration: underline; }
-  .project-description :global(ul), .project-description :global(ol) { margin: 0.25em 0; padding-left: 1.25em; }
+  .project-description :global(p) {
+    margin: 0 0 0.5em 0;
+  }
+  .project-description :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  .project-description :global(strong) {
+    font-weight: 700;
+  }
+  .project-description :global(em) {
+    font-style: italic;
+  }
+  .project-description :global(a) {
+    color: var(--color-muted-teal);
+    text-decoration: underline;
+  }
+  .project-description :global(ul),
+  .project-description :global(ol) {
+    margin: 0.25em 0;
+    padding-left: 1.25em;
+  }
 
   .no-projects {
     font-size: 0.9375rem;
@@ -307,3 +342,4 @@
     }
   }
 </style>
+

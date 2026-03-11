@@ -117,6 +117,11 @@ public class AppDbContext : DbContext
             entity.Property(p => p.Description)
                 .HasMaxLength(1000);
 
+            entity.Property(p => p.Visibility)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasDefaultValue(ProjectVisibility.Private);
+
             entity.Property(p => p.CreatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");

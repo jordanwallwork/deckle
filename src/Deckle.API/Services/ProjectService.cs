@@ -12,8 +12,8 @@ public interface IProjectService
     public Task<List<ProjectDto>> GetUserProjectsAsync(Guid userId);
     public Task<ProjectDto?> GetProjectByIdAsync(Guid userId, Guid projectId);
     public Task<ProjectDto?> GetProjectByUsernameAndCodeAsync(Guid requestingUserId, string ownerUsername, string projectCode);
-    public Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string code, string? description);
-    public Task<ProjectDto?> UpdateProjectAsync(Guid userId, Guid projectId, string name, string? description);
+    public Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string code, string? description, ProjectVisibility visibility = ProjectVisibility.Private);
+    public Task<ProjectDto?> UpdateProjectAsync(Guid userId, Guid projectId, string name, string? description, ProjectVisibility visibility = ProjectVisibility.Private);
     public Task<List<ProjectUserDto>> GetProjectUsersAsync(Guid userId, Guid projectId);
     public Task<(ProjectUserDto? user, string? inviterName)?> InviteUserToProjectAsync(Guid userId, Guid projectId, string email, string roleString);
     public Task<bool> RemoveUserFromProjectAsync(Guid requestingUserId, Guid projectId, Guid targetUserId);
@@ -54,6 +54,7 @@ public partial class ProjectService : IProjectService
                 Name = up.Project.Name,
                 Code = up.Project.Code,
                 Description = up.Project.Description,
+                Visibility = up.Project.Visibility.ToString(),
                 CreatedAt = up.Project.CreatedAt,
                 UpdatedAt = up.Project.UpdatedAt,
                 Role = up.Role.ToString(),
@@ -86,6 +87,7 @@ public partial class ProjectService : IProjectService
                 Name = project.Name,
                 Code = project.Code,
                 Description = project.Description,
+                Visibility = project.Visibility.ToString(),
                 CreatedAt = project.CreatedAt,
                 UpdatedAt = project.UpdatedAt,
                 Role = userProject.Role.ToString(),
@@ -95,7 +97,7 @@ public partial class ProjectService : IProjectService
 
     private static readonly Regex _projectCodePattern = ProjectCodePatternRegex();
 
-    public async Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string code, string? description)
+    public async Task<ProjectDto> CreateProjectAsync(Guid userId, string name, string code, string? description, ProjectVisibility visibility = ProjectVisibility.Private)
     {
         var validationErrors = new ValidationErrorBuilder();
 
@@ -150,6 +152,7 @@ public partial class ProjectService : IProjectService
             Name = name,
             Code = code,
             Description = description,
+            Visibility = visibility,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -174,6 +177,7 @@ public partial class ProjectService : IProjectService
             Name = project.Name,
             Code = project.Code,
             Description = project.Description,
+            Visibility = project.Visibility.ToString(),
             CreatedAt = project.CreatedAt,
             UpdatedAt = project.UpdatedAt,
             Role = userProject.Role.ToString(),
@@ -181,7 +185,7 @@ public partial class ProjectService : IProjectService
         };
     }
 
-    public async Task<ProjectDto?> UpdateProjectAsync(Guid userId, Guid projectId, string name, string? description)
+    public async Task<ProjectDto?> UpdateProjectAsync(Guid userId, Guid projectId, string name, string? description, ProjectVisibility visibility = ProjectVisibility.Private)
     {
         var userProject = await _authService.GetUserProjectAsync(userId, projectId);
 
@@ -198,6 +202,7 @@ public partial class ProjectService : IProjectService
 
         userProject.Project.Name = name;
         userProject.Project.Description = description;
+        userProject.Project.Visibility = visibility;
         userProject.Project.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
@@ -214,6 +219,7 @@ public partial class ProjectService : IProjectService
             Name = userProject.Project.Name,
             Code = userProject.Project.Code,
             Description = userProject.Project.Description,
+            Visibility = userProject.Project.Visibility.ToString(),
             CreatedAt = userProject.Project.CreatedAt,
             UpdatedAt = userProject.Project.UpdatedAt,
             Role = userProject.Role.ToString(),

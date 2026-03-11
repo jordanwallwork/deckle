@@ -167,21 +167,46 @@
     if (!Blockly.Blocks['zone_player_specific']) {
       Blockly.Blocks['zone_player_specific'] = {
         init() {
+          this.appendValueInput('PLAYER')
+            .setCheck('PLAYER')
+            .appendField('Player');
           this.appendDummyInput()
-            .appendField('Player')
             .appendField(
               new Blockly.FieldDropdown([
                 ['Hand', 'hand'],
                 ['Tableau', 'tableau'],
               ]),
               'ZONE_TYPE'
-            )
-            .appendField('(')
-            .appendField(new Blockly.FieldNumber(1, 1), 'PLAYER_NUM')
-            .appendField(')');
+            );
           this.setOutput(true, 'ZONE');
           this.setColour(160);
-          this.setTooltip('A zone belonging to a specific player, e.g. PlayerHand(1)');
+          this.setInputsInline(true);
+          this.setTooltip('A zone belonging to a specific player');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['zoom_view_all']) {
+      Blockly.Blocks['zoom_view_all'] = {
+        init() {
+          this.appendDummyInput().appendField('Zoom to fit all zones');
+          this.setPreviousStatement(true);
+          this.setNextStatement(true);
+          this.setColour(160);
+          this.setTooltip('Adjust the zoom level so all zones are visible');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['zoom_view_zone']) {
+      Blockly.Blocks['zoom_view_zone'] = {
+        init() {
+          this.appendValueInput('ZONE').setCheck('ZONE').appendField('Zoom to fit');
+          this.setPreviousStatement(true);
+          this.setNextStatement(true);
+          this.setColour(160);
+          this.setInputsInline(true);
+          this.setTooltip('Adjust the zoom level to fit the specified zone in view');
         },
       };
     }
@@ -192,13 +217,32 @@
         init() {
           this.appendDummyInput()
             .appendField('For each player (')
-            .appendField(new Blockly.FieldTextInput('Player'), 'PLAYER_VAR')
+            .appendField(
+              new Blockly.FieldVariable('player', null, ['PLAYER'], 'PLAYER'),
+              'PLAYER_VAR'
+            )
             .appendField('), do:');
           this.appendStatementInput('DO').setCheck(null);
           this.setPreviousStatement(true);
           this.setNextStatement(true);
           this.setColour(120);
-          this.setTooltip('Repeat the nested steps once for every player');
+          this.setTooltip('Repeat the nested steps once for every player. Use the variable inside to reference the current player.');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['player_var_get']) {
+      Blockly.Blocks['player_var_get'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('player')
+            .appendField(
+              new Blockly.FieldVariable('player', null, ['PLAYER'], 'PLAYER'),
+              'VAR'
+            );
+          this.setOutput(true, 'PLAYER');
+          this.setColour(120);
+          this.setTooltip('The current player variable from a "For each player" loop');
         },
       };
     }
@@ -208,7 +252,10 @@
         init() {
           this.appendDummyInput()
             .appendField('Set')
-            .appendField(new Blockly.FieldTextInput('First Player'), 'VARIABLE')
+            .appendField(
+              new Blockly.FieldVariable('First Player', null, ['PLAYER'], 'PLAYER'),
+              'VARIABLE'
+            )
             .appendField('to')
             .appendField(
               new Blockly.FieldDropdown([
@@ -221,7 +268,7 @@
           this.setPreviousStatement(true);
           this.setNextStatement(true);
           this.setColour(120);
-          this.setTooltip('Determine which player goes first');
+          this.setTooltip('Determine which player goes first and store the result in a variable');
         },
       };
     }
@@ -284,22 +331,82 @@
     }
 
     // ── Components ────────────────────────────────────────────────────────────
+    if (!Blockly.Blocks['component_all']) {
+      Blockly.Blocks['component_all'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField(new Blockly.FieldDropdown(() => getComponents()), 'COMPONENT');
+          this.setOutput(true, 'COMPONENTS');
+          this.setColour(210);
+          this.setTooltip('All instances of the selected component type in the game');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['component_in_zone']) {
+      Blockly.Blocks['component_in_zone'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('Components')
+            .appendField(new Blockly.FieldDropdown(() => getComponents()), 'COMPONENT');
+          this.appendValueInput('ZONE')
+            .setCheck('ZONE')
+            .appendField('in');
+          this.setOutput(true, 'COMPONENTS');
+          this.setColour(210);
+          this.setInputsInline(true);
+          this.setTooltip('All instances of the selected component type that are currently in the specified zone');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['component_top']) {
+      Blockly.Blocks['component_top'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('Top')
+            .appendField(new Blockly.FieldNumber(1, 1), 'COUNT');
+          this.appendValueInput('COMPONENTS')
+            .setCheck('COMPONENTS')
+            .appendField('of');
+          this.setOutput(true, 'COMPONENTS');
+          this.setColour(210);
+          this.setInputsInline(true);
+          this.setTooltip('The first N components from a set');
+        },
+      };
+    }
+
+    if (!Blockly.Blocks['component_bottom']) {
+      Blockly.Blocks['component_bottom'] = {
+        init() {
+          this.appendDummyInput()
+            .appendField('Bottom')
+            .appendField(new Blockly.FieldNumber(1, 1), 'COUNT');
+          this.appendValueInput('COMPONENTS')
+            .setCheck('COMPONENTS')
+            .appendField('of');
+          this.setOutput(true, 'COMPONENTS');
+          this.setColour(210);
+          this.setInputsInline(true);
+          this.setTooltip('The last N components from a set');
+        },
+      };
+    }
+
     if (!Blockly.Blocks['component_move']) {
       Blockly.Blocks['component_move'] = {
         init() {
-          this.appendDummyInput()
-            .appendField('Move')
-            .appendField(new Blockly.FieldDropdown(() => getComponents()), 'COMPONENT');
-          this.appendValueInput('FROM_ZONE')
-            .setCheck('ZONE')
-            .appendField('from');
+          this.appendValueInput('COMPONENTS')
+            .setCheck('COMPONENTS')
+            .appendField('Move');
           this.appendValueInput('TO_ZONE')
             .setCheck('ZONE')
             .appendField('to');
           this.setPreviousStatement(true);
           this.setNextStatement(true);
           this.setColour(210);
-          this.setTooltip('Move a component from one zone to another');
+          this.setTooltip('Move a set of components to a zone');
           this.setInputsInline(true);
         },
       };
@@ -347,6 +454,8 @@
           contents: [
             { kind: 'block', type: 'zone_preset' },
             { kind: 'block', type: 'zone_player_specific' },
+            { kind: 'block', type: 'zoom_view_all' },
+            { kind: 'block', type: 'zoom_view_zone' },
           ],
         },
         {
@@ -359,6 +468,7 @@
             { kind: 'block', type: 'determine_player_count' },
             { kind: 'block', type: 'player' },
             { kind: 'block', type: 'game_for_each_player' },
+            { kind: 'block', type: 'player_var_get' },
             { kind: 'block', type: 'game_determine_first_player' },
           ],
         },
@@ -366,13 +476,25 @@
           kind: 'category',
           name: 'Components',
           colour: '210',
-          contents: [{ kind: 'block', type: 'component_move' }],
+          contents: [
+            { kind: 'block', type: 'component_move' },
+            { kind: 'block', type: 'component_all' },
+            { kind: 'block', type: 'component_in_zone' },
+            { kind: 'block', type: 'component_top' },
+            { kind: 'block', type: 'component_bottom' },
+          ],
         },
         {
           kind: 'category',
           name: 'Logic',
           colour: '0',
           contents: [{ kind: 'block', type: 'game_conditional' }],
+        },
+        {
+          kind: 'category',
+          name: 'Variables',
+          colour: '330',
+          custom: 'VARIABLE',
         },
       ],
     };

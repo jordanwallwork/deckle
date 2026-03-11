@@ -7,7 +7,10 @@
   import type { GameComponent } from '$lib/types';
   import type { ContainerElement } from '$lib/components/editor/types';
   import { fontLoader } from '$lib/stores/fontLoader';
+  import { runGameSetup, type TabletopController, type ZoneDef } from '$lib/tabletop/evaluator';
   import PlacedComponentGroup from './_components/PlacedComponentGroup.svelte';
+  import PlayerCountDialog from './_components/PlayerCountDialog.svelte';
+  import ChoosePlayerDialog from './_components/ChoosePlayerDialog.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -19,47 +22,122 @@
   const MM_SCALE = 3.54;
   const STACK_OFFSET = 5;
   const ZONE_PADDING = 48;
+  const INTER_ZONE_GAP = 20;
+  const ANIM_MS = 400;
 
   // ── Zone definitions ──────────────────────────────────────────────────────
 
-  interface ZoneDef {
-    id: string;
-    label: string;
-    x: number;
-    y: number;
-    minWidth: number;
-    minHeight: number;
-  }
-
-  const ZONES: ZoneDef[] = [
+  const INITIAL_ZONES: ZoneDef[] = [
     { id: 'play_area', label: 'Play Area', x: 40, y: 40, minWidth: 900, minHeight: 580 },
     { id: 'sideboard', label: 'Sideboard', x: 980, y: 40, minWidth: 340, minHeight: 440 },
   ];
 
-  function getZoneSize(zone: ZoneDef): { width: number; height: number } {
-    let width = zone.minWidth;
-    let height = zone.minHeight;
-    for (const g of placedGroups) {
-      if (g.zoneId !== zone.id) continue;
-      const b = getGroupBounds(g);
-      width = Math.max(width, g.x - zone.x + b.w + ZONE_PADDING);
-      height = Math.max(height, g.y - zone.y + b.h + ZONE_PADDING);
+  let zones = $state<ZoneDef[]>([...INITIAL_ZONES]);
+  let playerCount = $state(0);
+
+  // Compute effective zone positions and sizes together, preventing overlap both horizontally
+  // (pushing right) and vertically (pushing rows down when upper rows grow).
+  // Zones sharing the same initial y are treated as a single row.
+  const zoneLayouts = $derived.by(() => {
+    const result: Record<string, { x: number; y: number; width: number; height: number }> = {};
+
+    // Stable initial position for each zone (INITIAL_ZONES take priority, others use zone coords)
+    function getInitialX(zone: ZoneDef) { return INITIAL_ZONES.find((iz) => iz.id === zone.id)?.x ?? zone.x; }
+    function getInitialY(zone: ZoneDef) { return INITIAL_ZONES.find((iz) => iz.id === zone.id)?.y ?? zone.y; }
+
+    // Group zones into rows by their initial y
+    const rowMap = new Map<number, ZoneDef[]>();
+    for (const zone of zones) {
+      const iy = getInitialY(zone);
+      if (!rowMap.has(iy)) rowMap.set(iy, []);
+      rowMap.get(iy)!.push(zone);
     }
-    return { width, height };
+
+    // Process rows top-to-bottom; each row is pushed below the previous row's bottom edge
+    const rows = [...rowMap.entries()].sort(([ya], [yb]) => ya - yb);
+    let rowBottomEdge = -Infinity;
+
+    for (const [initialRowY, rowZones] of rows) {
+      const effectiveRowY =
+        rowBottomEdge === -Infinity ? initialRowY : Math.max(initialRowY, rowBottomEdge + INTER_ZONE_GAP);
+
+      // Within the row, sort left-to-right and push zones right as needed
+      const sortedRow = [...rowZones].sort((a, b) => getInitialX(a) - getInitialX(b));
+      let rightEdge = -Infinity;
+      let rowHeight = 0;
+
+      for (const zone of sortedRow) {
+        const ix = getInitialX(zone);
+        const effectiveX =
+          rightEdge === -Infinity ? zone.x : Math.max(ix, rightEdge + INTER_ZONE_GAP);
+
+        let width = zone.minWidth;
+        let height = zone.minHeight;
+        for (const g of placedGroups) {
+          if (g.zoneId !== zone.id) continue;
+          const b = getGroupBounds(g);
+          width = Math.max(width, g.x - effectiveX + b.w + ZONE_PADDING);
+          height = Math.max(height, g.y - effectiveRowY + b.h + ZONE_PADDING);
+        }
+
+        result[zone.id] = { x: effectiveX, y: effectiveRowY, width, height };
+        rightEdge = effectiveX + width;
+        rowHeight = Math.max(rowHeight, height);
+      }
+
+      rowBottomEdge = effectiveRowY + rowHeight;
+    }
+
+    return result;
+  });
+
+  function getZoneLayout(zone: ZoneDef): { x: number; y: number; width: number; height: number } {
+    return zoneLayouts[zone.id] ?? { x: zone.x, y: zone.y, width: zone.minWidth, height: zone.minHeight };
   }
 
   function getZoneAt(canvasX: number, canvasY: number): ZoneDef | null {
-    for (const zone of ZONES) {
-      const { width, height } = getZoneSize(zone);
-      if (
-        canvasX >= zone.x && canvasX <= zone.x + width &&
-        canvasY >= zone.y && canvasY <= zone.y + height
-      ) {
+    for (const zone of zones) {
+      const { x, y, width, height } = getZoneLayout(zone);
+      if (canvasX >= x && canvasX <= x + width && canvasY >= y && canvasY <= y + height) {
         return zone;
       }
     }
     return null;
   }
+
+  // ── Zone position tracking — move groups when their zone is pushed ────────
+
+  // Maps zone id → last known { x, y } position. Plain (non-reactive) variable
+  // so writes don't trigger reactivity; the effect depends on zoneLayouts instead.
+  let prevZonePositions = new Map<string, { x: number; y: number }>();
+
+  $effect(() => {
+    // Snapshot current zone positions (reading zoneLayouts makes this effect
+    // re-run whenever zone layouts change).
+    const current = new Map<string, { x: number; y: number }>();
+    for (const [id, layout] of Object.entries(zoneLayouts)) {
+      current.set(id, { x: layout.x, y: layout.y });
+    }
+
+    // Apply position deltas to every group whose zone moved.
+    for (const [id, pos] of current) {
+      const prev = prevZonePositions.get(id);
+      if (!prev) continue;
+      const dx = pos.x - prev.x;
+      const dy = pos.y - prev.y;
+      if (dx === 0 && dy === 0) continue;
+      for (let i = 0; i < placedGroups.length; i++) {
+        // Skip the group currently being dragged — pointer events own its position.
+        if (placedGroups[i].groupId === repositioningId) continue;
+        if (placedGroups[i].zoneId === id) {
+          placedGroups[i].x += dx;
+          placedGroups[i].y += dy;
+        }
+      }
+    }
+
+    prevZonePositions = current;
+  });
 
   // ── Placed items ──────────────────────────────────────────────────────────
 
@@ -101,6 +179,18 @@
       Object.entries(boxInstances).map(([id, insts]) => [id, insts.length])
     ) as Record<string, number>
   );
+
+  // ── Animation ─────────────────────────────────────────────────────────────
+
+  // Groups whose CSS transition is currently active
+  let animatingGroupIds = $state(new Set<string>());
+
+  /** Waits for two animation frames, ensuring the DOM has painted the current state. */
+  function nextTwoFrames(): Promise<void> {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  }
 
   // ── Sidebar drag ──────────────────────────────────────────────────────────
 
@@ -148,9 +238,9 @@
     const canvasX = (event.clientX - rect.left + el.scrollLeft) / zoom;
     const canvasY = (event.clientY - rect.top + el.scrollTop) / zoom;
 
-    const { width, height } = getZoneSize(zone);
-    const x = Math.max(zone.x + 10, Math.min(canvasX, zone.x + width - 10));
-    const y = Math.max(zone.y + 32, Math.min(canvasY, zone.y + height - 10));
+    const { x: zoneX, y: zoneY, width, height } = getZoneLayout(zone);
+    const x = Math.max(zoneX + 10, Math.min(canvasX, zoneX + width - 10));
+    const y = Math.max(zoneY + 32, Math.min(canvasY, zoneY + height - 10));
 
     // Preload fonts if applicable
     if (isEditableComponent(component) && component.frontDesign) {
@@ -246,6 +336,231 @@
     b: { x: number; y: number; w: number; h: number }
   ): boolean {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  // ── TabletopController helpers ────────────────────────────────────────────
+
+  async function moveSingleComponent(componentId: string, toZoneId: string): Promise<void> {
+    const targetZone = toZoneId !== 'game_box' ? zones.find((z) => z.id === toZoneId) : null;
+    const currentGroups = placedGroups.filter((g) => g.component.id === componentId);
+
+    if (currentGroups.length === 0) {
+      // ── Game Box → Canvas ──────────────────────────────────────────────
+      if (!targetZone) return;
+
+      // Gather instances: prefer known box instances, otherwise create fresh ones
+      let instances: PlacedInstance[];
+      const knownBoxInsts = boxInstances[componentId];
+
+      if (knownBoxInsts && knownBoxInsts.length > 0) {
+        instances = [...knownBoxInsts];
+        delete boxInstances[componentId];
+      } else {
+        // Component has never been placed — may need data source
+        const comp = data.components.find((c) => c.id === componentId);
+        if (!comp) return;
+
+        const needsData = hasDataSource(comp) && !!(comp as any).dataSource;
+        if (needsData) {
+          const dataSource = (comp as any).dataSource as { id: string };
+          try {
+            const result = await dataSourcesApi.getData(dataSource.id);
+            const rows = result.data;
+            if (rows.length > 1) {
+              const headers = rows[0];
+              instances = rows.slice(1).map((row) => ({
+                instanceId: `inst-${nextId++}`,
+                dataSourceRow: parseDataRow(headers, row),
+                flipped: false,
+                rotation: 0,
+              }));
+            } else {
+              instances = [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
+            }
+          } catch {
+            instances = [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
+          }
+        } else {
+          instances = [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
+        }
+      }
+
+      const comp = data.components.find((c) => c.id === componentId);
+      if (!comp) return;
+
+      // Preload fonts
+      if (isEditableComponent(comp) && (comp as any).frontDesign) {
+        try {
+          const design = JSON.parse((comp as any).frontDesign) as ContainerElement;
+          if (design.fonts?.length) fontLoader.preloadTemplateFonts(design.fonts);
+        } catch { /* ignore */ }
+      }
+
+      const targetX = getZoneLayout(targetZone).x + 10;
+      const targetY = getZoneLayout(targetZone).y + 32;
+      const groupId = `group-${nextId++}`;
+
+      // Spawn off-screen to the left with transition already active
+      animatingGroupIds = new Set([...animatingGroupIds, groupId]);
+      placedGroups.push({
+        groupId,
+        component: comp,
+        zoneId: toZoneId,
+        x: -600,
+        y: targetY,
+        loading: false,
+        instances,
+      });
+
+      // Two frames: let initial off-screen position render, then slide to target
+      await nextTwoFrames();
+      const idx = placedGroups.findIndex((g) => g.groupId === groupId);
+      if (idx !== -1) placedGroups[idx].x = targetX;
+
+      await new Promise((r) => setTimeout(r, ANIM_MS + 20));
+      animatingGroupIds = new Set([...animatingGroupIds].filter((id) => id !== groupId));
+
+    } else if (toZoneId === 'game_box') {
+      // ── Canvas → Game Box ────────────────────────────────────────────
+      const sourceGroupIds = currentGroups.map((g) => g.groupId);
+
+      animatingGroupIds = new Set([...animatingGroupIds, ...sourceGroupIds]);
+
+      await nextTwoFrames();
+      for (const gId of sourceGroupIds) {
+        const idx = placedGroups.findIndex((g) => g.groupId === gId);
+        if (idx !== -1) {
+          const b = getGroupBounds(placedGroups[idx]);
+          placedGroups[idx].x = -(b.w + 100);
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, ANIM_MS + 20));
+
+      for (const gId of sourceGroupIds) returnGroupToBox(gId);
+      animatingGroupIds = new Set([...animatingGroupIds].filter((id) => !sourceGroupIds.includes(id)));
+
+    } else {
+      // ── Canvas → Canvas ──────────────────────────────────────────────
+      if (!targetZone) return;
+
+      // Skip if already in the target zone
+      const needToMove = currentGroups.filter((g) => g.zoneId !== toZoneId);
+      if (needToMove.length === 0) return;
+
+      const allInstances = needToMove.flatMap((g) => g.instances);
+      const primaryGroupId = needToMove[0].groupId;
+      const extraGroupIds = needToMove.slice(1).map((g) => g.groupId);
+
+      for (const gId of extraGroupIds) {
+        const idx = placedGroups.findIndex((g) => g.groupId === gId);
+        if (idx !== -1) placedGroups.splice(idx, 1);
+      }
+
+      const targetX = getZoneLayout(targetZone).x + 10;
+      const targetY = getZoneLayout(targetZone).y + 32;
+
+      animatingGroupIds = new Set([...animatingGroupIds, primaryGroupId]);
+
+      await nextTwoFrames();
+      const primaryIdx = placedGroups.findIndex((g) => g.groupId === primaryGroupId);
+      if (primaryIdx !== -1) {
+        placedGroups[primaryIdx].instances = allInstances;
+        placedGroups[primaryIdx].x = targetX;
+        placedGroups[primaryIdx].y = targetY;
+        placedGroups[primaryIdx].zoneId = toZoneId;
+      }
+
+      await new Promise((r) => setTimeout(r, ANIM_MS + 20));
+      animatingGroupIds = new Set([...animatingGroupIds].filter((id) => id !== primaryGroupId));
+    }
+  }
+
+  // ── TabletopController ────────────────────────────────────────────────────
+
+  // Dialog state — each holds the promise resolve callback while the dialog is open
+  let playerCountDialogState = $state<{ min: number; max: number; resolve: (n: number) => void } | null>(null);
+  let choosePlayerDialogState = $state<{ playerCount: number; resolve: (n: number) => void } | null>(null);
+
+  const tabletopController: TabletopController = {
+    addZone(zone) {
+      zones.push(zone);
+    },
+    getZones() {
+      return zones;
+    },
+    setPlayerCount(count) {
+      playerCount = count;
+    },
+    getPlayerCount() {
+      return playerCount;
+    },
+
+    promptPlayerCount(min, max) {
+      return new Promise<number>((resolve) => {
+        playerCountDialogState = { min, max, resolve };
+      });
+    },
+
+    promptChoosePlayer(count) {
+      return new Promise<number>((resolve) => {
+        choosePlayerDialogState = { playerCount: count, resolve };
+      });
+    },
+
+    getComponentsInZone(componentId, zoneId) {
+      const inZone = placedGroups.some(
+        (g) => g.component.id === componentId && g.zoneId === zoneId
+      );
+      return inZone ? [componentId] : [];
+    },
+
+    async moveComponents(componentIds, toZoneId) {
+      for (const componentId of componentIds) {
+        await moveSingleComponent(componentId, toZoneId);
+      }
+    },
+
+    zoomToFitAll() {
+      const layouts = Object.values(zoneLayouts);
+      if (layouts.length === 0) return;
+      const minX = Math.min(...layouts.map((l) => l.x));
+      const minY = Math.min(...layouts.map((l) => l.y));
+      const maxX = Math.max(...layouts.map((l) => l.x + l.width));
+      const maxY = Math.max(...layouts.map((l) => l.y + l.height));
+      const viewW = canvasEl?.clientWidth ?? 800;
+      const viewH = canvasEl?.clientHeight ?? 600;
+      const MARGIN = 80;
+      const fitZoom = Math.min((viewW - MARGIN) / (maxX - minX), (viewH - MARGIN) / (maxY - minY));
+      animateZoom(Math.min(Math.max(fitZoom, minZoom), maxZoom));
+    },
+
+    zoomToFitZone(zoneId: string) {
+      const layout = zoneLayouts[zoneId];
+      if (!layout) return;
+      const viewW = canvasEl?.clientWidth ?? 800;
+      const viewH = canvasEl?.clientHeight ?? 600;
+      const MARGIN = 80;
+      const fitZoom = Math.min((viewW - MARGIN) / layout.width, (viewH - MARGIN) / layout.height);
+      animateZoom(Math.min(Math.max(fitZoom, minZoom), maxZoom));
+    },
+  };
+
+  // ── Run Setup ─────────────────────────────────────────────────────────────
+
+  let setupRunning = $state(false);
+
+  async function runSetup() {
+    if (!data.gameSetup || setupRunning) return;
+    setupRunning = true;
+    clearCanvas();
+    zones = [...INITIAL_ZONES];
+    playerCount = 0;
+    try {
+      await runGameSetup(data.gameSetup, tabletopController);
+    } finally {
+      setupRunning = false;
+    }
   }
 
   // ── Repositioning (pointer events) ────────────────────────────────────────
@@ -504,9 +819,23 @@
   const zoomStep = 0.25;
   const zoomPercentage = $derived(Math.round(zoom * 100));
 
-  function zoomIn() { zoom = Math.min(zoom + zoomStep, maxZoom); }
-  function zoomOut() { zoom = Math.max(zoom - zoomStep, minZoom); }
-  function resetZoom() { zoom = 1; }
+  let _zoomAnimFrame = 0;
+  function animateZoom(target: number) {
+    if (_zoomAnimFrame) cancelAnimationFrame(_zoomAnimFrame);
+    const start = zoom;
+    const t0 = performance.now();
+    function tick(now: number) {
+      const t = Math.min((now - t0) / ANIM_MS, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      zoom = start + (target - start) * eased;
+      _zoomAnimFrame = t < 1 ? requestAnimationFrame(tick) : 0;
+    }
+    _zoomAnimFrame = requestAnimationFrame(tick);
+  }
+
+  function zoomIn() { animateZoom(Math.min(zoom + zoomStep, maxZoom)); }
+  function zoomOut() { animateZoom(Math.max(zoom - zoomStep, minZoom)); }
+  function resetZoom() { animateZoom(1); }
 
   let canvasEl = $state<HTMLElement | null>(null);
   let pinchStartDistance = 0;
@@ -557,10 +886,10 @@
 
   // Canvas min dimensions grow with zone content
   const canvasMinWidth = $derived(
-    Math.max(...ZONES.map((z) => { const s = getZoneSize(z); return z.x + s.width + 120; }))
+    Math.max(...zones.map((z) => { const l = getZoneLayout(z); return l.x + l.width + 120; }))
   );
   const canvasMinHeight = $derived(
-    Math.max(...ZONES.map((z) => { const s = getZoneSize(z); return z.y + s.height + 80; }))
+    Math.max(...zones.map((z) => { const l = getZoneLayout(z); return l.y + l.height + 80; }))
   );
 
   function getDimensionLabel(component: GameComponent): string {
@@ -590,6 +919,14 @@
       >
         Configure Game Setup
       </a>
+      <button
+        class="setup-btn run-setup-btn"
+        disabled={!data.gameSetup || setupRunning}
+        title={data.gameSetup ? 'Run the game setup' : 'No game setup configured'}
+        onclick={runSetup}
+      >
+        {setupRunning ? 'Running…' : 'Run Setup'}
+      </button>
     </div>
 
     <div class="sidebar-header">
@@ -666,13 +1003,13 @@
         style="min-width: {canvasMinWidth * zoom}px; min-height: {canvasMinHeight * zoom}px;"
       >
         <!-- Zones -->
-        {#each ZONES as zone (zone.id)}
-          {@const size = getZoneSize(zone)}
+        {#each zones as zone (zone.id)}
+          {@const layout = getZoneLayout(zone)}
           {@const isDropTarget = dragOverZoneId === zone.id || repoOverZoneId === zone.id}
           <div
             class="zone"
             class:zone-drop-target={isDropTarget}
-            style="left: {zone.x * zoom}px; top: {zone.y * zoom}px; width: {size.width * zoom}px; height: {size.height * zoom}px;"
+            style="left: {layout.x * zoom}px; top: {layout.y * zoom}px; width: {layout.width * zoom}px; height: {layout.height * zoom}px;"
             ondragover={(e) => handleZoneDragOver(e, zone)}
             ondragleave={(e) => handleZoneDragLeave(e, zone)}
             ondrop={(e) => handleZoneDrop(e, zone)}
@@ -699,6 +1036,7 @@
             class:repositioning={repositioningId === group.groupId}
             class:active={activeGroupId === group.groupId}
             class:group-selected={activeGroupId === group.groupId && activeInstanceId === null}
+            class:animating={animatingGroupIds.has(group.groupId)}
             style="position: absolute; left: {group.x * zoom}px; top: {group.y * zoom}px; width: {placedW}px; height: {placedH}px;"
             onpointerdown={(e) => handleItemPointerDown(e, group)}
             onpointermove={(e) => handleItemPointerMove(e, group)}
@@ -749,6 +1087,28 @@
   </div>
 </div>
 
+<!-- Game setup dialogs — rendered outside the tabletop layout as fixed overlays -->
+{#if playerCountDialogState}
+  <PlayerCountDialog
+    min={playerCountDialogState.min}
+    max={playerCountDialogState.max}
+    onConfirm={(n) => {
+      playerCountDialogState!.resolve(n);
+      playerCountDialogState = null;
+    }}
+  />
+{/if}
+
+{#if choosePlayerDialogState}
+  <ChoosePlayerDialog
+    playerCount={choosePlayerDialogState.playerCount}
+    onConfirm={(n) => {
+      choosePlayerDialogState!.resolve(n);
+      choosePlayerDialogState = null;
+    }}
+  />
+{/if}
+
 <style>
   .tabletop-layout {
     display: flex;
@@ -771,6 +1131,9 @@
   .sidebar-setup {
     padding: 0.75rem 0.75rem 0.5rem;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
   }
 
   .sidebar.game-box-drop-target {
@@ -919,6 +1282,17 @@
     border-color: #bae6fd;
   }
 
+  .run-setup-btn {
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .run-setup-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
   .sidebar-footer {
     padding: 0.5rem 0.75rem;
     border-top: 1px solid #e0e0e0;
@@ -1063,6 +1437,12 @@
   .placed-item.repositioning {
     cursor: grabbing;
     z-index: 100;
+  }
+
+  /* Slide animation — only active during programmatic moves */
+  .placed-item.animating {
+    transition: left 0.4s ease, top 0.4s ease;
+    pointer-events: none;
   }
 
   .ghost-card {

@@ -90,11 +90,15 @@
         {#each profile.projects as project}
           <li class="project-card">
             <div class="project-header">
-              <a href="/projects/{project.ownerUsername}/{project.code}" class="project-name">
-                {project.name}
-              </a>
               {#if project.visibility === 'Teaser'}
+                <span class="project-name teaser">
+                  {project.name}
+                </span>
                 <span class="visibility-pill teaser">Teaser</span>
+              {:else}
+                <a href="/projects/{project.ownerUsername}/{project.code}" class="project-name">
+                  {project.name}
+                </a>
               {/if}
             </div>
             {#if project.description}
@@ -272,7 +276,7 @@
     text-decoration: none;
   }
 
-  .project-name:hover {
+  .project-name:not(.teaser):hover {
     text-decoration: underline;
   }
 

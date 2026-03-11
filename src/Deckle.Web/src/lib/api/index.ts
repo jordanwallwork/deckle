@@ -6,3 +6,4 @@ export * from './dataSources';
 export * from './auth';
 export * from './files';
 export * from './admin';
+export * from './users';

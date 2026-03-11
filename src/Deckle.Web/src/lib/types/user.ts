@@ -36,6 +36,24 @@ export interface UpdateProfileRequest {
   externalLinks?: ExternalLink[] | null;
 }
 
+// Public profile types
+export interface PublicProjectSummary {
+  name: string;
+  code: string;
+  description?: string;
+  visibility: import('./project').ProjectVisibility;
+  ownerUsername: string;
+}
+
+export interface PublicUserProfile {
+  username: string;
+  name?: string;
+  bio?: string;
+  picture?: string;
+  externalLinks?: ExternalLink[];
+  projects: PublicProjectSummary[];
+}
+
 // Admin user management types
 export interface AdminUser {
   id: string;

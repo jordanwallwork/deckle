@@ -64,35 +64,29 @@ public partial class ProjectService : IProjectService
 
     public async Task<ProjectDto?> GetProjectByUsernameAndCodeAsync(Guid requestingUserId, string ownerUsername, string projectCode)
     {
-        // Find the project by owner username and code
-        var project = await _dbContext.UserProjects
-            .Where(up => up.Role == ProjectRole.Owner && up.User.Username == ownerUsername && up.Project.Code == projectCode)
-            .Select(up => up.Project)
+        // Single query joining through the owner's UserProject to find the project,
+        // then joining again for the requesting user's access record.
+        return await _dbContext.UserProjects
+            .Where(ownerUp =>
+                ownerUp.Role == ProjectRole.Owner &&
+                ownerUp.User.Username == ownerUsername &&
+                ownerUp.Project.Code == projectCode)
+            .Join(
+                _dbContext.UserProjects.Where(up => up.UserId == requestingUserId),
+                ownerUp => ownerUp.ProjectId,
+                up => up.ProjectId,
+                (ownerUp, up) => new ProjectDto
+                {
+                    Id = ownerUp.Project.Id,
+                    Name = ownerUp.Project.Name,
+                    Code = ownerUp.Project.Code,
+                    Description = ownerUp.Project.Description,
+                    CreatedAt = ownerUp.Project.CreatedAt,
+                    UpdatedAt = ownerUp.Project.UpdatedAt,
+                    Role = up.Role.ToString(),
+                    OwnerUsername = ownerUsername
+                })
             .FirstOrDefaultAsync();
-
-        if (project == null)
-        {
-            return null;
-        }
-
-        // Check if the requesting user has access to this project
-        var userProject = await _dbContext.UserProjects
-            .Where(up => up.UserId == requestingUserId && up.ProjectId == project.Id)
-            .FirstOrDefaultAsync();
-
-        return userProject == null
-            ? null
-            : new ProjectDto
-            {
-                Id = project.Id,
-                Name = project.Name,
-                Code = project.Code,
-                Description = project.Description,
-                CreatedAt = project.CreatedAt,
-                UpdatedAt = project.UpdatedAt,
-                Role = userProject.Role.ToString(),
-                OwnerUsername = ownerUsername
-            };
     }
 
     private static readonly Regex _projectCodePattern = ProjectCodePatternRegex();
@@ -458,6 +452,9 @@ public partial class ProjectService : IProjectService
     {
         var userProject = await _authService.GetUserProjectAsync(userId, projectId);
         if (userProject == null)
+            return null;
+
+        if (!ProjectAuthorizationService.CanModifyProject(userProject.Role))
             return null;
 
         userProject.Project.GameSetup = data;

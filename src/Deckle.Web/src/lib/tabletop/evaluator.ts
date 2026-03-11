@@ -1,4 +1,5 @@
 import type { ZoneDef, TabletopController } from './types';
+import type { GameSetupState } from '$lib/types/gameSetup';
 
 export type { ZoneDef, TabletopController };
 
@@ -57,7 +58,7 @@ function addPlayerZones(count: number, controller: TabletopController): void {
   }
 }
 
-async function applyPlayerCount(count: number, controller: TabletopController): Promise<void> {
+function applyPlayerCount(count: number, controller: TabletopController): void {
   controller.setPlayerCount(count);
   addPlayerZones(count, controller);
 }
@@ -85,7 +86,7 @@ function compare(lhs: number, operator: string, rhs: number): boolean {
 // ── Value evaluation ───────────────────────────────────────────────────────
 
 /** Evaluates a PLAYER-output block → player number (1-based), or null */
-async function evalPlayer(block: BlockNode, ctx: EvalContext): Promise<number | null> {
+function evalPlayer(block: BlockNode, ctx: EvalContext): number | null {
   switch (block.type) {
     case 'player': {
       const num = block.fields?.['NUM'];
@@ -104,7 +105,7 @@ async function evalPlayer(block: BlockNode, ctx: EvalContext): Promise<number | 
 }
 
 /** Evaluates a ZONE-output block → zone ID string, or null */
-async function evalZone(block: BlockNode, ctx: EvalContext): Promise<string | null> {
+function evalZone(block: BlockNode, ctx: EvalContext): string | null {
   switch (block.type) {
     case 'zone_preset': {
       const zone = block.fields?.['ZONE'];
@@ -114,7 +115,7 @@ async function evalZone(block: BlockNode, ctx: EvalContext): Promise<string | nu
       const zoneType = block.fields?.['ZONE_TYPE'] as string ?? 'hand';
       const playerBlock = block.inputs?.['PLAYER']?.block;
       if (!playerBlock) return null;
-      const n = await evalPlayer(playerBlock, ctx);
+      const n = evalPlayer(playerBlock, ctx);
       return n !== null ? `player-${n}-${zoneType}` : null;
     }
     default:
@@ -132,6 +133,8 @@ async function evalComponents(
 ): Promise<string[]> {
   switch (block.type) {
     case 'component_all': {
+      // Returns the component type ID, not all instances. Instance expansion
+      // is deferred to moveComponents on the controller.
       const id = block.fields?.['COMPONENT'] as string;
       return id && id !== '__none__' ? [id] : [];
     }
@@ -165,17 +168,15 @@ async function evalComponents(
 
 // ── Statement evaluation ───────────────────────────────────────────────────
 
-async function evalStatements(
-  block: BlockNode | undefined,
+async function evalStatement(
+  block: BlockNode,
   ctx: EvalContext,
   controller: TabletopController
 ): Promise<void> {
-  if (!block) return;
-
   switch (block.type) {
     case 'set_player_count': {
       const count = block.fields?.['COUNT'] as number ?? 2;
-      await applyPlayerCount(count, controller);
+      applyPlayerCount(count, controller);
       break;
     }
 
@@ -183,7 +184,7 @@ async function evalStatements(
       const min = block.fields?.['MIN'] as number ?? 2;
       const max = block.fields?.['MAX'] as number ?? 4;
       const count = await controller.promptPlayerCount(min, max);
-      await applyPlayerCount(count, controller);
+      applyPlayerCount(count, controller);
       break;
     }
 
@@ -192,7 +193,7 @@ async function evalStatements(
       const toBlock   = block.inputs?.['TO_ZONE']?.block;
       if (!compBlock || !toBlock) break;
       const componentIds = await evalComponents(compBlock, ctx, controller);
-      const toZone       = await evalZone(toBlock, ctx);
+      const toZone       = evalZone(toBlock, ctx);
       if (componentIds.length > 0 && toZone) {
         await controller.moveComponents(componentIds, toZone);
       }
@@ -235,9 +236,11 @@ async function evalStatements(
       const doBlock  = block.inputs?.['DO']?.block;
 
       let lhs: number | undefined;
-      // Only named variables we explicitly recognise
-      if (varName === 'Player Count') lhs = controller.getPlayerCount();
-      // (future: additional recognised variable names go here)
+      if (varName === 'Player Count') {
+        lhs = controller.getPlayerCount();
+      } else {
+        console.warn(`[GameSetup] game_conditional: unrecognised variable "${varName}" — condition will not fire`);
+      }
 
       if (lhs !== undefined && doBlock && compare(lhs, operator, rhs)) {
         await evalStatements(doBlock, ctx, controller);
@@ -253,7 +256,7 @@ async function evalStatements(
     case 'zoom_view_zone': {
       const zoneBlock = block.inputs?.['ZONE']?.block;
       if (!zoneBlock) break;
-      const zoneId = await evalZone(zoneBlock, ctx);
+      const zoneId = evalZone(zoneBlock, ctx);
       if (zoneId) controller.zoomToFitZone(zoneId);
       break;
     }
@@ -262,10 +265,17 @@ async function evalStatements(
       // Unknown / not-yet-implemented block → no-op
       break;
   }
+}
 
-  // Continue along the statement chain
-  if (block.next?.block) {
-    await evalStatements(block.next.block, ctx, controller);
+async function evalStatements(
+  firstBlock: BlockNode | undefined,
+  ctx: EvalContext,
+  controller: TabletopController
+): Promise<void> {
+  let block: BlockNode | undefined = firstBlock;
+  while (block) {
+    await evalStatement(block, ctx, controller);
+    block = block.next?.block;
   }
 }
 
@@ -287,7 +297,8 @@ export async function runGameSetup(
     return;
   }
 
-  const topBlocks: BlockNode[] = (state as any)?.blocks?.blocks ?? [];
+  const typed = state as GameSetupState;
+  const topBlocks: BlockNode[] = (typed.blocks as { blocks?: BlockNode[] })?.blocks ?? [];
   const setupBlock = topBlocks.find((b) => b.type === 'game_setup');
   if (!setupBlock) {
     console.warn('[GameSetup] No game_setup block found in workspace');

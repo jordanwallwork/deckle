@@ -8,6 +8,7 @@
   import type { ContainerElement } from '$lib/components/editor/types';
   import { fontLoader } from '$lib/stores/fontLoader';
   import { runGameSetup, type TabletopController, type ZoneDef } from '$lib/tabletop/evaluator';
+  import { PRESET_ZONE_DEFS } from '$lib/tabletop/zones';
   import PlacedComponentGroup from './_components/PlacedComponentGroup.svelte';
   import PlayerCountDialog from './_components/PlayerCountDialog.svelte';
   import ChoosePlayerDialog from './_components/ChoosePlayerDialog.svelte';
@@ -27,12 +28,7 @@
 
   // ── Zone definitions ──────────────────────────────────────────────────────
 
-  const INITIAL_ZONES: ZoneDef[] = [
-    { id: 'play_area', label: 'Play Area', x: 40, y: 40, minWidth: 900, minHeight: 580 },
-    { id: 'sideboard', label: 'Sideboard', x: 980, y: 40, minWidth: 340, minHeight: 440 },
-  ];
-
-  let zones = $state<ZoneDef[]>([...INITIAL_ZONES]);
+  let zones = $state<ZoneDef[]>([...PRESET_ZONE_DEFS]);
   let playerCount = $state(0);
 
   // Compute effective zone positions and sizes together, preventing overlap both horizontally
@@ -41,9 +37,9 @@
   const zoneLayouts = $derived.by(() => {
     const result: Record<string, { x: number; y: number; width: number; height: number }> = {};
 
-    // Stable initial position for each zone (INITIAL_ZONES take priority, others use zone coords)
-    function getInitialX(zone: ZoneDef) { return INITIAL_ZONES.find((iz) => iz.id === zone.id)?.x ?? zone.x; }
-    function getInitialY(zone: ZoneDef) { return INITIAL_ZONES.find((iz) => iz.id === zone.id)?.y ?? zone.y; }
+    // Stable initial position for each zone (PRESET_ZONE_DEFS take priority, others use zone coords)
+    function getInitialX(zone: ZoneDef) { return PRESET_ZONE_DEFS.find((iz) => iz.id === zone.id)?.x ?? zone.x; }
+    function getInitialY(zone: ZoneDef) { return PRESET_ZONE_DEFS.find((iz) => iz.id === zone.id)?.y ?? zone.y; }
 
     // Group zones into rows by their initial y
     const rowMap = new Map<number, ZoneDef[]>();
@@ -261,7 +257,7 @@
     }
 
     // First placement: load from data source (or create a blank instance)
-    const needsData = hasDataSource(component) && !!(component as any).dataSource;
+    const needsData = hasDataSource(component) && !!component.dataSource;
     placedGroups.push({
       groupId,
       component,
@@ -273,30 +269,10 @@
     });
 
     if (needsData) {
-      const dataSource = (component as any).dataSource as { id: string };
-      try {
-        const result = await dataSourcesApi.getData(dataSource.id);
-        const rows = result.data;
-        let instances: PlacedInstance[];
-        if (rows.length > 1) {
-          const headers = rows[0];
-          instances = rows.slice(1).map((row) => {
-            const record = parseDataRow(headers, row);
-            return { instanceId: `inst-${nextId++}`, dataSourceRow: record, flipped: false, rotation: 0 };
-          });
-        } else {
-          instances = [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
-        }
-        const idx = placedGroups.findIndex((g) => g.groupId === groupId);
-        if (idx !== -1) {
-          placedGroups[idx] = { ...placedGroups[idx], instances, loading: false };
-        }
-      } catch (err) {
-        console.error('Failed to load data source data:', err);
-        const idx = placedGroups.findIndex((g) => g.groupId === groupId);
-        if (idx !== -1) {
-          placedGroups[idx] = { ...placedGroups[idx], loading: false };
-        }
+      const loadedInstances = await loadComponentInstances(component);
+      const idx = placedGroups.findIndex((g) => g.groupId === groupId);
+      if (idx !== -1) {
+        placedGroups[idx] = { ...placedGroups[idx], instances: loadedInstances, loading: false };
       }
     }
   }
@@ -316,6 +292,30 @@
 
   function removeGroup(groupId: string) {
     returnGroupToBox(groupId);
+  }
+
+  // ── Data source loading ───────────────────────────────────────────────────
+
+  /** Loads PlacedInstances from a component's data source, or returns a single blank instance. */
+  async function loadComponentInstances(component: GameComponent): Promise<PlacedInstance[]> {
+    if (hasDataSource(component) && component.dataSource) {
+      try {
+        const result = await dataSourcesApi.getData(component.dataSource.id);
+        const rows = result.data;
+        if (rows.length > 1) {
+          const headers = rows[0];
+          return rows.slice(1).map((row) => ({
+            instanceId: `inst-${nextId++}`,
+            dataSourceRow: parseDataRow(headers, row),
+            flipped: false,
+            rotation: 0,
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load data source data:', err);
+      }
+    }
+    return [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
   }
 
   // ── Bounds helpers ────────────────────────────────────────────────────────
@@ -360,38 +360,16 @@
         const comp = data.components.find((c) => c.id === componentId);
         if (!comp) return;
 
-        const needsData = hasDataSource(comp) && !!(comp as any).dataSource;
-        if (needsData) {
-          const dataSource = (comp as any).dataSource as { id: string };
-          try {
-            const result = await dataSourcesApi.getData(dataSource.id);
-            const rows = result.data;
-            if (rows.length > 1) {
-              const headers = rows[0];
-              instances = rows.slice(1).map((row) => ({
-                instanceId: `inst-${nextId++}`,
-                dataSourceRow: parseDataRow(headers, row),
-                flipped: false,
-                rotation: 0,
-              }));
-            } else {
-              instances = [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
-            }
-          } catch {
-            instances = [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
-          }
-        } else {
-          instances = [{ instanceId: `inst-${nextId++}`, dataSourceRow: {}, flipped: false, rotation: 0 }];
-        }
+        instances = await loadComponentInstances(comp);
       }
 
       const comp = data.components.find((c) => c.id === componentId);
       if (!comp) return;
 
       // Preload fonts
-      if (isEditableComponent(comp) && (comp as any).frontDesign) {
+      if (isEditableComponent(comp) && comp.frontDesign) {
         try {
-          const design = JSON.parse((comp as any).frontDesign) as ContainerElement;
+          const design = JSON.parse(comp.frontDesign) as ContainerElement;
           if (design.fonts?.length) fontLoader.preloadTemplateFonts(design.fonts);
         } catch { /* ignore */ }
       }
@@ -554,7 +532,7 @@
     if (!data.gameSetup || setupRunning) return;
     setupRunning = true;
     clearCanvas();
-    zones = [...INITIAL_ZONES];
+    zones = [...PRESET_ZONE_DEFS];
     playerCount = 0;
     try {
       await runGameSetup(data.gameSetup, tabletopController);

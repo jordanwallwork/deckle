@@ -184,6 +184,9 @@ public static class ProjectEndpoints
 
         group.MapPut("{id:guid}/game-setup", async (Guid id, HttpContext httpContext, IProjectService projectService, SaveGameSetupRequest request) =>
         {
+            if (request.Data.Length > 1_048_576)
+                return Results.BadRequest("Game setup data exceeds the maximum allowed size.");
+
             var userId = httpContext.GetUserId();
             var result = await projectService.SaveGameSetupAsync(userId, id, request.Data);
             return result == null ? Results.NotFound() : Results.Ok(result);

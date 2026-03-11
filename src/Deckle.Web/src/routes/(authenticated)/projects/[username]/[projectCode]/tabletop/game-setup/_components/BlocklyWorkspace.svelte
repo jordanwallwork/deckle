@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from '$app/environment';
   import type { GameComponent } from '$lib/types';
+  import { PRESET_ZONE_BLOCKLY_OPTIONS } from '$lib/tabletop/zones';
 
   interface Props {
     components: GameComponent[];
@@ -90,12 +91,14 @@
       // Persist on every model change (skip pure UI events like scroll/click)
       _workspace.addChangeListener((e: any) => {
         if (e.isUiEvent) return;
-        // Remove any duplicate game_setup blocks that may have been pasted in
-        const setupBlocks = _workspace.getBlocksByType('game_setup', false);
-        if (setupBlocks.length > 1) {
-          for (let i = 1; i < setupBlocks.length; i++) {
-            setupBlocks[i].setDeletable(true);
-            setupBlocks[i].dispose(false);
+        // Remove any duplicate game_setup blocks that may have been created/pasted in
+        if (e.type === Blockly.Events.BLOCK_CREATE) {
+          const setupBlocks = _workspace.getBlocksByType('game_setup', false);
+          if (setupBlocks.length > 1) {
+            for (let i = 1; i < setupBlocks.length; i++) {
+              setupBlocks[i].setDeletable(true);
+              setupBlocks[i].dispose(false);
+            }
           }
         }
         try {
@@ -150,11 +153,7 @@
         init() {
           this.appendDummyInput()
             .appendField(
-              new Blockly.FieldDropdown([
-                ['Play Area', 'play_area'],
-                ['Sideboard', 'sideboard'],
-                ['Game Box', 'game_box'],
-              ]),
+              new Blockly.FieldDropdown(PRESET_ZONE_BLOCKLY_OPTIONS),
               'ZONE'
             );
           this.setOutput(true, 'ZONE');
@@ -430,7 +429,7 @@
               ]),
               'OPERATOR'
             )
-            .appendField(new Blockly.FieldTextInput('3'), 'VALUE')
+            .appendField(new Blockly.FieldNumber(3), 'VALUE')
             .appendField(', then:');
           this.appendStatementInput('DO').setCheck(null);
           this.setPreviousStatement(true);

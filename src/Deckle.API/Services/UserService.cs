@@ -3,6 +3,7 @@ using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace Deckle.API.Services;
 
@@ -12,6 +13,7 @@ public interface IUserService
     public Task<bool> IsUsernameAvailableAsync(string username, Guid? excludeUserId = null);
     public Task<(bool Success, string? Error, bool IsNewRegistration)> SetUsernameAsync(Guid userId, string username);
     public Task<User?> GetUserByIdAsync(Guid userId);
+    public Task<(bool Success, string? Error)> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
 }
 
 public class UserService : IUserService
@@ -195,5 +197,66 @@ public class UserService : IUserService
     public async Task<User?> GetUserByIdAsync(Guid userId)
     {
         return await _dbContext.Users.FindAsync(userId);
+    }
+
+    private const int MaxBioLength = 1000;
+    private const int MaxExternalLinks = 8;
+    private const int MaxExternalLinkLabelLength = 50;
+    private const int MaxExternalLinkUrlLength = 500;
+
+    public async Task<(bool Success, string? Error)> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
+    {
+        var user = await _dbContext.Users.FindAsync(userId);
+        if (user == null)
+        {
+            return (false, "User not found");
+        }
+
+        if (request.Bio != null && request.Bio.Length > MaxBioLength)
+        {
+            return (false, $"Bio must be {MaxBioLength} characters or less");
+        }
+
+        if (request.ExternalLinks != null)
+        {
+            if (request.ExternalLinks.Count > MaxExternalLinks)
+            {
+                return (false, $"You can add at most {MaxExternalLinks} external links");
+            }
+
+            foreach (var link in request.ExternalLinks)
+            {
+                if (string.IsNullOrWhiteSpace(link.Label))
+                {
+                    return (false, "Each external link must have a label");
+                }
+                if (link.Label.Length > MaxExternalLinkLabelLength)
+                {
+                    return (false, $"Link label must be {MaxExternalLinkLabelLength} characters or less");
+                }
+                if (string.IsNullOrWhiteSpace(link.Url))
+                {
+                    return (false, "Each external link must have a URL");
+                }
+                if (link.Url.Length > MaxExternalLinkUrlLength)
+                {
+                    return (false, $"Link URL must be {MaxExternalLinkUrlLength} characters or less");
+                }
+                if (!Uri.TryCreate(link.Url, UriKind.Absolute, out var uri) ||
+                    (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+                {
+                    return (false, $"'{link.Label}' must be a valid HTTP or HTTPS URL");
+                }
+            }
+        }
+
+        user.Bio = string.IsNullOrWhiteSpace(request.Bio) ? null : request.Bio.Trim();
+        user.ExternalLinks = request.ExternalLinks is { Count: > 0 }
+            ? JsonSerializer.Serialize(request.ExternalLinks)
+            : null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+        return (true, null);
     }
 }

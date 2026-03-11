@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace Deckle.API.Endpoints;
 
@@ -99,6 +100,58 @@ public static partial class AuthEndpoints
         .RequireAuthorization()
         .RequireRateLimiting("strict")
         .WithName("CheckUsernameAvailability");
+
+        group.MapGet("/profile", async (ClaimsPrincipal user, IUserService userService) =>
+        {
+            var userId = UserService.GetUserIdFromClaims(user);
+            if (userId == null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var dbUser = await userService.GetUserByIdAsync(userId.Value);
+            if (dbUser == null)
+            {
+                return Results.NotFound();
+            }
+
+            var links = dbUser.ExternalLinks != null
+                ? JsonSerializer.Deserialize<List<ExternalLinkDto>>(dbUser.ExternalLinks)
+                : null;
+
+            return Results.Ok(new CurrentUserDto
+            {
+                Id = dbUser.Id.ToString(),
+                Email = dbUser.Email,
+                Username = dbUser.Username,
+                Name = dbUser.Name,
+                Picture = dbUser.PictureUrl,
+                Role = dbUser.Role.ToString(),
+                Bio = dbUser.Bio,
+                ExternalLinks = links
+            });
+        })
+        .RequireAuthorization()
+        .WithName("GetProfile");
+
+        group.MapPut("/profile", async (UpdateProfileRequest request, ClaimsPrincipal user, IUserService userService) =>
+        {
+            var userId = UserService.GetUserIdFromClaims(user);
+            if (userId == null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var (success, error) = await userService.UpdateProfileAsync(userId.Value, request);
+            if (!success)
+            {
+                return Results.BadRequest(new { error });
+            }
+
+            return Results.Ok();
+        })
+        .RequireAuthorization()
+        .WithName("UpdateProfile");
 
         group.MapPost("/username", async (SetUsernameRequest request, ClaimsPrincipal user, IUserService userService, IPublisher publisher, HttpContext context) =>
         {

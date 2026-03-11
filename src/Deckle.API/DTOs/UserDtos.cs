@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Deckle.API.DTOs;
 
 public record GoogleUserInfo(
@@ -10,6 +12,11 @@ public record GoogleUserInfo(
     string? Locale
 );
 
+public record ExternalLinkDto(
+    [property: JsonPropertyName("label")] string Label,
+    [property: JsonPropertyName("url")] string Url
+);
+
 public record CurrentUserDto
 {
     public string? Id { get; init; }
@@ -18,7 +25,14 @@ public record CurrentUserDto
     public string? Name { get; init; }
     public string? Picture { get; init; }
     public string? Role { get; init; }
+    public string? Bio { get; init; }
+    public List<ExternalLinkDto>? ExternalLinks { get; init; }
 }
+
+public record UpdateProfileRequest(
+    string? Bio,
+    List<ExternalLinkDto>? ExternalLinks
+);
 
 public record SetUsernameRequest(string Username);
 
@@ -45,6 +59,26 @@ public record AdminUserListResponse
     public required int TotalCount { get; init; }
     public required int Page { get; init; }
     public required int PageSize { get; init; }
+}
+
+// Public profile DTOs
+public record PublicProjectSummaryDto
+{
+    public required string Name { get; init; }
+    public required string Code { get; init; }
+    public string? Description { get; init; }
+    public required string Visibility { get; init; }
+    public required string OwnerUsername { get; init; }
+}
+
+public record PublicUserProfileDto
+{
+    public required string Username { get; init; }
+    public string? Name { get; init; }
+    public string? Bio { get; init; }
+    public string? Picture { get; init; }
+    public List<ExternalLinkDto>? ExternalLinks { get; init; }
+    public required List<PublicProjectSummaryDto> Projects { get; init; }
 }
 
 public record UpdateUserRoleRequest(string Role);

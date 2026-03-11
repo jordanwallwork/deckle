@@ -28,10 +28,11 @@
   const canManageUsers = $derived(data.project.role === 'Owner');
   const currentUserId = $derived(data.user?.id);
 
-  async function saveProjectDetails(name: string, description?: string) {
+  async function saveProjectDetails(name: string, description?: string, visibility?: import('$lib/types').ProjectVisibility) {
     await projectsApi.update(data.project.id, {
       name,
-      description
+      description,
+      visibility
     });
     await invalidateAll();
   }

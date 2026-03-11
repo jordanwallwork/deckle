@@ -78,6 +78,12 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            entity.Property(u => u.Bio)
+                .HasMaxLength(1000);
+
+            entity.Property(u => u.ExternalLinks)
+                .HasColumnType("jsonb");
+
             entity.Property(u => u.StorageQuotaMb)
                 .IsRequired()
                 .HasDefaultValue(50);
@@ -110,6 +116,11 @@ public class AppDbContext : DbContext
 
             entity.Property(p => p.Description)
                 .HasMaxLength(1000);
+
+            entity.Property(p => p.Visibility)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasDefaultValue(ProjectVisibility.Private);
 
             entity.Property(p => p.CreatedAt)
                 .IsRequired()

@@ -10,6 +10,8 @@ public class Project
 
     public string? Description { get; set; }
 
+    public ProjectVisibility Visibility { get; set; } = ProjectVisibility.Private;
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

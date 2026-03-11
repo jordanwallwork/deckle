@@ -11,8 +11,9 @@ export const load: LayoutServerLoad = async ({ fetch, url }) => {
     // (unless they're already on the setup page or the landing page)
     const isSetupPage = url.pathname === '/account/setup';
     const isLandingPage = url.pathname === '/';
+    const isPublicProfilePage = url.pathname.startsWith('/@');
 
-    if (user && !user.username && !isSetupPage && !isLandingPage) {
+    if (user && !user.username && !isSetupPage && !isLandingPage && !isPublicProfilePage) {
       throw redirect(302, '/account/setup');
     }
 

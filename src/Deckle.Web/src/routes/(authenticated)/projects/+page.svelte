@@ -28,6 +28,7 @@
   let projectName = $state('');
   let projectCode = $state('');
   let projectDescription = $state('');
+  let projectVisibility = $state<import('$lib/types').ProjectVisibility>('Private');
   let isCreating = $state(false);
   let validationErrors = $state<ValidationErrorResponse | null>(null);
   let generalError = $state<string | null>(null);
@@ -70,7 +71,8 @@
       const project = await projectsApi.create({
         name: projectName,
         code: projectCode,
-        description: projectDescription
+        description: projectDescription,
+        visibility: projectVisibility
       });
 
       // Navigate to the newly created project
@@ -95,6 +97,7 @@
     projectName = '';
     projectCode = '';
     projectDescription = '';
+    projectVisibility = 'Private';
     validationErrors = null;
     generalError = null;
     isProjectCodePristine = true;
@@ -181,13 +184,21 @@
       />
     </FormField>
 
-    <FormField label="Description (optional)" name="description">
+    <FormField label="Description (optional)" name="description" hint="Markdown supported: **bold**, *italic*, [links](url)">
       <TextArea
         id="description"
         bind:value={projectDescription}
         rows={3}
         placeholder="A brief description of your game..."
       />
+    </FormField>
+
+    <FormField label="Visibility" name="visibility">
+      <select id="visibility" class="visibility-select" bind:value={projectVisibility}>
+        <option value="Private">Private — only project members</option>
+        <option value="Teaser">Teaser — name and description are public</option>
+        <option value="Public">Public — anyone can view</option>
+      </select>
     </FormField>
 
     {#if generalError}
@@ -226,5 +237,23 @@
     color: #d32f2f;
     font-size: 0.875rem;
     margin-top: 0.5rem;
+  }
+
+  .visibility-select {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    font-family: inherit;
+    color: var(--color-text);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .visibility-select:focus {
+    outline: none;
+    border-color: var(--color-muted-teal);
+    box-shadow: 0 0 0 3px rgba(120, 160, 131, 0.15);
   }
 </style>

@@ -55,7 +55,14 @@ public static class ProjectEndpoints
         group.MapPost("", async (HttpContext httpContext, IProjectService projectService, CreateProjectRequest request) =>
         {
             var userId = httpContext.GetUserId();
-            var project = await projectService.CreateProjectAsync(userId, request.Name, request.Code, request.Description);
+
+            var visibility = Deckle.Domain.Entities.ProjectVisibility.Private;
+            if (!string.IsNullOrEmpty(request.Visibility) &&
+                Enum.TryParse<Deckle.Domain.Entities.ProjectVisibility>(request.Visibility, out var parsedVisibility))
+            {
+                visibility = parsedVisibility;
+            }
+            var project = await projectService.CreateProjectAsync(userId, request.Name, request.Code, request.Description, visibility);
             return Results.Created($"/projects/{project.Id}", project);
         })
         .WithName("CreateProject");
@@ -63,7 +70,14 @@ public static class ProjectEndpoints
         group.MapPut("{id:guid}", async (Guid id, HttpContext httpContext, IProjectService projectService, UpdateProjectRequest request) =>
         {
             var userId = httpContext.GetUserId();
-            var project = await projectService.UpdateProjectAsync(userId, id, request.Name, request.Description);
+
+            var visibility = Deckle.Domain.Entities.ProjectVisibility.Private;
+            if (!string.IsNullOrEmpty(request.Visibility) &&
+                Enum.TryParse<Deckle.Domain.Entities.ProjectVisibility>(request.Visibility, out var parsedVisibility))
+            {
+                visibility = parsedVisibility;
+            }
+            var project = await projectService.UpdateProjectAsync(userId, id, request.Name, request.Description, visibility);
 
             if (project == null)
             {

@@ -28,6 +28,10 @@ public class User
 
     public UserRole Role { get; set; } = UserRole.User;
 
+    // Profile fields
+    public string? Bio { get; set; }
+    public string? ExternalLinks { get; set; }
+
     // Storage quota tracking
     public int StorageQuotaMb { get; set; } = 10;
     public long StorageUsedBytes { get; set; }

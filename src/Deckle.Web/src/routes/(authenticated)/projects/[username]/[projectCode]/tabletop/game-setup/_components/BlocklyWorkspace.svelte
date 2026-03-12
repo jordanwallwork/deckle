@@ -266,6 +266,9 @@
       // Ensure exactly one game_setup block exists and is protected
       ensureGameSetupBlock(Blockly, _workspace);
 
+      // Sync toolbox disabled state with whatever was restored from saved state
+      updateSingletonToolboxItems(Blockly, _workspace);
+
       // Persist on every model change (skip pure UI events like scroll/click)
       _workspace.addChangeListener((e: any) => {
         if (e.isUiEvent) return;
@@ -278,6 +281,13 @@
               setupBlocks[i].dispose(false);
             }
           }
+        }
+        // Keep singleton block toolbox items in sync after any structural change
+        if (
+          e.type === Blockly.Events.BLOCK_CREATE ||
+          e.type === Blockly.Events.BLOCK_DELETE
+        ) {
+          updateSingletonToolboxItems(Blockly, _workspace);
         }
         try {
           const state = Blockly.serialization.workspaces.save(_workspace);
@@ -477,7 +487,7 @@
             .appendField(new Blockly.FieldNumber(2, 1), 'COUNT');
           this.setPreviousStatement(true);
           this.setNextStatement(true);
-          this.setColour(120);
+          this.setColour(45);
           this.setTooltip('Set the number of players to an exact value');
         }
       };
@@ -494,7 +504,7 @@
             .appendField(')');
           this.setPreviousStatement(true);
           this.setNextStatement(true);
-          this.setColour(120);
+          this.setColour(45);
           this.setTooltip(
             'Ask players to choose a player count within the given range, setting Player Count'
           );
@@ -621,11 +631,40 @@
     }
   }
 
+  // ── Singleton block toolbox enforcement ─────────────────────────────────────
+  // 'set_player_count' and 'determine_player_count' are mutually exclusive
+  // singletons: once either exists in the workspace both are disabled in the
+  // toolbox so a second instance can't be added; they're re-enabled on removal.
+  function updateSingletonToolboxItems(Blockly: any, workspace: any) {
+    const hasSetPlayerCount = workspace.getBlocksByType('set_player_count', false).length > 0;
+    const hasDeterminePlayerCount =
+      workspace.getBlocksByType('determine_player_count', false).length > 0;
+    const disableBoth = hasSetPlayerCount || hasDeterminePlayerCount;
+    workspace.updateToolbox(
+      buildToolbox({ setPlayerCountDisabled: disableBoth, determinePlayerCountDisabled: disableBoth })
+    );
+  }
+
   // ── Toolbox config ──────────────────────────────────────────────────────────
-  function buildToolbox() {
+  function buildToolbox(
+    opts: { setPlayerCountDisabled?: boolean; determinePlayerCountDisabled?: boolean } = {}
+  ) {
     return {
       kind: 'categoryToolbox',
       contents: [
+        {
+          kind: 'category',
+          name: 'Game Setup',
+          colour: '45',
+          contents: [
+            { kind: 'block', type: 'set_player_count', disabled: opts.setPlayerCountDisabled },
+            {
+              kind: 'block',
+              type: 'determine_player_count',
+              disabled: opts.determinePlayerCountDisabled
+            }
+          ]
+        },
         {
           kind: 'category',
           name: 'Zones',
@@ -643,8 +682,6 @@
           colour: '120',
           contents: [
             { kind: 'block', type: 'player_count' },
-            { kind: 'block', type: 'set_player_count' },
-            { kind: 'block', type: 'determine_player_count' },
             { kind: 'block', type: 'player' },
             { kind: 'block', type: 'game_for_each_player' },
             { kind: 'block', type: 'player_var_get' },

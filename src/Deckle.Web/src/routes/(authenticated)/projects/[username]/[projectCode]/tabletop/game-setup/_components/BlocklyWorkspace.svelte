@@ -31,7 +31,9 @@
     _workspace?.clear();
     try {
       localStorage.removeItem(storageKey);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   export function getState(): string | null {
@@ -41,6 +43,178 @@
       return JSON.stringify(state);
     } catch {
       return null;
+    }
+  }
+
+  // ── Custom renderer ──────────────────────────────────────────────────────────
+  // Registers a custom Zelos-based renderer with type-specific connection shapes:
+  //   ZONE       → triangular tab (pointed V-shape / chevron)
+  //   PLAYER     → trapezoid tab (beveled corners, flat middle)
+  //   COMPONENTS → square tab (rectangular notch, 90° corners)
+  //   other      → Zelos default (round)
+  function registerDeckleRenderer(Blockly: any) {
+    class DeckleConstantProvider extends Blockly.zelos.ConstantProvider {
+      TRIANGULAR_TAB: any = null;
+      TRAPEZOID_TAB: any = null;
+      SQUARE_TAB: any = null;
+
+      init() {
+        super.init();
+        this.MEDIUM_PADDING = 4;
+        this.LARGE_PADDING = 6;
+        this.FIELD_TEXT_FONTWEIGHT = '400';
+        this.TRIANGULAR_TAB = this.makeTriangularTab();
+        this.TRAPEZOID_TAB = this.makeTrapezoidTab();
+        this.SQUARE_TAB = this.makeSquareTab();
+      }
+
+      makeTriangularTab() {
+        const maxWidth: number = this.MAX_DYNAMIC_CONNECTION_SHAPE_WIDTH;
+        return {
+          type: this.SHAPES.HEXAGONAL,
+          isDynamic: true,
+          width(height: number) {
+            const h = height / 2;
+            return h > maxWidth ? maxWidth : h;
+          },
+          height(height: number) {
+            return height;
+          },
+          connectionOffsetY(height: number) {
+            return height / 2;
+          },
+          connectionOffsetX(height: number) {
+            return -height / 2;
+          },
+          pathDown(height: number) {
+            const h = height / 2;
+            const w = h > maxWidth ? maxWidth : h;
+            return `l ${-w},${h} l ${w},${h}`;
+          },
+          pathUp(height: number) {
+            const h = height / 2;
+            const w = h > maxWidth ? maxWidth : h;
+            return `l ${-w},${-h} l ${w},${-h}`;
+          },
+          pathRightDown(height: number) {
+            const h = height / 2;
+            const w = h > maxWidth ? maxWidth : h;
+            return `l ${w},${h} l ${-w},${h}`;
+          },
+          pathRightUp(height: number) {
+            const h = height / 2;
+            const w = h > maxWidth ? maxWidth : h;
+            return `l ${w},${-h} l ${-w},${-h}`;
+          }
+        };
+      }
+
+      makeTrapezoidTab() {
+        const maxWidth: number = this.MAX_DYNAMIC_CONNECTION_SHAPE_WIDTH;
+        return {
+          type: this.SHAPES.HEXAGONAL,
+          isDynamic: true,
+          width(height: number) {
+            const w = height * 0.4;
+            return w > maxWidth ? maxWidth : w;
+          },
+          height(height: number) {
+            return height;
+          },
+          connectionOffsetY(height: number) {
+            return height / 2;
+          },
+          connectionOffsetX(height: number) {
+            const w = height * 0.4;
+            return -(w > maxWidth ? maxWidth : w);
+          },
+          pathDown(height: number) {
+            const w = Math.min(height * 0.4, maxWidth);
+            const bevel = height * 0.2;
+            return `l ${-w},${bevel} l 0,${height - 2 * bevel} l ${w},${bevel}`;
+          },
+          pathUp(height: number) {
+            const w = Math.min(height * 0.4, maxWidth);
+            const bevel = height * 0.2;
+            return `l ${-w},${-bevel} l 0,${-(height - 2 * bevel)} l ${w},${-bevel}`;
+          },
+          pathRightDown(height: number) {
+            const w = Math.min(height * 0.4, maxWidth);
+            const bevel = height * 0.2;
+            return `l ${w},${bevel} l 0,${height - 2 * bevel} l ${-w},${bevel}`;
+          },
+          pathRightUp(height: number) {
+            const w = Math.min(height * 0.4, maxWidth);
+            const bevel = height * 0.2;
+            return `l ${w},${-bevel} l 0,${-(height - 2 * bevel)} l ${-w},${-bevel}`;
+          }
+        };
+      }
+
+      makeSquareTab() {
+        const maxWidth: number = this.MAX_DYNAMIC_CONNECTION_SHAPE_WIDTH;
+        return {
+          type: this.SHAPES.HEXAGONAL,
+          isDynamic: true,
+          width(height: number) {
+            const w = height * 0.35;
+            return w > maxWidth ? maxWidth : w;
+          },
+          height(height: number) {
+            return height;
+          },
+          connectionOffsetY(height: number) {
+            return height / 2;
+          },
+          connectionOffsetX(height: number) {
+            const w = height * 0.35;
+            return -(w > maxWidth ? maxWidth : w);
+          },
+          pathDown(height: number) {
+            const w = Math.min(height * 0.35, maxWidth);
+            return `l ${-w},0 l 0,${height} l ${w},0`;
+          },
+          pathUp(height: number) {
+            const w = Math.min(height * 0.35, maxWidth);
+            return `l ${-w},0 l 0,${-height} l ${w},0`;
+          },
+          pathRightDown(height: number) {
+            const w = Math.min(height * 0.35, maxWidth);
+            return `l ${w},0 l 0,${height} l ${-w},0`;
+          },
+          pathRightUp(height: number) {
+            const w = Math.min(height * 0.35, maxWidth);
+            return `l ${w},0 l 0,${-height} l ${-w},0`;
+          }
+        };
+      }
+
+      shapeFor(connection: any) {
+        const { INPUT_VALUE, OUTPUT_VALUE } = Blockly.ConnectionType;
+        if (connection.type !== INPUT_VALUE && connection.type !== OUTPUT_VALUE) {
+          return super.shapeFor(connection);
+        }
+
+        const checks: string[] | null =
+          connection.getCheck() ?? connection.targetConnection?.getCheck() ?? null;
+
+        if (checks?.includes('ZONE')) return this.TRIANGULAR_TAB;
+        if (checks?.includes('PLAYER')) return this.TRAPEZOID_TAB;
+        if (checks?.includes('COMPONENTS')) return this.SQUARE_TAB;
+        return super.shapeFor(connection);
+      }
+    }
+
+    class DeckleRenderer extends Blockly.zelos.Renderer {
+      makeConstants_() {
+        return new DeckleConstantProvider();
+      }
+    }
+
+    try {
+      Blockly.blockRendering.register('deckle', DeckleRenderer);
+    } catch {
+      // Already registered (hot-reload); ignore
     }
   }
 
@@ -56,9 +230,11 @@
       if (disposed) return;
 
       _Blockly = Blockly;
+      registerDeckleRenderer(Blockly);
       registerBlocks(Blockly);
 
       _workspace = Blockly.inject(containerEl!, {
+        renderer: 'deckle',
         toolbox: buildToolbox(),
         trashcan: true,
         sounds: false,
@@ -68,9 +244,9 @@
           startScale: 0.9,
           maxScale: 2.5,
           minScale: 0.3,
-          scaleSpeed: 1.2,
+          scaleSpeed: 1.2
         },
-        grid: { spacing: 20, length: 3, colour: '#e5e7eb', snap: true },
+        grid: { spacing: 20, length: 3, colour: '#e5e7eb', snap: true }
       });
 
       // Restore persisted workspace — prefer server-saved state, fall back to localStorage
@@ -83,7 +259,9 @@
             localStorage.setItem(storageKey, initialState);
           }
         }
-      } catch { /* ignore corrupt data */ }
+      } catch {
+        /* ignore corrupt data */
+      }
 
       // Ensure exactly one game_setup block exists and is protected
       ensureGameSetupBlock(Blockly, _workspace);
@@ -104,7 +282,9 @@
         try {
           const state = Blockly.serialization.workspaces.save(_workspace);
           localStorage.setItem(storageKey, JSON.stringify(state));
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       });
     })();
 
@@ -132,16 +312,26 @@
   // Blockly.Blocks is a global registry; guard against duplicate registration
   // on hot-reload by checking before defining.
   function registerBlocks(Blockly: any) {
+    class BoldFieldLabel extends Blockly.FieldLabel {
+      updateSize_(margin?: number) {
+        super.updateSize_(margin);
+        if (this.textElement_) {
+          this.textElement_.style.fontWeight = '700';
+        }
+      }
+    }
+
     if (!Blockly.Blocks['game_setup']) {
       Blockly.Blocks['game_setup'] = {
         init() {
-          this.appendDummyInput()
-            .appendField('🎲 Game Setup');
+          this.appendDummyInput().appendField(new BoldFieldLabel('🎲 Game Setup'));
           this.appendStatementInput('STEPS').setCheck(null);
           this.setColour(45);
-          this.setTooltip('The entry point for your game setup. Add steps below to define how the game is set up.');
+          this.setTooltip(
+            'The entry point for your game setup. Add steps below to define how the game is set up.'
+          );
           this.setDeletable(false);
-        },
+        }
       };
     }
     // Getter called lazily each time a component dropdown opens
@@ -151,37 +341,33 @@
     if (!Blockly.Blocks['zone_preset']) {
       Blockly.Blocks['zone_preset'] = {
         init() {
-          this.appendDummyInput()
-            .appendField(
-              new Blockly.FieldDropdown(PRESET_ZONE_BLOCKLY_OPTIONS),
-              'ZONE'
-            );
+          this.appendDummyInput().appendField(
+            new Blockly.FieldDropdown(PRESET_ZONE_BLOCKLY_OPTIONS),
+            'ZONE'
+          );
           this.setOutput(true, 'ZONE');
           this.setColour(160);
           this.setTooltip('A shared zone available to all players');
-        },
+        }
       };
     }
 
     if (!Blockly.Blocks['zone_player_specific']) {
       Blockly.Blocks['zone_player_specific'] = {
         init() {
-          this.appendValueInput('PLAYER')
-            .setCheck('PLAYER')
-            .appendField('Player');
-          this.appendDummyInput()
-            .appendField(
-              new Blockly.FieldDropdown([
-                ['Hand', 'hand'],
-                ['Tableau', 'tableau'],
-              ]),
-              'ZONE_TYPE'
-            );
+          this.appendValueInput('PLAYER').setCheck('PLAYER').appendField('Player');
+          this.appendDummyInput().appendField(
+            new Blockly.FieldDropdown([
+              ['Hand', 'hand'],
+              ['Tableau', 'tableau']
+            ]),
+            'ZONE_TYPE'
+          );
           this.setOutput(true, 'ZONE');
           this.setColour(160);
           this.setInputsInline(true);
           this.setTooltip('A zone belonging to a specific player');
-        },
+        }
       };
     }
 
@@ -193,7 +379,7 @@
           this.setNextStatement(true);
           this.setColour(160);
           this.setTooltip('Adjust the zoom level so all zones are visible');
-        },
+        }
       };
     }
 
@@ -206,7 +392,7 @@
           this.setColour(160);
           this.setInputsInline(true);
           this.setTooltip('Adjust the zoom level to fit the specified zone in view');
-        },
+        }
       };
     }
 
@@ -225,24 +411,24 @@
           this.setPreviousStatement(true);
           this.setNextStatement(true);
           this.setColour(120);
-          this.setTooltip('Repeat the nested steps once for every player. Use the variable inside to reference the current player.');
-        },
+          this.setTooltip(
+            'Repeat the nested steps once for every player. Use the variable inside to reference the current player.'
+          );
+        }
       };
     }
 
     if (!Blockly.Blocks['player_var_get']) {
       Blockly.Blocks['player_var_get'] = {
         init() {
-          this.appendDummyInput()
-            .appendField('player')
-            .appendField(
-              new Blockly.FieldVariable('player', null, ['PLAYER'], 'PLAYER'),
-              'VAR'
-            );
+          this.appendDummyInput().appendField(
+            new Blockly.FieldVariable('player', null, ['PLAYER'], 'PLAYER'),
+            'VAR'
+          );
           this.setOutput(true, 'PLAYER');
           this.setColour(120);
           this.setTooltip('The current player variable from a "For each player" loop');
-        },
+        }
       };
     }
 
@@ -259,7 +445,7 @@
             .appendField(
               new Blockly.FieldDropdown([
                 ['Random', 'random'],
-                ['Chosen', 'chosen'],
+                ['Chosen', 'chosen']
               ]),
               'METHOD'
             )
@@ -268,19 +454,18 @@
           this.setNextStatement(true);
           this.setColour(120);
           this.setTooltip('Determine which player goes first and store the result in a variable');
-        },
+        }
       };
     }
 
     if (!Blockly.Blocks['player_count']) {
       Blockly.Blocks['player_count'] = {
         init() {
-          this.appendDummyInput()
-            .appendField('Player Count');
+          this.appendDummyInput().appendField('Player Count');
           this.setOutput(true, 'Number');
           this.setColour(120);
           this.setTooltip('The current number of players');
-        },
+        }
       };
     }
 
@@ -294,7 +479,7 @@
           this.setNextStatement(true);
           this.setColour(120);
           this.setTooltip('Set the number of players to an exact value');
-        },
+        }
       };
     }
 
@@ -310,8 +495,10 @@
           this.setPreviousStatement(true);
           this.setNextStatement(true);
           this.setColour(120);
-          this.setTooltip('Ask players to choose a player count within the given range, setting Player Count');
-        },
+          this.setTooltip(
+            'Ask players to choose a player count within the given range, setting Player Count'
+          );
+        }
       };
     }
 
@@ -319,13 +506,12 @@
       Blockly.Blocks['player'] = {
         init() {
           this.appendDummyInput()
-            .appendField('Player (')
-            .appendField(new Blockly.FieldNumber(1, 1), 'NUM')
-            .appendField(')');
+            .appendField('Player')
+            .appendField(new Blockly.FieldNumber(1, 1), 'NUM');
           this.setOutput(true, 'PLAYER');
           this.setColour(120);
           this.setTooltip('The player identified by the given number');
-        },
+        }
       };
     }
 
@@ -333,12 +519,14 @@
     if (!Blockly.Blocks['component_all']) {
       Blockly.Blocks['component_all'] = {
         init() {
-          this.appendDummyInput()
-            .appendField(new Blockly.FieldDropdown(() => getComponents()), 'COMPONENT');
+          this.appendDummyInput().appendField(
+            new Blockly.FieldDropdown(() => getComponents()),
+            'COMPONENT'
+          );
           this.setOutput(true, 'COMPONENTS');
-          this.setColour(210);
+          this.setColour(260);
           this.setTooltip('All instances of the selected component type in the game');
-        },
+        }
       };
     }
 
@@ -348,14 +536,14 @@
           this.appendDummyInput()
             .appendField('Components')
             .appendField(new Blockly.FieldDropdown(() => getComponents()), 'COMPONENT');
-          this.appendValueInput('ZONE')
-            .setCheck('ZONE')
-            .appendField('in');
+          this.appendValueInput('ZONE').setCheck('ZONE').appendField('in');
           this.setOutput(true, 'COMPONENTS');
-          this.setColour(210);
+          this.setColour(260);
           this.setInputsInline(true);
-          this.setTooltip('All instances of the selected component type that are currently in the specified zone');
-        },
+          this.setTooltip(
+            'All instances of the selected component type that are currently in the specified zone'
+          );
+        }
       };
     }
 
@@ -365,14 +553,12 @@
           this.appendDummyInput()
             .appendField('Top')
             .appendField(new Blockly.FieldNumber(1, 1), 'COUNT');
-          this.appendValueInput('COMPONENTS')
-            .setCheck('COMPONENTS')
-            .appendField('of');
+          this.appendValueInput('COMPONENTS').setCheck('COMPONENTS').appendField('of');
           this.setOutput(true, 'COMPONENTS');
-          this.setColour(210);
+          this.setColour(260);
           this.setInputsInline(true);
           this.setTooltip('The first N components from a set');
-        },
+        }
       };
     }
 
@@ -382,32 +568,26 @@
           this.appendDummyInput()
             .appendField('Bottom')
             .appendField(new Blockly.FieldNumber(1, 1), 'COUNT');
-          this.appendValueInput('COMPONENTS')
-            .setCheck('COMPONENTS')
-            .appendField('of');
+          this.appendValueInput('COMPONENTS').setCheck('COMPONENTS').appendField('of');
           this.setOutput(true, 'COMPONENTS');
-          this.setColour(210);
+          this.setColour(260);
           this.setInputsInline(true);
           this.setTooltip('The last N components from a set');
-        },
+        }
       };
     }
 
     if (!Blockly.Blocks['component_move']) {
       Blockly.Blocks['component_move'] = {
         init() {
-          this.appendValueInput('COMPONENTS')
-            .setCheck('COMPONENTS')
-            .appendField('Move');
-          this.appendValueInput('TO_ZONE')
-            .setCheck('ZONE')
-            .appendField('to');
+          this.appendValueInput('COMPONENTS').setCheck('COMPONENTS').appendField('Move');
+          this.appendValueInput('TO_ZONE').setCheck('ZONE').appendField('to');
           this.setPreviousStatement(true);
           this.setNextStatement(true);
-          this.setColour(210);
+          this.setColour(260);
           this.setTooltip('Move a set of components to a zone');
           this.setInputsInline(true);
-        },
+        }
       };
     }
 
@@ -425,7 +605,7 @@
                 ['<', 'lt'],
                 ['>', 'gt'],
                 ['≤', 'lte'],
-                ['≥', 'gte'],
+                ['≥', 'gte']
               ]),
               'OPERATOR'
             )
@@ -436,7 +616,7 @@
           this.setNextStatement(true);
           this.setColour(0);
           this.setTooltip('Execute the nested steps only if the condition is met');
-        },
+        }
       };
     }
   }
@@ -454,8 +634,8 @@
             { kind: 'block', type: 'zone_preset' },
             { kind: 'block', type: 'zone_player_specific' },
             { kind: 'block', type: 'zoom_view_all' },
-            { kind: 'block', type: 'zoom_view_zone' },
-          ],
+            { kind: 'block', type: 'zoom_view_zone' }
+          ]
         },
         {
           kind: 'category',
@@ -468,34 +648,34 @@
             { kind: 'block', type: 'player' },
             { kind: 'block', type: 'game_for_each_player' },
             { kind: 'block', type: 'player_var_get' },
-            { kind: 'block', type: 'game_determine_first_player' },
-          ],
+            { kind: 'block', type: 'game_determine_first_player' }
+          ]
         },
         {
           kind: 'category',
           name: 'Components',
-          colour: '210',
+          colour: '260',
           contents: [
             { kind: 'block', type: 'component_move' },
             { kind: 'block', type: 'component_all' },
             { kind: 'block', type: 'component_in_zone' },
             { kind: 'block', type: 'component_top' },
-            { kind: 'block', type: 'component_bottom' },
-          ],
+            { kind: 'block', type: 'component_bottom' }
+          ]
         },
         {
           kind: 'category',
           name: 'Logic',
           colour: '0',
-          contents: [{ kind: 'block', type: 'game_conditional' }],
+          contents: [{ kind: 'block', type: 'game_conditional' }]
         },
         {
           kind: 'category',
           name: 'Variables',
           colour: '330',
-          custom: 'VARIABLE',
-        },
-      ],
+          custom: 'VARIABLE'
+        }
+      ]
     };
   }
 </script>
@@ -508,3 +688,4 @@
     inset: 0;
   }
 </style>
+

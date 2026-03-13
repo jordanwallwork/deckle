@@ -104,6 +104,14 @@
     <LockCheckbox locked={element.locked} onchange={(locked) => updateElement({ locked })} />
   </div>
 
+  <TextField
+    label="Zone"
+    id="zone"
+    placeholder="Zone"
+    value={element.zone}
+    oninput={(e) => updateElement({ zone: e.currentTarget.value || undefined })}
+  />
+
   <VisibilityControl
     mode={element.visibilityMode ?? 'show'}
     condition={element.visibilityCondition ?? ''}

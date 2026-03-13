@@ -7,7 +7,7 @@
   import type { GameComponent } from '$lib/types';
   import type { ContainerElement } from '$lib/components/editor/types';
   import { fontLoader } from '$lib/stores/fontLoader';
-  import { runGameSetup, type TabletopController, type ZoneDef } from '$lib/tabletop/evaluator';
+  import { runGameSetup, type StepHook, type TabletopController, type ZoneDef } from '$lib/tabletop/evaluator';
   import { PRESET_ZONE_DEFS } from '$lib/tabletop/zones';
   import PlacedComponentGroup from './_components/PlacedComponentGroup.svelte';
   import PlayerCountDialog from './_components/PlayerCountDialog.svelte';
@@ -527,6 +527,19 @@
   // ── Run Setup ─────────────────────────────────────────────────────────────
 
   let setupRunning = $state(false);
+  let debugMode = $state(false);
+  let debugStepDescription = $state<string | null>(null);
+  let pendingStepResolve: (() => void) | null = null;
+
+  const stepHook: StepHook = async (description: string) => {
+    if (!debugMode) return;
+    debugStepDescription = description;
+    await new Promise<void>((resolve) => { pendingStepResolve = resolve; });
+    pendingStepResolve = null;
+    debugStepDescription = null;
+  };
+
+  function stepForward() { pendingStepResolve?.(); }
 
   async function runSetup() {
     if (!data.gameSetup || setupRunning) return;
@@ -535,8 +548,11 @@
     zones = [...PRESET_ZONE_DEFS];
     playerCount = 0;
     try {
-      await runGameSetup(data.gameSetup, tabletopController);
+      await runGameSetup(data.gameSetup, tabletopController, debugMode ? stepHook : undefined);
     } finally {
+      pendingStepResolve?.();
+      pendingStepResolve = null;
+      debugStepDescription = null;
       setupRunning = false;
     }
   }
@@ -746,6 +762,17 @@
       return;
     }
 
+    if (event.key === 'd' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      event.preventDefault();
+      debugMode = !debugMode;
+      if (!debugMode) {
+        pendingStepResolve?.();
+        pendingStepResolve = null;
+        debugStepDescription = null;
+      }
+      return;
+    }
+
     if (!activeGroupId) return;
     const idx = placedGroups.findIndex((g) => g.groupId === activeGroupId);
     if (idx === -1) return;
@@ -905,6 +932,14 @@
       >
         {setupRunning ? 'Running…' : 'Run Setup'}
       </button>
+      {#if debugMode}
+        <span class="debug-indicator">Debug mode (d to toggle)</span>
+      {/if}
+      {#if debugStepDescription !== null}
+        <button class="setup-btn step-btn" onclick={stepForward}>
+          ▶ {debugStepDescription}
+        </button>
+      {/if}
     </div>
 
     <div class="sidebar-header">
@@ -1269,6 +1304,35 @@
     opacity: 0.45;
     cursor: not-allowed;
     pointer-events: none;
+  }
+
+  .debug-indicator {
+    display: block;
+    margin-top: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+
+  .step-btn {
+    margin-top: 0.375rem;
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #86efac;
+    text-align: left;
+    word-break: break-word;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .step-btn:hover {
+    background: #dcfce7;
+    color: #14532d;
+    border-color: #4ade80;
   }
 
   .sidebar-footer {

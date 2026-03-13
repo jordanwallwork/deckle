@@ -136,6 +136,7 @@ export interface BaseElement {
   id: string;
   type: ElementType;
   label?: string; // User-defined label for the element, displayed in structure tree
+  zone?: string; // User-defined zone identifier for game layout purposes
   position?: Position;
   x?: number | string; // for absolute positioning - number for px, string for other units (mm, %)
   y?: number | string; // for absolute positioning - number for px, string for other units (mm, %)

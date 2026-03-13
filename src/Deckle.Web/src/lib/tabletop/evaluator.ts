@@ -24,6 +24,8 @@ interface EvalContext {
   variables: Map<string, unknown>;
 }
 
+export type StepHook = (description: string) => Promise<void>;
+
 // ── Player zone layout ─────────────────────────────────────────────────────
 
 const PLAYER_ZONE_Y = 700;
@@ -166,12 +168,29 @@ async function evalComponents(
   }
 }
 
+// ── Debug helpers ──────────────────────────────────────────────────────────
+
+function describeBlock(block: BlockNode): string {
+  switch (block.type) {
+    case 'set_player_count':            return `Set player count to ${block.fields?.['COUNT'] ?? 2}`;
+    case 'determine_player_count':      return `Ask for player count (${block.fields?.['MIN'] ?? 2}–${block.fields?.['MAX'] ?? 4})`;
+    case 'component_move':              return `Move components to zone`;
+    case 'game_for_each_player':        return `Loop: for each player`;
+    case 'game_determine_first_player': return `Determine first player (${block.fields?.['METHOD'] ?? 'random'})`;
+    case 'game_conditional':            return `If ${block.fields?.['VARIABLE']} ${block.fields?.['OPERATOR']} ${block.fields?.['VALUE']}`;
+    case 'zoom_view_all':               return `Zoom to fit all`;
+    case 'zoom_view_zone':              return `Zoom to fit zone`;
+    default:                            return `Execute: ${block.type}`;
+  }
+}
+
 // ── Statement evaluation ───────────────────────────────────────────────────
 
 async function evalStatement(
   block: BlockNode,
   ctx: EvalContext,
-  controller: TabletopController
+  controller: TabletopController,
+  stepHook?: StepHook
 ): Promise<void> {
   switch (block.type) {
     case 'set_player_count': {
@@ -209,7 +228,7 @@ async function evalStatement(
         // Each iteration gets an isolated copy of the variable map
         const loopCtx: EvalContext = { variables: new Map(ctx.variables) };
         if (varId) loopCtx.variables.set(varId, i);
-        await evalStatements(doBlock, loopCtx, controller);
+        await evalStatements(doBlock, loopCtx, controller, stepHook);
       }
       break;
     }
@@ -243,7 +262,7 @@ async function evalStatement(
       }
 
       if (lhs !== undefined && doBlock && compare(lhs, operator, rhs)) {
-        await evalStatements(doBlock, ctx, controller);
+        await evalStatements(doBlock, ctx, controller, stepHook);
       }
       break;
     }
@@ -270,11 +289,17 @@ async function evalStatement(
 async function evalStatements(
   firstBlock: BlockNode | undefined,
   ctx: EvalContext,
-  controller: TabletopController
+  controller: TabletopController,
+  stepHook?: StepHook
 ): Promise<void> {
   let block: BlockNode | undefined = firstBlock;
   while (block) {
-    await evalStatement(block, ctx, controller);
+    if (stepHook) {
+      const description = describeBlock(block);
+      console.log('[GameSetup Debug] ' + description);
+      await stepHook(description);
+    }
+    await evalStatement(block, ctx, controller, stepHook);
     block = block.next?.block;
   }
 }
@@ -287,7 +312,8 @@ async function evalStatements(
  */
 export async function runGameSetup(
   setupJson: string,
-  controller: TabletopController
+  controller: TabletopController,
+  stepHook?: StepHook
 ): Promise<void> {
   let state: unknown;
   try {
@@ -307,5 +333,5 @@ export async function runGameSetup(
 
   const firstStep = setupBlock.inputs?.['STEPS']?.block;
   const ctx: EvalContext = { variables: new Map() };
-  await evalStatements(firstStep, ctx, controller);
+  await evalStatements(firstStep, ctx, controller, stepHook);
 }

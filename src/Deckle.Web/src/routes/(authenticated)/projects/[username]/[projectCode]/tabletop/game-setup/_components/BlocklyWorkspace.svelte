@@ -222,6 +222,12 @@
   $effect(() => {
     if (!browser || !containerEl) return;
 
+    // Read reactive props synchronously so Svelte tracks them as dependencies.
+    // If storageKey/initialState change (e.g. navigating to a different project)
+    // the effect will re-run, disposing the old workspace and creating a fresh one.
+    const _storageKey = storageKey;
+    const _initialState = initialState;
+
     let disposed = false;
 
     (async () => {
@@ -251,12 +257,12 @@
 
       // Restore persisted workspace — prefer server-saved state, fall back to localStorage
       try {
-        const serverState = initialState ?? localStorage.getItem(storageKey);
+        const serverState = _initialState ?? localStorage.getItem(_storageKey);
         if (serverState) {
           Blockly.serialization.workspaces.load(JSON.parse(serverState), _workspace);
           // Sync localStorage with server state so they start in agreement
-          if (initialState) {
-            localStorage.setItem(storageKey, initialState);
+          if (_initialState) {
+            localStorage.setItem(_storageKey, _initialState);
           }
         }
       } catch {
@@ -291,7 +297,7 @@
         }
         try {
           const state = Blockly.serialization.workspaces.save(_workspace);
-          localStorage.setItem(storageKey, JSON.stringify(state));
+          localStorage.setItem(_storageKey, JSON.stringify(state));
         } catch {
           /* ignore */
         }

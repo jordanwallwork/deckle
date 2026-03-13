@@ -38,6 +38,7 @@
   <img
     {src}
     alt={name || 'User'}
+    referrerpolicy="no-referrer"
     class="avatar {sizeClasses[size]} {variantClasses[variant]} {className}"
   />
 {:else}

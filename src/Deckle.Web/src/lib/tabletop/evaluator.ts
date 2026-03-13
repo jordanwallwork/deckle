@@ -170,11 +170,92 @@ async function evalComponents(
 
 // ── Debug helpers ──────────────────────────────────────────────────────────
 
-function describeBlock(block: BlockNode): string {
+function prettifyZoneId(id: string): string {
+  return id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function describePlayerBlock(block: BlockNode, ctx: EvalContext): string {
+  switch (block.type) {
+    case 'player': {
+      const num = block.fields?.['NUM'];
+      return `Player ${num ?? '?'}`;
+    }
+    case 'player_var_get':
+    case 'variables_get': {
+      const varField = block.fields?.['VAR'];
+      const id = getVarId(varField);
+      if (id) {
+        const val = ctx.variables.get(id);
+        if (typeof val === 'number') return `Player ${val}`;
+        const name = (varField as Record<string, unknown>)?.['name'];
+        if (typeof name === 'string') return name;
+      }
+      return 'player';
+    }
+    default:
+      return 'player';
+  }
+}
+
+function describeZoneBlock(block: BlockNode, ctx: EvalContext): string {
+  switch (block.type) {
+    case 'zone_preset': {
+      const zone = block.fields?.['ZONE'];
+      return typeof zone === 'string' ? prettifyZoneId(zone) : '?';
+    }
+    case 'zone_player_specific': {
+      const zoneType = block.fields?.['ZONE_TYPE'] as string ?? 'hand';
+      const playerBlock = block.inputs?.['PLAYER']?.block;
+      const playerDesc = playerBlock ? describePlayerBlock(playerBlock, ctx) : 'Player ?';
+      const zoneLabel = zoneType.charAt(0).toUpperCase() + zoneType.slice(1);
+      return `${playerDesc} ${zoneLabel}`;
+    }
+    default:
+      return '?';
+  }
+}
+
+function describeComponentsBlock(block: BlockNode, controller: TabletopController, ctx: EvalContext): string {
+  switch (block.type) {
+    case 'component_all': {
+      const id = block.fields?.['COMPONENT'] as string;
+      return id && id !== '__none__' ? controller.getComponentName(id) : '?';
+    }
+    case 'component_in_zone': {
+      const id = block.fields?.['COMPONENT'] as string;
+      const name = id && id !== '__none__' ? controller.getComponentName(id) : '?';
+      const zoneBlock = block.inputs?.['ZONE']?.block;
+      const zoneDesc = zoneBlock ? describeZoneBlock(zoneBlock, ctx) : '?';
+      return `[${name}] in [${zoneDesc}]`;
+    }
+    case 'component_top': {
+      const count = block.fields?.['COUNT'] as number ?? 1;
+      const nested = block.inputs?.['COMPONENTS']?.block;
+      const nestedDesc = nested ? describeComponentsBlock(nested, controller, ctx) : '?';
+      return `Top ${count} of ${nestedDesc}`;
+    }
+    case 'component_bottom': {
+      const count = block.fields?.['COUNT'] as number ?? 1;
+      const nested = block.inputs?.['COMPONENTS']?.block;
+      const nestedDesc = nested ? describeComponentsBlock(nested, controller, ctx) : '?';
+      return `Bottom ${count} of ${nestedDesc}`;
+    }
+    default:
+      return '?';
+  }
+}
+
+function describeBlock(block: BlockNode, controller: TabletopController, ctx: EvalContext): string {
   switch (block.type) {
     case 'set_player_count':            return `Set player count to ${block.fields?.['COUNT'] ?? 2}`;
     case 'determine_player_count':      return `Ask for player count (${block.fields?.['MIN'] ?? 2}–${block.fields?.['MAX'] ?? 4})`;
-    case 'component_move':              return `Move components to zone`;
+    case 'component_move': {
+      const compBlock = block.inputs?.['COMPONENTS']?.block;
+      const toBlock   = block.inputs?.['TO_ZONE']?.block;
+      const compDesc  = compBlock ? describeComponentsBlock(compBlock, controller, ctx) : '?';
+      const zoneDesc  = toBlock   ? describeZoneBlock(toBlock, ctx)                     : '?';
+      return `Move [${compDesc}] to [${zoneDesc}]`;
+    }
     case 'game_for_each_player':        return `Loop: for each player`;
     case 'game_determine_first_player': return `Determine first player (${block.fields?.['METHOD'] ?? 'random'})`;
     case 'game_conditional':            return `If ${block.fields?.['VARIABLE']} ${block.fields?.['OPERATOR']} ${block.fields?.['VALUE']}`;
@@ -190,6 +271,7 @@ async function evalStatement(
   block: BlockNode,
   ctx: EvalContext,
   controller: TabletopController,
+  depth: number,
   stepHook?: StepHook
 ): Promise<void> {
   switch (block.type) {
@@ -228,7 +310,7 @@ async function evalStatement(
         // Each iteration gets an isolated copy of the variable map
         const loopCtx: EvalContext = { variables: new Map(ctx.variables) };
         if (varId) loopCtx.variables.set(varId, i);
-        await evalStatements(doBlock, loopCtx, controller, stepHook);
+        await evalStatements(doBlock, loopCtx, controller, depth + 1, stepHook);
       }
       break;
     }
@@ -262,7 +344,7 @@ async function evalStatement(
       }
 
       if (lhs !== undefined && doBlock && compare(lhs, operator, rhs)) {
-        await evalStatements(doBlock, ctx, controller, stepHook);
+        await evalStatements(doBlock, ctx, controller, depth + 1, stepHook);
       }
       break;
     }
@@ -290,16 +372,16 @@ async function evalStatements(
   firstBlock: BlockNode | undefined,
   ctx: EvalContext,
   controller: TabletopController,
+  depth: number,
   stepHook?: StepHook
 ): Promise<void> {
+  const indent = '  '.repeat(depth);
   let block: BlockNode | undefined = firstBlock;
   while (block) {
-    if (stepHook) {
-      const description = describeBlock(block);
-      console.log('[GameSetup Debug] ' + description);
-      await stepHook(description);
-    }
-    await evalStatement(block, ctx, controller, stepHook);
+    const description = indent + describeBlock(block, controller, ctx);
+    console.log('[GameSetup] ' + description);
+    if (stepHook) await stepHook(description);
+    await evalStatement(block, ctx, controller, depth, stepHook);
     block = block.next?.block;
   }
 }
@@ -333,5 +415,5 @@ export async function runGameSetup(
 
   const firstStep = setupBlock.inputs?.['STEPS']?.block;
   const ctx: EvalContext = { variables: new Map() };
-  await evalStatements(firstStep, ctx, controller, stepHook);
+  await evalStatements(firstStep, ctx, controller, 0, stepHook);
 }

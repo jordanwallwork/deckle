@@ -41,6 +41,9 @@ function makeController(overrides: Partial<TabletopController> = {}): MockContro
     getPlayerCount() {
       return state.playerCount;
     },
+    getComponentName(id: string): string {
+      return id;
+    },
     getComponentsInZone(_componentId: string, _zoneId: string): string[] {
       return [];
     },

@@ -12,6 +12,7 @@ export interface TabletopController {
   getZones(): ZoneDef[];
   setPlayerCount(count: number): void;
   getPlayerCount(): number;
+  getComponentName(id: string): string;
   getComponentsInZone(componentId: string, zoneId: string): string[];
   moveComponents(componentIds: string[], toZoneId: string): Promise<void>;
   promptPlayerCount(min: number, max: number): Promise<number>;

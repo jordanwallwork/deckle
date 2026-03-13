@@ -486,6 +486,10 @@
       });
     },
 
+    getComponentName(id) {
+      return data.components.find((c) => c.id === id)?.name ?? id;
+    },
+
     getComponentsInZone(componentId, zoneId) {
       const inZone = placedGroups.some(
         (g) => g.component.id === componentId && g.zoneId === zoneId
@@ -759,6 +763,12 @@
     if (event.key === 'Escape') {
       activeGroupId = null;
       activeInstanceId = null;
+      return;
+    }
+
+    if (event.key === ' ' && pendingStepResolve) {
+      event.preventDefault();
+      stepForward();
       return;
     }
 

@@ -3,7 +3,8 @@
   import TemplateRenderer from '../../TemplateRenderer.svelte';
   import { backgroundStyle, boxShadowStyle } from '../../utils';
 
-  let { element, dpi }: { element: ShapeElement; dpi: number } = $props();
+  let { element, dpi, children }: { element: ShapeElement; dpi: number; children?: any } =
+    $props();
 
   const background = $derived(backgroundStyle(element.background));
   const boxShadow = $derived(boxShadowStyle(element.shadow));
@@ -93,9 +94,13 @@
           style:overflow="hidden"
           style={background}
         >
-          {#each element.children as child (child.id)}
-            <TemplateRenderer element={child} {dpi} />
-          {/each}
+          {#if children}
+            {@render children()}
+          {:else}
+            {#each element.children as child (child.id)}
+              <TemplateRenderer element={child} {dpi} />
+            {/each}
+          {/if}
         </div>
       </div>
     {:else}
@@ -107,9 +112,13 @@
         style:overflow="hidden"
         style={background}
       >
-        {#each element.children as child (child.id)}
-          <TemplateRenderer element={child} {dpi} />
-        {/each}
+        {#if children}
+          {@render children()}
+        {:else}
+          {#each element.children as child (child.id)}
+            <TemplateRenderer element={child} {dpi} />
+          {/each}
+        {/if}
       </div>
     {/if}
   </div>
@@ -122,9 +131,13 @@
     style:box-shadow={boxShadow}
     style={background}
   >
-    {#each element.children as child (child.id)}
-      <TemplateRenderer element={child} {dpi} />
-    {/each}
+    {#if children}
+      {@render children()}
+    {:else}
+      {#each element.children as child (child.id)}
+        <TemplateRenderer element={child} {dpi} />
+      {/each}
+    {/if}
   </div>
 {/if}
 

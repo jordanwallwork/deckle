@@ -1,19 +1,9 @@
 <script lang="ts">
-  import type {
-    TemplateElement,
-    ContainerElement,
-    TextElement,
-    ImageElement,
-    IteratorElement,
-    GridElement
-  } from '$lib/components/editor/types';
+  import type { TemplateElement, IteratorElement } from '$lib/components/editor/types';
   import StaticTemplateRenderer from './StaticTemplateRenderer.svelte';
+  import ElementContent from '$lib/components/editor/_components/ElementContent.svelte';
   import { dimensionValue, spacingToCss } from '$lib/components/editor/utils';
   import { isElementVisible, evaluateExpression, cellReferenceFields } from '$lib/utils/mergeFields';
-  import ImageElementComponent from '$lib/components/editor/_components/elements/ImageElement.svelte';
-  import TextElementComponent from '$lib/components/editor/_components/elements/TextElement.svelte';
-  import ContainerElementComponent from '$lib/components/editor/_components/elements/ContainerElement.svelte';
-  import GridElementComponent from '$lib/components/editor/_components/elements/GridElement.svelte';
   import { initDataSourceRow } from '$lib/stores/dataSourceRow';
 
   const MAX_ITERATIONS = 100;
@@ -67,6 +57,15 @@
   });
 </script>
 
+{#snippet childRenderer(child: TemplateElement)}
+  <StaticTemplateRenderer element={child} {dpi} {mergeData} {projectId} />
+{/snippet}
+
+{#snippet cellChildRenderer(child: TemplateElement, row: number, col: number)}
+  {@const cellMergeData = { ...(mergeData ?? {}), ...cellReferenceFields(row, col) }}
+  <StaticTemplateRenderer element={child} {dpi} mergeData={cellMergeData} {projectId} />
+{/snippet}
+
 {#if isVisible}
   {#if element.type === 'iterator'}
     {@const iter = element as IteratorElement}
@@ -99,23 +98,7 @@
       style:transform
       data-element-id={element.id}
     >
-      {#if element.type === 'image'}
-        <ImageElementComponent element={element as ImageElement} {dpi} />
-      {:else if element.type === 'text'}
-        <TextElementComponent element={element as TextElement} {dpi} />
-      {:else if element.type === 'container'}
-        <ContainerElementComponent element={element as ContainerElement} {dpi}>
-          {#each (element as ContainerElement).children as child (child.id)}
-            <StaticTemplateRenderer element={child} {dpi} {mergeData} {projectId} />
-          {/each}
-        </ContainerElementComponent>
-      {:else if element.type === 'grid'}
-        {#snippet gridCellChildren(child: TemplateElement, row: number, col: number)}
-          {@const cellMergeData = { ...(mergeData ?? {}), ...cellReferenceFields(row, col) }}
-          <StaticTemplateRenderer element={child} {dpi} mergeData={cellMergeData} {projectId} />
-        {/snippet}
-        <GridElementComponent element={element as GridElement} {dpi} cellChildren={gridCellChildren} />
-      {/if}
+      <ElementContent {element} {dpi} {childRenderer} {cellChildRenderer} />
     </div>
   {/if}
 {/if}

@@ -14,7 +14,7 @@ export interface TabletopController {
   getPlayerCount(): number;
   getComponentName(id: string): string;
   getComponentsInZone(componentId: string, zoneId: string): string[];
-  moveComponents(componentIds: string[], toZoneId: string): Promise<void>;
+  moveComponents(componentIds: string[], toZoneId: string, maxInstances?: number, fromBottom?: boolean): Promise<void>;
   promptPlayerCount(min: number, max: number): Promise<number>;
   promptChoosePlayer(playerCount: number): Promise<number>;
   zoomToFitAll(): void;

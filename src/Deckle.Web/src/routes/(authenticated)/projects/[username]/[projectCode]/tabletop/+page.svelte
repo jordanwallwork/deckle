@@ -340,27 +340,126 @@
 
   // ── TabletopController helpers ────────────────────────────────────────────
 
-  async function moveSingleComponent(componentId: string, toZoneId: string): Promise<void> {
+  /** Instance IDs are always `inst-N`; component type IDs are GUIDs. */
+  function isInstanceId(id: string): boolean {
+    return id.startsWith('inst-');
+  }
+
+  /** Moves specific instances (by instanceId) to a target zone, splitting groups as needed. */
+  async function moveSpecificInstances(instanceIds: string[], toZoneId: string): Promise<void> {
+    const targetZone = toZoneId !== 'game_box' ? zones.find((z) => z.id === toZoneId) : null;
+
+    // Group the requested instance IDs by which PlacedGroup currently holds them
+    const byGroup = new Map<string, PlacedInstance[]>();
+    for (const instId of instanceIds) {
+      for (const group of placedGroups) {
+        const inst = group.instances.find((i) => i.instanceId === instId);
+        if (inst) {
+          const list = byGroup.get(group.groupId) ?? [];
+          list.push(inst);
+          byGroup.set(group.groupId, list);
+          break;
+        }
+      }
+    }
+
+    for (const [sourceGroupId, instancesToMove] of byGroup) {
+      const sourceIdx = placedGroups.findIndex((g) => g.groupId === sourceGroupId);
+      if (sourceIdx === -1) continue;
+      const sourceGroup = placedGroups[sourceIdx];
+
+      const moveSet = new Set(instancesToMove.map((i) => i.instanceId));
+      const remaining = sourceGroup.instances.filter((i) => !moveSet.has(i.instanceId));
+
+      if (remaining.length === 0) {
+        // All instances from this group are moving — delegate to moveSingleComponent for full move
+        await moveSingleComponent(sourceGroup.component.id, toZoneId);
+        continue;
+      }
+
+      // Partial move: shrink source group, route selected instances to target
+      placedGroups[sourceIdx] = { ...sourceGroup, instances: remaining };
+
+      if (toZoneId === 'game_box') {
+        const existing = boxInstances[sourceGroup.component.id] ?? [];
+        boxInstances[sourceGroup.component.id] = [...existing, ...instancesToMove];
+      } else if (targetZone) {
+        // Merge into an existing group in the target zone if one exists, else create a new one
+        const existingTargetIdx = placedGroups.findIndex(
+          (g) => g.component.id === sourceGroup.component.id && g.zoneId === toZoneId
+        );
+        if (existingTargetIdx !== -1) {
+          placedGroups[existingTargetIdx] = {
+            ...placedGroups[existingTargetIdx],
+            instances: [...placedGroups[existingTargetIdx].instances, ...instancesToMove],
+          };
+        } else {
+          const newGroupId = `group-${nextId++}`;
+          const targetX = getZoneLayout(targetZone).x + 10;
+          const targetY = getZoneLayout(targetZone).y + 32;
+
+          animatingGroupIds = new Set([...animatingGroupIds, newGroupId]);
+          placedGroups.push({
+            groupId: newGroupId,
+            component: sourceGroup.component,
+            zoneId: toZoneId,
+            x: -600,
+            y: targetY,
+            loading: false,
+            instances: instancesToMove,
+          });
+
+          await nextTwoFrames();
+          const idx = placedGroups.findIndex((g) => g.groupId === newGroupId);
+          if (idx !== -1) placedGroups[idx].x = targetX;
+
+          await new Promise((r) => setTimeout(r, ANIM_MS + 20));
+          animatingGroupIds = new Set([...animatingGroupIds].filter((id) => id !== newGroupId));
+        }
+      }
+    }
+  }
+
+  async function moveSingleComponent(componentId: string, toZoneId: string, maxInstances?: number, fromBottom?: boolean): Promise<void> {
     const targetZone = toZoneId !== 'game_box' ? zones.find((z) => z.id === toZoneId) : null;
     const currentGroups = placedGroups.filter((g) => g.component.id === componentId);
 
-    if (currentGroups.length === 0) {
+    const knownBoxInsts = boxInstances[componentId];
+    const hasBoxInstances = knownBoxInsts != null && knownBoxInsts.length > 0;
+
+    // Enter the game-box path if nothing is on the canvas yet, OR if there are
+    // remaining box instances and a count limit is active (e.g. "Top 3 in Game Box"
+    // called on the second player after the first 3 were already placed on canvas).
+    if (currentGroups.length === 0 || (maxInstances !== undefined && hasBoxInstances)) {
       // ── Game Box → Canvas ──────────────────────────────────────────────
       if (!targetZone) return;
 
       // Gather instances: prefer known box instances, otherwise create fresh ones
       let instances: PlacedInstance[];
-      const knownBoxInsts = boxInstances[componentId];
 
-      if (knownBoxInsts && knownBoxInsts.length > 0) {
-        instances = [...knownBoxInsts];
-        delete boxInstances[componentId];
+      if (hasBoxInstances) {
+        if (maxInstances !== undefined) {
+          instances = fromBottom ? knownBoxInsts.slice(-maxInstances) : knownBoxInsts.slice(0, maxInstances);
+          const remaining = knownBoxInsts.filter((i) => !instances.includes(i));
+          if (remaining.length > 0) boxInstances[componentId] = remaining;
+          else delete boxInstances[componentId];
+        } else {
+          instances = [...knownBoxInsts];
+          delete boxInstances[componentId];
+        }
       } else {
         // Component has never been placed — may need data source
         const comp = data.components.find((c) => c.id === componentId);
         if (!comp) return;
 
-        instances = await loadComponentInstances(comp);
+        const loaded = await loadComponentInstances(comp);
+        if (maxInstances !== undefined) {
+          instances = fromBottom ? loaded.slice(-maxInstances) : loaded.slice(0, maxInstances);
+          const remaining = loaded.filter((i) => !instances.includes(i));
+          if (remaining.length > 0) boxInstances[componentId] = remaining;
+        } else {
+          instances = loaded;
+        }
       }
 
       const comp = data.components.find((c) => c.id === componentId);
@@ -400,6 +499,12 @@
 
     } else if (toZoneId === 'game_box') {
       // ── Canvas → Game Box ────────────────────────────────────────────
+      if (maxInstances !== undefined) {
+        const allInstances = currentGroups.flatMap((g) => g.instances);
+        const toReturn = fromBottom ? allInstances.slice(-maxInstances) : allInstances.slice(0, maxInstances);
+        await moveSpecificInstances(toReturn.map((i) => i.instanceId), 'game_box');
+        return;
+      }
       const sourceGroupIds = currentGroups.map((g) => g.groupId);
 
       animatingGroupIds = new Set([...animatingGroupIds, ...sourceGroupIds]);
@@ -425,6 +530,13 @@
       // Skip if already in the target zone
       const needToMove = currentGroups.filter((g) => g.zoneId !== toZoneId);
       if (needToMove.length === 0) return;
+
+      if (maxInstances !== undefined) {
+        const allInstances = needToMove.flatMap((g) => g.instances);
+        const toMove = fromBottom ? allInstances.slice(-maxInstances) : allInstances.slice(0, maxInstances);
+        await moveSpecificInstances(toMove.map((i) => i.instanceId), toZoneId);
+        return;
+      }
 
       const allInstances = needToMove.flatMap((g) => g.instances);
       const primaryGroupId = needToMove[0].groupId;
@@ -491,15 +603,29 @@
     },
 
     getComponentsInZone(componentId, zoneId) {
-      const inZone = placedGroups.some(
-        (g) => g.component.id === componentId && g.zoneId === zoneId
-      );
-      return inZone ? [componentId] : [];
+      if (zoneId === 'game_box') {
+        const isInBox = (componentId in boxInstances) || !placedComponentIds.has(componentId);
+        return isInBox ? [componentId] : [];
+      }
+      return placedGroups
+        .filter((g) => g.component.id === componentId && g.zoneId === zoneId)
+        .flatMap((g) => g.instances.map((i) => i.instanceId));
     },
 
-    async moveComponents(componentIds, toZoneId) {
-      for (const componentId of componentIds) {
-        await moveSingleComponent(componentId, toZoneId);
+    async moveComponents(componentIds, toZoneId, maxInstances, fromBottom) {
+      const typeIds = componentIds.filter((id) => !isInstanceId(id));
+      let instIds = componentIds.filter((id) => isInstanceId(id));
+
+      // For instance IDs (canvas zones), apply the count by slicing here
+      if (maxInstances !== undefined && instIds.length > 0) {
+        instIds = fromBottom ? instIds.slice(-maxInstances) : instIds.slice(0, maxInstances);
+      }
+
+      for (const compId of typeIds) {
+        await moveSingleComponent(compId, toZoneId, maxInstances, fromBottom);
+      }
+      if (instIds.length > 0) {
+        await moveSpecificInstances(instIds, toZoneId);
       }
     },
 

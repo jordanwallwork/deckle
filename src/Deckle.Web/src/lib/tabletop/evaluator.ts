@@ -293,10 +293,30 @@ async function evalStatement(
       const compBlock = block.inputs?.['COMPONENTS']?.block;
       const toBlock   = block.inputs?.['TO_ZONE']?.block;
       if (!compBlock || !toBlock) break;
-      const componentIds = await evalComponents(compBlock, ctx, controller);
+
+      // Unwrap component_top/bottom so the count survives to moveComponents.
+      // Slicing alone doesn't work when getComponentsInZone returns a single type
+      // ID (e.g. for game-box components) — there's nothing to slice.
+      let maxInstances: number | undefined;
+      let fromBottom = false;
+      let innerCompBlock = compBlock;
+      if (compBlock.type === 'component_top') {
+        maxInstances = compBlock.fields?.['COUNT'] as number ?? 1;
+        innerCompBlock = compBlock.inputs?.['COMPONENTS']?.block ?? compBlock;
+      } else if (compBlock.type === 'component_bottom') {
+        maxInstances = compBlock.fields?.['COUNT'] as number ?? 1;
+        fromBottom = true;
+        innerCompBlock = compBlock.inputs?.['COMPONENTS']?.block ?? compBlock;
+      }
+
+      const componentIds = await evalComponents(innerCompBlock, ctx, controller);
       const toZone       = evalZone(toBlock, ctx);
       if (componentIds.length > 0 && toZone) {
-        await controller.moveComponents(componentIds, toZone);
+        if (maxInstances !== undefined) {
+          await controller.moveComponents(componentIds, toZone, maxInstances, fromBottom);
+        } else {
+          await controller.moveComponents(componentIds, toZone);
+        }
       }
       break;
     }

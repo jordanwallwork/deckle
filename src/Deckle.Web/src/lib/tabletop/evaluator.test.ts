@@ -7,7 +7,7 @@ import type { TabletopController, ZoneDef } from './types';
 interface MockController extends TabletopController {
   readonly zones: ZoneDef[];
   readonly playerCount: number;
-  readonly movedComponents: Array<{ ids: string[]; toZone: string }>;
+  readonly movedComponents: Array<{ ids: string[]; toZone: string; maxInstances?: number; fromBottom?: boolean }>;
   zoomedToAll: boolean;
   zoomedToZone: string | undefined;
 }
@@ -16,7 +16,7 @@ function makeController(overrides: Partial<TabletopController> = {}): MockContro
   const state = {
     zones: [] as ZoneDef[],
     playerCount: 0,
-    movedComponents: [] as Array<{ ids: string[]; toZone: string }>,
+    movedComponents: [] as Array<{ ids: string[]; toZone: string; maxInstances?: number; fromBottom?: boolean }>,
     zoomedToAll: false,
     zoomedToZone: undefined as string | undefined,
   };
@@ -47,8 +47,8 @@ function makeController(overrides: Partial<TabletopController> = {}): MockContro
     getComponentsInZone(_componentId: string, _zoneId: string): string[] {
       return [];
     },
-    async moveComponents(componentIds: string[], toZoneId: string): Promise<void> {
-      state.movedComponents.push({ ids: componentIds, toZone: toZoneId });
+    async moveComponents(componentIds: string[], toZoneId: string, maxInstances?: number, fromBottom?: boolean): Promise<void> {
+      state.movedComponents.push({ ids: componentIds, toZone: toZoneId, maxInstances, fromBottom });
     },
     async promptPlayerCount(_min: number, _max: number): Promise<number> {
       return 2;
@@ -294,7 +294,7 @@ describe('component_in_zone block', () => {
 });
 
 describe('component_top block', () => {
-  it('returns only the first N components', async () => {
+  it('passes count and all IDs to moveComponents (slicing is controller responsibility)', async () => {
     const getComponentsInZone = vi.fn().mockReturnValue(['a', 'b', 'c', 'd']);
     const ctrl = makeController({ getComponentsInZone });
 
@@ -323,12 +323,14 @@ describe('component_top block', () => {
     });
     await runGameSetup(json, ctrl);
 
-    expect(ctrl.movedComponents[0].ids).toEqual(['a', 'b']);
+    expect(ctrl.movedComponents[0].ids).toEqual(['a', 'b', 'c', 'd']);
+    expect(ctrl.movedComponents[0].maxInstances).toBe(2);
+    expect(ctrl.movedComponents[0].fromBottom).toBe(false);
   });
 });
 
 describe('component_bottom block', () => {
-  it('returns only the last N components', async () => {
+  it('passes count and all IDs to moveComponents with fromBottom=true', async () => {
     const getComponentsInZone = vi.fn().mockReturnValue(['a', 'b', 'c', 'd']);
     const ctrl = makeController({ getComponentsInZone });
 
@@ -357,7 +359,9 @@ describe('component_bottom block', () => {
     });
     await runGameSetup(json, ctrl);
 
-    expect(ctrl.movedComponents[0].ids).toEqual(['c', 'd']);
+    expect(ctrl.movedComponents[0].ids).toEqual(['a', 'b', 'c', 'd']);
+    expect(ctrl.movedComponents[0].maxInstances).toBe(2);
+    expect(ctrl.movedComponents[0].fromBottom).toBe(true);
   });
 });
 

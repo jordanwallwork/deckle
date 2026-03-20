@@ -11,6 +11,7 @@
   import { DragHandleIcon, LockIcon, PlusIcon, CloseIcon } from '$lib/components/icons';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import { isElementVisible } from '$lib/utils/mergeFields';
+  import { zoomActionStore } from '$lib/stores/zoomAction';
 
   let {
     element,
@@ -196,6 +197,15 @@
 
   function getContextMenuItems(): ContextMenuItem[] {
     const items: ContextMenuItem[] = [];
+
+    // Zoom to element (only when zoom function is available)
+    if ($zoomActionStore) {
+      items.push({
+        label: 'Zoom to Element',
+        action: () => $zoomActionStore!(element.id)
+      });
+      items.push({ divider: true });
+    }
 
     // Duplicate action (available for all non-root elements)
     items.push({

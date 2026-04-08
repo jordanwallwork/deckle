@@ -126,6 +126,19 @@
       event.preventDefault();
       templateStore.redo();
     }
+    // Delete selected element: Delete or Backspace
+    else if (event.key === 'Delete' || event.key === 'Backspace') {
+      // Don't intercept when focus is in a text input
+      const tag = (event.target as HTMLElement)?.tagName;
+      const isEditable = (event.target as HTMLElement)?.isContentEditable;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || isEditable) return;
+
+      const selectedId = get(templateStore).selectedElementId;
+      if (selectedId && selectedId !== 'root') {
+        event.preventDefault();
+        templateStore.removeElement(selectedId);
+      }
+    }
   }
 
   // Handle browser navigation (close tab, refresh, etc.)

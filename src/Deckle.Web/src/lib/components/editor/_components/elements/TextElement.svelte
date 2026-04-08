@@ -16,6 +16,7 @@
 
   $effect(() => {
     if (isEditing && textareaEl) {
+      templateStore.saveToHistory();
       textareaEl.focus();
       // Place cursor at end
       textareaEl.setSelectionRange(textareaEl.value.length, textareaEl.value.length);
@@ -31,7 +32,7 @@
   function handleTextareaInput(e: Event) {
     const el = e.currentTarget as HTMLTextAreaElement;
     autoResize(el);
-    templateStore.updateElement(element.id, { content: el.value });
+    templateStore.updateElementWithoutHistory(element.id, { content: el.value });
   }
 
   function handleTextareaKeydown(e: KeyboardEvent) {

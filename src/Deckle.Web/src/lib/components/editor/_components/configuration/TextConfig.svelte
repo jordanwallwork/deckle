@@ -61,6 +61,25 @@
     templateStore.updateElement(element.id, updates);
   }
 
+  // Track the element ID for which we've saved a history entry this edit session,
+  // so content edits only produce one history entry (like drag/resize).
+  let contentEditSessionElementId = $state<string | null>(null);
+
+  function handleContentFocus() {
+    if (contentEditSessionElementId !== element.id) {
+      templateStore.saveToHistory();
+      contentEditSessionElementId = element.id;
+    }
+  }
+
+  function handleContentBlur() {
+    contentEditSessionElementId = null;
+  }
+
+  function handleContentInput(e: Event & { currentTarget: HTMLTextAreaElement }) {
+    templateStore.updateElementWithoutHistory(element.id, { content: e.currentTarget.value });
+  }
+
   function handleFontChange(font: { family: string; category: string }) {
     // Update the text element's font family
     const fontFamily = font.family === 'System Default' ? undefined : font.family;
@@ -89,7 +108,9 @@
     {dataSourceFields}
     markdown={element.markdown ?? false}
     onmarkdownchange={(value) => updateElement({ markdown: value })}
-    oninput={(e) => updateElement({ content: e.currentTarget.value })}
+    oninput={handleContentInput}
+    onfocus={handleContentFocus}
+    onblur={handleContentBlur}
   />
 
   <FontSelector

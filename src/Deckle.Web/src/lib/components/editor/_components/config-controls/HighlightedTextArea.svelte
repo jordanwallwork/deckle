@@ -16,7 +16,9 @@
     dataSourceFields = [] as string[],
     markdown = false,
     onmarkdownchange,
-    oninput
+    oninput,
+    onfocus,
+    onblur
   }: {
     label: string;
     id: string;
@@ -29,6 +31,8 @@
     markdown?: boolean;
     onmarkdownchange?: (value: boolean) => void;
     oninput: (e: Event & { currentTarget: HTMLTextAreaElement }) => void;
+    onfocus?: (e: FocusEvent & { currentTarget: HTMLTextAreaElement }) => void;
+    onblur?: (e: FocusEvent & { currentTarget: HTMLTextAreaElement }) => void;
   } = $props();
 
   const evaluator = new FormulaEvaluator();
@@ -333,6 +337,8 @@
       {value}
       {placeholder}
       {oninput}
+      {onfocus}
+      {onblur}
       onscroll={handleScroll}
     ></textarea>
   </div>

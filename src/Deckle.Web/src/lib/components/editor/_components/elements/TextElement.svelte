@@ -5,10 +5,54 @@
   import { parseInlineClasses, hasInlineClasses } from '$lib/utils/textParser';
   import { replaceMergeFields } from '$lib/utils/mergeFields';
   import { spacingToCss, borderStyle } from '../../utils';
+  import { templateStore, editingElementId } from '$lib/stores/templateElements';
 
   let { element, dpi }: { element: TextElement; dpi: number } = $props();
 
   const dataSourceRow = getDataSourceRow();
+
+  const isEditing = $derived($editingElementId === element.id);
+  let textareaEl = $state<HTMLTextAreaElement | null>(null);
+
+  $effect(() => {
+    if (isEditing && textareaEl) {
+      textareaEl.focus();
+      // Place cursor at end
+      textareaEl.setSelectionRange(textareaEl.value.length, textareaEl.value.length);
+      autoResize(textareaEl);
+    }
+  });
+
+  function autoResize(el: HTMLTextAreaElement) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
+  function handleTextareaInput(e: Event) {
+    const el = e.currentTarget as HTMLTextAreaElement;
+    autoResize(el);
+    templateStore.updateElement(element.id, { content: el.value });
+  }
+
+  function handleTextareaKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      editingElementId.set(null);
+    }
+  }
+
+  function handleTextareaBlur() {
+    editingElementId.set(null);
+  }
+
+  function handleTextareaClick(e: MouseEvent) {
+    // Prevent ElementWrapper click from deselecting
+    e.stopPropagation();
+  }
+
+  function handleTextareaDblClick(e: MouseEvent) {
+    e.stopPropagation();
+  }
 
   // Apply merge fields and inline classes
   const textContent = $derived(() => {
@@ -62,7 +106,29 @@
   style={border}
   class="text-element"
 >
-  {#if element.markdown}
+  {#if isEditing}
+    <textarea
+      bind:this={textareaEl}
+      class="inline-editor panzoom-exclude"
+      value={element.content}
+      oninput={handleTextareaInput}
+      onkeydown={handleTextareaKeydown}
+      onblur={handleTextareaBlur}
+      onclick={handleTextareaClick}
+      ondblclick={handleTextareaDblClick}
+      style:font-size={fontSize}
+      style:font-family={fontFamily}
+      style:font-weight={fontWeight}
+      style:font-style={fontStyle}
+      style:color
+      style:text-decoration={textDecoration}
+      style:text-align={textAlign}
+      style:line-height={lineHeight}
+      style:letter-spacing={letterSpacing}
+      style:word-wrap={wordWrap}
+      style:text-transform={textTransform}
+    ></textarea>
+  {:else if element.markdown}
     <MarkdownRenderer content={element.content} />
   {:else if textContent()}
     {@html textContent()}
@@ -74,5 +140,30 @@
 <style>
   .text-element {
     /* Element-specific styles only */
+  }
+
+  .inline-editor {
+    display: block;
+    width: 100%;
+    min-height: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    resize: none;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    font-size: inherit;
+    font-family: inherit;
+    font-weight: inherit;
+    font-style: inherit;
+    color: inherit;
+    text-decoration: inherit;
+    text-align: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    word-wrap: inherit;
+    text-transform: inherit;
   }
 </style>

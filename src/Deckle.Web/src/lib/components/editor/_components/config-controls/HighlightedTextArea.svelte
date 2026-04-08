@@ -14,6 +14,8 @@
     hideLabel = false,
     showToolbar = false,
     dataSourceFields = [] as string[],
+    markdown = false,
+    onmarkdownchange,
     oninput
   }: {
     label: string;
@@ -24,6 +26,8 @@
     hideLabel?: boolean;
     showToolbar?: boolean;
     dataSourceFields?: string[];
+    markdown?: boolean;
+    onmarkdownchange?: (value: boolean) => void;
     oninput: (e: Event & { currentTarget: HTMLTextAreaElement }) => void;
   } = $props();
 
@@ -303,6 +307,18 @@
           />
         {/if}
       </div>
+
+      {#if onmarkdownchange !== undefined}
+        <button
+          type="button"
+          class="toolbar-btn bold"
+          class:active={markdown}
+          title="Enable Markdown"
+          onclick={() => onmarkdownchange(!markdown)}
+        >
+          MD
+        </button>
+      {/if}
     </div>
   {/if}
 
@@ -364,6 +380,18 @@
   .toolbar-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .toolbar-btn.active {
+    background: #e8f0fe;
+    color: #1a73e8;
+    border-color: #1a73e8;
+  }
+
+  .toolbar-btn.active:hover {
+    background: #c8d9fb;
+    color: #1558b0;
+    border-color: #1558b0;
   }
 
   .toolbar-dropdown-wrapper {

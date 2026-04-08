@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { EditableComponent, CardComponent, RectangleShape } from '$lib/types';
+  import type { EditableComponent, CardComponent, GameBoardComponent, RectangleShape } from '$lib/types';
   import ConfigSection from '../config-controls/ConfigSection.svelte';
   import ColorPicker from '../config-controls/ColorPicker.svelte';
   import { templateStore } from '$lib/stores/templateElements';
@@ -8,9 +8,11 @@
   let { component, part }: { component: EditableComponent; part?: string } = $props();
 
   // Check if this is a card component with shape info
-  let cardComponent = $derived('shape' in component ? (component as CardComponent) : null);
+  let cardComponent = $derived('size' in component ? (component as CardComponent) : null);
+  let gameBoardComponent = $derived(component.type === 'GameBoard' ? (component as GameBoardComponent) : null);
+  let shapeSource = $derived(cardComponent ?? gameBoardComponent);
   let rectangleShape = $derived(
-    cardComponent?.shape?.type === 'rectangle' ? (cardComponent.shape as RectangleShape) : null
+    shapeSource?.shape?.type === 'rectangle' ? (shapeSource.shape as RectangleShape) : null
   );
 
   // Get the root element from the template store for styling
@@ -59,6 +61,11 @@
       <div class="info-item">
         <span class="info-label">Size</span>
         <span class="info-value">{cardComponent.size}</span>
+      </div>
+    {:else if gameBoardComponent}
+      <div class="info-item">
+        <span class="info-label">Size</span>
+        <span class="info-value">{gameBoardComponent.presetSize ?? 'Custom'}</span>
       </div>
     {/if}
   </div>

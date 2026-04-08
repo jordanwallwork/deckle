@@ -1,8 +1,12 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import ColorPicker from 'colorpicker/dist/colorpicker.js';
+  import 'colorpicker/dist/colorpicker.css';
+
   let {
     label,
     id,
-    value = '#000000',
+    value = '',
     onchange
   }: {
     label: string;
@@ -10,13 +14,58 @@
     value?: string;
     onchange: (color: string) => void;
   } = $props();
+
+  let buttonEl: HTMLButtonElement;
+  let picker: ColorPicker | undefined;
+  let pickerUpdating = false;
+
+  function looksLikeColor(val: string) {
+    return /^(#|rgb|rgba|hsl|hsv)/i.test(val.trim());
+  }
+
+  onMount(() => {
+    picker = new ColorPicker(buttonEl, {
+      enableAlpha: true,
+      submitMode: 'confirm',
+      showClearButton: true,
+      color: looksLikeColor(value) ? value : null
+    });
+
+    picker.on('pick', (color) => {
+      pickerUpdating = true;
+      const str = color ? color.toString() : '';
+      onchange(str);
+      pickerUpdating = false;
+    });
+
+    return () => picker?.destroy();
+  });
+
+  $effect(() => {
+    if (!picker || pickerUpdating) return;
+    if (looksLikeColor(value)) {
+      picker.setColor(value, false);
+    } else if (!value) {
+      picker.clear(false);
+    }
+  });
+
+  function handleTextInput(e: Event) {
+    const val = (e.currentTarget as HTMLInputElement).value;
+    onchange(val);
+    if (picker && looksLikeColor(val)) {
+      picker.setColor(val, false);
+    } else if (picker && !val) {
+      picker.clear(false);
+    }
+  }
 </script>
 
 <div class="field">
   <label for={id}>{label}</label>
   <div class="color-input">
-    <input type="color" {id} {value} oninput={(e) => onchange(e.currentTarget.value)} />
-    <input type="text" {value} oninput={(e) => onchange(e.currentTarget.value)} />
+    <button bind:this={buttonEl} aria-label="Open color picker"></button>
+    <input type="text" {id} {value} oninput={handleTextInput} placeholder="Color or formula" />
   </div>
 </div>
 
@@ -36,14 +85,7 @@
   .color-input {
     display: flex;
     gap: 0.5rem;
-  }
-
-  .color-input input[type='color'] {
-    width: 50px;
-    height: 36px;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    cursor: pointer;
+    align-items: center;
   }
 
   .color-input input[type='text'] {

@@ -80,15 +80,6 @@
   {element}
   updateElement={updateElement as (updates: Partial<BaseElement>) => void}
 >
-  <label class="markdown-toggle">
-    <input
-      type="checkbox"
-      checked={element.markdown ?? false}
-      onchange={(e) => updateElement({ markdown: e.currentTarget.checked })}
-    />
-    <span>Enable Markdown</span>
-  </label>
-
   <HighlightedTextArea
     label="Content"
     id="content"
@@ -96,6 +87,8 @@
     value={element.content}
     showToolbar={true}
     {dataSourceFields}
+    markdown={element.markdown ?? false}
+    onmarkdownchange={(value) => updateElement({ markdown: value })}
     oninput={(e) => updateElement({ content: e.currentTarget.value })}
   />
 
@@ -223,21 +216,3 @@
   <PaddingControls padding={element.padding} onchange={(padding) => updateElement({ padding })} />
 </BaseElementConfig>
 
-<style>
-  .markdown-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-  }
-
-  .markdown-toggle input[type='checkbox'] {
-    cursor: pointer;
-  }
-
-  .markdown-toggle span {
-    user-select: none;
-  }
-</style>

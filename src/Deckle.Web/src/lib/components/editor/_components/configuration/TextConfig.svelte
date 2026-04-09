@@ -61,6 +61,25 @@
     templateStore.updateElement(element.id, updates);
   }
 
+  // Track the element ID for which we've saved a history entry this edit session,
+  // so content edits only produce one history entry (like drag/resize).
+  let contentEditSessionElementId = $state<string | null>(null);
+
+  function handleContentFocus() {
+    if (contentEditSessionElementId !== element.id) {
+      templateStore.saveToHistory();
+      contentEditSessionElementId = element.id;
+    }
+  }
+
+  function handleContentBlur() {
+    contentEditSessionElementId = null;
+  }
+
+  function handleContentInput(e: Event & { currentTarget: HTMLTextAreaElement }) {
+    templateStore.updateElementWithoutHistory(element.id, { content: e.currentTarget.value });
+  }
+
   function handleFontChange(font: { family: string; category: string }) {
     // Update the text element's font family
     const fontFamily = font.family === 'System Default' ? undefined : font.family;
@@ -80,15 +99,6 @@
   {element}
   updateElement={updateElement as (updates: Partial<BaseElement>) => void}
 >
-  <label class="markdown-toggle">
-    <input
-      type="checkbox"
-      checked={element.markdown ?? false}
-      onchange={(e) => updateElement({ markdown: e.currentTarget.checked })}
-    />
-    <span>Enable Markdown</span>
-  </label>
-
   <HighlightedTextArea
     label="Content"
     id="content"
@@ -96,7 +106,11 @@
     value={element.content}
     showToolbar={true}
     {dataSourceFields}
-    oninput={(e) => updateElement({ content: e.currentTarget.value })}
+    markdown={element.markdown ?? false}
+    onmarkdownchange={(value) => updateElement({ markdown: value })}
+    oninput={handleContentInput}
+    onfocus={handleContentFocus}
+    onblur={handleContentBlur}
   />
 
   <FontSelector
@@ -223,21 +237,3 @@
   <PaddingControls padding={element.padding} onchange={(padding) => updateElement({ padding })} />
 </BaseElementConfig>
 
-<style>
-  .markdown-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-  }
-
-  .markdown-toggle input[type='checkbox'] {
-    cursor: pointer;
-  }
-
-  .markdown-toggle span {
-    user-select: none;
-  }
-</style>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Dimensions, ComponentShape, RectangleShape } from '$lib/types';
-  import { templateStore } from '$lib/stores/templateElements';
+  import { templateStore, editingElementId } from '$lib/stores/templateElements';
   import type { ContainerElement } from './types';
   import TemplateRenderer from './TemplateRenderer.svelte';
   import { mmToPx } from '$lib/utils/size.utils';
@@ -66,6 +66,7 @@
   function handleRootClick() {
     // Select the root element when clicking on the component background
     // Child elements stop propagation, so this only fires when clicking empty space
+    editingElementId.set(null);
     templateStore.selectElement('root');
   }
 </script>

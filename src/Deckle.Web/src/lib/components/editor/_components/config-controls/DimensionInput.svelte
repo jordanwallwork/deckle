@@ -128,6 +128,7 @@
     line-height: 1.25rem;
     height: 2.125rem;
     border: 1px solid #d1d5db;
+    border-left: none;
     border-radius: 0 4px 4px 0;
     background: white;
     cursor: pointer;
@@ -163,3 +164,4 @@
     font-style: italic;
   }
 </style>
+

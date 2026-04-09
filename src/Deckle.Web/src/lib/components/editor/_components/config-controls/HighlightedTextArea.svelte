@@ -14,7 +14,11 @@
     hideLabel = false,
     showToolbar = false,
     dataSourceFields = [] as string[],
-    oninput
+    markdown = false,
+    onmarkdownchange,
+    oninput,
+    onfocus,
+    onblur
   }: {
     label: string;
     id: string;
@@ -24,7 +28,11 @@
     hideLabel?: boolean;
     showToolbar?: boolean;
     dataSourceFields?: string[];
+    markdown?: boolean;
+    onmarkdownchange?: (value: boolean) => void;
     oninput: (e: Event & { currentTarget: HTMLTextAreaElement }) => void;
+    onfocus?: (e: FocusEvent & { currentTarget: HTMLTextAreaElement }) => void;
+    onblur?: (e: FocusEvent & { currentTarget: HTMLTextAreaElement }) => void;
   } = $props();
 
   const evaluator = new FormulaEvaluator();
@@ -303,6 +311,18 @@
           />
         {/if}
       </div>
+
+      {#if onmarkdownchange !== undefined}
+        <button
+          type="button"
+          class="toolbar-btn bold"
+          class:active={markdown}
+          title="Enable Markdown"
+          onclick={() => onmarkdownchange(!markdown)}
+        >
+          MD
+        </button>
+      {/if}
     </div>
   {/if}
 
@@ -317,6 +337,8 @@
       {value}
       {placeholder}
       {oninput}
+      {onfocus}
+      {onblur}
       onscroll={handleScroll}
     ></textarea>
   </div>
@@ -364,6 +386,18 @@
   .toolbar-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  .toolbar-btn.active {
+    background: #e8f0fe;
+    color: #1a73e8;
+    border-color: #1a73e8;
+  }
+
+  .toolbar-btn.active:hover {
+    background: #c8d9fb;
+    color: #1558b0;
+    border-color: #1558b0;
   }
 
   .toolbar-dropdown-wrapper {

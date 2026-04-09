@@ -3,7 +3,7 @@
   import ResizeHandles from './ResizeHandles.svelte';
   import DragHandles from './DragHandles.svelte';
   import RotationHandle from './RotationHandle.svelte';
-  import { templateStore, highlightedElementIds } from '$lib/stores/templateElements';
+  import { templateStore, highlightedElementIds, editingElementId } from '$lib/stores/templateElements';
   import { spacingToCss, dimensionValue } from '../../utils';
   import { createElementOfType } from '../../elementFactory';
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
@@ -79,7 +79,18 @@
       return;
     }
     e.stopPropagation();
+    // Exit inline text editing when clicking any element other than the one being edited
+    editingElementId.update((id) => (id !== null && id !== element.id ? null : id));
     templateStore.selectElement(element.id);
+  }
+
+  function handleDoubleClick(e: MouseEvent) {
+    if (element.locked || element.type !== 'text') {
+      return;
+    }
+    e.stopPropagation();
+    templateStore.selectElement(element.id);
+    editingElementId.set(element.id);
   }
 
   // Context menu handlers
@@ -212,6 +223,7 @@
   onmouseenter={handleMouseEnter}
   onmouseleave={handleMouseLeave}
   onclick={handleClick}
+  ondblclick={handleDoubleClick}
   oncontextmenu={handleContextMenu}
   role="button"
   tabindex="0"

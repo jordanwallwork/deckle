@@ -666,3 +666,6 @@ export const highlightedElementIds = derived(templateStore, ($store) => {
   if (!selected || selected.type !== 'iterator') return new Set<string>();
   return collectDescendantIds(selected);
 });
+
+/** ID of the text element currently being inline-edited, or null. */
+export const editingElementId = writable<string | null>(null);

@@ -405,7 +405,7 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(100);
 
-            entity.Property(f => f.FileSizeBytes)
+            entity.Property(f => f.TotalByteSize)
                 .IsRequired();
 
             entity.Property(f => f.StorageKey)

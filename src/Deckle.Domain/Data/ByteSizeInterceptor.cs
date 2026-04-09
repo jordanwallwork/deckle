@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text;
 using Deckle.Domain.Entities;
@@ -11,9 +12,13 @@ namespace Deckle.Domain.Data;
 /// for any entity that implements <see cref="ISizeAware"/>.
 /// Only properties annotated with <see cref="TrackByteSizeAttribute"/> are counted.
 /// Handles both <c>string?</c> and <c>IEnumerable&lt;string&gt;</c> property types.
+/// Entities implementing ISizeAware but having no [TrackByteSize] properties (e.g. File)
+/// retain their manually-set TotalByteSize.
 /// </summary>
 public sealed class ByteSizeInterceptor : SaveChangesInterceptor
 {
+    private static readonly ConcurrentDictionary<Type, bool> _hasTrackedProperties = new();
+
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
         InterceptionResult<int> result)
@@ -40,6 +45,9 @@ public sealed class ByteSizeInterceptor : SaveChangesInterceptor
             if (entry.State is not (EntityState.Added or EntityState.Modified))
                 continue;
 
+            if (!HasAnyTrackedProperty(entry.Entity.GetType()))
+                continue;
+
             entry.Entity.TotalByteSize = ComputeByteSize(entry.Entity);
         }
     }
@@ -63,6 +71,11 @@ public sealed class ByteSizeInterceptor : SaveChangesInterceptor
 
         return total;
     }
+
+    private static bool HasAnyTrackedProperty(Type type) =>
+        _hasTrackedProperties.GetOrAdd(type, t =>
+            t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+             .Any(HasTrackByteSizeAttribute));
 
     /// <summary>
     /// Walks the declaring-type inheritance chain for <paramref name="prop"/> to check

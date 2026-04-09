@@ -584,7 +584,7 @@ public partial class FileDirectoryService : IFileDirectoryService
             file.FileName,
             file.Path,
             file.ContentType,
-            file.FileSizeBytes,
+            file.TotalByteSize,
             file.UploadedAt,
             new FileUploaderDto(
                 file.UploadedBy.Id,

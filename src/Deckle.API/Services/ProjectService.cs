@@ -440,6 +440,38 @@ public partial class ProjectService : IProjectService
             throw new UnauthorizedAccessException("You do not have permission to delete this project.");
         }
 
+        // Compute total storage used by this project before cascade delete removes the entities,
+        // since cascade-deleted entities won't appear in the ChangeTracker for the interceptor.
+        var fileBytes = await _dbContext.Files
+            .Where(f => f.ProjectId == projectId && f.Status == FileStatus.Confirmed)
+            .Select(f => f.TotalByteSize)
+            .ToListAsync();
+
+        var componentBytes = await _dbContext.Cards
+            .Where(c => c.ProjectId == projectId)
+            .Select(c => c.TotalByteSize)
+            .Union(_dbContext.GameBoards
+                .Where(gb => gb.ProjectId == projectId)
+                .Select(gb => gb.TotalByteSize))
+            .Union(_dbContext.PlayerMats
+                .Where(pm => pm.ProjectId == projectId)
+                .Select(pm => pm.TotalByteSize))
+            .ToListAsync();
+
+        var dataSourceBytes = await _dbContext.DataSources
+            .Where(ds => ds.ProjectId == projectId)
+            .Select(ds => ds.TotalByteSize)
+            .ToListAsync();
+
+        var totalProjectBytes = fileBytes.Sum() + componentBytes.Sum() + dataSourceBytes.Sum();
+
+        if (totalProjectBytes > 0)
+        {
+            var owner = await _dbContext.Users.FindAsync(userProject.UserId);
+            if (owner != null)
+                owner.StorageUsedBytes = Math.Max(0, owner.StorageUsedBytes - totalProjectBytes);
+        }
+
         _dbContext.Projects.Remove(userProject.Project);
         await _dbContext.SaveChangesAsync();
     }

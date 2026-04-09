@@ -10,5 +10,6 @@ public class SpreadsheetDataSource : DataSource
     /// JSON string containing the spreadsheet data.
     /// Format: { "headers": [...], "rows": [[...], ...] }
     /// </summary>
+    [TrackByteSize]
     public string? JsonData { get; set; }
 }

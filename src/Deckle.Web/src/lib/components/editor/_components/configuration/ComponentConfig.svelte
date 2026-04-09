@@ -1,15 +1,23 @@
 <script lang="ts">
-  import type { EditableComponent, CardComponent, GameBoardComponent, RectangleShape } from '$lib/types';
+  import type {
+    EditableComponent,
+    CardComponent,
+    GameBoardComponent,
+    RectangleShape
+  } from '$lib/types';
   import ConfigSection from '../config-controls/ConfigSection.svelte';
   import ColorPicker from '../config-controls/ColorPicker.svelte';
   import { templateStore } from '$lib/stores/templateElements';
   import type { ContainerElement } from '$lib/components/editor/types';
+  import Fields from '../config-controls/Fields.svelte';
 
   let { component, part }: { component: EditableComponent; part?: string } = $props();
 
   // Check if this is a card component with shape info
   let cardComponent = $derived('size' in component ? (component as CardComponent) : null);
-  let gameBoardComponent = $derived(component.type === 'GameBoard' ? (component as GameBoardComponent) : null);
+  let gameBoardComponent = $derived(
+    component.type === 'GameBoard' ? (component as GameBoardComponent) : null
+  );
   let shapeSource = $derived(cardComponent ?? gameBoardComponent);
   let rectangleShape = $derived(
     shapeSource?.shape?.type === 'rectangle' ? (shapeSource.shape as RectangleShape) : null
@@ -32,24 +40,27 @@
         }
       })}
   />
-  <ColorPicker
-    label="Bleed Area Color"
-    id="bleed-area-color"
-    value={rootElement.bleedAreaColor || '#ff0000'}
-    onchange={(color) =>
-      templateStore.updateElement('root', {
-        bleedAreaColor: color
-      })}
-  />
-  <ColorPicker
-    label="Safe Area Color"
-    id="safe-area-color"
-    value={rootElement.safeAreaColor || '#00ff00'}
-    onchange={(color) =>
-      templateStore.updateElement('root', {
-        safeAreaColor: color
-      })}
-  />
+
+  <Fields>
+    <ColorPicker
+      label="Bleed Area Color"
+      id="bleed-area-color"
+      value={rootElement.bleedAreaColor || '#ff0000'}
+      onchange={(color) =>
+        templateStore.updateElement('root', {
+          bleedAreaColor: color
+        })}
+    />
+    <ColorPicker
+      label="Safe Area Color"
+      id="safe-area-color"
+      value={rootElement.safeAreaColor || '#00ff00'}
+      onchange={(color) =>
+        templateStore.updateElement('root', {
+          safeAreaColor: color
+        })}
+    />
+  </Fields>
 
   <div class="info-group">
     <div class="info-item">
@@ -73,23 +84,14 @@
   <h4 class="subsection-title">Dimensions</h4>
   <div class="info-group">
     <div class="info-item">
-      <span class="info-label">Width</span>
-      <span class="info-value">{component.dimensions.widthMm.toFixed(2)} mm</span>
-    </div>
-
-    <div class="info-item">
-      <span class="info-label">Height</span>
-      <span class="info-value">{component.dimensions.heightMm.toFixed(2)} mm</span>
-    </div>
-
-    <div class="info-item">
-      <span class="info-label">Bleed</span>
-      <span class="info-value">{component.dimensions.bleedMm.toFixed(2)} mm</span>
-    </div>
-
-    <div class="info-item">
-      <span class="info-label">DPI</span>
-      <span class="info-value">{component.dimensions.dpi}</span>
+      <span class="info-label">Size</span>
+      <span class="info-value">
+        {component.dimensions.widthMm.toFixed(2)}mm x
+        {component.dimensions.heightMm.toFixed(2)}mm
+        <p class="muted">
+          {component.dimensions.bleedMm.toFixed(2)}mm bleed. {component.dimensions.dpi} DPI
+        </p>
+      </span>
     </div>
   </div>
 
@@ -125,13 +127,10 @@
   .info-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: start;
     padding: 0.5rem;
     border-radius: 6px;
     border: 1px solid transparent;
-  }
-  .info-item:hover {
-    border-color: rgba(0, 0, 0, 0.05);
   }
 
   .info-label {
@@ -145,4 +144,10 @@
     color: #1a1a1a;
     font-weight: 500;
   }
+
+  .info-value > .muted {
+    color: var(--color-muted-teal);
+    font-size: 0.9em;
+  }
 </style>
+

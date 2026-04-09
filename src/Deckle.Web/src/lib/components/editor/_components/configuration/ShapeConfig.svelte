@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ShapeElement, ShapeType, VisibilityMode, ShapeBorder } from '../../types';
+  import type { ShapeElement, ShapeType, VisibilityMode } from '../../types';
   import { templateStore } from '$lib/stores/templateElements';
   import ConfigSection from '../config-controls/ConfigSection.svelte';
   import TextField from '../config-controls/TextField.svelte';
@@ -31,7 +31,8 @@
       <TextField
         label="Label"
         id="label"
-        placeholder={element.label ?? element.shapeType.charAt(0).toUpperCase() + element.shapeType.slice(1)}
+        placeholder={element.label ??
+          element.shapeType.charAt(0).toUpperCase() + element.shapeType.slice(1)}
         value={element.label}
         oninput={(e) => updateElement({ label: e.currentTarget.value })}
         hideLabel={true}
@@ -47,10 +48,6 @@
     onConditionChange={(condition: string) => updateElement({ visibilityCondition: condition })}
   />
 
-  {#if element.position === 'absolute'}
-    <PositionControls x={element.x} y={element.y} onchange={(updates) => updateElement(updates)} />
-  {/if}
-
   <SelectField
     label="Shape"
     id="shape-type"
@@ -63,6 +60,10 @@
     ]}
     onchange={(value) => updateElement({ shapeType: value as ShapeType })}
   />
+
+  {#if element.position === 'absolute'}
+    <PositionControls x={element.x} y={element.y} onchange={(updates) => updateElement(updates)} />
+  {/if}
 
   <Fields>
     <DimensionInput
@@ -136,6 +137,6 @@
   .label-lock-row {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1rem;
   }
 </style>
+

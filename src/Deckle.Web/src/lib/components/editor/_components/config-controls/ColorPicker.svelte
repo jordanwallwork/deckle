@@ -64,7 +64,8 @@
 <div class="field">
   <label for={id}>{label}</label>
   <div class="color-input">
-    <button bind:this={buttonEl} aria-label="Open color picker"></button>
+    <button bind:this={buttonEl} aria-label="Open color picker" style="--cp-size:calc(2rem + 2px)"
+    ></button>
     <input type="text" {id} {value} oninput={handleTextInput} placeholder="Color or formula" />
   </div>
 </div>
@@ -84,7 +85,6 @@
 
   .color-input {
     display: flex;
-    gap: 0.5rem;
     align-items: center;
   }
 
@@ -95,13 +95,24 @@
     line-height: 1.25rem;
     height: 2.125rem;
     border: 1px solid #d1d5db;
+    border-left: 0;
     border-radius: 4px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
     background: white;
     box-sizing: border-box;
+    margin-left: -3px;
+    z-index: 1;
   }
 
   .color-input input[type='text']:focus {
     outline: none;
     border-color: #0066cc;
   }
+
+  .color-input button {
+    z-index: 2;
+    border-width: 1px !important;
+  }
 </style>
+

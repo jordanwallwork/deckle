@@ -7,6 +7,7 @@
   import UserListCard from './_components/UserListCard.svelte';
   import DangerZoneCard from './_components/DangerZoneCard.svelte';
   import InviteUserDialog from './_components/InviteUserDialog.svelte';
+  import StorageCard from './_components/StorageCard.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -102,13 +103,20 @@
 </svelte:head>
 
 <TabContent>
-  <div class="settings-section">
-    <h2>Project Details</h2>
-    <ProjectDetailsCard
-      project={data.project}
-      canEdit={canEditProject}
-      onSave={saveProjectDetails}
-    />
+  <div class="two-col-grid">
+    <div class="settings-section">
+      <h2>Project Details</h2>
+      <ProjectDetailsCard
+        project={data.project}
+        canEdit={canEditProject}
+        onSave={saveProjectDetails}
+      />
+    </div>
+
+    <div class="settings-section">
+      <h2>Storage</h2>
+      <StorageCard storage={data.storage} />
+    </div>
   </div>
 
   <div class="settings-section">
@@ -155,6 +163,19 @@
 />
 
 <style>
+  .two-col-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 2rem;
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 768px) {
+    .two-col-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .settings-section {
     margin-bottom: 2.5rem;
   }

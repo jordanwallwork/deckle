@@ -19,6 +19,14 @@ public record UpdateProjectRequest(string Name, string? Description, string? Vis
 
 public record InviteUserRequest(string Email, string Role);
 
+public record ProjectStorageDto
+{
+    public required long TotalBytes { get; init; }
+    public required long ComponentBytes { get; init; }
+    public required long DataSourceBytes { get; init; }
+    public required long FileBytes { get; init; }
+}
+
 public record ProjectUserDto
 {
     public required Guid UserId { get; init; }

@@ -6,16 +6,20 @@ export const load: PageServerLoad = async ({ fetch, parent }) => {
   const { project } = await parent();
 
   try {
-    const users = await projectsApi.getUsers(project.id, fetch);
+    const [users, storage] = await Promise.all([
+      projectsApi.getUsers(project.id, fetch),
+      projectsApi.getStorage(project.id, fetch)
+    ]);
     return {
       project,
-      users
+      users,
+      storage
     };
   } catch (err) {
     if (err instanceof ApiError) {
       throw error(err.status, err.message);
     }
-    console.error('Failed to load project users:', err);
-    throw error(500, 'Failed to load project users');
+    console.error('Failed to load project settings:', err);
+    throw error(500, 'Failed to load project settings');
   }
 };

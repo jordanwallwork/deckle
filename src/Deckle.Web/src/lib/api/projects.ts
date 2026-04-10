@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { Project, CreateProjectDto, UpdateProjectDto, ProjectUser } from '$lib/types';
+import type { Project, CreateProjectDto, UpdateProjectDto, ProjectUser, ProjectStorage } from '$lib/types';
 
 /**
  * Projects API
@@ -51,6 +51,12 @@ export const projectsApi = {
    */
   removeUser: (projectId: string, userId: string, fetchFn?: typeof fetch) =>
     api.delete(`/projects/${projectId}/users/${userId}`, undefined, fetchFn),
+
+  /**
+   * Get storage breakdown for a project
+   */
+  getStorage: (id: string, fetchFn?: typeof fetch) =>
+    api.get<ProjectStorage>(`/projects/${id}/storage`, undefined, fetchFn),
 
   /**
    * Delete a project

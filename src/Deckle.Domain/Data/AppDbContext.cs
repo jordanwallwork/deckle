@@ -265,32 +265,35 @@ public class AppDbContext : DbContext
                 .HasValue<PlayerMat>("PlayerMat");
         });
 
-        modelBuilder.Entity<Card>(entity =>
+        modelBuilder.Entity<EditableComponent>(entity =>
         {
-            entity.Property(c => c.TotalByteSize)
+            entity.Property(ec => ec.TotalByteSize)
                 .IsRequired()
                 .HasDefaultValue(0L);
 
-            entity.Property(c => c.Horizontal)
-                .HasColumnName("Horizontal");
-
-            entity.Property(c => c.Size)
-                .IsRequired()
-                .HasConversion<string>();
-
-            entity.Property(c => c.FrontDesign)
+            entity.Property(ec => ec.FrontDesign)
                 .HasColumnType("text");
 
-            entity.Property(c => c.BackDesign)
+            entity.Property(ec => ec.BackDesign)
                 .HasColumnType("text");
 
-            entity.Property(c => c.Shape)
+            entity.Property(ec => ec.Shape)
                 .IsRequired()
                 .HasColumnType("jsonb")
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<ComponentShape>(v, (JsonSerializerOptions?)null)!
                 );
+        });
+
+        modelBuilder.Entity<Card>(entity =>
+        {
+            entity.Property(c => c.Horizontal)
+                .HasColumnName("Horizontal");
+
+            entity.Property(c => c.Size)
+                .IsRequired()
+                .HasConversion<string>();
 
             entity.HasOne(c => c.DataSource)
                 .WithMany()
@@ -315,10 +318,6 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<GameBoard>(entity =>
         {
-            entity.Property(gb => gb.TotalByteSize)
-                .IsRequired()
-                .HasDefaultValue(0L);
-
             entity.Property(gb => gb.Horizontal)
                 .HasColumnName("Horizontal");
 
@@ -331,20 +330,6 @@ public class AppDbContext : DbContext
             entity.Property(gb => gb.CustomHeightMm)
                 .HasColumnType("decimal(10,2)");
 
-            entity.Property(gb => gb.FrontDesign)
-                .HasColumnType("text");
-
-            entity.Property(gb => gb.BackDesign)
-                .HasColumnType("text");
-
-            entity.Property(gb => gb.Shape)
-                .IsRequired()
-                .HasColumnType("jsonb")
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<ComponentShape>(v, (JsonSerializerOptions?)null)!
-                );
-
             entity.HasOne(gb => gb.DataSource)
                 .WithMany()
                 .HasForeignKey("DataSourceId")
@@ -353,10 +338,6 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<PlayerMat>(entity =>
         {
-            entity.Property(pm => pm.TotalByteSize)
-                .IsRequired()
-                .HasDefaultValue(0L);
-
             entity.Property(pm => pm.Horizontal)
                 .HasColumnName("Horizontal");
 
@@ -368,20 +349,6 @@ public class AppDbContext : DbContext
 
             entity.Property(pm => pm.CustomHeightMm)
                 .HasColumnType("decimal(10,2)");
-
-            entity.Property(pm => pm.FrontDesign)
-                .HasColumnType("text");
-
-            entity.Property(pm => pm.BackDesign)
-                .HasColumnType("text");
-
-            entity.Property(pm => pm.Shape)
-                .IsRequired()
-                .HasColumnType("jsonb")
-                .HasConversion(
-                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                    v => JsonSerializer.Deserialize<ComponentShape>(v, (JsonSerializerOptions?)null)!
-                );
 
             entity.HasOne(pm => pm.DataSource)
                 .WithMany()

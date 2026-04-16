@@ -16,6 +16,7 @@ export { default as SpreadsheetEditor } from './SpreadsheetEditor.svelte';
 export { default as TabContent } from './TabContent.svelte';
 export { default as Tabs } from './Tabs.svelte';
 export { default as TopBar } from './TopBar.svelte';
+export { default as UsernameLink } from './UsernameLink.svelte';
 
 // Form components
 export * from './forms';

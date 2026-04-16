@@ -37,6 +37,7 @@ export interface ProjectStorage {
 export interface ProjectUser {
   userId: string;
   email: string;
+  username?: string;
   name?: string;
   pictureUrl?: string;
   role: 'Owner' | 'Collaborator';

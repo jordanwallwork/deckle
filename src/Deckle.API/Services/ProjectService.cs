@@ -242,6 +242,7 @@ public partial class ProjectService : IProjectService
             {
                 UserId = up.UserId,
                 Email = up.User.Email,
+                Username = up.User.Username,
                 Name = up.User.Name,
                 PictureUrl = up.User.PictureUrl,
                 Role = up.Role.ToString(),

@@ -44,6 +44,7 @@ public class AdminService : IAdminService
             {
                 Id = u.Id,
                 Email = u.Email,
+                Username = u.Username,
                 Name = u.Name,
                 PictureUrl = u.PictureUrl,
                 Role = u.Role.ToString(),
@@ -72,6 +73,7 @@ public class AdminService : IAdminService
             {
                 Id = u.Id,
                 Email = u.Email,
+                Username = u.Username,
                 Name = u.Name,
                 PictureUrl = u.PictureUrl,
                 Role = u.Role.ToString(),

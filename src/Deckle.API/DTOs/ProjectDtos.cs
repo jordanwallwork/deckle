@@ -31,6 +31,7 @@ public record ProjectUserDto
 {
     public required Guid UserId { get; init; }
     public required string Email { get; init; }
+    public string? Username { get; init; }
     public string? Name { get; init; }
     public string? PictureUrl { get; init; }
     public required string Role { get; init; }

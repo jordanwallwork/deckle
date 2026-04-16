@@ -154,6 +154,9 @@
     <Button variant="primary" disabled={saving || bioRemaining < 0} onclick={saveProfile}>
       {saving ? 'Saving…' : 'Save Profile'}
     </Button>
+    {#if user.username}
+      <a href="/@{user.username}" class="view-profile-link">View public profile</a>
+    {/if}
   </div>
 </Card>
 
@@ -348,5 +351,16 @@
     color: var(--color-muted-teal);
     font-weight: 600;
     margin: 0;
+  }
+
+  .view-profile-link {
+    font-size: 0.875rem;
+    color: var(--color-muted-teal);
+    text-decoration: underline;
+    margin-left: auto;
+  }
+
+  .view-profile-link:hover {
+    color: var(--color-sage);
   }
 </style>

@@ -27,9 +27,17 @@ export interface UpdateProjectDto {
   visibility?: ProjectVisibility;
 }
 
+export interface ProjectStorage {
+  totalBytes: number;
+  componentBytes: number;
+  dataSourceBytes: number;
+  fileBytes: number;
+}
+
 export interface ProjectUser {
   userId: string;
   email: string;
+  username?: string;
   name?: string;
   pictureUrl?: string;
   role: 'Owner' | 'Collaborator';

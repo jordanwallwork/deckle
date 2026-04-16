@@ -2,6 +2,7 @@ using Deckle.API.DTOs;
 using Deckle.API.Services;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
+using Deckle.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -84,7 +85,7 @@ public class FileServiceTests : IDisposable
         Assert.Equal(userId, file.UploadedByUserId);
         Assert.Equal(fileName, file.FileName);
         Assert.Equal(contentType, file.ContentType);
-        Assert.Equal(fileSizeBytes, file.FileSizeBytes);
+        Assert.Equal(fileSizeBytes, file.TotalByteSize);
         Assert.Equal(FileStatus.Pending, file.Status);
     }
 
@@ -188,13 +189,13 @@ public class FileServiceTests : IDisposable
         await _context.SaveChangesAsync();
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        var exception = await Assert.ThrowsAsync<StorageQuotaExceededException>(
             () => _fileService.RequestUploadUrlAsync(
                 userId, projectId, "test.jpg", "image/jpeg", fileSizeBytes));
 
-        Assert.Contains("storage quota exceeded", exception.Message, StringComparison.InvariantCulture);
-        Assert.Contains("Available:", exception.Message, StringComparison.InvariantCulture);
-        Assert.Contains("Required:", exception.Message, StringComparison.InvariantCulture);
+        Assert.Equal(5 * 1024 * 1024L, exception.QuotaBytes);
+        Assert.Equal(1 * 1024 * 1024L, exception.CurrentUsedBytes);
+        Assert.Equal(10 * 1024 * 1024L, exception.RequestedDeltaBytes);
     }
 
     [Fact]
@@ -440,15 +441,15 @@ public class FileServiceTests : IDisposable
         _context.UserProjects.Add(new UserProject { UserId = userId, ProjectId = projectId, Role = ProjectRole.Collaborator });
         await _context.SaveChangesAsync();
 
-        // Act & Assert: kills line 82 Math.Max → Math.Min and lines 83-84 arithmetic mutations
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<StorageQuotaExceededException>(
             () => _fileService.RequestUploadUrlAsync(
                 userId, projectId, "test.jpg", "image/jpeg", 5 * 1024 * 1024));
 
-        // Math.Max(0, 5MB-3MB) = 2MB; Math.Min would give 0MB
-        Assert.Contains("Available: 2.00MB", exception.Message, StringComparison.InvariantCulture);
-        // 5MB required; arithmetic mutation would give wildly wrong value
-        Assert.Contains("Required: 5.00MB", exception.Message, StringComparison.InvariantCulture);
+        Assert.Equal(5 * 1024 * 1024L, exception.QuotaBytes);
+        Assert.Equal(3 * 1024 * 1024L, exception.CurrentUsedBytes);
+        Assert.Equal(5 * 1024 * 1024L, exception.RequestedDeltaBytes);
+        Assert.Equal(2 * 1024 * 1024L, exception.AvailableBytes);
     }
 
     [Fact]
@@ -491,7 +492,7 @@ public class FileServiceTests : IDisposable
             FileName = "image.jpg",
             Path = "image.jpg",
             ContentType = "image/jpeg",
-            FileSizeBytes = 1024,
+            TotalByteSize = 1024,
             StorageKey = $"{projectId}/{Guid.NewGuid()}/image.jpg",
             Status = FileStatus.Confirmed,
             UploadedAt = DateTime.UtcNow,
@@ -1176,7 +1177,7 @@ public class FileServiceTests : IDisposable
             UploadedByUserId = uploadedBy,
             FileName = fileName,
             ContentType = "image/jpeg",
-            FileSizeBytes = 1024,
+            TotalByteSize = 1024,
             StorageKey = $"{projectId}/{Guid.NewGuid()}/{fileName}",
             Status = FileStatus.Confirmed,
             UploadedAt = DateTime.UtcNow,
@@ -1193,7 +1194,7 @@ public class FileServiceTests : IDisposable
             UploadedByUserId = uploadedBy,
             FileName = fileName,
             ContentType = "image/jpeg",
-            FileSizeBytes = 1024,
+            TotalByteSize = 1024,
             StorageKey = $"{projectId}/{Guid.NewGuid()}/{fileName}",
             Status = FileStatus.Pending,
             UploadedAt = DateTime.UtcNow,

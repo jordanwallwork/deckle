@@ -6,7 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Aspire service defaults
 builder.AddServiceDefaults();
 builder.AddNpgsqlDbContext<AppDbContext>("deckledb", configureDbContextOptions: options =>
-    options.AddInterceptors(new ByteSizeInterceptor()));
+    options.AddInterceptors(new ByteSizeInterceptor(), new StorageQuotaInterceptor()));
 
 // Authentication and authorization
 builder.Services.AddDeckleAuthentication(builder.Configuration, builder.Environment);

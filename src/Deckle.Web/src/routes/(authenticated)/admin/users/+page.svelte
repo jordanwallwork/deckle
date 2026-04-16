@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import type { AdminUser } from '$lib/types';
   import { adminApi, ApiError } from '$lib/api';
-  import { Avatar } from '$lib/components';
+  import { Avatar, UsernameLink } from '$lib/components';
   import { goto, invalidateAll } from '$app/navigation';
 
   let { data }: { data: PageData } = $props();
@@ -138,6 +138,7 @@
                 />
                 <div class="user-details">
                   <span class="user-name">{user.name || 'No name'}</span>
+                  <UsernameLink username={user.username} />
                   <span class="user-email">{user.email}</span>
                 </div>
               </div>
@@ -359,7 +360,7 @@
   }
 
   .user-email {
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     color: #6b7280;
   }
 

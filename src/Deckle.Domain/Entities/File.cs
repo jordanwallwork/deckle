@@ -6,7 +6,7 @@ public enum FileStatus
     Confirmed   // Upload completed and confirmed
 }
 
-public class File
+public class File : ISizeAware
 {
     public Guid Id { get; set; }
     public Guid ProjectId { get; set; }
@@ -21,7 +21,6 @@ public class File
     public string Path { get; set; } = string.Empty;
 
     public string ContentType { get; set; } = string.Empty;
-    public long FileSizeBytes { get; set; }
     public string StorageKey { get; set; } = string.Empty; // "projects/{projectId}/files/{fileId}/{fileName}"
     public FileStatus Status { get; set; } = FileStatus.Pending;
     public List<string> Tags { get; set; } = [];
@@ -32,4 +31,6 @@ public class File
     public Project Project { get; set; } = null!;
     public User UploadedBy { get; set; } = null!;
     public FileDirectory? Directory { get; set; }
+
+    public long TotalByteSize { get; set; }
 }

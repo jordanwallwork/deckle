@@ -1,6 +1,7 @@
 using Deckle.API.DTOs;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
+using Deckle.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 
@@ -89,16 +90,8 @@ public partial class FileService : IFileService
         var ownerUser = await _context.Users.FindAsync(ownerUserProject.UserId) ?? throw new InvalidOperationException("Project owner not found");
 
         var quotaBytes = ownerUser.StorageQuotaMb * 1024L * 1024L;
-        var projectedUsage = ownerUser.StorageUsedBytes + fileSizeBytes;
-
-        if (projectedUsage > quotaBytes)
-        {
-            var availableBytes = Math.Max(0, quotaBytes - ownerUser.StorageUsedBytes);
-            var availableMb = availableBytes / (1024.0 * 1024.0);
-            var requiredMb = fileSizeBytes / (1024.0 * 1024.0);
-            throw new InvalidOperationException(
-                $"Project owner's storage quota exceeded. Available: {availableMb:F2}MB, Required: {requiredMb:F2}MB. Contact the project owner to free up space.");
-        }
+        if (ownerUser.StorageUsedBytes + fileSizeBytes > quotaBytes)
+            throw new StorageQuotaExceededException(quotaBytes, ownerUser.StorageUsedBytes, fileSizeBytes);
 
         // 6. Validate tags if provided
         if (tags != null && tags.Any())
@@ -138,7 +131,7 @@ public partial class FileService : IFileService
             FileName = fileName,
             Path = filePath,
             ContentType = contentType,
-            FileSizeBytes = fileSizeBytes,
+            TotalByteSize = fileSizeBytes,
             StorageKey = storageKey,
             Status = FileStatus.Pending,
             UploadedAt = DateTime.UtcNow,
@@ -172,7 +165,6 @@ public partial class FileService : IFileService
     {
         var file = await _context.Files
             .Include(f => f.Project)
-                .ThenInclude(p => p.UserProjects)
             .Include(f => f.UploadedBy)
             .FirstOrDefaultAsync(f => f.Id == fileId) ?? throw new InvalidOperationException("File not found");
 
@@ -192,21 +184,8 @@ public partial class FileService : IFileService
             throw new InvalidOperationException("Upload verification failed: File not found in storage");
         }
 
-        // Update file status
+        // Update file status — StorageQuotaInterceptor handles quota tracking
         file.Status = FileStatus.Confirmed;
-
-        // Get project owner and update their quota
-        var ownerUserProject = file.Project.UserProjects
-            .FirstOrDefault(up => up.Role == ProjectRole.Owner);
-
-        if (ownerUserProject != null)
-        {
-            var ownerUser = await _context.Users.FindAsync(ownerUserProject.UserId);
-            if (ownerUser != null)
-            {
-                ownerUser.StorageUsedBytes += file.FileSizeBytes;
-            }
-        }
 
         await _context.SaveChangesAsync();
 
@@ -306,7 +285,6 @@ public partial class FileService : IFileService
     {
         var file = await _context.Files
             .Include(f => f.Project)
-                .ThenInclude(p => p.UserProjects)
             .Include(f => f.UploadedBy)
             .FirstOrDefaultAsync(f => f.Id == fileId) ?? throw new KeyNotFoundException("File not found");
 
@@ -324,19 +302,7 @@ public partial class FileService : IFileService
             // Continue with database deletion even if R2 deletion fails
         }
 
-        // Update owner's quota (only if file was confirmed)
-        if (file.Status == FileStatus.Confirmed)
-        {
-            var ownerUserProject = file.Project.UserProjects
-                .FirstOrDefault(up => up.Role == ProjectRole.Owner);
-
-            if (ownerUserProject != null)
-            {
-                var ownerUser = await _context.Users.FindAsync(ownerUserProject.UserId);
-                ownerUser?.StorageUsedBytes = Math.Max(0, ownerUser.StorageUsedBytes - file.FileSizeBytes);
-            }
-        }
-
+        // StorageQuotaInterceptor handles quota tracking on delete
         _context.Files.Remove(file);
         await _context.SaveChangesAsync();
 
@@ -633,7 +599,7 @@ public partial class FileService : IFileService
             file.FileName,
             file.Path,
             file.ContentType,
-            file.FileSizeBytes,
+            file.TotalByteSize,
             file.UploadedAt,
             new FileUploaderDto(
                 file.UploadedBy.Id,

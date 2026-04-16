@@ -134,6 +134,7 @@ public static class ServiceCollectionExtensions
         services.AddOpenApi();
         services.AddEndpointsApiExplorer();
 
+        services.AddExceptionHandler<Exceptions.StorageQuotaExceptionHandler>();
         services.AddProblemDetails(options =>
         {
             options.CustomizeProblemDetails = ctx =>

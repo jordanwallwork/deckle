@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { Avatar, Card, Badge, Button } from '$lib/components';
+  import { Avatar, Card, Badge, Button, UsernameLink } from '$lib/components';
 
   interface User {
     userId: string;
     name?: string;
     email: string;
+    username?: string;
     pictureUrl?: string;
     role: 'Owner' | 'Collaborator';
     isPending: boolean;
@@ -73,10 +74,8 @@
         <div class="user-info">
           <Avatar src={user.pictureUrl} name={user.name || user.email} size="md" />
           <div class="user-details">
-            <div class="user-name">{user.name || user.email}</div>
-            {#if user.name}
-              <div class="user-email">{user.email}</div>
-            {/if}
+            <div class="user-name">{user.name || user.username || user.email}</div>
+            <UsernameLink username={user.username} />
           </div>
         </div>
         <div class="badges">
@@ -147,10 +146,6 @@
     color: var(--color-text);
   }
 
-  .user-email {
-    font-size: 0.875rem;
-    color: var(--color-text-secondary);
-  }
 
   @media (max-width: 768px) {
     .user-item {

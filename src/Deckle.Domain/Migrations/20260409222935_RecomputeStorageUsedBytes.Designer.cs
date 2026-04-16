@@ -3,6 +3,7 @@ using System;
 using Deckle.Domain.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Deckle.Domain.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409222935_RecomputeStorageUsedBytes")]
+    partial class RecomputeStorageUsedBytes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,8 +33,8 @@ namespace Deckle.Domain.Migrations
 
                     b.Property<string>("ComponentType")
                         .IsRequired()
-                        .HasMaxLength(21)
-                        .HasColumnType("character varying(21)");
+                        .HasMaxLength(13)
+                        .HasColumnType("character varying(13)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -384,6 +387,43 @@ namespace Deckle.Domain.Migrations
                     b.ToTable("UserProjects");
                 });
 
+            modelBuilder.Entity("Deckle.Domain.Entities.Card", b =>
+                {
+                    b.HasBaseType("Deckle.Domain.Entities.Component");
+
+                    b.Property<string>("BackDesign")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DataSourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FrontDesign")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Horizontal")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("boolean")
+                        .HasColumnName("Horizontal");
+
+                    b.Property<string>("Shape")
+                        .IsRequired()
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Size")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("TotalByteSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.HasIndex("DataSourceId");
+
+                    b.HasDiscriminator().HasValue("Card");
+                });
+
             modelBuilder.Entity("Deckle.Domain.Entities.Dice", b =>
                 {
                     b.HasBaseType("Deckle.Domain.Entities.Component");
@@ -406,18 +446,42 @@ namespace Deckle.Domain.Migrations
                     b.HasDiscriminator().HasValue("Dice");
                 });
 
-            modelBuilder.Entity("Deckle.Domain.Entities.EditableComponent", b =>
+            modelBuilder.Entity("Deckle.Domain.Entities.GameBoard", b =>
                 {
                     b.HasBaseType("Deckle.Domain.Entities.Component");
 
                     b.Property<string>("BackDesign")
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("CustomHeightMm")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int?>("CustomHorizontalFolds")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CustomVerticalFolds")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("CustomWidthMm")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<Guid?>("DataSourceId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("FrontDesign")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Horizontal")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("boolean")
+                        .HasColumnName("Horizontal");
+
+                    b.Property<string>("PresetSize")
                         .HasColumnType("text");
 
                     b.Property<string>("Shape")
                         .IsRequired()
+                        .ValueGeneratedOnUpdateSometimes()
                         .HasColumnType("jsonb");
 
                     b.Property<long>("TotalByteSize")
@@ -425,7 +489,84 @@ namespace Deckle.Domain.Migrations
                         .HasColumnType("bigint")
                         .HasDefaultValue(0L);
 
-                    b.HasDiscriminator().HasValue("EditableComponent");
+                    b.HasIndex("DataSourceId");
+
+                    b.ToTable("Components", t =>
+                        {
+                            t.Property("BackDesign")
+                                .HasColumnName("GameBoard_BackDesign");
+
+                            t.Property("DataSourceId")
+                                .HasColumnName("GameBoard_DataSourceId");
+
+                            t.Property("FrontDesign")
+                                .HasColumnName("GameBoard_FrontDesign");
+                        });
+
+                    b.HasDiscriminator().HasValue("GameBoard");
+                });
+
+            modelBuilder.Entity("Deckle.Domain.Entities.PlayerMat", b =>
+                {
+                    b.HasBaseType("Deckle.Domain.Entities.Component");
+
+                    b.Property<string>("BackDesign")
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("CustomHeightMm")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal?>("CustomWidthMm")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<Guid?>("DataSourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FrontDesign")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Horizontal")
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("boolean")
+                        .HasColumnName("Horizontal");
+
+                    b.Property<string>("PresetSize")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Shape")
+                        .IsRequired()
+                        .ValueGeneratedOnUpdateSometimes()
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("TotalByteSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.HasIndex("DataSourceId");
+
+                    b.ToTable("Components", t =>
+                        {
+                            t.Property("BackDesign")
+                                .HasColumnName("PlayerMat_BackDesign");
+
+                            t.Property("CustomHeightMm")
+                                .HasColumnName("PlayerMat_CustomHeightMm");
+
+                            t.Property("CustomWidthMm")
+                                .HasColumnName("PlayerMat_CustomWidthMm");
+
+                            t.Property("DataSourceId")
+                                .HasColumnName("PlayerMat_DataSourceId");
+
+                            t.Property("FrontDesign")
+                                .HasColumnName("PlayerMat_FrontDesign");
+
+                            t.Property("PresetSize")
+                                .HasColumnName("PlayerMat_PresetSize");
+                        });
+
+                    b.HasDiscriminator().HasValue("PlayerMat");
                 });
 
             modelBuilder.Entity("Deckle.Domain.Entities.GoogleSheetsDataSource", b =>
@@ -471,106 +612,6 @@ namespace Deckle.Domain.Migrations
                         .HasColumnName("JsonData");
 
                     b.HasDiscriminator().HasValue("Spreadsheet");
-                });
-
-            modelBuilder.Entity("Deckle.Domain.Entities.Card", b =>
-                {
-                    b.HasBaseType("Deckle.Domain.Entities.EditableComponent");
-
-                    b.Property<Guid?>("DataSourceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("Horizontal")
-                        .ValueGeneratedOnUpdateSometimes()
-                        .HasColumnType("boolean")
-                        .HasColumnName("Horizontal");
-
-                    b.Property<string>("Size")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasIndex("DataSourceId");
-
-                    b.HasDiscriminator().HasValue("Card");
-                });
-
-            modelBuilder.Entity("Deckle.Domain.Entities.GameBoard", b =>
-                {
-                    b.HasBaseType("Deckle.Domain.Entities.EditableComponent");
-
-                    b.Property<decimal?>("CustomHeightMm")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<int?>("CustomHorizontalFolds")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("CustomVerticalFolds")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("CustomWidthMm")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<Guid?>("DataSourceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("Horizontal")
-                        .ValueGeneratedOnUpdateSometimes()
-                        .HasColumnType("boolean")
-                        .HasColumnName("Horizontal");
-
-                    b.Property<string>("PresetSize")
-                        .HasColumnType("text");
-
-                    b.HasIndex("DataSourceId");
-
-                    b.ToTable("Components", t =>
-                        {
-                            t.Property("DataSourceId")
-                                .HasColumnName("GameBoard_DataSourceId");
-                        });
-
-                    b.HasDiscriminator().HasValue("GameBoard");
-                });
-
-            modelBuilder.Entity("Deckle.Domain.Entities.PlayerMat", b =>
-                {
-                    b.HasBaseType("Deckle.Domain.Entities.EditableComponent");
-
-                    b.Property<decimal?>("CustomHeightMm")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<decimal?>("CustomWidthMm")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<Guid?>("DataSourceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("Horizontal")
-                        .ValueGeneratedOnUpdateSometimes()
-                        .HasColumnType("boolean")
-                        .HasColumnName("Horizontal");
-
-                    b.Property<string>("PresetSize")
-                        .HasColumnType("text");
-
-                    b.HasIndex("DataSourceId");
-
-                    b.ToTable("Components", t =>
-                        {
-                            t.Property("CustomHeightMm")
-                                .HasColumnName("PlayerMat_CustomHeightMm");
-
-                            t.Property("CustomWidthMm")
-                                .HasColumnName("PlayerMat_CustomWidthMm");
-
-                            t.Property("DataSourceId")
-                                .HasColumnName("PlayerMat_DataSourceId");
-
-                            t.Property("PresetSize")
-                                .HasColumnName("PlayerMat_PresetSize");
-                        });
-
-                    b.HasDiscriminator().HasValue("PlayerMat");
                 });
 
             modelBuilder.Entity("Deckle.Domain.Entities.Component", b =>
@@ -656,16 +697,6 @@ namespace Deckle.Domain.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Deckle.Domain.Entities.SampleDataSource", b =>
-                {
-                    b.HasOne("Deckle.Domain.Entities.DataSource", "SourceDataSource")
-                        .WithMany()
-                        .HasForeignKey("SourceDataSourceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("SourceDataSource");
-                });
-
             modelBuilder.Entity("Deckle.Domain.Entities.Card", b =>
                 {
                     b.HasOne("Deckle.Domain.Entities.DataSource", "DataSource")
@@ -694,6 +725,16 @@ namespace Deckle.Domain.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("DataSource");
+                });
+
+            modelBuilder.Entity("Deckle.Domain.Entities.SampleDataSource", b =>
+                {
+                    b.HasOne("Deckle.Domain.Entities.DataSource", "SourceDataSource")
+                        .WithMany()
+                        .HasForeignKey("SourceDataSourceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("SourceDataSource");
                 });
 
             modelBuilder.Entity("Deckle.Domain.Entities.FileDirectory", b =>

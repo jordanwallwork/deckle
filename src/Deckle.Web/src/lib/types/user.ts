@@ -58,6 +58,7 @@ export interface PublicUserProfile {
 export interface AdminUser {
   id: string;
   email: string;
+  username?: string;
   name?: string;
   pictureUrl?: string;
   role: string;

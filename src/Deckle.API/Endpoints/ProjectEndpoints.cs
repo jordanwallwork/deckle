@@ -179,6 +179,20 @@ public static class ProjectEndpoints
         })
         .WithName("RemoveUserFromProject");
 
+        group.MapGet("{id:guid}/storage", async (Guid id, HttpContext httpContext, IProjectService projectService) =>
+        {
+            var userId = httpContext.GetUserId();
+            var storage = await projectService.GetProjectStorageAsync(userId, id);
+
+            if (storage == null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(storage);
+        })
+        .WithName("GetProjectStorage");
+
         group.MapDelete("{id:guid}", async (Guid id, HttpContext httpContext, IProjectService projectService) =>
         {
             var userId = httpContext.GetUserId();

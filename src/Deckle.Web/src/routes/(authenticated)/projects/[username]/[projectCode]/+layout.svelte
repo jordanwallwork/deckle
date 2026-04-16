@@ -32,6 +32,7 @@
   // Admins/Owners: All tabs including Settings
   const tabs = $derived([
     { name: 'Components', path: `${projectUrlBase}/components` },
+    { name: 'Tabletop', path: `${projectUrlBase}/tabletop` },
     ...(data.project.role !== 'Viewer'
       ? [
           { name: 'Data Sources', path: `${projectUrlBase}/data-sources` },

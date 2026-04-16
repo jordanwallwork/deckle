@@ -1,0 +1,102 @@
+// Tabletop engine state model (Phase 1: Free Mode Sandbox)
+//
+// Follows an ECS-inspired shape: entities are plain serializable records
+// referencing component templates (designed in Deckle), grouped into zones.
+// The state is presentation-free so it can later be handed off to
+// boardgame.io for Phase 3.
+
+/**
+ * Kinds of zone layouts the tabletop supports.
+ * - freeform: entities positioned absolutely by (x, y) within the zone
+ * - grid:     entities snap to a cell grid
+ * - stack:    entities are piled; only the top is visible, with a count badge
+ */
+export type ZoneType = 'freeform' | 'grid' | 'stack';
+
+export interface ZoneBase {
+  id: string;
+  name: string;
+  type: ZoneType;
+  /** World-space position of the zone on the tabletop canvas (px). */
+  x: number;
+  y: number;
+  /** Zone dimensions (px). */
+  width: number;
+  height: number;
+  /**
+   * Ordered entity instance IDs in the zone. Order is meaningful for
+   * stacks (top = last) and grids (cell index).
+   */
+  entityIds: string[];
+}
+
+export interface FreeformZone extends ZoneBase {
+  type: 'freeform';
+}
+
+export interface GridZone extends ZoneBase {
+  type: 'grid';
+  /** Cell dimensions in px. Entities snap to the nearest cell. */
+  cellWidth: number;
+  cellHeight: number;
+  /** Number of columns; rows grow as needed. */
+  columns: number;
+}
+
+export interface StackZone extends ZoneBase {
+  type: 'stack';
+  /** When true, the stack renders the back face of entities by default. */
+  faceDown: boolean;
+}
+
+export type Zone = FreeformZone | GridZone | StackZone;
+
+/**
+ * A single instance placed on the tabletop. Multiple entities may share
+ * the same templateId (e.g. one per data source row).
+ */
+export interface Entity {
+  /** Unique per instance. */
+  instanceId: string;
+  /** References a Deckle component definition (GameComponent.id). */
+  templateId: string;
+  /** Zone currently containing this entity. */
+  zoneId: string;
+  /** Position within the zone (px). Ignored by stack layouts. */
+  x: number;
+  y: number;
+  /** Rotation in degrees. */
+  rotation: number;
+  /** Whether the back face is currently shown. */
+  isFlipped: boolean;
+  /**
+   * Merge data for this instance (populated from the linked data source).
+   * Null if the template has no data source.
+   */
+  mergeData: Record<string, string> | null;
+  /** Optional human-readable label; usually derived from mergeData or template. */
+  label?: string;
+}
+
+export interface TabletopState {
+  entities: Record<string, Entity>;
+  zones: Record<string, Zone>;
+  /** Rendering order of zones on the canvas. */
+  zoneOrder: string[];
+  /** Selected entity instance (for keyboard shortcuts / context menus). */
+  selectedEntityId: string | null;
+  /** Selected zone (for zone-level operations like shuffle). */
+  selectedZoneId: string | null;
+}
+
+/** Minimal template metadata cached alongside state so renderers can draw entities. */
+export interface EntityTemplate {
+  id: string;
+  name: string;
+  type: 'Card' | 'Dice' | 'GameBoard' | 'PlayerMat';
+  /** Pixel dimensions for the rendered component (without bleed). */
+  widthPx: number;
+  heightPx: number;
+  /** For dice — they don't have widthPx/heightPx from the entity. */
+  isEditable: boolean;
+}

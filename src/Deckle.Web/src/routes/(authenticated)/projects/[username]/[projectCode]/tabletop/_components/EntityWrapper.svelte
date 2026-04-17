@@ -1,17 +1,15 @@
 <script lang="ts">
   import type { Entity } from '$lib/tabletop';
   import { getTabletopApi } from '$lib/tabletop';
+  import * as ops from '$lib/tabletop/operations';
+  import { getContext } from 'svelte';
   import EntityView from './EntityView.svelte';
 
   let {
     entity,
-    overrideX,
-    overrideY,
     disableDrag = false
   }: {
     entity: Entity;
-    overrideX?: number;
-    overrideY?: number;
     disableDrag?: boolean;
   } = $props();
 
@@ -19,8 +17,12 @@
   const template = $derived(store.templates[entity.templateId]);
   const isSelected = $derived(store.state.selectedEntityId === entity.instanceId);
 
-  const x = $derived(overrideX ?? entity.x);
-  const y = $derived(overrideY ?? entity.y);
+  // Canvas geometry context — provided by <Tabletop>. Reading through a
+  // getter keeps the values reactive without prop drilling.
+  const canvas = getContext<{
+    readonly zoom: number;
+    readonly surfaceEl: HTMLElement | null;
+  }>('tabletopCanvas');
 
   // ─── Scale entity to fit reasonable tabletop size ─────────────────────
   // Component designs can be very large (at print DPI). We scale them
@@ -40,14 +42,25 @@
 
   // ─── Pointer drag ─────────────────────────────────────────────────────
   let isDragging = $state(false);
+  let didMove = false;
+  let checkpointSaved = false;
   let dragStartX = 0;
   let dragStartY = 0;
   let entityStartX = 0;
   let entityStartY = 0;
 
+  const DRAG_THRESHOLD_PX = 3;
+
   function onPointerDown(e: PointerEvent) {
+    // Right-click: select the entity so the context menu has a target,
+    // but don't start a drag.
+    if (e.button === 2) {
+      e.stopPropagation();
+      store.selectEntity(entity.instanceId);
+      return;
+    }
     if (disableDrag) return;
-    if (e.button !== 0) return; // left-click only
+    if (e.button !== 0) return;
 
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -55,28 +68,35 @@
     store.selectEntity(entity.instanceId);
 
     isDragging = true;
+    didMove = false;
+    checkpointSaved = false;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     entityStartX = entity.x;
     entityStartY = entity.y;
-
-    // Save checkpoint for undo at drag-start, not per-pixel
-    store.saveCheckpoint();
   }
 
   function onPointerMove(e: PointerEvent) {
     if (!isDragging) return;
 
-    // Account for canvas zoom: the parent uses CSS scale, so we need to
-    // convert screen-space deltas to canvas-space.
-    const canvasEl = (e.target as HTMLElement).closest('.canvas-surface');
-    const zoom = canvasEl
-      ? parseFloat(getComputedStyle(canvasEl).transform.split(',')[0]?.replace('matrix(', '') || '1')
-      : 1;
-    const effectiveZoom = isNaN(zoom) || zoom === 0 ? 1 : zoom;
+    const zoom = canvas?.zoom ?? 1;
+    const dxScreen = e.clientX - dragStartX;
+    const dyScreen = e.clientY - dragStartY;
 
-    const dx = (e.clientX - dragStartX) / effectiveZoom;
-    const dy = (e.clientY - dragStartY) / effectiveZoom;
+    if (!didMove && Math.hypot(dxScreen, dyScreen) < DRAG_THRESHOLD_PX) {
+      // Suppress until we've moved past the click threshold; avoids
+      // creating undo entries for simple clicks.
+      return;
+    }
+
+    if (!checkpointSaved) {
+      store.saveCheckpoint();
+      checkpointSaved = true;
+    }
+    didMove = true;
+
+    const dx = dxScreen / zoom;
+    const dy = dyScreen / zoom;
 
     store.moveEntityTransient(entity.instanceId, entityStartX + dx, entityStartY + dy);
   }
@@ -84,6 +104,25 @@
   function onPointerUp(e: PointerEvent) {
     if (!isDragging) return;
     isDragging = false;
+
+    if (!didMove) return;
+
+    // If the drop point is inside a different zone, commit the move
+    // into that zone. This is the cross-zone drop behaviour.
+    const surfaceEl = canvas?.surfaceEl;
+    if (surfaceEl) {
+      const zoom = canvas?.zoom ?? 1;
+      const rect = surfaceEl.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left) / zoom;
+      const worldY = (e.clientY - rect.top) / zoom;
+      const targetZone = ops.findZoneAtPoint(store.state, worldX, worldY);
+      if (targetZone && targetZone.id !== entity.zoneId) {
+        // Convert drop point to zone-local coords, centered on the entity.
+        const localX = worldX - targetZone.x - displayWidth / 2;
+        const localY = worldY - targetZone.y - displayHeight / 2;
+        store.moveEntityToZone(entity.instanceId, targetZone.id, { x: localX, y: localY });
+      }
+    }
   }
 
   function handleClick(e: MouseEvent) {
@@ -98,8 +137,8 @@
   class:selected={isSelected}
   class:dragging={isDragging}
   style="
-    left: {x}px;
-    top: {y}px;
+    left: {entity.x}px;
+    top: {entity.y}px;
     width: {displayWidth}px;
     height: {displayHeight}px;
     transform: rotate({entity.rotation}deg);
@@ -108,6 +147,7 @@
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}
+  onpointercancel={onPointerUp}
 >
   <div
     class="entity-flip-container"

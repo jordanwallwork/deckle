@@ -25,6 +25,18 @@
   setContext('projectId', projectId);
   setContext('tabletopComponents', components);
 
+  // Canvas geometry shared with entity drag handlers. Exposed as getters so
+  // consumers see live zoom / DOM-ref values without re-subscribing.
+  let surfaceEl: HTMLDivElement | null = $state(null);
+  setContext('tabletopCanvas', {
+    get zoom() {
+      return zoom;
+    },
+    get surfaceEl() {
+      return surfaceEl;
+    }
+  });
+
   // ─── Context menu ──────────────────────────────────────────────────────
   let contextMenu = $state<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
 
@@ -117,16 +129,16 @@
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
+    // Accept both Ctrl and Cmd for undo/redo — works on both platforms
+    // without relying on deprecated navigator.platform detection.
+    const modKey = e.ctrlKey || e.metaKey;
 
-    // Undo / Redo
-    if (ctrlKey && e.key === 'z' && !e.shiftKey) {
+    if (modKey && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();
       store.undo();
       return;
     }
-    if (ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    if (modKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
       e.preventDefault();
       store.redo();
       return;
@@ -198,6 +210,7 @@
     aria-label="Tabletop sandbox"
   >
     <div
+      bind:this={surfaceEl}
       class="canvas-surface"
       style="transform: translate({panX}px, {panY}px) scale({zoom}); transform-origin: 0 0;"
     >

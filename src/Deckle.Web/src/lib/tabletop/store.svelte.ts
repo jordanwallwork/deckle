@@ -24,23 +24,34 @@ export function createTabletopStore(
     state: structuredClone(initialState)
   });
 
-  // Undo/redo stacks hold plain snapshots (detached from reactivity).
-  let past: TabletopState[] = [];
-  let future: TabletopState[] = [];
+  // Undo/redo stacks. Wrapped in $state so UI derivations
+  // (canUndo/canRedo) react to pushes/pops.
+  const history = $state<{ past: TabletopState[]; future: TabletopState[] }>({
+    past: [],
+    future: []
+  });
 
-  // Derived flags for the UI.
-  const canUndo = $derived(past.length > 0);
-  const canRedo = $derived(future.length > 0);
+  const canUndo = $derived(history.past.length > 0);
+  const canRedo = $derived(history.future.length > 0);
+
+  function snapshotState(): TabletopState {
+    return structuredClone($state.snapshot(store.state)) as TabletopState;
+  }
+
+  function pushHistory(): void {
+    history.past.push(snapshotState());
+    if (history.past.length > MAX_HISTORY) history.past.shift();
+    history.future.length = 0;
+  }
 
   /**
    * Apply a mutation, saving the pre-mutation state to history.
    * Use `apply` for user-initiated actions that should be undoable.
-   * Use `applyTransient` for drag updates that will be committed via `commit`.
+   * Use `applyTransient` for drag updates; wrap those in saveCheckpoint()
+   * at the start of the drag to get a single history entry per drag.
    */
   function apply(mutator: (state: TabletopState) => void): void {
-    past.push(structuredClone($state.snapshot(store.state)) as TabletopState);
-    if (past.length > MAX_HISTORY) past.shift();
-    future = [];
+    pushHistory();
     mutator(store.state);
   }
 
@@ -54,28 +65,31 @@ export function createTabletopStore(
    * a transient sequence (e.g. on drag start) so undo returns to before it.
    */
   function saveCheckpoint(): void {
-    past.push(structuredClone($state.snapshot(store.state)) as TabletopState);
-    if (past.length > MAX_HISTORY) past.shift();
-    future = [];
+    pushHistory();
+  }
+
+  /** Discard the most recent history entry without mutating state. */
+  function dropCheckpoint(): void {
+    history.past.pop();
   }
 
   function undo(): void {
-    if (past.length === 0) return;
-    const previous = past.pop()!;
-    future.push(structuredClone($state.snapshot(store.state)) as TabletopState);
+    if (history.past.length === 0) return;
+    const previous = history.past.pop()!;
+    history.future.push(snapshotState());
     store.state = previous;
   }
 
   function redo(): void {
-    if (future.length === 0) return;
-    const next = future.pop()!;
-    past.push(structuredClone($state.snapshot(store.state)) as TabletopState);
+    if (history.future.length === 0) return;
+    const next = history.future.pop()!;
+    history.past.push(snapshotState());
     store.state = next;
   }
 
   function reset(newState: TabletopState): void {
-    past = [];
-    future = [];
+    history.past.length = 0;
+    history.future.length = 0;
     store.state = structuredClone(newState);
   }
 
@@ -159,6 +173,7 @@ export function createTabletopStore(
     redo,
     reset,
     saveCheckpoint,
+    dropCheckpoint,
 
     // Operations
     moveEntity,

@@ -102,7 +102,33 @@ export function moveEntityToZone(
     // stack — positions are derived
     entity.x = 0;
     entity.y = 0;
+    // Entities added to a face-down stack inherit its face-down state.
+    entity.isFlipped = targetZone.faceDown;
   }
+}
+
+/**
+ * Find the zone whose rectangle contains a world-space point, or null if none.
+ * If zones overlap, returns the one drawn on top (last in zoneOrder).
+ */
+export function findZoneAtPoint(
+  state: TabletopState,
+  worldX: number,
+  worldY: number
+): Zone | null {
+  for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
+    const zone = state.zones[state.zoneOrder[i]];
+    if (!zone) continue;
+    if (
+      worldX >= zone.x &&
+      worldX < zone.x + zone.width &&
+      worldY >= zone.y &&
+      worldY < zone.y + zone.height
+    ) {
+      return zone;
+    }
+  }
+  return null;
 }
 
 /** Toggle an entity's flipped state (front ↔ back). */

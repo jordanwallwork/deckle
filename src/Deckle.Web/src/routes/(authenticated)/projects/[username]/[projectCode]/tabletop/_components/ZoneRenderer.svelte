@@ -8,10 +8,23 @@
   const store = getTabletopApi();
   const isSelected = $derived(store.state.selectedZoneId === zone.id);
 
+  function isZoneBackgroundEvent(e: Event): boolean {
+    const target = e.target as HTMLElement;
+    return target === e.currentTarget || target.classList.contains('zone-bg');
+  }
+
   function handleZoneClick(e: MouseEvent) {
     e.stopPropagation();
-    // Only select zone itself if not clicking an entity
-    if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('zone-bg')) {
+    if (isZoneBackgroundEvent(e)) {
+      store.selectZone(zone.id);
+    }
+  }
+
+  function handleZoneContextMenu(e: MouseEvent) {
+    // Select the zone before the canvas handler builds the context menu.
+    // Don't stopPropagation — the canvas listener is what actually opens
+    // the menu.
+    if (isZoneBackgroundEvent(e)) {
       store.selectZone(zone.id);
     }
   }
@@ -29,14 +42,6 @@
       ? zoneEntities[zoneEntities.length - 1]
       : null
   );
-
-  // Grid: compute cell positions for entities
-  function gridCellPos(index: number): { x: number; y: number } {
-    if (zone.type !== 'grid') return { x: 0, y: 0 };
-    const col = index % zone.columns;
-    const row = Math.floor(index / zone.columns);
-    return { x: col * zone.cellWidth, y: row * zone.cellHeight };
-  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -46,6 +51,7 @@
   class:selected={isSelected}
   style="left: {zone.x}px; top: {zone.y}px; width: {zone.width}px; height: {zone.height}px;"
   onclick={handleZoneClick}
+  oncontextmenu={handleZoneContextMenu}
 >
   <div class="zone-label">{zone.name}</div>
   <div class="zone-bg"></div>
@@ -80,9 +86,8 @@
       {/each}
     </svg>
 
-    {#each zoneEntities as entity, idx (entity.instanceId)}
-      {@const cell = gridCellPos(idx)}
-      <EntityWrapper {entity} overrideX={cell.x} overrideY={cell.y} />
+    {#each zoneEntities as entity (entity.instanceId)}
+      <EntityWrapper {entity} />
     {/each}
 
   {:else if zone.type === 'stack'}

@@ -94,9 +94,13 @@ export interface EntityTemplate {
   id: string;
   name: string;
   type: 'Card' | 'Dice' | 'GameBoard' | 'PlayerMat';
-  /** Pixel dimensions for the rendered component (without bleed). */
+  /** Design-space pixel dimensions (at the component's DPI), including bleed. */
   widthPx: number;
   heightPx: number;
+  /** Physical dimensions in mm (including bleed). Used to render entities at
+   *  consistent real-world scale across component types. */
+  widthMm: number;
+  heightMm: number;
   /** For dice — they don't have widthPx/heightPx from the entity. */
   isEditable: boolean;
 }

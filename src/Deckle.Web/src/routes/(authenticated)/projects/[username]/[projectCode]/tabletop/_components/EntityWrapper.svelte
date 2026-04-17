@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Entity } from '$lib/tabletop';
   import { getTabletopApi } from '$lib/tabletop';
+  import { getTemplateDisplaySize } from '$lib/tabletop/initialization';
   import * as ops from '$lib/tabletop/operations';
   import { getContext } from 'svelte';
   import EntityView from './EntityView.svelte';
@@ -24,21 +25,18 @@
     readonly surfaceEl: HTMLElement | null;
   }>('tabletopCanvas');
 
-  // ─── Scale entity to fit reasonable tabletop size ─────────────────────
-  // Component designs can be very large (at print DPI). We scale them
-  // down so they feel like physical game pieces on the canvas.
-  const MAX_ENTITY_WIDTH = 180;
-  const MAX_ENTITY_HEIGHT = 260;
+  // ─── Render entity at physical scale ──────────────────────────────────
+  // Display size is derived from the template's real-world mm dimensions
+  // so that cards, dice and player mats stay in proportion to each other.
+  // `renderScale` converts the design's native DPI pixels down to those
+  // display pixels.
+  const displaySize = $derived(template ? getTemplateDisplaySize(template) : null);
+  const displayWidth = $derived(displaySize ? displaySize.width : 100);
+  const displayHeight = $derived(displaySize ? displaySize.height : 100);
 
-  const renderScale = $derived.by(() => {
-    if (!template) return 1;
-    const scaleX = MAX_ENTITY_WIDTH / template.widthPx;
-    const scaleY = MAX_ENTITY_HEIGHT / template.heightPx;
-    return Math.min(scaleX, scaleY, 1);
-  });
-
-  const displayWidth = $derived(template ? template.widthPx * renderScale : 100);
-  const displayHeight = $derived(template ? template.heightPx * renderScale : 100);
+  const renderScale = $derived(
+    template && template.widthPx > 0 ? displayWidth / template.widthPx : 1
+  );
 
   // ─── Pointer drag ─────────────────────────────────────────────────────
   let isDragging = $state(false);

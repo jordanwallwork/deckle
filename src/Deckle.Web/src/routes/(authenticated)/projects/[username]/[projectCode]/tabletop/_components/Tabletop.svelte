@@ -5,8 +5,11 @@
   import { setContext } from 'svelte';
   import ZoneRenderer from './ZoneRenderer.svelte';
   import TabletopToolbar from './TabletopToolbar.svelte';
+  import ComponentSidebar from './ComponentSidebar.svelte';
   import ContextMenu from '$lib/components/ContextMenu.svelte';
   import type { ContextMenuItem } from '$lib/components/ContextMenu.svelte';
+  import * as ops from '$lib/tabletop/operations';
+  import { getTemplateDisplaySize } from '$lib/tabletop/initialization';
 
   let {
     initialState,
@@ -28,14 +31,20 @@
   // Canvas geometry shared with entity drag handlers. Exposed as getters so
   // consumers see live zoom / DOM-ref values without re-subscribing.
   let surfaceEl: HTMLDivElement | null = $state(null);
+  let sidebarEl: HTMLElement | null = $state(null);
   setContext('tabletopCanvas', {
     get zoom() {
       return zoom;
     },
     get surfaceEl() {
       return surfaceEl;
+    },
+    get sidebarEl() {
+      return sidebarEl;
     }
   });
+
+  let sidebarCollapsed = $state(false);
 
   // ─── Context menu ──────────────────────────────────────────────────────
   let contextMenu = $state<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
@@ -194,6 +203,48 @@
       store.selectZone(null);
     }
   }
+
+  // ─── Drop: spawn from sidebar ──────────────────────────────────────────
+  let isDropTarget = $state(false);
+
+  function handleCanvasDragOver(e: DragEvent) {
+    if (!e.dataTransfer?.types.includes('application/x-deckle-template')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    isDropTarget = true;
+  }
+
+  function handleCanvasDragLeave(e: DragEvent) {
+    // Only clear when leaving the canvas itself, not a child.
+    if (e.target === e.currentTarget) {
+      isDropTarget = false;
+    }
+  }
+
+  function handleCanvasDrop(e: DragEvent) {
+    isDropTarget = false;
+    const templateId = e.dataTransfer?.getData('application/x-deckle-template');
+    if (!templateId || !surfaceEl) return;
+    e.preventDefault();
+
+    const rect = surfaceEl.getBoundingClientRect();
+    const worldX = (e.clientX - rect.left) / zoom;
+    const worldY = (e.clientY - rect.top) / zoom;
+
+    const template = store.templates[templateId];
+    if (!template) return;
+
+    const targetZone = ops.findZoneAtPoint(store.state, worldX, worldY)
+      ?? store.state.zones[store.state.zoneOrder[0]];
+    if (!targetZone) return;
+
+    // Center the entity on the drop point (freeform/grid); stack zones ignore xy.
+    const { width: displayW, height: displayH } = getTemplateDisplaySize(template);
+    const localX = worldX - targetZone.x - displayW / 2;
+    const localY = worldY - targetZone.y - displayH / 2;
+
+    store.spawnEntity(templateId, targetZone.id, localX, localY);
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -201,25 +252,35 @@
 <div class="tabletop-container">
   <TabletopToolbar {zoom} onZoomChange={(z) => (zoom = z)} />
 
-  <div
-    class="canvas"
-    oncontextmenu={handleCanvasContextMenu}
-    onclick={handleCanvasClick}
-    onwheel={handleWheel}
-    role="application"
-    aria-label="Tabletop sandbox"
-  >
+  <div class="tabletop-body">
+    <div class="sidebar-wrapper" bind:this={sidebarEl}>
+      <ComponentSidebar {components} bind:collapsed={sidebarCollapsed} />
+    </div>
+
     <div
-      bind:this={surfaceEl}
-      class="canvas-surface"
-      style="transform: translate({panX}px, {panY}px) scale({zoom}); transform-origin: 0 0;"
+      class="canvas"
+      class:drop-target={isDropTarget}
+      oncontextmenu={handleCanvasContextMenu}
+      onclick={handleCanvasClick}
+      onwheel={handleWheel}
+      ondragover={handleCanvasDragOver}
+      ondragleave={handleCanvasDragLeave}
+      ondrop={handleCanvasDrop}
+      role="application"
+      aria-label="Tabletop sandbox"
     >
-      {#each store.state.zoneOrder as zoneId (zoneId)}
-        {@const zone = store.state.zones[zoneId]}
-        {#if zone}
-          <ZoneRenderer {zone} />
-        {/if}
-      {/each}
+      <div
+        bind:this={surfaceEl}
+        class="canvas-surface"
+        style="transform: translate({panX}px, {panY}px) scale({zoom}); transform-origin: 0 0;"
+      >
+        {#each store.state.zoneOrder as zoneId (zoneId)}
+          {@const zone = store.state.zones[zoneId]}
+          {#if zone}
+            <ZoneRenderer {zone} />
+          {/if}
+        {/each}
+      </div>
     </div>
   </div>
 
@@ -242,11 +303,28 @@
     background: #2a2d3a;
   }
 
+  .tabletop-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-wrapper {
+    display: flex;
+    flex-shrink: 0;
+  }
+
   .canvas {
     flex: 1;
     overflow: hidden;
     position: relative;
     cursor: default;
+    transition: box-shadow 0.15s;
+  }
+
+  .canvas.drop-target {
+    box-shadow: inset 0 0 0 2px #3b82f6;
   }
 
   .canvas-surface {

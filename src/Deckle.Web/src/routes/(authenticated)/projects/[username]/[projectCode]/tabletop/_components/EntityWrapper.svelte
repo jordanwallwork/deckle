@@ -23,6 +23,7 @@
   const canvas = getContext<{
     readonly zoom: number;
     readonly surfaceEl: HTMLElement | null;
+    readonly sidebarEl: HTMLElement | null;
   }>('tabletopCanvas');
 
   // ─── Render entity at physical scale ──────────────────────────────────
@@ -104,6 +105,21 @@
     isDragging = false;
 
     if (!didMove) return;
+
+    // Drop onto sidebar = remove entity from the tabletop.
+    const sidebarEl = canvas?.sidebarEl;
+    if (sidebarEl) {
+      const rect = sidebarEl.getBoundingClientRect();
+      if (
+        e.clientX >= rect.left &&
+        e.clientX < rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY < rect.bottom
+      ) {
+        store.removeEntity(entity.instanceId);
+        return;
+      }
+    }
 
     // If the drop point is inside a different zone, commit the move
     // into that zone. This is the cross-zone drop behaviour.

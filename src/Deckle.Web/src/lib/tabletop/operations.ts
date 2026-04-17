@@ -3,7 +3,13 @@
 // (see store.svelte.ts). Keeping these outside the store means they stay
 // unit-testable and can be reused by the boardgame.io adapter in Phase 3.
 
-import type { GridZone, StackZone, TabletopState, Zone } from './types';
+import type { Entity, EntityTemplate, GridZone, StackZone, TabletopState, Zone } from './types';
+
+function makeId(): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `id-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+}
 
 function getEntity(state: TabletopState, instanceId: string) {
   const entity = state.entities[instanceId];
@@ -218,6 +224,59 @@ export function selectEntity(state: TabletopState, instanceId: string | null): v
 export function selectZone(state: TabletopState, zoneId: string | null): void {
   state.selectedZoneId = zoneId;
   if (zoneId !== null) {
+    state.selectedEntityId = null;
+  }
+}
+
+/**
+ * Spawn a new entity from a template into the target zone.
+ * Returns the new instance ID.
+ */
+export function spawnEntity(
+  state: TabletopState,
+  template: EntityTemplate,
+  targetZoneId: string,
+  x: number,
+  y: number
+): string {
+  const zone = getZone(state, targetZoneId);
+  const instanceId = makeId();
+
+  let entityX = 0;
+  let entityY = 0;
+  if (zone.type === 'freeform') {
+    entityX = x;
+    entityY = y;
+  } else if (zone.type === 'grid') {
+    const snapped = snapToGrid(zone, x, y);
+    entityX = snapped.x;
+    entityY = snapped.y;
+  }
+
+  const entity: Entity = {
+    instanceId,
+    templateId: template.id,
+    zoneId: targetZoneId,
+    x: entityX,
+    y: entityY,
+    rotation: 0,
+    isFlipped: zone.type === 'stack' ? (zone as StackZone).faceDown : false,
+    mergeData: null,
+    label: template.name
+  };
+
+  state.entities[instanceId] = entity;
+  zone.entityIds.push(instanceId);
+  return instanceId;
+}
+
+/** Remove an entity entirely from the tabletop. */
+export function removeEntity(state: TabletopState, instanceId: string): void {
+  const entity = getEntity(state, instanceId);
+  const zone = getZone(state, entity.zoneId);
+  zone.entityIds = zone.entityIds.filter((id) => id !== instanceId);
+  delete state.entities[instanceId];
+  if (state.selectedEntityId === instanceId) {
     state.selectedEntityId = null;
   }
 }

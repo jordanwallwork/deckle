@@ -146,6 +146,25 @@ export function createTabletopStore(
     apply((s) => ops.drawFromStack(s, stackZoneId, targetZoneId, x, y));
   }
 
+  function spawnEntity(
+    templateId: string,
+    zoneId: string,
+    x: number,
+    y: number
+  ): string | null {
+    const template = templates[templateId];
+    if (!template) return null;
+    let newId: string | null = null;
+    apply((s) => {
+      newId = ops.spawnEntity(s, template, zoneId, x, y);
+    });
+    return newId;
+  }
+
+  function removeEntity(instanceId: string): void {
+    apply((s) => ops.removeEntity(s, instanceId));
+  }
+
   // Selection is ephemeral — no history needed.
   function selectEntity(instanceId: string | null): void {
     applyTransient((s) => ops.selectEntity(s, instanceId));
@@ -186,6 +205,8 @@ export function createTabletopStore(
     setStackFaceDown,
     reorderInZone,
     drawFromStack,
+    spawnEntity,
+    removeEntity,
     selectEntity,
     selectZone
   };

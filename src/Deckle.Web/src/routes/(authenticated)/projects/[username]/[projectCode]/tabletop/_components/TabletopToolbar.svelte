@@ -1,7 +1,11 @@
 <script lang="ts">
   import { getTabletopApi } from '$lib/tabletop';
 
-  let { zoom, onZoomChange }: { zoom: number; onZoomChange: (z: number) => void } = $props();
+  let {
+    zoom,
+    onZoomChange,
+    onFitView
+  }: { zoom: number; onZoomChange: (z: number) => void; onFitView: () => void } = $props();
 
   const store = getTabletopApi();
 
@@ -52,6 +56,9 @@
     <button class="tool-btn" onclick={zoomOut} disabled={zoom <= 0.25} title="Zoom out">−</button>
     <button class="zoom-reset" onclick={resetZoom} title="Reset zoom">{zoomPercentage}%</button>
     <button class="tool-btn" onclick={zoomIn} disabled={zoom >= 3} title="Zoom in">+</button>
+    <button class="tool-btn reset-btn" onclick={onFitView} title="Fit all components to screen">
+      Reset
+    </button>
   </div>
 
   <div class="toolbar-group shortcuts">
@@ -120,6 +127,12 @@
 
   .zoom-reset {
     min-width: 3rem;
+    font-size: 0.75rem;
+  }
+
+  .reset-btn {
+    min-width: auto;
+    padding: 0.25rem 0.625rem;
     font-size: 0.75rem;
   }
 

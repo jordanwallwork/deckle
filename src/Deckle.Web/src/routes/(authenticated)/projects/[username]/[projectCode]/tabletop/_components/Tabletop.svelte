@@ -181,15 +181,50 @@
   }
 
   // ─── Canvas panning ────────────────────────────────────────────────────
+  let canvasEl: HTMLDivElement | null = $state(null);
   let panX = $state(0);
   let panY = $state(0);
   let zoom = $state(1);
 
+  function fitView() {
+    if (!canvasEl) return;
+    const zones = Object.values(store.state.zones);
+    if (zones.length === 0) {
+      zoom = 1;
+      panX = 0;
+      panY = 0;
+      return;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const zone of zones) {
+      if (zone.x < minX) minX = zone.x;
+      if (zone.y < minY) minY = zone.y;
+      if (zone.x + zone.width > maxX) maxX = zone.x + zone.width;
+      if (zone.y + zone.height > maxY) maxY = zone.y + zone.height;
+    }
+
+    const bboxWidth = maxX - minX;
+    const bboxHeight = maxY - minY;
+    const rect = canvasEl.getBoundingClientRect();
+    const padding = 40;
+    const availableWidth = Math.max(1, rect.width - padding * 2);
+    const availableHeight = Math.max(1, rect.height - padding * 2);
+
+    const fitZoom = Math.min(availableWidth / bboxWidth, availableHeight / bboxHeight);
+    zoom = Math.max(0.25, Math.min(3, fitZoom));
+    panX = rect.width / 2 - (minX + bboxWidth / 2) * zoom;
+    panY = rect.height / 2 - (minY + bboxHeight / 2) * zoom;
+  }
+
   function handleWheel(e: WheelEvent) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      zoom = Math.max(0.25, Math.min(3, zoom + delta));
+      const factor = Math.exp(-e.deltaY * 0.01);
+      zoom = Math.max(0.25, Math.min(3, zoom * factor));
     } else {
       panX -= e.deltaX;
       panY -= e.deltaY;
@@ -250,7 +285,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="tabletop-container">
-  <TabletopToolbar {zoom} onZoomChange={(z) => (zoom = z)} />
+  <TabletopToolbar {zoom} onZoomChange={(z) => (zoom = z)} onFitView={fitView} />
 
   <div class="tabletop-body">
     <div class="sidebar-wrapper" bind:this={sidebarEl}>
@@ -258,6 +293,7 @@
     </div>
 
     <div
+      bind:this={canvasEl}
       class="canvas"
       class:drop-target={isDropTarget}
       oncontextmenu={handleCanvasContextMenu}

@@ -1,7 +1,7 @@
 import { componentsApi, dataSourcesApi, ApiError } from '$lib/api';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
-import { hasDataSource, isEditableComponent } from '$lib/utils/componentTypes';
+import { hasDataSource } from '$lib/utils/componentTypes';
 import { parseDataRows } from '$lib/utils/mergeFields';
 
 export const load: PageServerLoad = async ({ parent, fetch }) => {
@@ -10,24 +10,22 @@ export const load: PageServerLoad = async ({ parent, fetch }) => {
 
     const components = await componentsApi.listByProject(project.id, fetch);
 
-    // For each component with a linked data source, fetch the rows.
-    const componentRows: Record<string, Record<string, string>[]> = {};
-    await Promise.all(
-      components.map(async (component) => {
-        if (hasDataSource(component) && component.dataSource) {
-          try {
-            const result = await dataSourcesApi.getData(component.dataSource.id, fetch);
-            if (result.data && result.data.length > 0) {
-              componentRows[component.id] = parseDataRows(result.data);
-            }
-          } catch (err) {
-            console.error(
-              `Failed to load data source for component ${component.id}:`,
-              err
-            );
-          }
+    // Load data-source rows in parallel so dropping a data-sourced component
+    // can spawn one entity per row.
+    const rowEntries = await Promise.all(
+      components.map(async (component): Promise<[string, Record<string, string>[]]> => {
+        if (!hasDataSource(component) || !component.dataSource) return [component.id, []];
+        try {
+          const { data } = await dataSourcesApi.getData(component.dataSource.id, fetch);
+          return [component.id, data?.length ? parseDataRows(data) : []];
+        } catch (err) {
+          console.error(`Failed to load data source rows for component ${component.id}:`, err);
+          return [component.id, []];
         }
       })
+    );
+    const componentRows: Record<string, Record<string, string>[]> = Object.fromEntries(
+      rowEntries.filter(([, rows]) => rows.length > 0)
     );
 
     return { components, componentRows };

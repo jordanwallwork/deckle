@@ -113,6 +113,28 @@ export function createTabletopStore(
     apply((s) => ops.moveEntityToZone(s, instanceId, zoneId, opts));
   }
 
+  /**
+   * Transient zone change during a drag (e.g. detaching the top of a stack).
+   * Does not push history — the drag's initial saveCheckpoint covers the
+   * whole interaction.
+   */
+  function moveEntityToZoneTransient(
+    instanceId: string,
+    zoneId: string,
+    opts: { insertIndex?: number; x?: number; y?: number } = {}
+  ): void {
+    applyTransient((s) => ops.moveEntityToZone(s, instanceId, zoneId, opts));
+  }
+
+  function moveZone(zoneId: string, x: number, y: number): void {
+    apply((s) => ops.moveZone(s, zoneId, x, y));
+  }
+
+  /** Transient variant used by drag handlers; does not push history. */
+  function moveZoneTransient(zoneId: string, x: number, y: number): void {
+    applyTransient((s) => ops.moveZone(s, zoneId, x, y));
+  }
+
   function flipEntity(instanceId: string): void {
     apply((s) => ops.flipEntity(s, instanceId));
   }
@@ -131,6 +153,10 @@ export function createTabletopStore(
 
   function setStackFaceDown(zoneId: string, faceDown: boolean): void {
     apply((s) => ops.setStackFaceDown(s, zoneId, faceDown));
+  }
+
+  function setStackPersistent(zoneId: string, persistent: boolean): void {
+    apply((s) => ops.setStackPersistent(s, zoneId, persistent));
   }
 
   function reorderInZone(instanceId: string, newIndex: number): void {
@@ -159,6 +185,53 @@ export function createTabletopStore(
       newId = ops.spawnEntity(s, template, zoneId, x, y);
     });
     return newId;
+  }
+
+  /**
+   * Spawn the template's full set of instances at the drop point. Cards with
+   * a data source expand to one entity per row; everything else spawns a
+   * single entity. Returns the new instance IDs.
+   */
+  function spawnFromTemplate(
+    templateId: string,
+    zoneId: string,
+    x: number,
+    y: number
+  ): string[] {
+    const template = templates[templateId];
+    if (!template) return [];
+    let newIds: string[] = [];
+    apply((s) => {
+      newIds = ops.spawnFromTemplate(s, template, zoneId, x, y);
+    });
+    return newIds;
+  }
+
+  /**
+   * Create a new stack zone centered on (worldX, worldY) and spawn every
+   * instance from the template into it. Single undoable action.
+   */
+  function spawnStackZoneFromTemplate(
+    templateId: string,
+    worldX: number,
+    worldY: number,
+    displayWidth: number,
+    displayHeight: number
+  ): { zoneId: string; instanceIds: string[] } | null {
+    const template = templates[templateId];
+    if (!template) return null;
+    let result: { zoneId: string; instanceIds: string[] } | null = null;
+    apply((s) => {
+      result = ops.spawnStackZoneFromTemplate(
+        s,
+        template,
+        worldX,
+        worldY,
+        displayWidth,
+        displayHeight
+      );
+    });
+    return result;
   }
 
   function removeEntity(instanceId: string): void {
@@ -198,14 +271,20 @@ export function createTabletopStore(
     moveEntity,
     moveEntityTransient,
     moveEntityToZone,
+    moveEntityToZoneTransient,
+    moveZone,
+    moveZoneTransient,
     flipEntity,
     rotateEntity,
     setRotation,
     shuffleStack,
     setStackFaceDown,
+    setStackPersistent,
     reorderInZone,
     drawFromStack,
     spawnEntity,
+    spawnFromTemplate,
+    spawnStackZoneFromTemplate,
     removeEntity,
     selectEntity,
     selectZone

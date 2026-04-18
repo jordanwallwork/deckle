@@ -53,7 +53,9 @@
   onclick={handleZoneClick}
   oncontextmenu={handleZoneContextMenu}
 >
-  <div class="zone-label">{zone.name}</div>
+  {#if zone.type !== 'stack'}
+    <div class="zone-label">{zone.name}</div>
+  {/if}
   <div class="zone-bg"></div>
 
   {#if zone.type === 'freeform'}
@@ -91,17 +93,11 @@
     {/each}
 
   {:else if zone.type === 'stack'}
-    <!-- Stacked view: offset pile of a few cards showing depth, then the top -->
     {#if stackTopEntity}
-      <!-- Visual depth cards (decorative) -->
-      {#each Array(Math.min(3, zoneEntities.length - 1)) as _, i}
-        <div
-          class="stack-depth"
-          style="left: {4 + i * 2}px; top: {4 + i * 2}px; right: {4 + (2 - i) * 2}px; bottom: {4 + (2 - i) * 2}px;"
-        ></div>
-      {/each}
       <div class="stack-top">
-        <EntityWrapper entity={stackTopEntity} disableDrag />
+        {#key stackTopEntity.instanceId}
+          <EntityWrapper entity={stackTopEntity} />
+        {/key}
       </div>
       <div class="stack-badge">{zoneEntities.length}</div>
     {:else}
@@ -163,30 +159,20 @@
     pointer-events: none;
   }
 
-  .stack-depth {
-    position: absolute;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
   .stack-top {
     position: relative;
     z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     width: 100%;
     height: 100%;
-    padding: 8px;
     overflow: hidden;
   }
 
   .stack-badge {
     position: absolute;
-    bottom: 8px;
-    right: 8px;
-    z-index: 2;
+    top: 0;
+    right: 0;
+    transform: translate(50%, -50%);
+    z-index: 10;
     background: #3b82f6;
     color: white;
     font-size: 0.75rem;
@@ -199,6 +185,7 @@
     border-radius: 12px;
     padding: 0 6px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
   }
 
   .stack-empty {

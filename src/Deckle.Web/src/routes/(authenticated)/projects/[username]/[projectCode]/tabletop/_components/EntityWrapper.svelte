@@ -1,3 +1,41 @@
+<script module lang="ts">
+  import type { TabletopStore } from '$lib/tabletop';
+
+  // Module-level drag state. Survives the destruction of any single
+  // EntityWrapper — needed because a stack-top entity's DOM node is
+  // destroyed mid-drag when the entity detaches into a freeform zone.
+  // Window-level pointer listeners drive the drag via this record and the
+  // store, independent of which component instance started it.
+  interface ActiveDrag {
+    instanceId: string;
+    store: TabletopStore;
+    canvas: {
+      readonly zoom: number;
+      readonly surfaceEl: HTMLElement | null;
+      readonly sidebarEl: HTMLElement | null;
+    };
+    dragStartX: number;
+    dragStartY: number;
+    entityStartX: number;
+    entityStartY: number;
+    displayWidth: number;
+    displayHeight: number;
+    didMove: boolean;
+    checkpointSaved: boolean;
+    detachedFromStack: boolean;
+    // When set, the drag moves the whole zone instead of the entity. Entered
+    // when pointerdown lands on a stack's top card while that stack is
+    // already the selected zone.
+    zoneDrag: { zoneId: string; zoneStartX: number; zoneStartY: number } | null;
+  }
+
+  let activeDrag: ActiveDrag | null = null;
+
+  // After a zone-drag pointerup the browser may still fire `click` on the
+  // entity — suppress it once so selection doesn't flip back to the top card.
+  let suppressNextClick = false;
+</script>
+
 <script lang="ts">
   import type { Entity } from '$lib/tabletop';
   import { getTabletopApi } from '$lib/tabletop';
@@ -39,75 +77,184 @@
     template && template.widthPx > 0 ? displayWidth / template.widthPx : 1
   );
 
-  // ─── Pointer drag ─────────────────────────────────────────────────────
+  // Local flag mirrors activeDrag for this specific instance so the
+  // `.dragging` class shows only while this component's entity is the one
+  // being dragged.
   let isDragging = $state(false);
-  let didMove = false;
-  let checkpointSaved = false;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let entityStartX = 0;
-  let entityStartY = 0;
 
   const DRAG_THRESHOLD_PX = 3;
 
   function onPointerDown(e: PointerEvent) {
     // Right-click: select the entity so the context menu has a target,
-    // but don't start a drag.
+    // but don't start a drag. When the entity is the top card of a stack
+    // zone, route the context menu to the stack itself — the top card is
+    // the stack's only clickable surface, so its context menu should be
+    // the stack's (shuffle / flip / persistent / draw) regardless of
+    // whether the stack was already selected.
     if (e.button === 2) {
       e.stopPropagation();
-      store.selectEntity(entity.instanceId);
+      const currentZone = store.state.zones[entity.zoneId];
+      if (currentZone?.type === 'stack') {
+        store.selectZone(currentZone.id);
+      } else {
+        store.selectEntity(entity.instanceId);
+      }
       return;
     }
     if (disableDrag) return;
     if (e.button !== 0) return;
 
     e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
-    store.selectEntity(entity.instanceId);
+    // If the stack is already the selected zone (typically via a prior
+    // double-click), pressing on its top card is a potential zone drag.
+    // Defer any selection change until pointerup — a pure click still
+    // selects the entity (via onclick), but a drag moves the whole zone
+    // without flipping selection to the top card.
+    const currentZone = store.state.zones[entity.zoneId];
+    const zoneDrag =
+      currentZone?.type === 'stack' && store.state.selectedZoneId === currentZone.id
+        ? {
+            zoneId: currentZone.id,
+            zoneStartX: currentZone.x,
+            zoneStartY: currentZone.y
+          }
+        : null;
 
+    if (!zoneDrag) {
+      store.selectEntity(entity.instanceId);
+    }
+
+    activeDrag = {
+      instanceId: entity.instanceId,
+      store,
+      canvas,
+      dragStartX: e.clientX,
+      dragStartY: e.clientY,
+      entityStartX: entity.x,
+      entityStartY: entity.y,
+      displayWidth,
+      displayHeight,
+      didMove: false,
+      checkpointSaved: false,
+      detachedFromStack: false,
+      zoneDrag
+    };
     isDragging = true;
-    didMove = false;
-    checkpointSaved = false;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    entityStartX = entity.x;
-    entityStartY = entity.y;
+
+    // Window listeners (not setPointerCapture) so the drag keeps tracking
+    // if this component unmounts — which happens when the entity detaches
+    // from a stack and re-renders inside a different zone.
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
   }
 
-  function onPointerMove(e: PointerEvent) {
-    if (!isDragging) return;
+  function handleWindowPointerMove(e: PointerEvent) {
+    const drag = activeDrag;
+    if (!drag) return;
+    const current = drag.store.state.entities[drag.instanceId];
+    if (!current) return;
 
-    const zoom = canvas?.zoom ?? 1;
-    const dxScreen = e.clientX - dragStartX;
-    const dyScreen = e.clientY - dragStartY;
+    const zoom = drag.canvas?.zoom ?? 1;
+    const dxScreen = e.clientX - drag.dragStartX;
+    const dyScreen = e.clientY - drag.dragStartY;
 
-    if (!didMove && Math.hypot(dxScreen, dyScreen) < DRAG_THRESHOLD_PX) {
-      // Suppress until we've moved past the click threshold; avoids
-      // creating undo entries for simple clicks.
-      return;
+    if (!drag.didMove && Math.hypot(dxScreen, dyScreen) < DRAG_THRESHOLD_PX) return;
+
+    if (!drag.checkpointSaved) {
+      drag.store.saveCheckpoint();
+      drag.checkpointSaved = true;
     }
-
-    if (!checkpointSaved) {
-      store.saveCheckpoint();
-      checkpointSaved = true;
-    }
-    didMove = true;
+    drag.didMove = true;
 
     const dx = dxScreen / zoom;
     const dy = dyScreen / zoom;
 
-    store.moveEntityTransient(entity.instanceId, entityStartX + dx, entityStartY + dy);
+    // Double-click-drag on a stack: translate the whole zone instead of
+    // detaching the top card.
+    if (drag.zoneDrag) {
+      drag.store.moveZoneTransient(
+        drag.zoneDrag.zoneId,
+        drag.zoneDrag.zoneStartX + dx,
+        drag.zoneDrag.zoneStartY + dy
+      );
+      return;
+    }
+
+    // Stack zones ignore entity x/y, so a drag from the top of a stack has
+    // to first move the entity into a freeform/grid zone before free
+    // positioning works.
+    if (!drag.detachedFromStack) {
+      const currentZone = drag.store.state.zones[current.zoneId];
+      if (currentZone?.type === 'stack') {
+        const surfaceEl = drag.canvas?.surfaceEl;
+        if (!surfaceEl) return;
+        const rect = surfaceEl.getBoundingClientRect();
+        const worldX = (e.clientX - rect.left) / zoom;
+        const worldY = (e.clientY - rect.top) / zoom;
+
+        // Prefer the zone currently under the pointer; fall back to any
+        // non-stack zone so the entity has somewhere to live.
+        let target = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
+        if (!target || target.id === currentZone.id || target.type === 'stack') {
+          target =
+            Object.values(drag.store.state.zones).find((z) => z.type !== 'stack') ?? null;
+        }
+        if (!target) return;
+
+        const localX = worldX - target.x - drag.displayWidth / 2;
+        const localY = worldY - target.y - drag.displayHeight / 2;
+        drag.store.moveEntityToZoneTransient(drag.instanceId, target.id, {
+          x: localX,
+          y: localY
+        });
+
+        const updated = drag.store.state.entities[drag.instanceId];
+        if (updated) {
+          drag.entityStartX = updated.x;
+          drag.entityStartY = updated.y;
+        }
+        drag.dragStartX = e.clientX;
+        drag.dragStartY = e.clientY;
+        drag.detachedFromStack = true;
+        return;
+      }
+      drag.detachedFromStack = true;
+    }
+
+    drag.store.moveEntityTransient(
+      drag.instanceId,
+      drag.entityStartX + dx,
+      drag.entityStartY + dy
+    );
   }
 
-  function onPointerUp(e: PointerEvent) {
-    if (!isDragging) return;
+  function handleWindowPointerUp(e: PointerEvent) {
+    const drag = activeDrag;
+    if (!drag) return;
+    activeDrag = null;
     isDragging = false;
 
-    if (!didMove) return;
+    window.removeEventListener('pointermove', handleWindowPointerMove);
+    window.removeEventListener('pointerup', handleWindowPointerUp);
+    window.removeEventListener('pointercancel', handleWindowPointerUp);
+
+    if (!drag.didMove) return;
+
+    // Zone drags are fully handled during pointermove — no drop-on-sidebar
+    // or cross-zone commit to apply here. Suppress the synthetic click that
+    // may follow, so selection doesn't flip back to the top card.
+    if (drag.zoneDrag) {
+      suppressNextClick = true;
+      return;
+    }
+
+    const current = drag.store.state.entities[drag.instanceId];
+    if (!current) return;
 
     // Drop onto sidebar = remove entity from the tabletop.
-    const sidebarEl = canvas?.sidebarEl;
+    const sidebarEl = drag.canvas?.sidebarEl;
     if (sidebarEl) {
       const rect = sidebarEl.getBoundingClientRect();
       if (
@@ -116,32 +263,43 @@
         e.clientY >= rect.top &&
         e.clientY < rect.bottom
       ) {
-        store.removeEntity(entity.instanceId);
+        drag.store.removeEntity(drag.instanceId);
         return;
       }
     }
 
-    // If the drop point is inside a different zone, commit the move
-    // into that zone. This is the cross-zone drop behaviour.
-    const surfaceEl = canvas?.surfaceEl;
+    // Cross-zone drop: commit a zone change if the pointer landed in a
+    // zone other than the one the entity currently belongs to.
+    const surfaceEl = drag.canvas?.surfaceEl;
     if (surfaceEl) {
-      const zoom = canvas?.zoom ?? 1;
+      const zoom = drag.canvas?.zoom ?? 1;
       const rect = surfaceEl.getBoundingClientRect();
       const worldX = (e.clientX - rect.left) / zoom;
       const worldY = (e.clientY - rect.top) / zoom;
-      const targetZone = ops.findZoneAtPoint(store.state, worldX, worldY);
-      if (targetZone && targetZone.id !== entity.zoneId) {
-        // Convert drop point to zone-local coords, centered on the entity.
-        const localX = worldX - targetZone.x - displayWidth / 2;
-        const localY = worldY - targetZone.y - displayHeight / 2;
-        store.moveEntityToZone(entity.instanceId, targetZone.id, { x: localX, y: localY });
+      const targetZone = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
+      if (targetZone && targetZone.id !== current.zoneId) {
+        const localX = worldX - targetZone.x - drag.displayWidth / 2;
+        const localY = worldY - targetZone.y - drag.displayHeight / 2;
+        drag.store.moveEntityToZone(drag.instanceId, targetZone.id, {
+          x: localX,
+          y: localY
+        });
       }
     }
   }
 
   function handleClick(e: MouseEvent) {
     e.stopPropagation();
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      return;
+    }
     store.selectEntity(entity.instanceId);
+  }
+
+  function handleDoubleClick(e: MouseEvent) {
+    e.stopPropagation();
+    store.selectZone(entity.zoneId);
   }
 </script>
 
@@ -158,10 +316,8 @@
     transform: rotate({entity.rotation}deg);
   "
   onclick={handleClick}
+  ondblclick={handleDoubleClick}
   onpointerdown={onPointerDown}
-  onpointermove={onPointerMove}
-  onpointerup={onPointerUp}
-  onpointercancel={onPointerUp}
 >
   <div
     class="entity-flip-container"
@@ -175,12 +331,6 @@
       <EntityView {entity} {template} {renderScale} side="back" />
     </div>
   </div>
-
-  {#if entity.label && !entity.isFlipped}
-    <div class="entity-label" title={entity.label}>
-      {entity.label}
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -232,20 +382,5 @@
 
   .entity-back {
     transform: rotateY(180deg);
-  }
-
-  .entity-label {
-    position: absolute;
-    bottom: -20px;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 0.625rem;
-    color: rgba(255, 255, 255, 0.6);
-    text-align: center;
-    pointer-events: none;
   }
 </style>

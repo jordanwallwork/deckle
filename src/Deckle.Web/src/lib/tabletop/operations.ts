@@ -71,6 +71,53 @@ export function moveEntity(
 }
 
 /**
+ * If the given stack is non-persistent and has dropped to a single entity (or
+ * fewer), dissolve the stack: promote the last entity to a non-stack zone at
+ * the stack's old location, and remove the stack from state. A no-op for
+ * persistent stacks, non-stack zones, or stacks with 2+ entities.
+ */
+function maybeAutoDissolveStack(state: TabletopState, zoneId: string): void {
+  const zone = state.zones[zoneId];
+  if (!zone || zone.type !== 'stack' || zone.persistent) return;
+  if (zone.entityIds.length > 1) return;
+
+  // Prefer a freeform zone so the promoted entity keeps its visual position;
+  // fall back to any non-stack zone so it still has somewhere to live.
+  const targetZone =
+    Object.values(state.zones).find((z) => z.type === 'freeform' && z.id !== zoneId) ??
+    Object.values(state.zones).find((z) => z.type !== 'stack' && z.id !== zoneId);
+
+  if (zone.entityIds.length === 1 && targetZone) {
+    const lastId = zone.entityIds[0];
+    const entity = state.entities[lastId];
+    if (entity) {
+      const displayW = zone.defaultSize?.width ?? Math.max(0, zone.width - 40);
+      const displayH = zone.defaultSize?.height ?? Math.max(0, zone.height - 40);
+      const worldX = zone.x + zone.width / 2;
+      const worldY = zone.y + zone.height / 2;
+      const localX = worldX - targetZone.x - displayW / 2;
+      const localY = worldY - targetZone.y - displayH / 2;
+
+      zone.entityIds = [];
+      entity.zoneId = targetZone.id;
+      if (targetZone.type === 'freeform') {
+        entity.x = localX;
+        entity.y = localY;
+      } else if (targetZone.type === 'grid') {
+        const snapped = snapToGrid(targetZone, localX, localY);
+        entity.x = snapped.x;
+        entity.y = snapped.y;
+      }
+      targetZone.entityIds.push(lastId);
+    }
+  }
+
+  delete state.zones[zoneId];
+  state.zoneOrder = state.zoneOrder.filter((id) => id !== zoneId);
+  if (state.selectedZoneId === zoneId) state.selectedZoneId = null;
+}
+
+/**
  * Move an entity from its current zone into another zone.
  * @param insertIndex  Position in the target zone's entityIds array; appended if omitted.
  * @param x,y          Position within the target zone (for freeform/grid).
@@ -84,6 +131,7 @@ export function moveEntityToZone(
   const entity = getEntity(state, instanceId);
   const sourceZone = getZone(state, entity.zoneId);
   const targetZone = getZone(state, targetZoneId);
+  const sourceZoneId = sourceZone.id;
 
   // Remove from source
   sourceZone.entityIds = sourceZone.entityIds.filter((id) => id !== instanceId);
@@ -108,9 +156,30 @@ export function moveEntityToZone(
     // stack — positions are derived
     entity.x = 0;
     entity.y = 0;
-    // Entities added to a face-down stack inherit its face-down state.
-    entity.isFlipped = targetZone.faceDown;
+    // Preserve the entity's current flip state. Forcing it to the stack's
+    // faceDown here would visibly flip a card whenever it was dropped back
+    // onto its source stack.
+    // Align rotation with the other cards in the stack so the pile looks
+    // tidy; an empty stack has no reference, so the entity keeps its own
+    // rotation.
+    const referenceId = targetZone.entityIds.find((id) => id !== instanceId);
+    if (referenceId) {
+      const reference = state.entities[referenceId];
+      if (reference) entity.rotation = reference.rotation;
+    }
   }
+
+  // Source stack may need to dissolve now that an entity has left it.
+  if (sourceZoneId !== targetZoneId) {
+    maybeAutoDissolveStack(state, sourceZoneId);
+  }
+}
+
+/** Move a zone to a new world-space (x, y). Entities inside keep their local positions. */
+export function moveZone(state: TabletopState, zoneId: string, x: number, y: number): void {
+  const zone = getZone(state, zoneId);
+  zone.x = x;
+  zone.y = y;
 }
 
 /**
@@ -180,6 +249,23 @@ export function shuffleStack(state: TabletopState, zoneId: string): void {
   zone.entityIds = ids;
 }
 
+/**
+ * Toggle a stack's persistent flag. When switching to non-persistent with
+ * ≤1 entities already present, the stack immediately dissolves.
+ */
+export function setStackPersistent(
+  state: TabletopState,
+  zoneId: string,
+  persistent: boolean
+): void {
+  const zone = getZone(state, zoneId);
+  if (zone.type !== 'stack') return;
+  zone.persistent = persistent;
+  if (!persistent) {
+    maybeAutoDissolveStack(state, zoneId);
+  }
+}
+
 /** Flip every entity in a stack to face-down (or face-up). */
 export function setStackFaceDown(
   state: TabletopState,
@@ -237,7 +323,8 @@ export function spawnEntity(
   template: EntityTemplate,
   targetZoneId: string,
   x: number,
-  y: number
+  y: number,
+  mergeData: Record<string, string> | null = null
 ): string {
   const zone = getZone(state, targetZoneId);
   const instanceId = makeId();
@@ -261,13 +348,70 @@ export function spawnEntity(
     y: entityY,
     rotation: 0,
     isFlipped: zone.type === 'stack' ? (zone as StackZone).faceDown : false,
-    mergeData: null,
+    mergeData,
     label: template.name
   };
 
   state.entities[instanceId] = entity;
   zone.entityIds.push(instanceId);
   return instanceId;
+}
+
+/**
+ * Spawn one entity per template.instances entry, all at the same drop point.
+ * Cards with a data source produce a pile of per-row instances; templates
+ * without a data source fall back to a single entity.
+ */
+export function spawnFromTemplate(
+  state: TabletopState,
+  template: EntityTemplate,
+  targetZoneId: string,
+  x: number,
+  y: number
+): string[] {
+  const ids: string[] = [];
+  for (const mergeData of template.instances) {
+    ids.push(spawnEntity(state, template, targetZoneId, x, y, mergeData));
+  }
+  return ids;
+}
+
+/**
+ * Create a face-down stack zone centered on (worldX, worldY) and spawn every
+ * instance from the template into it. Used when dragging a multi-instance
+ * template (e.g. a card backed by a data source) onto the tabletop — the
+ * whole set lands as a real pile rather than a heap of overlapping entities.
+ */
+export function spawnStackZoneFromTemplate(
+  state: TabletopState,
+  template: EntityTemplate,
+  worldX: number,
+  worldY: number,
+  displayWidth: number,
+  displayHeight: number
+): { zoneId: string; instanceIds: string[] } {
+  const width = displayWidth;
+  const height = displayHeight;
+
+  const zone: StackZone = {
+    id: makeId(),
+    name: template.name,
+    type: 'stack',
+    x: worldX - width / 2,
+    y: worldY - height / 2,
+    width,
+    height,
+    faceDown: true,
+    defaultSize: { width: displayWidth, height: displayHeight },
+    persistent: false,
+    entityIds: []
+  };
+
+  state.zones[zone.id] = zone;
+  state.zoneOrder.push(zone.id);
+
+  const instanceIds = spawnFromTemplate(state, template, zone.id, 0, 0);
+  return { zoneId: zone.id, instanceIds };
 }
 
 /** Remove an entity entirely from the tabletop. */
@@ -279,6 +423,7 @@ export function removeEntity(state: TabletopState, instanceId: string): void {
   if (state.selectedEntityId === instanceId) {
     state.selectedEntityId = null;
   }
+  maybeAutoDissolveStack(state, zone.id);
 }
 
 /** Draw the top card from a stack onto a target zone at (x, y). */

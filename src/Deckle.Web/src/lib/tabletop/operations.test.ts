@@ -1,22 +1,29 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type {
   Entity,
+  EntityTemplate,
   FreeformZone,
   GridZone,
   StackZone,
   TabletopState
 } from './types';
 import {
+  drawFromStack,
   findZoneAtPoint,
   flipEntity,
   moveEntity,
   moveEntityToZone,
+  moveZone,
+  removeEntity,
   reorderInZone,
   rotateEntity,
   setRotation,
   setStackFaceDown,
+  setStackPersistent,
   shuffleStack,
-  snapToGrid
+  snapToGrid,
+  spawnFromTemplate,
+  spawnStackZoneFromTemplate
 } from './operations';
 
 function makeEntity(overrides: Partial<Entity> & { instanceId: string; zoneId: string }): Entity {
@@ -64,6 +71,7 @@ function makeState(): TabletopState {
     width: 200,
     height: 300,
     faceDown: true,
+    persistent: true,
     entityIds: ['e3', 'e4']
   };
 
@@ -151,23 +159,50 @@ describe('moveEntityToZone', () => {
     expect(state.entities.e1.zoneId).toBe('grid');
   });
 
-  it('inherits face-down state when moving into a face-down stack', () => {
+  it('preserves flip state when moving into a face-down stack', () => {
     expect(state.entities.e1.isFlipped).toBe(false);
     moveEntityToZone(state, 'e1', 'deck');
-    expect(state.entities.e1.isFlipped).toBe(true);
+    expect(state.entities.e1.isFlipped).toBe(false);
     expect(state.entities.e1.zoneId).toBe('deck');
   });
 
-  it('does not force face-down when moving into a face-up stack', () => {
+  it('preserves flip state when moving into a face-up stack', () => {
     (state.zones.deck as StackZone).faceDown = false;
-    state.entities.e1.isFlipped = false;
+    state.entities.e1.isFlipped = true;
     moveEntityToZone(state, 'e1', 'deck');
-    expect(state.entities.e1.isFlipped).toBe(false);
+    expect(state.entities.e1.isFlipped).toBe(true);
   });
 
   it('respects insertIndex', () => {
     moveEntityToZone(state, 'e1', 'deck', { insertIndex: 0 });
     expect(state.zones.deck.entityIds).toEqual(['e1', 'e3', 'e4']);
+  });
+
+  it('adopts the existing rotation of a stack when moved onto it', () => {
+    state.entities.e3.rotation = 90;
+    state.entities.e4.rotation = 90;
+    state.entities.e1.rotation = 0;
+    moveEntityToZone(state, 'e1', 'deck');
+    expect(state.entities.e1.rotation).toBe(90);
+  });
+
+  it('keeps its own rotation when moved onto an empty stack', () => {
+    (state.zones.deck as StackZone).entityIds = [];
+    state.entities.e1.rotation = 45;
+    moveEntityToZone(state, 'e1', 'deck');
+    expect(state.entities.e1.rotation).toBe(45);
+  });
+});
+
+describe('moveZone', () => {
+  it('updates the zone world-space position without touching entities', () => {
+    const state = makeState();
+    moveZone(state, 'deck', 1500, 200);
+    expect(state.zones.deck.x).toBe(1500);
+    expect(state.zones.deck.y).toBe(200);
+    // Entities inside keep their local coords
+    expect(state.entities.e3.x).toBe(0);
+    expect(state.entities.e3.y).toBe(0);
   });
 });
 
@@ -237,6 +272,187 @@ describe('reorderInZone', () => {
 
     reorderInZone(state, 'a', 3);
     expect(state.zones.tableau.entityIds).toEqual(['b', 'c', 'd', 'a']);
+  });
+});
+
+describe('spawnFromTemplate', () => {
+  function makeTemplate(instances: EntityTemplate['instances']): EntityTemplate {
+    return {
+      id: 'tpl',
+      name: 'Card',
+      type: 'Card',
+      widthPx: 200,
+      heightPx: 300,
+      widthMm: 63,
+      heightMm: 88,
+      isEditable: true,
+      instances
+    };
+  }
+
+  it('spawns a single entity with null mergeData for non-data-source templates', () => {
+    const state = makeState();
+    const template = makeTemplate([null]);
+    const ids = spawnFromTemplate(state, template, 'tableau', 50, 60);
+    expect(ids).toHaveLength(1);
+    const entity = state.entities[ids[0]];
+    expect(entity.mergeData).toBeNull();
+    expect(entity.x).toBe(50);
+    expect(entity.y).toBe(60);
+    expect(state.zones.tableau.entityIds).toContain(ids[0]);
+  });
+
+  it('spawns one entity per row, each carrying its row data', () => {
+    const state = makeState();
+    const template = makeTemplate([{ Name: 'Alice' }, { Name: 'Bob' }, { Name: 'Cara' }]);
+    const ids = spawnFromTemplate(state, template, 'tableau', 10, 20);
+    expect(ids).toHaveLength(3);
+    expect(state.entities[ids[0]].mergeData).toEqual({ Name: 'Alice' });
+    expect(state.entities[ids[1]].mergeData).toEqual({ Name: 'Bob' });
+    expect(state.entities[ids[2]].mergeData).toEqual({ Name: 'Cara' });
+  });
+
+  it('piles spawned entities into a stack zone', () => {
+    const state = makeState();
+    const template = makeTemplate([{ Name: 'a' }, { Name: 'b' }]);
+    const ids = spawnFromTemplate(state, template, 'deck', 0, 0);
+    expect(state.zones.deck.entityIds.slice(-2)).toEqual(ids);
+    // Stack is face-down → new entities adopt the stack face.
+    expect(state.entities[ids[0]].isFlipped).toBe(true);
+  });
+});
+
+describe('spawnStackZoneFromTemplate', () => {
+  function makeTemplate(instances: EntityTemplate['instances']): EntityTemplate {
+    return {
+      id: 'tpl',
+      name: 'Heroes',
+      type: 'Card',
+      widthPx: 200,
+      heightPx: 300,
+      widthMm: 63,
+      heightMm: 88,
+      isEditable: true,
+      instances
+    };
+  }
+
+  it('creates a new face-down stack zone centered on the drop point', () => {
+    const state = makeState();
+    const template = makeTemplate([{ Name: 'a' }, { Name: 'b' }, { Name: 'c' }]);
+    const displayW = 126;
+    const displayH = 176;
+
+    const { zoneId, instanceIds } = spawnStackZoneFromTemplate(
+      state,
+      template,
+      500,
+      400,
+      displayW,
+      displayH
+    );
+
+    const zone = state.zones[zoneId] as StackZone;
+    expect(zone).toBeDefined();
+    expect(zone.type).toBe('stack');
+    expect(zone.name).toBe('Heroes');
+    // Centered on (500, 400) with default 20px padding on each side.
+    expect(zone.width).toBe(displayW + 40);
+    expect(zone.height).toBe(displayH + 40);
+    expect(zone.x).toBe(500 - zone.width / 2);
+    expect(zone.y).toBe(400 - zone.height / 2);
+    expect(state.zoneOrder).toContain(zoneId);
+    expect(zone.entityIds).toEqual(instanceIds);
+    expect(instanceIds).toHaveLength(3);
+    expect(state.entities[instanceIds[0]].mergeData).toEqual({ Name: 'a' });
+    expect(state.entities[instanceIds[0]].isFlipped).toBe(true);
+    // New stack zones default to non-persistent with the dropped component's
+    // display size cached as defaultSize.
+    expect(zone.persistent).toBe(false);
+    expect(zone.defaultSize).toEqual({ width: displayW, height: displayH });
+  });
+});
+
+describe('auto-dissolve of non-persistent stacks', () => {
+  it('promotes the last entity to a freeform zone and removes the stack', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = false;
+    (state.zones.deck as StackZone).defaultSize = { width: 120, height: 180 };
+
+    // 2 → 1: moving e4 out triggers dissolve of the deck.
+    moveEntityToZone(state, 'e4', 'tableau', { x: 0, y: 0 });
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.zoneOrder).not.toContain('deck');
+    // e3 (the last remaining) should now live in the tableau.
+    expect(state.entities.e3.zoneId).toBe('tableau');
+    expect(state.zones.tableau.entityIds).toContain('e3');
+  });
+
+  it('leaves persistent stacks alone', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = true;
+
+    moveEntityToZone(state, 'e4', 'tableau', { x: 0, y: 0 });
+
+    expect(state.zones.deck).toBeDefined();
+    expect(state.zones.deck.entityIds).toEqual(['e3']);
+    expect(state.entities.e3.zoneId).toBe('deck');
+  });
+
+  it('dissolves after drawFromStack drops the stack to one card', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = false;
+
+    drawFromStack(state, 'deck', 'tableau', 10, 20);
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.entities.e3.zoneId).toBe('tableau');
+  });
+
+  it('dissolves after removeEntity drops the stack to one card', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = false;
+
+    removeEntity(state, 'e4');
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.entities.e4).toBeUndefined();
+    expect(state.entities.e3.zoneId).toBe('tableau');
+  });
+
+  it('removes the zone entirely when dissolved from zero entities', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = false;
+    (state.zones.deck as StackZone).entityIds = [];
+    delete state.entities.e3;
+    delete state.entities.e4;
+
+    // Toggling to non-persistent re-checks the condition.
+    setStackPersistent(state, 'deck', false);
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.zoneOrder).not.toContain('deck');
+  });
+});
+
+describe('setStackPersistent', () => {
+  it('toggles the flag without dissolving a well-stocked stack', () => {
+    const state = makeState();
+    setStackPersistent(state, 'deck', false);
+    expect((state.zones.deck as StackZone).persistent).toBe(false);
+    // 2 entities → no dissolve.
+    expect(state.zones.deck.entityIds).toEqual(['e3', 'e4']);
+  });
+
+  it('dissolves immediately when flipped to non-persistent with one entity', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).entityIds = ['e3'];
+
+    setStackPersistent(state, 'deck', false);
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.entities.e3.zoneId).toBe('tableau');
   });
 });
 

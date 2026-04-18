@@ -111,8 +111,12 @@
           action: () => store.shuffleStack(selectedZoneId)
         });
         items.push({
-          label: zone.faceDown ? 'Flip Stack Face-Up' : 'Flip Stack Face-Down',
+          label: zone.faceDown ? 'Flip Stack Face-Up (F)' : 'Flip Stack Face-Down (F)',
           action: () => store.setStackFaceDown(selectedZoneId, !zone.faceDown)
+        });
+        items.push({
+          label: zone.persistent ? 'Persistent ✓' : 'Persistent',
+          action: () => store.setStackPersistent(selectedZoneId, !zone.persistent)
         });
         // Draw to tableau
         if (zone.entityIds.length > 0) {
@@ -163,6 +167,15 @@
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         store.rotateEntity(selectedId, 90);
+      } else if (e.key === 's' || e.key === 'S') {
+        // The top card of a stack is the only clickable surface, so a selected
+        // entity in a stack is usually the user's proxy for the stack itself.
+        const entity = store.state.entities[selectedId];
+        const zone = entity ? store.state.zones[entity.zoneId] : null;
+        if (zone?.type === 'stack') {
+          e.preventDefault();
+          store.shuffleStack(zone.id);
+        }
       } else if (e.key === 'Escape') {
         store.selectEntity(null);
       }
@@ -171,6 +184,9 @@
       if ((e.key === 's' || e.key === 'S') && zone?.type === 'stack') {
         e.preventDefault();
         store.shuffleStack(selectedZoneId);
+      } else if ((e.key === 'f' || e.key === 'F') && zone?.type === 'stack') {
+        e.preventDefault();
+        store.setStackFaceDown(selectedZoneId, !zone.faceDown);
       } else if (e.key === 'Escape') {
         store.selectZone(null);
       }
@@ -273,12 +289,21 @@
       ?? store.state.zones[store.state.zoneOrder[0]];
     if (!targetZone) return;
 
-    // Center the entity on the drop point (freeform/grid); stack zones ignore xy.
     const { width: displayW, height: displayH } = getTemplateDisplaySize(template);
+
+    // Multi-instance templates (e.g. a card backed by a data source) land
+    // as a real stack zone rather than a heap of overlapping entities. If
+    // the user already dropped onto an existing stack zone, just add to it.
+    if (template.instances.length > 1 && targetZone.type !== 'stack') {
+      store.spawnStackZoneFromTemplate(templateId, worldX, worldY, displayW, displayH);
+      return;
+    }
+
+    // Center the entity on the drop point (freeform/grid); stack zones ignore xy.
     const localX = worldX - targetZone.x - displayW / 2;
     const localY = worldY - targetZone.y - displayH / 2;
 
-    store.spawnEntity(templateId, targetZone.id, localX, localY);
+    store.spawnFromTemplate(templateId, targetZone.id, localX, localY);
   }
 </script>
 

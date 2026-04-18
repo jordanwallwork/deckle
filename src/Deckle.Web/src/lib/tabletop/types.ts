@@ -47,6 +47,18 @@ export interface StackZone extends ZoneBase {
   type: 'stack';
   /** When true, the stack renders the back face of entities by default. */
   faceDown: boolean;
+  /**
+   * Display size (px) the stack expects its contained entities to be. Set at
+   * creation time from the component type that seeded the stack, so the zone
+   * stays sized to its intended contents even when empty.
+   */
+  defaultSize?: { width: number; height: number };
+  /**
+   * When false (default), the stack auto-dissolves once it drops to a single
+   * entity — the last entity is promoted to a freeform zone and the stack is
+   * removed. When true, the stack remains on the tabletop even when empty.
+   */
+  persistent: boolean;
 }
 
 export type Zone = FreeformZone | GridZone | StackZone;
@@ -103,4 +115,10 @@ export interface EntityTemplate {
   heightMm: number;
   /** For dice — they don't have widthPx/heightPx from the entity. */
   isEditable: boolean;
+  /**
+   * One entry per entity this template should spawn. Null entries are non-
+   * data-source instances; object entries are merged row data. Always at
+   * least one entry — templates without a data source have [null].
+   */
+  instances: (Record<string, string> | null)[];
 }

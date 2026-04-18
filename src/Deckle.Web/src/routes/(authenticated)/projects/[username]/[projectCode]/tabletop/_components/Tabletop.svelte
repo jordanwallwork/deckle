@@ -385,6 +385,10 @@
     const template = store.templates[templateId];
     if (!template) return;
 
+    // Only spawn the instances that aren't already on the tabletop — no duplicates.
+    const unplaced = ops.getUnplacedInstances(store.state, template);
+    if (unplaced.length === 0) return;
+
     const targetZone = ops.findZoneAtPoint(store.state, worldX, worldY)
       ?? store.state.zones[store.state.zoneOrder[0]];
     if (!targetZone) return;
@@ -394,8 +398,9 @@
     // Multi-instance templates (e.g. a card backed by a data source) land
     // as a real stack zone rather than a heap of overlapping entities. If
     // the user already dropped onto an existing stack zone, just add to it.
-    if (template.instances.length > 1 && targetZone.type !== 'stack') {
-      store.spawnStackZoneFromTemplate(templateId, worldX, worldY, displayW, displayH);
+    if (unplaced.length > 1 && targetZone.type !== 'stack') {
+      const result = store.spawnStackZoneFromTemplate(templateId, worldX, worldY, displayW, displayH, unplaced);
+      if (result) store.selectZone(result.zoneId);
       return;
     }
 
@@ -403,7 +408,7 @@
     const localX = worldX - targetZone.x - displayW / 2;
     const localY = worldY - targetZone.y - displayH / 2;
 
-    store.spawnFromTemplate(templateId, targetZone.id, localX, localY);
+    store.spawnFromTemplate(templateId, targetZone.id, localX, localY, unplaced);
   }
 </script>
 

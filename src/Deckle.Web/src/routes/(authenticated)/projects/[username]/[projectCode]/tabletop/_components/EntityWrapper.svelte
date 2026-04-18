@@ -176,6 +176,18 @@
     }
     drag.didMove = true;
 
+    // Signal the sidebar when a drag hovers over it so it can show the removal indicator.
+    const sidebarEl = drag.canvas?.sidebarEl;
+    if (sidebarEl) {
+      const sRect = sidebarEl.getBoundingClientRect();
+      const over =
+        e.clientX >= sRect.left &&
+        e.clientX < sRect.right &&
+        e.clientY >= sRect.top &&
+        e.clientY < sRect.bottom;
+      drag.store.setDraggingOverSidebar(over);
+    }
+
     const dx = dxScreen / zoom;
     const dy = dyScreen / zoom;
 
@@ -244,17 +256,33 @@
     activeDrag = null;
     isDragging = false;
 
+    drag.store.setDraggingOverSidebar(false);
+
     window.removeEventListener('pointermove', handleWindowPointerMove);
     window.removeEventListener('pointerup', handleWindowPointerUp);
     window.removeEventListener('pointercancel', handleWindowPointerUp);
 
     if (!drag.didMove) return;
 
-    // Zone drags: check if the stack was dropped onto another compatible stack
-    // to merge them. The dragged zone is excluded from the point search so we
-    // find the destination zone beneath it, not the dragged zone itself.
+    // Zone drags: check sidebar first, then check for stack merges.
     if (drag.zoneDrag) {
       suppressNextClick = true;
+
+      // Drop onto sidebar = remove the whole stack zone from the tabletop.
+      const sidebarEl = drag.canvas?.sidebarEl;
+      if (sidebarEl) {
+        const sRect = sidebarEl.getBoundingClientRect();
+        if (
+          e.clientX >= sRect.left &&
+          e.clientX < sRect.right &&
+          e.clientY >= sRect.top &&
+          e.clientY < sRect.bottom
+        ) {
+          drag.store.deleteZone(drag.zoneDrag.zoneId);
+          return;
+        }
+      }
+
       const surfaceEl = drag.canvas?.surfaceEl;
       if (surfaceEl) {
         const zoom = drag.canvas?.zoom ?? 1;
@@ -277,7 +305,7 @@
     const current = drag.store.state.entities[drag.instanceId];
     if (!current) return;
 
-    // Drop onto sidebar = remove entity from the tabletop.
+    // Drop onto sidebar = remove entity (and all sibling instances for multi-instance templates).
     const sidebarEl = drag.canvas?.sidebarEl;
     if (sidebarEl) {
       const rect = sidebarEl.getBoundingClientRect();

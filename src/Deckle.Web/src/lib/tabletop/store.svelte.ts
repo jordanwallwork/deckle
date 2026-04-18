@@ -256,35 +256,39 @@ export function createTabletopStore(
   }
 
   /**
-   * Spawn the template's full set of instances at the drop point. Cards with
-   * a data source expand to one entity per row; everything else spawns a
-   * single entity. Returns the new instance IDs.
+   * Spawn instances at the drop point. Pass `instances` to spawn a subset
+   * (e.g. only the unplaced ones); omit to spawn all template instances.
+   * Cards with a data source expand to one entity per row; everything else
+   * spawns a single entity. Returns the new instance IDs.
    */
   function spawnFromTemplate(
     templateId: string,
     zoneId: string,
     x: number,
-    y: number
+    y: number,
+    instances?: (Record<string, string> | null)[]
   ): string[] {
     const template = templates[templateId];
     if (!template) return [];
     let newIds: string[] = [];
     apply((s) => {
-      newIds = ops.spawnFromTemplate(s, template, zoneId, x, y);
+      newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances);
     });
     return newIds;
   }
 
   /**
-   * Create a new stack zone centered on (worldX, worldY) and spawn every
-   * instance from the template into it. Single undoable action.
+   * Create a new stack zone centered on (worldX, worldY) and spawn instances
+   * from the template into it. Pass `instances` to spawn a subset (e.g. only
+   * the unplaced ones); omit to spawn all template instances. Single undoable action.
    */
   function spawnStackZoneFromTemplate(
     templateId: string,
     worldX: number,
     worldY: number,
     displayWidth: number,
-    displayHeight: number
+    displayHeight: number,
+    instances?: (Record<string, string> | null)[]
   ): { zoneId: string; instanceIds: string[] } | null {
     const template = templates[templateId];
     if (!template) return null;
@@ -296,7 +300,8 @@ export function createTabletopStore(
         worldX,
         worldY,
         displayWidth,
-        displayHeight
+        displayHeight,
+        instances
       );
     });
     return result;
@@ -322,6 +327,10 @@ export function createTabletopStore(
     apply((s) => ops.removeEntity(s, instanceId));
   }
 
+  function removeAllEntitiesForTemplate(templateId: string): void {
+    apply((s) => ops.removeAllEntitiesForTemplate(s, templateId));
+  }
+
   // Selection is ephemeral — no history needed.
   function selectEntity(instanceId: string | null): void {
     applyTransient((s) => ops.selectEntity(s, instanceId));
@@ -329,6 +338,14 @@ export function createTabletopStore(
 
   function selectZone(zoneId: string | null): void {
     applyTransient((s) => ops.selectZone(s, zoneId));
+  }
+
+  // Transient UI flag: an entity drag is currently hovering over the sidebar.
+  // Used to show a visual removal indicator without touching undo history.
+  let isDraggingOverSidebar = $state(false);
+
+  function setDraggingOverSidebar(value: boolean): void {
+    isDraggingOverSidebar = value;
   }
 
   return {
@@ -382,8 +399,14 @@ export function createTabletopStore(
     mergeEntitiesIntoStack,
     mergeStackOntoStack,
     removeEntity,
+    removeAllEntitiesForTemplate,
     selectEntity,
-    selectZone
+    selectZone,
+
+    get isDraggingOverSidebar() {
+      return isDraggingOverSidebar;
+    },
+    setDraggingOverSidebar
   };
 }
 

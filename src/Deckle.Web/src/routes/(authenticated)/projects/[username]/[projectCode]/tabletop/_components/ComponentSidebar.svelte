@@ -13,14 +13,26 @@
 
   const store = getTabletopApi();
 
-  // A component is only draggable from the sidebar while no entity using
-  // it as a template exists on the tabletop. This enforces the "at most one
-  // instance on the tabletop per component" rule.
-  const placedTemplateIds = $derived(
-    new Set(Object.values(store.state.entities).map((e) => e.templateId))
+  // Count how many instances of each template are currently on the tabletop.
+  const placedCountByTemplate = $derived(
+    Object.values(store.state.entities).reduce(
+      (acc, e) => {
+        acc[e.templateId] = (acc[e.templateId] ?? 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    )
   );
+
+  // A component is available when fewer instances are placed than its total.
+  // Single-instance components disappear when their one entity is placed.
+  // Multi-instance components disappear only when every instance is on the tabletop.
   const availableComponents = $derived(
-    components.filter((c) => !placedTemplateIds.has(c.id))
+    components.filter((c) => {
+      const placed = placedCountByTemplate[c.id] ?? 0;
+      const total = store.templates[c.id]?.instances.length ?? 1;
+      return placed < total;
+    })
   );
 
   function typeIcon(type: GameComponent['type']): string {
@@ -80,6 +92,7 @@
   class="sidebar"
   class:collapsed
   class:drop-target={isDropTarget}
+  class:entity-remove-target={store.isDraggingOverSidebar}
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}
   ondrop={handleDrop}
@@ -100,12 +113,18 @@
 
   <div class="sidebar-list">
     {#each availableComponents as component (component.id)}
+      {@const totalCount = store.templates[component.id]?.instances.length ?? 1}
+      {@const placedCount = placedCountByTemplate[component.id] ?? 0}
+      {@const remainingCount = totalCount - placedCount}
+      {@const countLabel = totalCount > 1
+        ? (placedCount > 0 ? `${remainingCount} / ${totalCount}` : `${totalCount}`)
+        : null}
       <button
         type="button"
         class="component-item"
         draggable="true"
         ondragstart={(e) => handleDragStart(e, component.id)}
-        title={`${component.name} — drag onto tabletop`}
+        title={`${component.name} — drag onto tabletop${placedCount > 0 ? ` (${remainingCount} of ${totalCount} remaining)` : totalCount > 1 ? ` (${totalCount} cards)` : ''}`}
       >
         <span class="component-icon" aria-hidden="true">{typeIcon(component.type)}</span>
         {#if !collapsed}
@@ -113,6 +132,9 @@
             <span class="component-name">{component.name}</span>
             <span class="component-type">{getComponentDisplayType(component)}</span>
           </span>
+          {#if countLabel}
+            <span class="instance-count" class:partial={placedCount > 0}>{countLabel}</span>
+          {/if}
         {/if}
       </button>
     {/each}
@@ -149,6 +171,11 @@
   .sidebar.drop-target {
     background: #2a3040;
     box-shadow: inset 0 0 0 2px #3b82f6;
+  }
+
+  .sidebar.entity-remove-target {
+    background: #2d1b1b;
+    box-shadow: inset 0 0 0 2px #ef4444;
   }
 
   .sidebar-header {
@@ -257,6 +284,24 @@
   .component-type {
     font-size: 0.6875rem;
     color: #8b8ea0;
+  }
+
+  .instance-count {
+    flex-shrink: 0;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    background: #3a3d52;
+    color: #8b8ea0;
+    border-radius: 10px;
+    padding: 0 6px;
+    min-width: 1.25rem;
+    text-align: center;
+    line-height: 1.5rem;
+  }
+
+  .instance-count.partial {
+    background: #2d3548;
+    color: #f59e0b;
   }
 
   .sidebar-empty {

@@ -414,26 +414,55 @@ export function spawnEntity(
  * Spawn one entity per template.instances entry, all at the same drop point.
  * Cards with a data source produce a pile of per-row instances; templates
  * without a data source fall back to a single entity.
+ * Pass `instances` to spawn a subset (e.g. only the unplaced ones).
  */
 export function spawnFromTemplate(
   state: TabletopState,
   template: EntityTemplate,
   targetZoneId: string,
   x: number,
-  y: number
+  y: number,
+  instances?: (Record<string, string> | null)[]
 ): string[] {
   const ids: string[] = [];
-  for (const mergeData of template.instances) {
+  for (const mergeData of (instances ?? template.instances)) {
     ids.push(spawnEntity(state, template, targetZoneId, x, y, mergeData));
   }
   return ids;
 }
 
+function serializeMergeData(mergeData: Record<string, string> | null): string {
+  if (mergeData === null) return 'null';
+  const sorted = Object.keys(mergeData).sort();
+  return JSON.stringify(Object.fromEntries(sorted.map((k) => [k, mergeData[k]])));
+}
+
 /**
- * Create a face-down stack zone centered on (worldX, worldY) and spawn every
- * instance from the template into it. Used when dragging a multi-instance
- * template (e.g. a card backed by a data source) onto the tabletop — the
- * whole set lands as a real pile rather than a heap of overlapping entities.
+ * Return the subset of template.instances that are not yet on the tabletop.
+ * For data-source templates, identity is determined by mergeData content.
+ * For non-data-source templates (all null mergeData), identity is by count.
+ */
+export function getUnplacedInstances(
+  state: TabletopState,
+  template: EntityTemplate
+): (Record<string, string> | null)[] {
+  const placed = Object.values(state.entities).filter((e) => e.templateId === template.id);
+
+  if (template.instances.every((inst) => inst === null)) {
+    const remaining = template.instances.length - placed.length;
+    return remaining > 0 ? template.instances.slice(0, remaining) : [];
+  }
+
+  const placedKeys = new Set(placed.map((e) => serializeMergeData(e.mergeData)));
+  return template.instances.filter((inst) => !placedKeys.has(serializeMergeData(inst)));
+}
+
+/**
+ * Create a face-down stack zone centered on (worldX, worldY) and spawn
+ * instances from the template into it. Pass `instances` to spawn a subset
+ * (e.g. only the unplaced ones). Used when dragging a multi-instance template
+ * (e.g. a card backed by a data source) onto the tabletop — the whole set
+ * lands as a real pile rather than a heap of overlapping entities.
  */
 export function spawnStackZoneFromTemplate(
   state: TabletopState,
@@ -441,7 +470,8 @@ export function spawnStackZoneFromTemplate(
   worldX: number,
   worldY: number,
   displayWidth: number,
-  displayHeight: number
+  displayHeight: number,
+  instances?: (Record<string, string> | null)[]
 ): { zoneId: string; instanceIds: string[] } {
   const width = displayWidth;
   const height = displayHeight;
@@ -464,7 +494,7 @@ export function spawnStackZoneFromTemplate(
   state.zones[zone.id] = zone;
   state.zoneOrder.push(zone.id);
 
-  const instanceIds = spawnFromTemplate(state, template, zone.id, 0, 0);
+  const instanceIds = spawnFromTemplate(state, template, zone.id, 0, 0, instances);
   return { zoneId: zone.id, instanceIds };
 }
 
@@ -619,6 +649,34 @@ export function removeEntity(state: TabletopState, instanceId: string): void {
     state.selectedEntityId = null;
   }
   maybeAutoDissolveStack(state, zone.id);
+}
+
+/**
+ * Remove all entities with the given templateId from the tabletop.
+ * Empty non-persistent stacks are auto-dissolved afterward.
+ */
+export function removeAllEntitiesForTemplate(state: TabletopState, templateId: string): void {
+  const toRemove = Object.values(state.entities)
+    .filter((e) => e.templateId === templateId)
+    .map((e) => e.instanceId);
+
+  const affectedZoneIds = new Set<string>();
+  for (const instanceId of toRemove) {
+    const entity = state.entities[instanceId];
+    if (!entity) continue;
+    affectedZoneIds.add(entity.zoneId);
+    const zone = state.zones[entity.zoneId];
+    if (zone) zone.entityIds = zone.entityIds.filter((id) => id !== instanceId);
+    delete state.entities[instanceId];
+  }
+
+  if (state.selectedEntityId && toRemove.includes(state.selectedEntityId)) {
+    state.selectedEntityId = null;
+  }
+
+  for (const zoneId of affectedZoneIds) {
+    maybeAutoDissolveStack(state, zoneId);
+  }
 }
 
 /**

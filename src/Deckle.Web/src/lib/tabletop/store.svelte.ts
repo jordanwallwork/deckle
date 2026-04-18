@@ -211,6 +211,10 @@ export function createTabletopStore(
     apply((s) => ops.setRotation(s, instanceId, degrees));
   }
 
+  function rotateStack(zoneId: string, delta: number): void {
+    apply((s) => ops.rotateStack(s, zoneId, delta));
+  }
+
   function shuffleStack(zoneId: string): void {
     apply((s) => ops.shuffleStack(s, zoneId));
   }
@@ -306,6 +310,14 @@ export function createTabletopStore(
     return zoneId;
   }
 
+  function mergeStackOntoStack(draggedZoneId: string, targetZoneId: string): boolean {
+    let result = false;
+    apply((s) => {
+      result = ops.mergeStackOntoStack(s, draggedZoneId, targetZoneId);
+    });
+    return result;
+  }
+
   function removeEntity(instanceId: string): void {
     apply((s) => ops.removeEntity(s, instanceId));
   }
@@ -357,6 +369,7 @@ export function createTabletopStore(
     setZoneLocked,
     flipEntity,
     rotateEntity,
+    rotateStack,
     setRotation,
     shuffleStack,
     setStackFaceDown,
@@ -367,6 +380,7 @@ export function createTabletopStore(
     spawnFromTemplate,
     spawnStackZoneFromTemplate,
     mergeEntitiesIntoStack,
+    mergeStackOntoStack,
     removeEntity,
     selectEntity,
     selectZone

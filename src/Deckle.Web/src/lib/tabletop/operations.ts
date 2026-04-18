@@ -194,15 +194,18 @@ export function moveZone(state: TabletopState, zoneId: string, x: number, y: num
 /**
  * Find the zone whose rectangle contains a world-space point, or null if none.
  * If zones overlap, returns the one drawn on top (last in zoneOrder).
+ * @param excludeZoneId  Optional zone to skip (e.g. the zone being dragged).
  */
 export function findZoneAtPoint(
   state: TabletopState,
   worldX: number,
-  worldY: number
+  worldY: number,
+  excludeZoneId?: string
 ): Zone | null {
   for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
     const zone = state.zones[state.zoneOrder[i]];
     if (!zone) continue;
+    if (zone.id === excludeZoneId) continue;
     if (
       worldX >= zone.x &&
       worldX < zone.x + zone.width &&
@@ -246,6 +249,45 @@ export function setRotation(
   entity.rotation = next < 0 ? next + 360 : next;
 }
 
+/**
+ * Rotate every entity in a stack by the same delta so the pile stays aligned.
+ * When delta crosses a 90° boundary, the zone's width/height are swapped so
+ * the stack's bounding box matches the rotated top card — otherwise the card
+ * would overflow the zone and be clipped. The zone's centre is preserved so
+ * the pile rotates in place rather than drifting.
+ * No-op for non-stack zones.
+ */
+export function rotateStack(
+  state: TabletopState,
+  zoneId: string,
+  delta: number
+): void {
+  const zone = getZone(state, zoneId);
+  if (zone.type !== 'stack') return;
+  for (const id of zone.entityIds) {
+    const entity = state.entities[id];
+    if (!entity) continue;
+    const next = (entity.rotation + delta) % 360;
+    entity.rotation = next < 0 ? next + 360 : next;
+  }
+
+  const quarterTurns = Math.round(delta / 90);
+  if (Math.abs(quarterTurns) % 2 === 1) {
+    const oldWidth = zone.width;
+    const oldHeight = zone.height;
+    zone.width = oldHeight;
+    zone.height = oldWidth;
+    zone.x += (oldWidth - zone.width) / 2;
+    zone.y += (oldHeight - zone.height) / 2;
+    if (zone.defaultSize) {
+      zone.defaultSize = {
+        width: zone.defaultSize.height,
+        height: zone.defaultSize.width
+      };
+    }
+  }
+}
+
 /** Fisher–Yates shuffle of a stack's entity order. No-op for other zone types. */
 export function shuffleStack(state: TabletopState, zoneId: string): void {
   const zone = getZone(state, zoneId);
@@ -275,7 +317,7 @@ export function setStackPersistent(
   }
 }
 
-/** Flip every entity in a stack to face-down (or face-up). */
+/** Flip every entity in a stack to face-down (or face-up), reversing the order as a physical flip would. */
 export function setStackFaceDown(
   state: TabletopState,
   zoneId: string,
@@ -284,6 +326,7 @@ export function setStackFaceDown(
   const zone = getZone(state, zoneId);
   if (zone.type !== 'stack') return;
   zone.faceDown = faceDown;
+  zone.entityIds = [...zone.entityIds].reverse();
   for (const id of zone.entityIds) {
     const entity = state.entities[id];
     if (entity) entity.isFlipped = faceDown;
@@ -484,6 +527,13 @@ export function mergeEntitiesIntoStack(
 
   const { width, height } = getTemplateDisplaySize(draggedTemplate);
 
+  // If the target card is rotated by an odd number of 90° turns, its visual
+  // footprint is transposed — the zone must match.
+  const quarterTurns = Math.round(target.rotation / 90);
+  const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
+  const zoneW = isOddQuarterTurn ? height : width;
+  const zoneH = isOddQuarterTurn ? width : height;
+
   // Center the stack on the target entity's world position.
   const cx = targetZone.x + target.x + width / 2;
   const cy = targetZone.y + target.y + height / 2;
@@ -492,12 +542,12 @@ export function mergeEntitiesIntoStack(
     id: makeId(),
     name: draggedTemplate.name,
     type: 'stack',
-    x: cx - width / 2,
-    y: cy - height / 2,
-    width,
-    height,
+    x: cx - zoneW / 2,
+    y: cy - zoneH / 2,
+    width: zoneW,
+    height: zoneH,
     faceDown: false,
-    defaultSize: { width, height },
+    defaultSize: { width: zoneW, height: zoneH },
     persistent: false,
     entityIds: [],
     locked: false
@@ -511,6 +561,52 @@ export function mergeEntitiesIntoStack(
   moveEntityToZone(state, draggedId, zone.id);
 
   return zone.id;
+}
+
+/**
+ * Merge all entities from a dragged stack zone onto the top of a destination
+ * stack zone, then remove the (now-empty) dragged zone. Both zones must have
+ * matching defaultSize dimensions. Returns true on success, false if the merge
+ * cannot proceed (type mismatch, same zone, missing defaultSize).
+ */
+export function mergeStackOntoStack(
+  state: TabletopState,
+  draggedZoneId: string,
+  targetZoneId: string
+): boolean {
+  if (draggedZoneId === targetZoneId) return false;
+  const draggedZone = state.zones[draggedZoneId];
+  const targetZone = state.zones[targetZoneId];
+  if (!draggedZone || !targetZone) return false;
+  if (draggedZone.type !== 'stack' || targetZone.type !== 'stack') return false;
+
+  const ds1 = (draggedZone as StackZone).defaultSize;
+  const ds2 = (targetZone as StackZone).defaultSize;
+  if (!ds1 || !ds2) return false;
+  if (ds1.width !== ds2.width || ds1.height !== ds2.height) return false;
+
+  // Align dragged entities to the target stack's rotation, then append them
+  // on top (end of entityIds = top of stack).
+  const referenceId = (targetZone as StackZone).entityIds[0];
+  const referenceRotation = referenceId ? (state.entities[referenceId]?.rotation ?? 0) : null;
+
+  for (const id of draggedZone.entityIds) {
+    const entity = state.entities[id];
+    if (!entity) continue;
+    entity.zoneId = targetZoneId;
+    entity.x = 0;
+    entity.y = 0;
+    if (referenceRotation !== null) entity.rotation = referenceRotation;
+    targetZone.entityIds.push(id);
+  }
+
+  draggedZone.entityIds = [];
+  delete state.zones[draggedZoneId];
+  state.zoneOrder = state.zoneOrder.filter((id) => id !== draggedZoneId);
+  if (state.selectedZoneId === draggedZoneId) state.selectedZoneId = null;
+  if (state.editingZoneId === draggedZoneId) state.editingZoneId = null;
+
+  return true;
 }
 
 /** Remove an entity entirely from the tabletop. */

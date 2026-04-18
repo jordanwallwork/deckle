@@ -111,7 +111,15 @@
       });
       items.push({
         label: `Rotate 90° (R)`,
-        action: () => store.rotateEntity(selectedId, 90)
+        action: () => {
+          const rotateEntity = store.state.entities[selectedId];
+          const rotateZone = rotateEntity ? store.state.zones[rotateEntity.zoneId] : null;
+          if (rotateZone?.type === 'stack') {
+            store.rotateStack(rotateZone.id, 90);
+          } else {
+            store.rotateEntity(selectedId, 90);
+          }
+        }
       });
       items.push({ divider: true });
       items.push({
@@ -157,6 +165,10 @@
           items.push({
             label: zone.faceDown ? 'Flip Stack Face-Up (F)' : 'Flip Stack Face-Down (F)',
             action: () => store.setStackFaceDown(selectedZoneId, !zone.faceDown)
+          });
+          items.push({
+            label: `Rotate 90° (R)`,
+            action: () => store.rotateStack(selectedZoneId, 90)
           });
           items.push({
             label: zone.persistent ? 'Persistent ✓' : 'Persistent',
@@ -245,7 +257,13 @@
         store.flipEntity(selectedId);
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        store.rotateEntity(selectedId, 90);
+        const entityForRotate = store.state.entities[selectedId];
+        const zoneForRotate = entityForRotate ? store.state.zones[entityForRotate.zoneId] : null;
+        if (zoneForRotate?.type === 'stack') {
+          store.rotateStack(zoneForRotate.id, 90);
+        } else {
+          store.rotateEntity(selectedId, 90);
+        }
       } else if (e.key === 's' || e.key === 'S') {
         // The top card of a stack is the only clickable surface, so a selected
         // entity in a stack is usually the user's proxy for the stack itself.
@@ -266,6 +284,9 @@
       } else if ((e.key === 'f' || e.key === 'F') && zone?.type === 'stack') {
         e.preventDefault();
         store.setStackFaceDown(selectedZoneId, !zone.faceDown);
+      } else if ((e.key === 'r' || e.key === 'R') && zone?.type === 'stack') {
+        e.preventDefault();
+        store.rotateStack(selectedZoneId, 90);
       } else if (e.key === 'Escape') {
         store.selectZone(null);
       }

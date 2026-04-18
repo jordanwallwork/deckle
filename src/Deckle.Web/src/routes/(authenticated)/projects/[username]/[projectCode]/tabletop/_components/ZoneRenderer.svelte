@@ -363,6 +363,16 @@
     overflow: hidden;
   }
 
+  /* Centre the card inside the stack so rotation about its own centre lands
+     within the stack's (possibly swapped) bounding box. The wrapper's own
+     left/top inline styles are always 0 for stack entities, so overriding
+     them here is safe. `margin: auto` with `inset: 0` centres an absolutely-
+     positioned element with defined width/height. */
+  .stack-top :global(.entity-wrapper) {
+    inset: 0;
+    margin: auto;
+  }
+
   .stack-badge {
     position: absolute;
     top: 0;

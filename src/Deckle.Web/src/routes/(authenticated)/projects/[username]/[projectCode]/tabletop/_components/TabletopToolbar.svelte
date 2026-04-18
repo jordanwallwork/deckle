@@ -25,6 +25,26 @@
 
   const entityCount = $derived(Object.keys(store.state.entities).length);
   const zoneCount = $derived(store.state.zoneOrder.length);
+
+  // Shortcut availability mirrors handleKeydown in Tabletop.svelte:
+  //   F: selected entity (any), or selected stack zone
+  //   R: selected entity (any)
+  //   S: selected entity sitting in a stack zone, or selected stack zone
+  const selectedEntity = $derived(
+    store.state.selectedEntityId ? store.state.entities[store.state.selectedEntityId] : null
+  );
+  const selectedEntityZone = $derived(
+    selectedEntity ? store.state.zones[selectedEntity.zoneId] : null
+  );
+  const selectedZone = $derived(
+    store.state.selectedZoneId ? store.state.zones[store.state.selectedZoneId] : null
+  );
+
+  const canFlip = $derived(!!selectedEntity || selectedZone?.type === 'stack');
+  const canRotate = $derived(!!selectedEntity || selectedZone?.type === 'stack');
+  const canShuffle = $derived(
+    selectedEntityZone?.type === 'stack' || selectedZone?.type === 'stack'
+  );
 </script>
 
 <div class="toolbar">
@@ -62,9 +82,9 @@
   </div>
 
   <div class="toolbar-group shortcuts">
-    <span class="shortcut"><kbd>F</kbd> Flip</span>
-    <span class="shortcut"><kbd>R</kbd> Rotate</span>
-    <span class="shortcut"><kbd>S</kbd> Shuffle</span>
+    <span class="shortcut" class:disabled={!canFlip}><kbd>F</kbd> Flip</span>
+    <span class="shortcut" class:disabled={!canRotate}><kbd>R</kbd> Rotate</span>
+    <span class="shortcut" class:disabled={!canShuffle}><kbd>S</kbd> Shuffle</span>
   </div>
 </div>
 
@@ -147,6 +167,11 @@
     gap: 0.25rem;
     color: #8b8ea0;
     font-size: 0.75rem;
+    transition: opacity 0.1s;
+  }
+
+  .shortcut.disabled {
+    opacity: 0.35;
   }
 
   kbd {

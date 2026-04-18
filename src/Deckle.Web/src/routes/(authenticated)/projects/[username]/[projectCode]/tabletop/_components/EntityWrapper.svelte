@@ -250,11 +250,27 @@
 
     if (!drag.didMove) return;
 
-    // Zone drags are fully handled during pointermove — no drop-on-sidebar
-    // or cross-zone commit to apply here. Suppress the synthetic click that
-    // may follow, so selection doesn't flip back to the top card.
+    // Zone drags: check if the stack was dropped onto another compatible stack
+    // to merge them. The dragged zone is excluded from the point search so we
+    // find the destination zone beneath it, not the dragged zone itself.
     if (drag.zoneDrag) {
       suppressNextClick = true;
+      const surfaceEl = drag.canvas?.surfaceEl;
+      if (surfaceEl) {
+        const zoom = drag.canvas?.zoom ?? 1;
+        const rect = surfaceEl.getBoundingClientRect();
+        const worldX = (e.clientX - rect.left) / zoom;
+        const worldY = (e.clientY - rect.top) / zoom;
+        const targetZone = ops.findZoneAtPoint(
+          drag.store.state,
+          worldX,
+          worldY,
+          drag.zoneDrag.zoneId
+        );
+        if (targetZone?.type === 'stack') {
+          drag.store.mergeStackOntoStack(drag.zoneDrag.zoneId, targetZone.id);
+        }
+      }
       return;
     }
 

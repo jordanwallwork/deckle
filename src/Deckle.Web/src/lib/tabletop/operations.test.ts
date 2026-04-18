@@ -11,12 +11,15 @@ import {
   drawFromStack,
   findZoneAtPoint,
   flipEntity,
+  mergeEntitiesIntoStack,
+  mergeStackOntoStack,
   moveEntity,
   moveEntityToZone,
   moveZone,
   removeEntity,
   reorderInZone,
   rotateEntity,
+  rotateStack,
   setRotation,
   setStackFaceDown,
   setStackPersistent,
@@ -257,6 +260,54 @@ describe('shuffleStack', () => {
   });
 });
 
+describe('rotateStack', () => {
+  it('rotates every entity in the stack by the same delta', () => {
+    const state = makeState();
+    state.entities.e3.rotation = 45;
+    state.entities.e4.rotation = 315;
+    rotateStack(state, 'deck', 90);
+    expect(state.entities.e3.rotation).toBe(135);
+    expect(state.entities.e4.rotation).toBe(45);
+  });
+
+  it('is a no-op for non-stack zones', () => {
+    const state = makeState();
+    state.entities.e1.rotation = 0;
+    rotateStack(state, 'tableau', 90);
+    expect(state.entities.e1.rotation).toBe(0);
+  });
+
+  it('swaps the zone width/height on a 90° rotation and keeps the centre', () => {
+    const state = makeState();
+    const deck = state.zones.deck as StackZone;
+    deck.x = 0;
+    deck.y = 700;
+    deck.width = 200;
+    deck.height = 300;
+    deck.defaultSize = { width: 180, height: 260 };
+    const cxBefore = deck.x + deck.width / 2;
+    const cyBefore = deck.y + deck.height / 2;
+
+    rotateStack(state, 'deck', 90);
+
+    expect(deck.width).toBe(300);
+    expect(deck.height).toBe(200);
+    expect(deck.x + deck.width / 2).toBe(cxBefore);
+    expect(deck.y + deck.height / 2).toBe(cyBefore);
+    expect(deck.defaultSize).toEqual({ width: 260, height: 180 });
+  });
+
+  it('preserves width/height on a 180° rotation', () => {
+    const state = makeState();
+    const deck = state.zones.deck as StackZone;
+    deck.width = 200;
+    deck.height = 300;
+    rotateStack(state, 'deck', 180);
+    expect(deck.width).toBe(200);
+    expect(deck.height).toBe(300);
+  });
+});
+
 describe('setStackFaceDown', () => {
   it('flips all entities in the stack', () => {
     const state = makeState();
@@ -264,6 +315,150 @@ describe('setStackFaceDown', () => {
     expect((state.zones.deck as StackZone).faceDown).toBe(false);
     expect(state.entities.e3.isFlipped).toBe(false);
     expect(state.entities.e4.isFlipped).toBe(false);
+  });
+
+  it('reverses the entity order when flipping', () => {
+    const state = makeState();
+    // deck starts as ['e3', 'e4'] (e4 on top)
+    setStackFaceDown(state, 'deck', false);
+    expect(state.zones.deck.entityIds).toEqual(['e4', 'e3']);
+  });
+});
+
+describe('mergeEntitiesIntoStack', () => {
+  function makeTemplate(): EntityTemplate {
+    return {
+      id: 'tpl',
+      name: 'Card',
+      type: 'Card',
+      widthPx: 126,
+      heightPx: 176,
+      widthMm: 63,
+      heightMm: 88,
+      isEditable: true,
+      instances: [null]
+    };
+  }
+
+  it('creates a stack zone at the target entity position', () => {
+    const state = makeState();
+    const templates: Record<string, EntityTemplate> = { t: makeTemplate() };
+    state.entities.e1.templateId = 't';
+    state.entities.e2.templateId = 't';
+    state.entities.e1.x = 50;
+    state.entities.e1.y = 100;
+
+    const zoneId = mergeEntitiesIntoStack(state, templates, 'e2', 'e1');
+    expect(zoneId).not.toBeNull();
+    const zone = state.zones[zoneId!] as StackZone;
+    expect(zone.type).toBe('stack');
+    expect(zone.entityIds).toEqual(['e1', 'e2']);
+  });
+
+  it('uses swapped dimensions when target is rotated 90°', () => {
+    const state = makeState();
+    const templates: Record<string, EntityTemplate> = { t: makeTemplate() };
+    state.entities.e1.templateId = 't';
+    state.entities.e2.templateId = 't';
+    state.entities.e1.rotation = 90;
+
+    const zoneId = mergeEntitiesIntoStack(state, templates, 'e2', 'e1');
+    const zone = state.zones[zoneId!] as StackZone;
+    // Template is 126×176 px; rotated 90° → zone should be 176×126
+    expect(zone.width).toBe(176);
+    expect(zone.height).toBe(126);
+    expect(zone.defaultSize).toEqual({ width: 176, height: 126 });
+  });
+
+  it('uses normal dimensions when target is rotated 180°', () => {
+    const state = makeState();
+    const templates: Record<string, EntityTemplate> = { t: makeTemplate() };
+    state.entities.e1.templateId = 't';
+    state.entities.e2.templateId = 't';
+    state.entities.e1.rotation = 180;
+
+    const zoneId = mergeEntitiesIntoStack(state, templates, 'e2', 'e1');
+    const zone = state.zones[zoneId!] as StackZone;
+    expect(zone.width).toBe(126);
+    expect(zone.height).toBe(176);
+  });
+});
+
+describe('mergeStackOntoStack', () => {
+  function makeStateWithTwoStacks(): TabletopState {
+    const state = makeState();
+    const stack2: StackZone = {
+      id: 'stack2',
+      name: 'Stack 2',
+      type: 'stack',
+      x: 400,
+      y: 700,
+      width: 126,
+      height: 176,
+      faceDown: false,
+      persistent: false,
+      defaultSize: { width: 126, height: 176 },
+      entityIds: ['e5', 'e6'],
+      locked: false
+    };
+    (state.zones.deck as StackZone).defaultSize = { width: 126, height: 176 };
+    state.zones.stack2 = stack2;
+    state.zoneOrder.push('stack2');
+    state.entities.e5 = makeEntity({ instanceId: 'e5', zoneId: 'stack2' });
+    state.entities.e6 = makeEntity({ instanceId: 'e6', zoneId: 'stack2' });
+    return state;
+  }
+
+  it('moves all entities from dragged stack onto top of target stack', () => {
+    const state = makeStateWithTwoStacks();
+    const result = mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(result).toBe(true);
+    expect(state.zones.deck.entityIds).toEqual(['e3', 'e4', 'e5', 'e6']);
+    expect(state.entities.e5.zoneId).toBe('deck');
+    expect(state.entities.e6.zoneId).toBe('deck');
+  });
+
+  it('removes the dragged zone from state', () => {
+    const state = makeStateWithTwoStacks();
+    mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(state.zones.stack2).toBeUndefined();
+    expect(state.zoneOrder).not.toContain('stack2');
+  });
+
+  it('returns false when defaultSizes do not match', () => {
+    const state = makeStateWithTwoStacks();
+    (state.zones.stack2 as StackZone).defaultSize = { width: 200, height: 300 };
+    const result = mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(result).toBe(false);
+    expect(state.zones.stack2).toBeDefined();
+  });
+
+  it('returns false for same zone', () => {
+    const state = makeStateWithTwoStacks();
+    expect(mergeStackOntoStack(state, 'deck', 'deck')).toBe(false);
+  });
+
+  it('returns false when either zone is not a stack', () => {
+    const state = makeStateWithTwoStacks();
+    expect(mergeStackOntoStack(state, 'deck', 'tableau')).toBe(false);
+  });
+
+  it('aligns dragged entities to the target stack rotation', () => {
+    const state = makeStateWithTwoStacks();
+    state.entities.e3.rotation = 90;
+    state.entities.e4.rotation = 90;
+    state.entities.e5.rotation = 0;
+    state.entities.e6.rotation = 0;
+    mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(state.entities.e5.rotation).toBe(90);
+    expect(state.entities.e6.rotation).toBe(90);
+  });
+
+  it('clears selectedZoneId if the dragged zone was selected', () => {
+    const state = makeStateWithTwoStacks();
+    state.selectedZoneId = 'stack2';
+    mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(state.selectedZoneId).toBeNull();
   });
 });
 

@@ -4,6 +4,7 @@
 // unit-testable and can be reused by the boardgame.io adapter in Phase 3.
 
 import type { Entity, EntityTemplate, GridZone, StackZone, TabletopState, Zone } from './types';
+import { getTemplateDisplaySize } from './initialization';
 
 function makeId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -412,6 +413,93 @@ export function spawnStackZoneFromTemplate(
 
   const instanceIds = spawnFromTemplate(state, template, zone.id, 0, 0);
   return { zoneId: zone.id, instanceIds };
+}
+
+/**
+ * Find the topmost entity whose bounding box contains a world-space point,
+ * skipping stack zones (only top card is interactive there) and an optional
+ * excluded instance (the entity being dragged).
+ */
+export function findEntityAtPoint(
+  state: TabletopState,
+  templates: Record<string, EntityTemplate>,
+  worldX: number,
+  worldY: number,
+  excludeInstanceId?: string
+): Entity | null {
+  for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
+    const zone = state.zones[state.zoneOrder[i]];
+    if (!zone || zone.type === 'stack') continue;
+    for (let j = zone.entityIds.length - 1; j >= 0; j--) {
+      const entityId = zone.entityIds[j];
+      if (entityId === excludeInstanceId) continue;
+      const entity = state.entities[entityId];
+      if (!entity) continue;
+      const template = templates[entity.templateId];
+      if (!template) continue;
+      const { width, height } = getTemplateDisplaySize(template);
+      const ex = zone.x + entity.x;
+      const ey = zone.y + entity.y;
+      if (worldX >= ex && worldX < ex + width && worldY >= ey && worldY < ey + height) {
+        return entity;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Create a new non-persistent stack zone at the target entity's location and
+ * move both the dragged entity and the target entity into it. The target lands
+ * at the bottom; the dragged entity goes on top. Returns the new zone id, or
+ * null if the merge cannot proceed (type mismatch, target already in a stack).
+ */
+export function mergeEntitiesIntoStack(
+  state: TabletopState,
+  templates: Record<string, EntityTemplate>,
+  draggedId: string,
+  targetId: string
+): string | null {
+  const dragged = state.entities[draggedId];
+  const target = state.entities[targetId];
+  if (!dragged || !target) return null;
+
+  const draggedTemplate = templates[dragged.templateId];
+  const targetTemplate = templates[target.templateId];
+  if (!draggedTemplate || !targetTemplate) return null;
+  if (draggedTemplate.type !== targetTemplate.type) return null;
+
+  const targetZone = state.zones[target.zoneId];
+  if (!targetZone || targetZone.type === 'stack') return null;
+
+  const { width, height } = getTemplateDisplaySize(draggedTemplate);
+
+  // Center the stack on the target entity's world position.
+  const cx = targetZone.x + target.x + width / 2;
+  const cy = targetZone.y + target.y + height / 2;
+
+  const zone: StackZone = {
+    id: makeId(),
+    name: draggedTemplate.name,
+    type: 'stack',
+    x: cx - width / 2,
+    y: cy - height / 2,
+    width,
+    height,
+    faceDown: false,
+    defaultSize: { width, height },
+    persistent: false,
+    entityIds: []
+  };
+
+  state.zones[zone.id] = zone;
+  state.zoneOrder.push(zone.id);
+
+  // Target goes first (bottom), dragged goes second (top).
+  moveEntityToZone(state, targetId, zone.id);
+  moveEntityToZone(state, draggedId, zone.id);
+
+  return zone.id;
 }
 
 /** Remove an entity entirely from the tabletop. */

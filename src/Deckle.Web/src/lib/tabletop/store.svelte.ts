@@ -234,6 +234,14 @@ export function createTabletopStore(
     return result;
   }
 
+  function mergeEntitiesIntoStack(draggedId: string, targetId: string): string | null {
+    let zoneId: string | null = null;
+    apply((s) => {
+      zoneId = ops.mergeEntitiesIntoStack(s, templates, draggedId, targetId);
+    });
+    return zoneId;
+  }
+
   function removeEntity(instanceId: string): void {
     apply((s) => ops.removeEntity(s, instanceId));
   }
@@ -285,6 +293,7 @@ export function createTabletopStore(
     spawnEntity,
     spawnFromTemplate,
     spawnStackZoneFromTemplate,
+    mergeEntitiesIntoStack,
     removeEntity,
     selectEntity,
     selectZone

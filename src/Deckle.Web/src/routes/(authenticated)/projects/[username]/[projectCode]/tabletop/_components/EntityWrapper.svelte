@@ -276,6 +276,31 @@
       const rect = surfaceEl.getBoundingClientRect();
       const worldX = (e.clientX - rect.left) / zoom;
       const worldY = (e.clientY - rect.top) / zoom;
+
+      // Entity-on-entity merge: dropped onto a same-type entity in a non-stack
+      // zone → create a new stack with both, dragged entity on top.
+      const entityAtPoint = ops.findEntityAtPoint(
+        drag.store.state,
+        drag.store.templates,
+        worldX,
+        worldY,
+        drag.instanceId
+      );
+      if (entityAtPoint) {
+        const draggedTemplate = drag.store.templates[current.templateId];
+        const targetTemplate = drag.store.templates[entityAtPoint.templateId];
+        const targetEntityZone = drag.store.state.zones[entityAtPoint.zoneId];
+        if (
+          draggedTemplate &&
+          targetTemplate &&
+          draggedTemplate.type === targetTemplate.type &&
+          targetEntityZone?.type !== 'stack'
+        ) {
+          drag.store.mergeEntitiesIntoStack(drag.instanceId, entityAtPoint.instanceId);
+          return;
+        }
+      }
+
       const targetZone = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
       if (targetZone && targetZone.id !== current.zoneId) {
         const localX = worldX - targetZone.x - drag.displayWidth / 2;

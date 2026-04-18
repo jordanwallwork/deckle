@@ -34,6 +34,7 @@ function makeEntity(overrides: Partial<Entity> & { instanceId: string; zoneId: s
     rotation: 0,
     isFlipped: false,
     mergeData: null,
+    locked: false,
     ...overrides
   };
 }
@@ -47,7 +48,8 @@ function makeState(): TabletopState {
     y: 0,
     width: 800,
     height: 600,
-    entityIds: ['e1', 'e2']
+    entityIds: ['e1', 'e2'],
+    locked: false
   };
   const grid: GridZone = {
     id: 'grid',
@@ -60,7 +62,8 @@ function makeState(): TabletopState {
     cellWidth: 80,
     cellHeight: 80,
     columns: 6,
-    entityIds: []
+    entityIds: [],
+    locked: false
   };
   const deck: StackZone = {
     id: 'deck',
@@ -72,7 +75,8 @@ function makeState(): TabletopState {
     height: 300,
     faceDown: true,
     persistent: true,
-    entityIds: ['e3', 'e4']
+    entityIds: ['e3', 'e4'],
+    locked: false
   };
 
   return {
@@ -89,7 +93,8 @@ function makeState(): TabletopState {
     },
     zoneOrder: ['tableau', 'grid', 'deck'],
     selectedEntityId: null,
-    selectedZoneId: null
+    selectedZoneId: null,
+    editingZoneId: null
   };
 }
 
@@ -105,7 +110,8 @@ describe('snapToGrid', () => {
     cellWidth: 80,
     cellHeight: 80,
     columns: 6,
-    entityIds: []
+    entityIds: [],
+    locked: false
   };
 
   it('snaps to the nearest cell', () => {

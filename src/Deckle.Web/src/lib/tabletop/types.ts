@@ -28,6 +28,8 @@ export interface ZoneBase {
    * stacks (top = last) and grids (cell index).
    */
   entityIds: string[];
+  /** When true, the zone cannot be dragged or resized (except via edit mode). */
+  locked: boolean;
 }
 
 export interface FreeformZone extends ZoneBase {
@@ -88,6 +90,8 @@ export interface Entity {
   mergeData: Record<string, string> | null;
   /** Optional human-readable label; usually derived from mergeData or template. */
   label?: string;
+  /** When true, the entity cannot be dragged. */
+  locked: boolean;
 }
 
 export interface TabletopState {
@@ -99,6 +103,11 @@ export interface TabletopState {
   selectedEntityId: string | null;
   /** Selected zone (for zone-level operations like shuffle). */
   selectedZoneId: string | null;
+  /**
+   * Zone currently in edit mode — rendered with resize handles, a name
+   * input, and a body drag that repositions it. Only one at a time.
+   */
+  editingZoneId: string | null;
 }
 
 /** Minimal template metadata cached alongside state so renderers can draw entities. */

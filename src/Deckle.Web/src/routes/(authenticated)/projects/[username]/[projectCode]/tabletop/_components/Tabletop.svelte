@@ -53,9 +53,48 @@
     contextMenu = null;
   }
 
+  function getWorldPoint(clientX: number, clientY: number): { x: number; y: number } | null {
+    if (!surfaceEl) return null;
+    const rect = surfaceEl.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / zoom,
+      y: (clientY - rect.top) / zoom
+    };
+  }
+
+  /** Default size for a freshly created zone; user resizes in edit mode. */
+  const NEW_ZONE_WIDTH = 300;
+  const NEW_ZONE_HEIGHT = 200;
+
+  function createZoneAt(clientX: number, clientY: number) {
+    const world = getWorldPoint(clientX, clientY);
+    if (!world) return;
+    store.createFreeformZone(
+      world.x - NEW_ZONE_WIDTH / 2,
+      world.y - NEW_ZONE_HEIGHT / 2,
+      NEW_ZONE_WIDTH,
+      NEW_ZONE_HEIGHT
+    );
+  }
+
   function handleCanvasContextMenu(e: MouseEvent) {
     e.preventDefault();
     closeContextMenu();
+
+    // Don't open a menu while the user is mid-edit — the edit UI already
+    // has its own affordances (Done, Delete, etc).
+    if (store.state.editingZoneId) return;
+
+    // Right-click on empty canvas (not a zone or entity) — deselect so the
+    // "Create Zone" menu shows instead of an unrelated selection's menu.
+    const target = e.target as HTMLElement;
+    if (
+      target === e.currentTarget ||
+      target.classList.contains('canvas-surface')
+    ) {
+      store.selectEntity(null);
+      store.selectZone(null);
+    }
 
     const selectedId = store.state.selectedEntityId;
     const selectedZoneId = store.state.selectedZoneId;
@@ -65,7 +104,6 @@
     if (selectedId) {
       const entity = store.state.entities[selectedId];
       const zone = entity ? store.state.zones[entity.zoneId] : null;
-      const template = entity ? store.templates[entity.templateId] : null;
 
       items.push({
         label: `Flip (F)`,
@@ -76,6 +114,10 @@
         action: () => store.rotateEntity(selectedId, 90)
       });
       items.push({ divider: true });
+      items.push({
+        label: entity?.locked ? 'Unlock' : 'Lock',
+        action: () => store.setEntityLocked(selectedId, !entity?.locked)
+      });
 
       // Move to zone submenu
       const otherZones = store.state.zoneOrder
@@ -83,6 +125,7 @@
         .filter((z) => z && z.id !== entity?.zoneId);
 
       if (otherZones.length > 0) {
+        items.push({ divider: true });
         items.push({
           label: 'Move to...',
           submenu: otherZones.map((z) => ({
@@ -105,28 +148,56 @@
       }
     } else if (selectedZoneId) {
       const zone = store.state.zones[selectedZoneId];
-      if (zone?.type === 'stack') {
-        items.push({
-          label: `Shuffle (S)`,
-          action: () => store.shuffleStack(selectedZoneId)
-        });
-        items.push({
-          label: zone.faceDown ? 'Flip Stack Face-Up (F)' : 'Flip Stack Face-Down (F)',
-          action: () => store.setStackFaceDown(selectedZoneId, !zone.faceDown)
-        });
-        items.push({
-          label: zone.persistent ? 'Persistent ✓' : 'Persistent',
-          action: () => store.setStackPersistent(selectedZoneId, !zone.persistent)
-        });
-        // Draw to tableau
-        if (zone.entityIds.length > 0) {
-          items.push({ divider: true });
+      if (zone) {
+        if (zone.type === 'stack') {
           items.push({
-            label: 'Draw to Tableau',
-            action: () => store.drawFromStack(selectedZoneId, 'zone-tableau', 40, 40)
+            label: `Shuffle (S)`,
+            action: () => store.shuffleStack(selectedZoneId)
           });
+          items.push({
+            label: zone.faceDown ? 'Flip Stack Face-Up (F)' : 'Flip Stack Face-Down (F)',
+            action: () => store.setStackFaceDown(selectedZoneId, !zone.faceDown)
+          });
+          items.push({
+            label: zone.persistent ? 'Persistent ✓' : 'Persistent',
+            action: () => store.setStackPersistent(selectedZoneId, !zone.persistent)
+          });
+          if (zone.entityIds.length > 0) {
+            const playArea = store.state.zoneOrder
+              .map((id) => store.state.zones[id])
+              .find((z) => z && z.id !== selectedZoneId && z.type === 'freeform');
+            if (playArea) {
+              items.push({ divider: true });
+              items.push({
+                label: `Draw to ${playArea.name}`,
+                action: () => store.drawFromStack(selectedZoneId, playArea.id, 40, 40)
+              });
+            }
+          }
+          items.push({ divider: true });
         }
+        items.push({
+          label: 'Edit Zone',
+          disabled: zone.locked,
+          action: () => store.setEditingZone(selectedZoneId)
+        });
+        items.push({
+          label: zone.locked ? 'Unlock' : 'Lock',
+          action: () => store.setZoneLocked(selectedZoneId, !zone.locked)
+        });
+        items.push({
+          label: 'Delete Zone',
+          variant: 'danger',
+          disabled: zone.locked,
+          action: () => store.deleteZone(selectedZoneId)
+        });
       }
+    } else {
+      const { clientX, clientY } = e;
+      items.push({
+        label: 'Create Zone',
+        action: () => createZoneAt(clientX, clientY)
+      });
     }
 
     if (items.length === 0) {
@@ -154,6 +225,14 @@
     if (modKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
       e.preventDefault();
       store.redo();
+      return;
+    }
+
+    // Edit mode: Escape exits without cancelling the edits in progress.
+    // (Use Undo after exit to roll back the whole edit session.)
+    if (store.state.editingZoneId && e.key === 'Escape') {
+      e.preventDefault();
+      store.setEditingZone(null);
       return;
     }
 

@@ -1,26 +1,15 @@
 // Build an initial TabletopState from the project's components.
 //
-// The play space starts empty — users drag components onto the tabletop
-// from the sidebar. Default zones (Tableau, Grid, Deck) are provided so
-// drops have somewhere to land.
+// The play space starts with a single "Play Area" freeform zone — users
+// drag components from the sidebar onto the tabletop, and create
+// additional zones via the canvas context menu.
 
 import type { GameComponent } from '$lib/types';
 import { isEditableComponent, isDice } from '$lib/utils/componentTypes';
-import type {
-  EntityTemplate,
-  FreeformZone,
-  GridZone,
-  StackZone,
-  TabletopState,
-  Zone
-} from './types';
+import type { EntityTemplate, FreeformZone, TabletopState, Zone } from './types';
 
-const TABLEAU_WIDTH = 1400;
-const TABLEAU_HEIGHT = 700;
-
-const GRID_CELL = 80;
-const GRID_COLUMNS = 6;
-const GRID_ROWS = 4;
+const PLAY_AREA_WIDTH = 1400;
+const PLAY_AREA_HEIGHT = 700;
 
 /**
  * Default physical size for dice entities on the tabletop (standard d6).
@@ -130,57 +119,30 @@ export function buildInitialTabletop(input: TabletopInitInput): TabletopInitResu
     };
   }
 
-  const tableau: FreeformZone = {
-    id: 'zone-tableau',
-    name: 'Tableau',
+  const playArea: FreeformZone = {
+    id: 'zone-play-area',
+    name: 'Play Area',
     type: 'freeform',
     x: 0,
     y: 0,
-    width: TABLEAU_WIDTH,
-    height: TABLEAU_HEIGHT,
-    entityIds: []
-  };
-
-  const grid: GridZone = {
-    id: 'zone-grid',
-    name: 'Grid',
-    type: 'grid',
-    x: TABLEAU_WIDTH + 40,
-    y: 0,
-    width: GRID_COLUMNS * GRID_CELL,
-    height: GRID_ROWS * GRID_CELL,
-    cellWidth: GRID_CELL,
-    cellHeight: GRID_CELL,
-    columns: GRID_COLUMNS,
-    entityIds: []
-  };
-
-  const deck: StackZone = {
-    id: 'zone-deck',
-    name: 'Deck',
-    type: 'stack',
-    x: TABLEAU_WIDTH + 40,
-    y: GRID_ROWS * GRID_CELL + 40,
-    width: 220,
-    height: 320,
-    faceDown: true,
-    persistent: true,
-    entityIds: []
+    width: PLAY_AREA_WIDTH,
+    height: PLAY_AREA_HEIGHT,
+    entityIds: [],
+    locked: false
   };
 
   const zones: Record<string, Zone> = {
-    [tableau.id]: tableau,
-    [grid.id]: grid,
-    [deck.id]: deck
+    [playArea.id]: playArea
   };
-  const zoneOrder = [tableau.id, grid.id, deck.id];
+  const zoneOrder = [playArea.id];
 
   const state: TabletopState = {
     entities: {},
     zones,
     zoneOrder,
     selectedEntityId: null,
-    selectedZoneId: null
+    selectedZoneId: null,
+    editingZoneId: null
   };
 
   return { state, templates };

@@ -3,7 +3,15 @@
 // (see store.svelte.ts). Keeping these outside the store means they stay
 // unit-testable and can be reused by the boardgame.io adapter in Phase 3.
 
-import type { Entity, EntityTemplate, GridZone, StackZone, TabletopState, Zone } from './types';
+import type {
+  Entity,
+  EntityTemplate,
+  FreeformZone,
+  GridZone,
+  StackZone,
+  TabletopState,
+  Zone
+} from './types';
 import { getTemplateDisplaySize } from './initialization';
 
 function makeId(): string {
@@ -350,7 +358,8 @@ export function spawnEntity(
     rotation: 0,
     isFlipped: zone.type === 'stack' ? (zone as StackZone).faceDown : false,
     mergeData,
-    label: template.name
+    label: template.name,
+    locked: false
   };
 
   state.entities[instanceId] = entity;
@@ -405,7 +414,8 @@ export function spawnStackZoneFromTemplate(
     faceDown: true,
     defaultSize: { width: displayWidth, height: displayHeight },
     persistent: false,
-    entityIds: []
+    entityIds: [],
+    locked: false
   };
 
   state.zones[zone.id] = zone;
@@ -489,7 +499,8 @@ export function mergeEntitiesIntoStack(
     faceDown: false,
     defaultSize: { width, height },
     persistent: false,
-    entityIds: []
+    entityIds: [],
+    locked: false
   };
 
   state.zones[zone.id] = zone;
@@ -512,6 +523,107 @@ export function removeEntity(state: TabletopState, instanceId: string): void {
     state.selectedEntityId = null;
   }
   maybeAutoDissolveStack(state, zone.id);
+}
+
+/**
+ * Create a new freeform zone and add it to the tabletop. The new zone is
+ * returned with `locked: false` and with `editingZoneId` set so the UI
+ * renders it in edit mode immediately.
+ */
+export function createFreeformZone(
+  state: TabletopState,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  name = 'New Zone'
+): string {
+  const zone: FreeformZone = {
+    id: typeof crypto !== 'undefined' && crypto.randomUUID
+      ? `zone-${crypto.randomUUID()}`
+      : `zone-${Math.random().toString(36).slice(2)}`,
+    name,
+    type: 'freeform',
+    x,
+    y,
+    width,
+    height,
+    entityIds: [],
+    locked: false
+  };
+  state.zones[zone.id] = zone;
+  state.zoneOrder.push(zone.id);
+  state.editingZoneId = zone.id;
+  state.selectedZoneId = zone.id;
+  state.selectedEntityId = null;
+  return zone.id;
+}
+
+/** Rename a zone. */
+export function renameZone(state: TabletopState, zoneId: string, name: string): void {
+  const zone = getZone(state, zoneId);
+  zone.name = name;
+}
+
+/**
+ * Resize a zone. Optional x/y accept a new top-left position, so drag-resize
+ * from the top-left corner can shift the origin as well.
+ */
+export function resizeZone(
+  state: TabletopState,
+  zoneId: string,
+  width: number,
+  height: number,
+  x?: number,
+  y?: number
+): void {
+  const zone = getZone(state, zoneId);
+  const MIN = 40;
+  zone.width = Math.max(MIN, width);
+  zone.height = Math.max(MIN, height);
+  if (x !== undefined) zone.x = x;
+  if (y !== undefined) zone.y = y;
+}
+
+/** Delete a zone and every entity it contains. */
+export function deleteZone(state: TabletopState, zoneId: string): void {
+  const zone = state.zones[zoneId];
+  if (!zone) return;
+  for (const id of [...zone.entityIds]) {
+    delete state.entities[id];
+  }
+  delete state.zones[zoneId];
+  state.zoneOrder = state.zoneOrder.filter((id) => id !== zoneId);
+  if (state.selectedZoneId === zoneId) state.selectedZoneId = null;
+  if (state.editingZoneId === zoneId) state.editingZoneId = null;
+}
+
+/** Enter/leave edit mode for a zone. Pass null to exit. */
+export function setEditingZone(state: TabletopState, zoneId: string | null): void {
+  state.editingZoneId = zoneId;
+  if (zoneId !== null) {
+    state.selectedZoneId = zoneId;
+    state.selectedEntityId = null;
+  }
+}
+
+/** Toggle lock on an entity. Locked entities cannot be dragged. */
+export function setEntityLocked(
+  state: TabletopState,
+  instanceId: string,
+  locked: boolean
+): void {
+  const entity = getEntity(state, instanceId);
+  entity.locked = locked;
+}
+
+/** Toggle lock on a zone. Locked zones cannot be dragged or edited. */
+export function setZoneLocked(state: TabletopState, zoneId: string, locked: boolean): void {
+  const zone = getZone(state, zoneId);
+  zone.locked = locked;
+  if (locked && state.editingZoneId === zoneId) {
+    state.editingZoneId = null;
+  }
 }
 
 /** Draw the top card from a stack onto a target zone at (x, y). */

@@ -102,6 +102,12 @@
       return;
     }
     if (disableDrag) return;
+    if (entity.locked) {
+      // Locked entities still select on click but can't be dragged.
+      e.stopPropagation();
+      store.selectEntity(entity.instanceId);
+      return;
+    }
     if (e.button !== 0) return;
 
     e.stopPropagation();
@@ -113,7 +119,9 @@
     // without flipping selection to the top card.
     const currentZone = store.state.zones[entity.zoneId];
     const zoneDrag =
-      currentZone?.type === 'stack' && store.state.selectedZoneId === currentZone.id
+      currentZone?.type === 'stack' &&
+      !currentZone.locked &&
+      store.state.selectedZoneId === currentZone.id
         ? {
             zoneId: currentZone.id,
             zoneStartX: currentZone.x,
@@ -333,6 +341,7 @@
   class="entity-wrapper"
   class:selected={isSelected}
   class:dragging={isDragging}
+  class:locked={entity.locked}
   style="
     left: {entity.x}px;
     top: {entity.y}px;
@@ -356,6 +365,9 @@
       <EntityView {entity} {template} {renderScale} side="back" />
     </div>
   </div>
+  {#if entity.locked}
+    <div class="lock-indicator" title="Locked">🔒</div>
+  {/if}
 </div>
 
 <style>
@@ -368,6 +380,24 @@
     z-index: 1;
     /* perspective for 3D flip effect */
     perspective: 800px;
+  }
+
+  .entity-wrapper.locked {
+    cursor: default;
+  }
+
+  .lock-indicator {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    font-size: 0.75rem;
+    line-height: 1;
+    background: rgba(30, 32, 48, 0.85);
+    color: #fff;
+    padding: 2px 4px;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 2;
   }
 
   .entity-wrapper.selected {

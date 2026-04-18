@@ -135,6 +135,70 @@ export function createTabletopStore(
     applyTransient((s) => ops.moveZone(s, zoneId, x, y));
   }
 
+  function resizeZone(
+    zoneId: string,
+    width: number,
+    height: number,
+    x?: number,
+    y?: number
+  ): void {
+    apply((s) => ops.resizeZone(s, zoneId, width, height, x, y));
+  }
+
+  /** Transient variant used by resize-handle drag handlers. */
+  function resizeZoneTransient(
+    zoneId: string,
+    width: number,
+    height: number,
+    x?: number,
+    y?: number
+  ): void {
+    applyTransient((s) => ops.resizeZone(s, zoneId, width, height, x, y));
+  }
+
+  function renameZone(zoneId: string, name: string): void {
+    apply((s) => ops.renameZone(s, zoneId, name));
+  }
+
+  /**
+   * Transient rename used by the in-edit name input. The surrounding edit
+   * session already owns a single history entry via saveCheckpoint().
+   */
+  function renameZoneTransient(zoneId: string, name: string): void {
+    applyTransient((s) => ops.renameZone(s, zoneId, name));
+  }
+
+  function createFreeformZone(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    name?: string
+  ): string {
+    let newId = '';
+    apply((s) => {
+      newId = ops.createFreeformZone(s, x, y, width, height, name);
+    });
+    return newId;
+  }
+
+  function deleteZone(zoneId: string): void {
+    apply((s) => ops.deleteZone(s, zoneId));
+  }
+
+  // Edit mode is UI state — no history entry needed.
+  function setEditingZone(zoneId: string | null): void {
+    applyTransient((s) => ops.setEditingZone(s, zoneId));
+  }
+
+  function setEntityLocked(instanceId: string, locked: boolean): void {
+    apply((s) => ops.setEntityLocked(s, instanceId, locked));
+  }
+
+  function setZoneLocked(zoneId: string, locked: boolean): void {
+    apply((s) => ops.setZoneLocked(s, zoneId, locked));
+  }
+
   function flipEntity(instanceId: string): void {
     apply((s) => ops.flipEntity(s, instanceId));
   }
@@ -282,6 +346,15 @@ export function createTabletopStore(
     moveEntityToZoneTransient,
     moveZone,
     moveZoneTransient,
+    resizeZone,
+    resizeZoneTransient,
+    renameZone,
+    renameZoneTransient,
+    createFreeformZone,
+    deleteZone,
+    setEditingZone,
+    setEntityLocked,
+    setZoneLocked,
     flipEntity,
     rotateEntity,
     setRotation,

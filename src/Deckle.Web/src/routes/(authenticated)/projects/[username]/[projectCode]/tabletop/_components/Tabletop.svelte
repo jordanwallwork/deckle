@@ -26,6 +26,8 @@
   const store = createTabletopStore(initialState, templates);
   setTabletopApi(store);
   setContext('projectId', projectId);
+
+  console.log('%c[tabletop] Press Shift+Alt+D to toggle debug mode (command log)', 'color: #888');
   setContext('tabletopComponents', components);
 
   // Canvas geometry shared with entity drag handlers. Exposed as getters so
@@ -228,6 +230,12 @@
     // Accept both Ctrl and Cmd for undo/redo — works on both platforms
     // without relying on deprecated navigator.platform detection.
     const modKey = e.ctrlKey || e.metaKey;
+
+    if (e.shiftKey && e.altKey && (e.key === 'd' || e.key === 'D')) {
+      e.preventDefault();
+      store.toggleDebugMode();
+      return;
+    }
 
     if (modKey && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();

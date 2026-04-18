@@ -24,6 +24,13 @@ export function createTabletopStore(
     state: structuredClone(initialState)
   });
 
+  let debugMode = $state(false);
+
+  function toggleDebugMode(): void {
+    debugMode = !debugMode;
+    console.log(`[tabletop] debug mode ${debugMode ? 'enabled' : 'disabled'}`);
+  }
+
   // Undo/redo stacks. Wrapped in $state so UI derivations
   // (canUndo/canRedo) react to pushes/pops.
   const history = $state<{ past: TabletopState[]; future: TabletopState[] }>({
@@ -50,7 +57,8 @@ export function createTabletopStore(
    * Use `applyTransient` for drag updates; wrap those in saveCheckpoint()
    * at the start of the drag to get a single history entry per drag.
    */
-  function apply(mutator: (state: TabletopState) => void): void {
+  function apply(mutator: (state: TabletopState) => void, label?: string): void {
+    if (debugMode && label) console.log(`[tabletop] ${label}`);
     pushHistory();
     mutator(store.state);
   }
@@ -75,6 +83,7 @@ export function createTabletopStore(
 
   function undo(): void {
     if (history.past.length === 0) return;
+    if (debugMode) console.log('[tabletop] undo');
     const previous = history.past.pop()!;
     history.future.push(snapshotState());
     store.state = previous;
@@ -82,6 +91,7 @@ export function createTabletopStore(
 
   function redo(): void {
     if (history.future.length === 0) return;
+    if (debugMode) console.log('[tabletop] redo');
     const next = history.future.pop()!;
     history.past.push(snapshotState());
     store.state = next;
@@ -97,7 +107,7 @@ export function createTabletopStore(
   // Each user-facing action wraps the pure operation with a history entry.
 
   function moveEntity(instanceId: string, x: number, y: number): void {
-    apply((s) => ops.moveEntity(s, instanceId, x, y));
+    apply((s) => ops.moveEntity(s, instanceId, x, y), `moveEntity ${instanceId} → (${x}, ${y})`);
   }
 
   /** Transient variant used by drag handlers; does not push history. */
@@ -110,7 +120,7 @@ export function createTabletopStore(
     zoneId: string,
     opts: { insertIndex?: number; x?: number; y?: number } = {}
   ): void {
-    apply((s) => ops.moveEntityToZone(s, instanceId, zoneId, opts));
+    apply((s) => ops.moveEntityToZone(s, instanceId, zoneId, opts), `moveEntityToZone ${instanceId} → zone:${zoneId}`);
   }
 
   /**
@@ -127,7 +137,7 @@ export function createTabletopStore(
   }
 
   function moveZone(zoneId: string, x: number, y: number): void {
-    apply((s) => ops.moveZone(s, zoneId, x, y));
+    apply((s) => ops.moveZone(s, zoneId, x, y), `moveZone ${zoneId} → (${x}, ${y})`);
   }
 
   /** Transient variant used by drag handlers; does not push history. */
@@ -142,7 +152,7 @@ export function createTabletopStore(
     x?: number,
     y?: number
   ): void {
-    apply((s) => ops.resizeZone(s, zoneId, width, height, x, y));
+    apply((s) => ops.resizeZone(s, zoneId, width, height, x, y), `resizeZone ${zoneId} → ${width}×${height}`);
   }
 
   /** Transient variant used by resize-handle drag handlers. */
@@ -157,7 +167,7 @@ export function createTabletopStore(
   }
 
   function renameZone(zoneId: string, name: string): void {
-    apply((s) => ops.renameZone(s, zoneId, name));
+    apply((s) => ops.renameZone(s, zoneId, name), `renameZone ${zoneId} → "${name}"`);
   }
 
   /**
@@ -178,12 +188,12 @@ export function createTabletopStore(
     let newId = '';
     apply((s) => {
       newId = ops.createFreeformZone(s, x, y, width, height, name);
-    });
+    }, `createFreeformZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height}`);
     return newId;
   }
 
   function deleteZone(zoneId: string): void {
-    apply((s) => ops.deleteZone(s, zoneId));
+    apply((s) => ops.deleteZone(s, zoneId), `deleteZone ${zoneId}`);
   }
 
   // Edit mode is UI state — no history entry needed.
@@ -192,43 +202,43 @@ export function createTabletopStore(
   }
 
   function setEntityLocked(instanceId: string, locked: boolean): void {
-    apply((s) => ops.setEntityLocked(s, instanceId, locked));
+    apply((s) => ops.setEntityLocked(s, instanceId, locked), `setEntityLocked ${instanceId} → ${locked}`);
   }
 
   function setZoneLocked(zoneId: string, locked: boolean): void {
-    apply((s) => ops.setZoneLocked(s, zoneId, locked));
+    apply((s) => ops.setZoneLocked(s, zoneId, locked), `setZoneLocked ${zoneId} → ${locked}`);
   }
 
   function flipEntity(instanceId: string): void {
-    apply((s) => ops.flipEntity(s, instanceId));
+    apply((s) => ops.flipEntity(s, instanceId), `flipEntity ${instanceId}`);
   }
 
   function rotateEntity(instanceId: string, delta: number): void {
-    apply((s) => ops.rotateEntity(s, instanceId, delta));
+    apply((s) => ops.rotateEntity(s, instanceId, delta), `rotateEntity ${instanceId} Δ${delta}°`);
   }
 
   function setRotation(instanceId: string, degrees: number): void {
-    apply((s) => ops.setRotation(s, instanceId, degrees));
+    apply((s) => ops.setRotation(s, instanceId, degrees), `setRotation ${instanceId} → ${degrees}°`);
   }
 
   function rotateStack(zoneId: string, delta: number): void {
-    apply((s) => ops.rotateStack(s, zoneId, delta));
+    apply((s) => ops.rotateStack(s, zoneId, delta), `rotateStack ${zoneId} Δ${delta}°`);
   }
 
   function shuffleStack(zoneId: string): void {
-    apply((s) => ops.shuffleStack(s, zoneId));
+    apply((s) => ops.shuffleStack(s, zoneId), `shuffleStack ${zoneId}`);
   }
 
   function setStackFaceDown(zoneId: string, faceDown: boolean): void {
-    apply((s) => ops.setStackFaceDown(s, zoneId, faceDown));
+    apply((s) => ops.setStackFaceDown(s, zoneId, faceDown), `setStackFaceDown ${zoneId} → ${faceDown}`);
   }
 
   function setStackPersistent(zoneId: string, persistent: boolean): void {
-    apply((s) => ops.setStackPersistent(s, zoneId, persistent));
+    apply((s) => ops.setStackPersistent(s, zoneId, persistent), `setStackPersistent ${zoneId} → ${persistent}`);
   }
 
   function reorderInZone(instanceId: string, newIndex: number): void {
-    apply((s) => ops.reorderInZone(s, instanceId, newIndex));
+    apply((s) => ops.reorderInZone(s, instanceId, newIndex), `reorderInZone ${instanceId} → index ${newIndex}`);
   }
 
   function drawFromStack(
@@ -237,7 +247,7 @@ export function createTabletopStore(
     x: number,
     y: number
   ): void {
-    apply((s) => ops.drawFromStack(s, stackZoneId, targetZoneId, x, y));
+    apply((s) => ops.drawFromStack(s, stackZoneId, targetZoneId, x, y), `drawFromStack ${stackZoneId} → zone:${targetZoneId}`);
   }
 
   function spawnEntity(
@@ -251,7 +261,7 @@ export function createTabletopStore(
     let newId: string | null = null;
     apply((s) => {
       newId = ops.spawnEntity(s, template, zoneId, x, y);
-    });
+    }, `spawnEntity template:${templateId} → zone:${zoneId}`);
     return newId;
   }
 
@@ -273,7 +283,7 @@ export function createTabletopStore(
     let newIds: string[] = [];
     apply((s) => {
       newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances);
-    });
+    }, `spawnFromTemplate template:${templateId} → zone:${zoneId}`);
     return newIds;
   }
 
@@ -303,7 +313,7 @@ export function createTabletopStore(
         displayHeight,
         instances
       );
-    });
+    }, `spawnStackZoneFromTemplate template:${templateId} at (${worldX}, ${worldY})`);
     return result;
   }
 
@@ -311,7 +321,7 @@ export function createTabletopStore(
     let zoneId: string | null = null;
     apply((s) => {
       zoneId = ops.mergeEntitiesIntoStack(s, templates, draggedId, targetId);
-    });
+    }, `mergeEntitiesIntoStack ${draggedId} → ${targetId}`);
     return zoneId;
   }
 
@@ -319,16 +329,16 @@ export function createTabletopStore(
     let result = false;
     apply((s) => {
       result = ops.mergeStackOntoStack(s, draggedZoneId, targetZoneId);
-    });
+    }, `mergeStackOntoStack ${draggedZoneId} → ${targetZoneId}`);
     return result;
   }
 
   function removeEntity(instanceId: string): void {
-    apply((s) => ops.removeEntity(s, instanceId));
+    apply((s) => ops.removeEntity(s, instanceId), `removeEntity ${instanceId}`);
   }
 
   function removeAllEntitiesForTemplate(templateId: string): void {
-    apply((s) => ops.removeAllEntitiesForTemplate(s, templateId));
+    apply((s) => ops.removeAllEntitiesForTemplate(s, templateId), `removeAllEntitiesForTemplate template:${templateId}`);
   }
 
   // Selection is ephemeral — no history needed.
@@ -406,7 +416,9 @@ export function createTabletopStore(
     get isDraggingOverSidebar() {
       return isDraggingOverSidebar;
     },
-    setDraggingOverSidebar
+    setDraggingOverSidebar,
+
+    toggleDebugMode
   };
 }
 

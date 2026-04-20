@@ -288,16 +288,37 @@ export function rotateStack(
   }
 }
 
-/** Fisher–Yates shuffle of a stack's entity order. No-op for other zone types. */
-export function shuffleStack(state: TabletopState, zoneId: string): void {
+/** Fisher–Yates shuffle returning a new array; pure helper used by both
+ *  the immediate shuffle and the animation orchestrator (which needs to
+ *  know the post-shuffle order in advance to pre-select cards to animate). */
+export function computeShuffledOrder<T>(ids: readonly T[]): T[] {
+  const result = [...ids];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/** Fisher–Yates shuffle of a stack's entity order. No-op for other zone types.
+ *  Pass `presetOrder` to apply a previously computed shuffle (e.g. one whose
+ *  top card was chosen for an animation). Falls back to a fresh shuffle if
+ *  the preset doesn't match the current entities. */
+export function shuffleStack(
+  state: TabletopState,
+  zoneId: string,
+  presetOrder?: readonly string[]
+): void {
   const zone = getZone(state, zoneId);
   if (zone.type !== 'stack') return;
-  const ids = [...zone.entityIds];
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [ids[i], ids[j]] = [ids[j], ids[i]];
+  if (presetOrder && presetOrder.length === zone.entityIds.length) {
+    const current = new Set(zone.entityIds);
+    if (presetOrder.every((id) => current.has(id))) {
+      zone.entityIds = [...presetOrder];
+      return;
+    }
   }
-  zone.entityIds = ids;
+  zone.entityIds = computeShuffledOrder(zone.entityIds);
 }
 
 /**

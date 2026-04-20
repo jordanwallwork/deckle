@@ -3,6 +3,7 @@
   import { getTabletopApi } from '$lib/tabletop';
   import { getContext } from 'svelte';
   import EntityWrapper from './EntityWrapper.svelte';
+  import ShuffleAnimation from './ShuffleAnimation.svelte';
 
   let { zone }: { zone: Zone } = $props();
 
@@ -176,6 +177,12 @@
       ? zoneEntities[zoneEntities.length - 1]
       : null
   );
+
+  // While a shuffle is animating for this stack, the underlying stack-top
+  // is hidden — ShuffleAnimation owns the visuals end-to-end so the swap to
+  // the new top happens behind the cards rather than as a snap.
+  const shuffleAnimation = $derived(store.shuffleAnimation);
+  const isShuffling = $derived(shuffleAnimation?.zoneId === zone.id);
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -240,11 +247,19 @@
 
   {:else if zone.type === 'stack'}
     {#if stackTopEntity}
-      <div class="stack-top">
-        {#key stackTopEntity.instanceId}
-          <EntityWrapper entity={stackTopEntity} disableDrag={isEditing} />
-        {/key}
-      </div>
+      {#if !isShuffling}
+        <div class="stack-top">
+          {#key stackTopEntity.instanceId}
+            <EntityWrapper entity={stackTopEntity} disableDrag={isEditing} />
+          {/key}
+        </div>
+      {/if}
+      {#if isShuffling && shuffleAnimation}
+        <ShuffleAnimation
+          animatedIds={shuffleAnimation.animatedIds}
+          onComplete={() => store.completeShuffleAnimation()}
+        />
+      {/if}
       <div class="stack-badge">{zoneEntities.length}</div>
     {:else}
       <div class="stack-empty">Empty</div>
@@ -258,6 +273,7 @@
         type="text"
         value={zone.name}
         oninput={handleRenameInput}
+        onkeydown={(e) => e.key === 'Enter' && handleDone()}
         placeholder="Zone name"
         aria-label="Zone name"
       />
@@ -294,6 +310,14 @@
 
   .zone.selected {
     border-color: rgba(100, 160, 255, 0.5);
+  }
+
+  .zone-stack.selected {
+    border-color: #f59e0b;
+    border-style: solid;
+    box-shadow:
+      0 0 0 1px rgba(245, 158, 11, 0.35),
+      0 0 12px rgba(245, 158, 11, 0.2);
   }
 
   .zone.editing {
@@ -392,6 +416,12 @@
     padding: 0 6px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     pointer-events: none;
+    transition: background 0.15s;
+  }
+
+  .zone-stack.selected .stack-badge {
+    background: #f59e0b;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
   }
 
   .stack-empty {

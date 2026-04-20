@@ -37,7 +37,7 @@
 </script>
 
 <script lang="ts">
-  import type { Entity } from '$lib/tabletop';
+  import type { Entity, StackZone } from '$lib/tabletop';
   import { getTabletopApi } from '$lib/tabletop';
   import { getTemplateDisplaySize } from '$lib/tabletop/initialization';
   import * as ops from '$lib/tabletop/operations';
@@ -297,6 +297,39 @@
         );
         if (targetZone?.type === 'stack') {
           drag.store.mergeStackOntoStack(drag.zoneDrag.zoneId, targetZone.id);
+        } else {
+          // Drop onto a compatible single entity → merge it to the bottom of the stack.
+          const entityAtPoint = ops.findEntityAtPoint(
+            drag.store.state,
+            drag.store.templates,
+            worldX,
+            worldY
+          );
+          if (entityAtPoint) {
+            const draggedZone = drag.store.state.zones[drag.zoneDrag.zoneId];
+            if (draggedZone?.type === 'stack') {
+              const ds = (draggedZone as StackZone).defaultSize;
+              const entityTemplate = drag.store.templates[entityAtPoint.templateId];
+              if (ds && entityTemplate) {
+                const { width, height } = getTemplateDisplaySize(entityTemplate);
+                if (width === ds.width && height === ds.height) {
+                  const entityZone = drag.store.state.zones[entityAtPoint.zoneId];
+                  if (entityZone) {
+                    const cx = entityZone.x + entityAtPoint.x + width / 2;
+                    const cy = entityZone.y + entityAtPoint.y + height / 2;
+                    drag.store.moveZoneTransient(
+                      drag.zoneDrag.zoneId,
+                      cx - draggedZone.width / 2,
+                      cy - draggedZone.height / 2
+                    );
+                  }
+                  drag.store.moveEntityToZone(entityAtPoint.instanceId, drag.zoneDrag.zoneId, {
+                    insertIndex: 0
+                  });
+                }
+              }
+            }
+          }
         }
       }
       return;

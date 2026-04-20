@@ -225,8 +225,88 @@ export function createTabletopStore(
     apply((s) => ops.rotateStack(s, zoneId, delta), `rotateStack ${zoneId} Δ${delta}°`);
   }
 
+  /**
+   * Transient orchestration for the shuffle animation. The new order is
+   * computed up-front so the renderer knows which card will end up on top
+   * and can include it in the animation — preventing a visual pop when the
+   * shuffle commits.
+   *
+   * `animatedIds` is rendered in array order: the first id is painted at
+   * the bottom, the last at the top. Z-indices are reversed mid-animation
+   * so the new top lands on top.
+   */
+  let shuffleAnimation = $state<{
+    zoneId: string;
+    newOrder: string[];
+    animatedIds: string[];
+  } | null>(null);
+
+  /** Number of ghost cards rendered during the shuffle animation, capped by
+   *  what the stack actually contains. Includes the old top + new top. */
+  const SHUFFLE_ANIMATION_CARDS = 5;
+
   function shuffleStack(zoneId: string): void {
-    apply((s) => ops.shuffleStack(s, zoneId), `shuffleStack ${zoneId}`);
+    const zone = store.state.zones[zoneId];
+    if (!zone || zone.type !== 'stack') return;
+
+    // Trivial cases — nothing visual to animate. Apply immediately.
+    if (zone.entityIds.length < 2) {
+      apply((s) => ops.shuffleStack(s, zoneId), `shuffleStack ${zoneId}`);
+      return;
+    }
+
+    // Don't re-trigger an animation for a stack that's already shuffling.
+    if (shuffleAnimation?.zoneId === zoneId) return;
+
+    // A shuffle on a different zone is already running — commit it now so
+    // its result isn't lost when we replace the transient state below.
+    if (shuffleAnimation) completeShuffleAnimation();
+
+    const newOrder = ops.computeShuffledOrder(zone.entityIds);
+    const newTop = newOrder[newOrder.length - 1];
+    const oldTop = zone.entityIds[zone.entityIds.length - 1];
+
+    // Pick the cards to animate. Must include both old top (to match what's
+    // visible at t=0) and new top (to match what's visible at t=end). Fill
+    // the rest with random others so the fan-out feels populated.
+    const required: string[] = [];
+    if (oldTop !== newTop) required.push(newTop, oldTop);
+    else required.push(newTop);
+
+    const requiredSet = new Set(required);
+    const pool = newOrder.filter((id) => !requiredSet.has(id));
+    const wantExtra = Math.min(
+      SHUFFLE_ANIMATION_CARDS - required.length,
+      pool.length
+    );
+    // Fisher–Yates partial sample
+    for (let i = 0; i < wantExtra; i++) {
+      const j = i + Math.floor(Math.random() * (pool.length - i));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const extras = pool.slice(0, wantExtra);
+
+    // Array order: [newTop, ...extras, oldTop]
+    // - oldTop is last (highest paint order) → visible at start, matching the
+    //   underlying stack-top that was just hidden when this state went live.
+    // - newTop is first (lowest paint order initially) → animation swaps
+    //   z-indices mid-flight so it lands on top at the end.
+    const animatedIds: string[] =
+      oldTop === newTop ? [newTop, ...extras] : [newTop, ...extras, oldTop];
+
+    if (debugMode) console.log(`[tabletop] shuffleStack ${zoneId} (animated, ${animatedIds.length} cards)`);
+    shuffleAnimation = { zoneId, newOrder, animatedIds };
+  }
+
+  /** Called by the renderer once the shuffle animation has completed. */
+  function completeShuffleAnimation(): void {
+    const pending = shuffleAnimation;
+    if (!pending) return;
+    shuffleAnimation = null;
+    apply(
+      (s) => ops.shuffleStack(s, pending.zoneId, pending.newOrder),
+      `commit shuffleStack ${pending.zoneId}`
+    );
   }
 
   function setStackFaceDown(zoneId: string, faceDown: boolean): void {
@@ -399,6 +479,10 @@ export function createTabletopStore(
     rotateStack,
     setRotation,
     shuffleStack,
+    completeShuffleAnimation,
+    get shuffleAnimation() {
+      return shuffleAnimation;
+    },
     setStackFaceDown,
     setStackPersistent,
     reorderInZone,

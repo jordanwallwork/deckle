@@ -15,6 +15,7 @@ import {
   findZoneAtPoint,
   flipEntity,
   flipZoneEntities,
+  isStackable,
   layoutSpread,
   mergeEntitiesIntoStack,
   mergeStackOntoStack,
@@ -23,6 +24,7 @@ import {
   moveZone,
   removeEntity,
   reorderInZone,
+  resizeStackZoneToContents,
   rotateEntity,
   rotateStack,
   rotateZoneEntities,
@@ -36,7 +38,8 @@ import {
   snapToGrid,
   spawnEntity,
   spawnFromTemplate,
-  spawnStackZoneFromTemplate
+  spawnStackZoneFromTemplate,
+  STACK_ZONE_PADDING
 } from './operations';
 
 function makeEntity(overrides: Partial<Entity> & { instanceId: string; zoneId: string }): Entity {
@@ -415,6 +418,28 @@ describe('shuffleZoneEntities', () => {
   });
 });
 
+describe('isStackable', () => {
+  function makeTemplate(type: EntityTemplate['type']): EntityTemplate {
+    return { id: 't', name: 'T', type, widthPx: 100, heightPx: 100, widthMm: 50, heightMm: 50, isEditable: false, instances: [null] };
+  }
+
+  it('returns true for Card', () => {
+    expect(isStackable(makeTemplate('Card'))).toBe(true);
+  });
+
+  it('returns false for GameBoard', () => {
+    expect(isStackable(makeTemplate('GameBoard'))).toBe(false);
+  });
+
+  it('returns false for PlayerMat', () => {
+    expect(isStackable(makeTemplate('PlayerMat'))).toBe(false);
+  });
+
+  it('returns false for Dice', () => {
+    expect(isStackable(makeTemplate('Dice'))).toBe(false);
+  });
+});
+
 describe('mergeEntitiesIntoStack', () => {
   function makeTemplate(): EntityTemplate {
     return {
@@ -471,6 +496,27 @@ describe('mergeEntitiesIntoStack', () => {
     const zone = state.zones[zoneId!] as StackZone;
     expect(zone.width).toBe(126);
     expect(zone.height).toBe(176);
+  });
+
+  it('returns null for non-stackable template types', () => {
+    const state = makeState();
+    const nonStackableTemplate: EntityTemplate = {
+      id: 't',
+      name: 'Board',
+      type: 'GameBoard',
+      widthPx: 300,
+      heightPx: 300,
+      widthMm: 150,
+      heightMm: 150,
+      isEditable: true,
+      instances: [null]
+    };
+    const templates: Record<string, EntityTemplate> = { t: nonStackableTemplate };
+    state.entities.e1.templateId = 't';
+    state.entities.e2.templateId = 't';
+
+    expect(mergeEntitiesIntoStack(state, templates, 'e2', 'e1')).toBeNull();
+    expect(Object.keys(state.zones)).toHaveLength(3); // no new stack created
   });
 });
 
@@ -648,8 +694,8 @@ describe('spawnStackZoneFromTemplate', () => {
     expect(zone.type).toBe('stack');
     expect(zone.name).toBe('Heroes');
     // Centered on (500, 400) with default 20px padding on each side.
-    expect(zone.width).toBe(displayW + 40);
-    expect(zone.height).toBe(displayH + 40);
+    expect(zone.width).toBe(displayW + STACK_ZONE_PADDING * 2);
+    expect(zone.height).toBe(displayH + STACK_ZONE_PADDING * 2);
     expect(zone.x).toBe(500 - zone.width / 2);
     expect(zone.y).toBe(400 - zone.height / 2);
     expect(state.zoneOrder).toContain(zoneId);
@@ -661,6 +707,118 @@ describe('spawnStackZoneFromTemplate', () => {
     // display size cached as defaultSize.
     expect(zone.persistent).toBe(false);
     expect(zone.defaultSize).toEqual({ width: displayW, height: displayH });
+  });
+});
+
+describe('resizeStackZoneToContents', () => {
+  function makeTemplateWithSize(id: string, widthMm: number, heightMm: number): EntityTemplate {
+    return {
+      id,
+      name: id,
+      type: 'Card',
+      widthPx: widthMm * 2,
+      heightPx: heightMm * 2,
+      widthMm,
+      heightMm,
+      isEditable: true,
+      instances: [null]
+    };
+  }
+
+  it('is a no-op for non-stack zones', () => {
+    const state = makeState();
+    const templates: Record<string, EntityTemplate> = {
+      t: makeTemplateWithSize('t', 63, 88)
+    };
+    const before = { ...state.zones.tableau };
+    resizeStackZoneToContents(state, 'tableau', templates);
+    expect(state.zones.tableau.width).toBe(before.width);
+    expect(state.zones.tableau.height).toBe(before.height);
+  });
+
+  it('is a no-op for empty stacks', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).entityIds = [];
+    const templates: Record<string, EntityTemplate> = {
+      t: makeTemplateWithSize('t', 63, 88)
+    };
+    const before = { width: state.zones.deck.width, height: state.zones.deck.height };
+    resizeStackZoneToContents(state, 'deck', templates);
+    expect(state.zones.deck.width).toBe(before.width);
+    expect(state.zones.deck.height).toBe(before.height);
+  });
+
+  it('sizes the zone to the largest entity plus padding', () => {
+    const state = makeState();
+    const smallTemplate = makeTemplateWithSize('small', 40, 60); // 80px × 120px display
+    const largeTemplate = makeTemplateWithSize('large', 63, 88); // 126px × 176px display
+    state.entities.e3.templateId = 'small';
+    state.entities.e4.templateId = 'large';
+    const templates = { small: smallTemplate, large: largeTemplate };
+
+    resizeStackZoneToContents(state, 'deck', templates);
+
+    const zone = state.zones.deck as StackZone;
+    expect(zone.width).toBe(126 + STACK_ZONE_PADDING * 2);
+    expect(zone.height).toBe(176 + STACK_ZONE_PADDING * 2);
+    expect(zone.defaultSize).toEqual({ width: 126, height: 176 });
+  });
+
+  it('preserves the zone centre when resizing', () => {
+    const state = makeState();
+    const deck = state.zones.deck as StackZone;
+    deck.x = 100;
+    deck.y = 200;
+    deck.width = 80;
+    deck.height = 120;
+    const cxBefore = deck.x + deck.width / 2; // 140
+    const cyBefore = deck.y + deck.height / 2; // 260
+
+    const largeTemplate = makeTemplateWithSize('large', 63, 88);
+    state.entities.e3.templateId = 'large';
+    state.entities.e4.templateId = 'large';
+    const templates = { large: largeTemplate };
+
+    resizeStackZoneToContents(state, 'deck', templates);
+
+    expect(deck.x + deck.width / 2).toBeCloseTo(cxBefore);
+    expect(deck.y + deck.height / 2).toBeCloseTo(cyBefore);
+  });
+
+  it('is a no-op when the zone is already the correct size', () => {
+    const state = makeState();
+    const template = makeTemplateWithSize('t', 63, 88); // 126×176 display
+    state.entities.e3.templateId = 't';
+    state.entities.e4.templateId = 't';
+    const deck = state.zones.deck as StackZone;
+    deck.width = 126 + STACK_ZONE_PADDING * 2;
+    deck.height = 176 + STACK_ZONE_PADDING * 2;
+    deck.x = 10;
+    deck.y = 20;
+    const templates = { t: template };
+
+    resizeStackZoneToContents(state, 'deck', templates);
+
+    expect(deck.x).toBe(10);
+    expect(deck.y).toBe(20);
+  });
+
+  it('accounts for entity rotation when computing dimensions', () => {
+    const state = makeState();
+    const template = makeTemplateWithSize('t', 63, 88); // portrait: 126×176 display
+    state.entities.e3.templateId = 't';
+    state.entities.e4.templateId = 't';
+    state.entities.e3.rotation = 90;
+    state.entities.e4.rotation = 90;
+    const templates = { t: template };
+
+    resizeStackZoneToContents(state, 'deck', templates);
+
+    const zone = state.zones.deck as StackZone;
+    // Rotated 90°: 126w×176h → 176w×126h
+    expect(zone.width).toBe(176 + STACK_ZONE_PADDING * 2);
+    expect(zone.height).toBe(126 + STACK_ZONE_PADDING * 2);
+    expect(zone.defaultSize).toEqual({ width: 176, height: 126 });
   });
 });
 

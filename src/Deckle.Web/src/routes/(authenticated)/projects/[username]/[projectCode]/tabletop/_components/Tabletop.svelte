@@ -144,10 +144,12 @@
         action: () => store.setEntityLocked(selectedId, !entity?.locked)
       });
 
-      // Move to zone submenu
+      // Move to zone submenu — non-stackable entities can only move to freeform zones
+      const entityTemplate = entity ? templates[entity.templateId] : null;
+      const entityStackable = entityTemplate ? ops.isStackable(entityTemplate) : true;
       const otherZones = store.state.zoneOrder
         .map((id) => store.state.zones[id])
-        .filter((z) => z && z.id !== entity?.zoneId);
+        .filter((z) => z && z.id !== entity?.zoneId && (entityStackable || z.type === 'freeform'));
 
       if (otherZones.length > 0) {
         items.push({ divider: true });
@@ -454,17 +456,26 @@
     const unplaced = ops.getUnplacedInstances(store.state, template);
     if (unplaced.length === 0) return;
 
-    const targetZone = ops.findZoneAtPoint(store.state, worldX, worldY)
+    const stackable = ops.isStackable(template);
+
+    const droppedOnZone = ops.findZoneAtPoint(store.state, worldX, worldY)
       ?? store.state.zones[store.state.zoneOrder[0]];
-    if (!targetZone) return;
+    if (!droppedOnZone) return;
+
+    // Non-stackable entities (GameBoard, PlayerMat, Dice) can only live in
+    // freeform zones — redirect the drop if the user aimed at a stack/spread/grid.
+    const targetZone = (!stackable && droppedOnZone.type !== 'freeform')
+      ? (Object.values(store.state.zones).find(z => z.type === 'freeform') ?? droppedOnZone)
+      : droppedOnZone;
 
     const { width: displayW, height: displayH } = getTemplateDisplaySize(template);
 
-    // Multi-instance templates (e.g. a card backed by a data source) land
-    // as a real stack zone rather than a heap of overlapping entities —
+    // Multi-instance stackable templates (e.g. a card backed by a data source)
+    // land as a real stack zone rather than a heap of overlapping entities —
     // unless the user dropped onto a zone with its own insertion semantics
     // (stack, spread), in which case feed the instances into that zone.
     if (
+      stackable &&
       unplaced.length > 1 &&
       targetZone.type !== 'stack' &&
       targetZone.type !== 'spread'
@@ -474,7 +485,7 @@
       return;
     }
 
-    if (targetZone.type === 'spread') {
+    if (stackable && targetZone.type === 'spread') {
       // Insert at the pointer — bridge between the two cards the user
       // dropped between. An empty spread falls back to index 0.
       const insertIndex = ops.computeSpreadInsertIndex(

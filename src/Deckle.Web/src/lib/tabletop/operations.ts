@@ -22,12 +22,66 @@ import { getTemplateDisplaySize } from './initialization';
  * defaultSize, giving the pile some visual breathing room and a drop
  * target slightly larger than a single card.
  */
-export const STACK_ZONE_PADDING = 20;
+export const STACK_ZONE_PADDING = 10;
+
+/** Only Card entities can be placed in stack, spread, or grid zones. */
+export function isStackable(template: EntityTemplate): boolean {
+  return template.type === 'Card';
+}
+
+/**
+ * Resize a stack zone's bounding box to fit the largest entity it currently
+ * contains, plus STACK_ZONE_PADDING on each side. Preserves the zone's centre
+ * so the pile grows/shrinks symmetrically. No-op when the zone is missing,
+ * not a stack, empty, or already at the correct size.
+ *
+ * Entities in a stack share the same rotation; odd quarter-turns swap the
+ * visual width/height, so the rotation of each entity is respected.
+ */
+export function resizeStackZoneToContents(
+  state: TabletopState,
+  zoneId: string,
+  templates: Record<string, EntityTemplate>
+): void {
+  const zone = state.zones[zoneId];
+  if (!zone || zone.type !== 'stack' || zone.entityIds.length === 0) return;
+
+  let maxW = 0;
+  let maxH = 0;
+  for (const id of zone.entityIds) {
+    const entity = state.entities[id];
+    if (!entity) continue;
+    const template = templates[entity.templateId];
+    if (!template) continue;
+    const { width, height } = getTemplateDisplaySize(template);
+    const quarterTurns = Math.round(entity.rotation / 90);
+    const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
+    const w = isOddQuarterTurn ? height : width;
+    const h = isOddQuarterTurn ? width : height;
+    if (w > maxW) maxW = w;
+    if (h > maxH) maxH = h;
+  }
+
+  if (maxW === 0 || maxH === 0) return;
+
+  const newWidth = maxW + STACK_ZONE_PADDING * 2;
+  const newHeight = maxH + STACK_ZONE_PADDING * 2;
+  if (zone.width === newWidth && zone.height === newHeight) return;
+
+  const cx = zone.x + zone.width / 2;
+  const cy = zone.y + zone.height / 2;
+  zone.x = cx - newWidth / 2;
+  zone.y = cy - newHeight / 2;
+  zone.width = newWidth;
+  zone.height = newHeight;
+  zone.defaultSize = { width: maxW, height: maxH };
+}
 
 function makeId(prefix = 'id'): string {
-  const suffix = typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  const suffix =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
   return `${prefix}-${suffix}`;
 }
 
@@ -116,9 +170,7 @@ export function layoutSpread(state: TabletopState, zoneId: string): void {
 
   const step = getSpreadStep(zone);
   const crossAxis =
-    zone.direction === 'row'
-      ? (zone.height - size.height) / 2
-      : (zone.width - size.width) / 2;
+    zone.direction === 'row' ? (zone.height - size.height) / 2 : (zone.width - size.width) / 2;
 
   for (let i = 0; i < zone.entityIds.length; i++) {
     const entity = state.entities[zone.entityIds[i]];
@@ -146,9 +198,7 @@ export function computeSpreadInsertIndex(
   localY: number,
   excludeId?: string
 ): number {
-  const ids = excludeId
-    ? zone.entityIds.filter((id) => id !== excludeId)
-    : zone.entityIds;
+  const ids = excludeId ? zone.entityIds.filter((id) => id !== excludeId) : zone.entityIds;
   if (ids.length === 0) return 0;
   const size = zone.defaultSize;
   if (!size) return ids.length;
@@ -199,12 +249,7 @@ export function snapToGrid(
  * Move an entity to a new (x, y) within its current zone.
  * Grid zones snap; stack zones ignore position (entities stack on top).
  */
-export function moveEntity(
-  state: TabletopState,
-  instanceId: string,
-  x: number,
-  y: number
-): void {
+export function moveEntity(state: TabletopState, instanceId: string, x: number, y: number): void {
   const entity = getEntity(state, instanceId);
   const zone = getZone(state, entity.zoneId);
 
@@ -242,7 +287,8 @@ function maybeAutoDissolveStack(state: TabletopState, zoneId: string): void {
     const entity = state.entities[lastId];
     if (entity) {
       const displayW = zone.defaultSize?.width ?? Math.max(0, zone.width - STACK_ZONE_PADDING * 2);
-      const displayH = zone.defaultSize?.height ?? Math.max(0, zone.height - STACK_ZONE_PADDING * 2);
+      const displayH =
+        zone.defaultSize?.height ?? Math.max(0, zone.height - STACK_ZONE_PADDING * 2);
       const worldX = zone.x + zone.width / 2;
       const worldY = zone.y + zone.height / 2;
       const localX = worldX - targetZone.x - displayW / 2;
@@ -381,21 +427,13 @@ export function flipEntity(state: TabletopState, instanceId: string): void {
  * Rotate an entity by a delta (degrees). Positive = clockwise.
  * Result is normalized to [0, 360).
  */
-export function rotateEntity(
-  state: TabletopState,
-  instanceId: string,
-  delta: number
-): void {
+export function rotateEntity(state: TabletopState, instanceId: string, delta: number): void {
   const entity = getEntity(state, instanceId);
   entity.rotation = normalizeDegrees(entity.rotation + delta);
 }
 
 /** Set absolute rotation (degrees, normalized to [0, 360)). */
-export function setRotation(
-  state: TabletopState,
-  instanceId: string,
-  degrees: number
-): void {
+export function setRotation(state: TabletopState, instanceId: string, degrees: number): void {
   const entity = getEntity(state, instanceId);
   entity.rotation = normalizeDegrees(degrees);
 }
@@ -408,11 +446,7 @@ export function setRotation(
  * the pile rotates in place rather than drifting.
  * No-op for non-stack zones.
  */
-export function rotateStack(
-  state: TabletopState,
-  zoneId: string,
-  delta: number
-): void {
+export function rotateStack(state: TabletopState, zoneId: string, delta: number): void {
   const zone = getZone(state, zoneId);
   if (zone.type !== 'stack') return;
   for (const id of zone.entityIds) {
@@ -489,11 +523,7 @@ export function setStackPersistent(
 }
 
 /** Flip every entity in a stack to face-down (or face-up), reversing the order as a physical flip would. */
-export function setStackFaceDown(
-  state: TabletopState,
-  zoneId: string,
-  faceDown: boolean
-): void {
+export function setStackFaceDown(state: TabletopState, zoneId: string, faceDown: boolean): void {
   const zone = getZone(state, zoneId);
   if (zone.type !== 'stack') return;
   zone.faceDown = faceDown;
@@ -523,11 +553,7 @@ export function flipZoneEntities(state: TabletopState, zoneId: string): void {
  * its own visible position. For stacks use {@link rotateStack}, which also
  * swaps the zone's width/height on quarter turns.
  */
-export function rotateZoneEntities(
-  state: TabletopState,
-  zoneId: string,
-  delta: number
-): void {
+export function rotateZoneEntities(state: TabletopState, zoneId: string, delta: number): void {
   const zone = getZone(state, zoneId);
   for (const id of zone.entityIds) {
     const entity = state.entities[id];
@@ -556,11 +582,7 @@ export function shuffleZoneEntities(state: TabletopState, zoneId: string): void 
  * Move an entity to a specific index within its own zone (reordering).
  * Useful for "send to front/back" in freeform zones and restacking.
  */
-export function reorderInZone(
-  state: TabletopState,
-  instanceId: string,
-  newIndex: number
-): void {
+export function reorderInZone(state: TabletopState, instanceId: string, newIndex: number): void {
   const entity = getEntity(state, instanceId);
   const zone = getZone(state, entity.zoneId);
   const filtered = zone.entityIds.filter((id) => id !== instanceId);
@@ -671,7 +693,7 @@ export function spawnFromTemplate(
 ): string[] {
   const ids: string[] = [];
   let idx = insertIndex;
-  for (const mergeData of (instances ?? template.instances)) {
+  for (const mergeData of instances ?? template.instances) {
     ids.push(spawnEntity(state, template, targetZoneId, x, y, mergeData, idx));
     if (idx !== undefined) idx++;
   }
@@ -809,6 +831,7 @@ export function mergeEntitiesIntoStack(
   const targetTemplate = templates[target.templateId];
   if (!draggedTemplate || !targetTemplate) return null;
   if (draggedTemplate.type !== targetTemplate.type) return null;
+  if (!isStackable(draggedTemplate)) return null;
 
   const targetZone = state.zones[target.zoneId];
   // A card already in an ordered zone (stack/spread) uses that zone's own
@@ -992,11 +1015,7 @@ export function setSpreadDirection(
 }
 
 /** Update a spread zone's overlap (px) and re-layout. No-op for other zone types. */
-export function setSpreadOverlap(
-  state: TabletopState,
-  zoneId: string,
-  overlap: number
-): void {
+export function setSpreadOverlap(state: TabletopState, zoneId: string, overlap: number): void {
   const zone = getZone(state, zoneId);
   if (zone.type !== 'spread') return;
   zone.overlap = overlap;
@@ -1080,11 +1099,7 @@ export function setEditingZone(state: TabletopState, zoneId: string | null): voi
 }
 
 /** Toggle lock on an entity. Locked entities cannot be dragged. */
-export function setEntityLocked(
-  state: TabletopState,
-  instanceId: string,
-  locked: boolean
-): void {
+export function setEntityLocked(state: TabletopState, instanceId: string, locked: boolean): void {
   const entity = getEntity(state, instanceId);
   entity.locked = locked;
 }
@@ -1160,8 +1175,7 @@ export function changeZoneType(
   }
 
   const base = { id, name, x, y, width, height, entityIds, locked, typeSettings: cache };
-  const defaultSize =
-    existingDefaultSize ?? deriveDefaultSizeFromEntities(state, zone, templates);
+  const defaultSize = existingDefaultSize ?? deriveDefaultSizeFromEntities(state, zone, templates);
 
   let newZone: Zone;
   switch (newType) {
@@ -1171,7 +1185,8 @@ export function changeZoneType(
     case 'grid': {
       const prev = cache.grid;
       newZone = {
-        ...base, type: 'grid',
+        ...base,
+        type: 'grid',
         cellWidth: prev?.cellWidth ?? 80,
         cellHeight: prev?.cellHeight ?? 80,
         columns: prev?.columns ?? 5
@@ -1181,7 +1196,8 @@ export function changeZoneType(
     case 'stack': {
       const prev = cache.stack;
       newZone = {
-        ...base, type: 'stack',
+        ...base,
+        type: 'stack',
         faceDown: prev?.faceDown ?? false,
         persistent: prev?.persistent ?? true,
         defaultSize
@@ -1191,7 +1207,8 @@ export function changeZoneType(
     case 'spread': {
       const prev = cache.spread;
       newZone = {
-        ...base, type: 'spread',
+        ...base,
+        type: 'spread',
         direction: prev?.direction ?? 'row',
         overlap: prev?.overlap ?? 40,
         defaultSize
@@ -1207,7 +1224,10 @@ export function changeZoneType(
   } else if (newType === 'stack') {
     for (const id of newZone.entityIds) {
       const entity = state.entities[id];
-      if (entity) { entity.x = 0; entity.y = 0; }
+      if (entity) {
+        entity.x = 0;
+        entity.y = 0;
+      }
     }
   }
 }
@@ -1245,3 +1265,4 @@ export function drawFromStack(
   if (entity) entity.isFlipped = false;
   return topId;
 }
+

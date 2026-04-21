@@ -63,16 +63,7 @@
     />
   </div>
 {:else}
-  <!-- Fallback: card with no design on this side -->
-  <div class="no-design">
-    <span class="no-design-label">
-      {#if side === 'back'}
-        Back
-      {:else}
-        {template.name}
-      {/if}
-    </span>
-  </div>
+  <div class="no-design"></div>
 {/if}
 
 <style>
@@ -105,19 +96,7 @@
   .no-design {
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    background: #ffffff;
     border-radius: 4px;
-    padding: 0.5rem;
-  }
-
-  .no-design-label {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.85);
-    text-align: center;
-    word-break: break-word;
   }
 </style>

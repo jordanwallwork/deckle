@@ -200,14 +200,36 @@ export function createTabletopStore(
   const setStackPersistentTransient = withoutHistory(ops.setStackPersistent);
   const setGridCellSizeTransient = withoutHistory(ops.setGridCellSize);
   const reorderInZone = withHistory(ops.reorderInZone, 'reorderInZone');
-  const drawFromStack = withHistory(ops.drawFromStack, 'drawFromStack');
-  const removeEntity = withHistory(ops.removeEntity, 'removeEntity');
-  const removeAllEntitiesForTemplate = withHistory(
-    ops.removeAllEntitiesForTemplate,
-    'removeAllEntitiesForTemplate'
-  );
   const createFreeformZone = withHistory(ops.createFreeformZone, 'createFreeformZone');
   const createSpreadZone = withHistory(ops.createSpreadZone, 'createSpreadZone');
+
+  function drawFromStack(stackZoneId: string, targetZoneId: string, x: number, y: number): string | null {
+    let topId: string | null = null;
+    apply((s) => {
+      topId = ops.drawFromStack(s, stackZoneId, targetZoneId, x, y);
+      ops.resizeStackZoneToContents(s, stackZoneId, templates);
+    }, `drawFromStack(${stackZoneId}, ${targetZoneId})`);
+    return topId;
+  }
+
+  function removeEntity(instanceId: string): void {
+    const zoneId = store.state.entities[instanceId]?.zoneId;
+    apply((s) => {
+      ops.removeEntity(s, instanceId);
+      if (zoneId) ops.resizeStackZoneToContents(s, zoneId, templates);
+    }, `removeEntity(${instanceId})`);
+  }
+
+  function removeAllEntitiesForTemplate(templateId: string): void {
+    const zoneIds = new Set<string>();
+    for (const entity of Object.values(store.state.entities)) {
+      if (entity.templateId === templateId) zoneIds.add(entity.zoneId);
+    }
+    apply((s) => {
+      ops.removeAllEntitiesForTemplate(s, templateId);
+      for (const zoneId of zoneIds) ops.resizeStackZoneToContents(s, zoneId, templates);
+    }, `removeAllEntitiesForTemplate(${templateId})`);
+  }
 
   // Selection is ephemeral — no history needed. Edit mode is UI state too.
   const selectEntity = withoutHistory(ops.selectEntity);
@@ -238,9 +260,19 @@ export function createTabletopStore(
     zoneId: string,
     opts: { insertIndex?: number; x?: number; y?: number } = {}
   ): void {
+    const entity = store.state.entities[instanceId];
+    const template = entity ? templates[entity.templateId] : null;
+    const targetZone = store.state.zones[zoneId];
+    if (template && targetZone && !ops.isStackable(template) && targetZone.type !== 'freeform') return;
+
+    const sourceZoneId = store.state.entities[instanceId]?.zoneId;
     apply((s) => {
       ensureSpreadSizeFromEntity(s, instanceId, zoneId);
       ops.moveEntityToZone(s, instanceId, zoneId, opts);
+      if (sourceZoneId && sourceZoneId !== zoneId) {
+        ops.resizeStackZoneToContents(s, sourceZoneId, templates);
+      }
+      ops.resizeStackZoneToContents(s, zoneId, templates);
     }, `moveEntityToZone(${instanceId}, ${zoneId})`);
   }
 
@@ -254,9 +286,19 @@ export function createTabletopStore(
     zoneId: string,
     opts: { insertIndex?: number; x?: number; y?: number } = {}
   ): void {
+    const entity = store.state.entities[instanceId];
+    const template = entity ? templates[entity.templateId] : null;
+    const targetZone = store.state.zones[zoneId];
+    if (template && targetZone && !ops.isStackable(template) && targetZone.type !== 'freeform') return;
+
+    const sourceZoneId = store.state.entities[instanceId]?.zoneId;
     applyTransient((s) => {
       ensureSpreadSizeFromEntity(s, instanceId, zoneId);
       ops.moveEntityToZone(s, instanceId, zoneId, opts);
+      if (sourceZoneId && sourceZoneId !== zoneId) {
+        ops.resizeStackZoneToContents(s, sourceZoneId, templates);
+      }
+      ops.resizeStackZoneToContents(s, zoneId, templates);
     });
   }
 
@@ -352,6 +394,7 @@ export function createTabletopStore(
     let newId: string | null = null;
     apply((s) => {
       newId = ops.spawnEntity(s, template, zoneId, x, y);
+      ops.resizeStackZoneToContents(s, zoneId, templates);
     }, `spawnEntity(${templateId}, ${zoneId})`);
     return newId;
   }
@@ -377,6 +420,7 @@ export function createTabletopStore(
     apply(
       (s) => {
         newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances, insertIndex);
+        ops.resizeStackZoneToContents(s, zoneId, templates);
       },
       `spawnFromTemplate(${templateId}, ${zoneId}${insertIndex !== undefined ? `, @${insertIndex}` : ''})`
     );
@@ -398,6 +442,7 @@ export function createTabletopStore(
   ): { zoneId: string; instanceIds: string[] } | null {
     const template = templates[templateId];
     if (!template) return null;
+    if (!ops.isStackable(template)) return null;
     let result: { zoneId: string; instanceIds: string[] } | null = null;
     apply(
       (s) => {
@@ -410,6 +455,7 @@ export function createTabletopStore(
           displayHeight,
           instances
         );
+        if (result) ops.resizeStackZoneToContents(s, result.zoneId, templates);
       },
       `spawnStackZoneFromTemplate(${templateId})`
     );
@@ -420,11 +466,19 @@ export function createTabletopStore(
     let zoneId: string | null = null;
     apply((s) => {
       zoneId = ops.mergeEntitiesIntoStack(s, templates, draggedId, targetId);
+      if (zoneId) ops.resizeStackZoneToContents(s, zoneId, templates);
     }, `mergeEntitiesIntoStack(${draggedId}, ${targetId})`);
     return zoneId;
   }
 
-  const mergeStackOntoStack = withHistory(ops.mergeStackOntoStack, 'mergeStackOntoStack');
+  function mergeStackOntoStack(draggedZoneId: string, targetZoneId: string): boolean {
+    let result = false;
+    apply((s) => {
+      result = ops.mergeStackOntoStack(s, draggedZoneId, targetZoneId);
+      if (result) ops.resizeStackZoneToContents(s, targetZoneId, templates);
+    }, `mergeStackOntoStack(${draggedZoneId}, ${targetZoneId})`);
+    return result;
+  }
 
   // Transient UI flag: an entity drag is currently hovering over the sidebar.
   // Used to show a visual removal indicator without touching undo history.

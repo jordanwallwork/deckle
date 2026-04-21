@@ -376,7 +376,8 @@
     if (!targetZone) return;
     if (targetZone.id === current.zoneId && targetZone.type !== 'spread') return;
 
-    if (targetZone.type === 'spread') {
+    const dragTemplate = drag.store.templates[current.templateId];
+    if (targetZone.type === 'spread' && dragTemplate && ops.isStackable(dragTemplate)) {
       // Spread drops land at the insertion point derived from the pointer,
       // so the user can slot the card anywhere in the row.
       const insertIndex = ops.computeSpreadInsertIndex(
@@ -413,6 +414,7 @@
     const targetTemplate = drag.store.templates[entityAtPoint.templateId];
     if (!draggedTemplate || !targetTemplate) return false;
     if (draggedTemplate.type !== targetTemplate.type) return false;
+    if (!ops.isStackable(draggedTemplate)) return false;
 
     const targetEntityZone = drag.store.state.zones[entityAtPoint.zoneId];
     if (targetEntityZone?.type === 'stack' || targetEntityZone?.type === 'spread') return false;

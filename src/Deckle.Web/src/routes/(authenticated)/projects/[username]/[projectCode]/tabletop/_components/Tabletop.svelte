@@ -67,6 +67,8 @@
   /** Default size for a freshly created zone; user resizes in edit mode. */
   const NEW_ZONE_WIDTH = 300;
   const NEW_ZONE_HEIGHT = 200;
+  const NEW_SPREAD_WIDTH = 400;
+  const NEW_SPREAD_HEIGHT = 220;
 
   function createZoneAt(clientX: number, clientY: number) {
     const world = getWorldPoint(clientX, clientY);
@@ -76,6 +78,19 @@
       world.y - NEW_ZONE_HEIGHT / 2,
       NEW_ZONE_WIDTH,
       NEW_ZONE_HEIGHT
+    );
+  }
+
+  function createSpreadZoneAt(clientX: number, clientY: number) {
+    const world = getWorldPoint(clientX, clientY);
+    if (!world) return;
+    store.createSpreadZone(
+      world.x - NEW_SPREAD_WIDTH / 2,
+      world.y - NEW_SPREAD_HEIGHT / 2,
+      NEW_SPREAD_WIDTH,
+      NEW_SPREAD_HEIGHT,
+      'row',
+      40
     );
   }
 
@@ -159,6 +174,14 @@
     } else if (selectedZoneId) {
       const zone = store.state.zones[selectedZoneId];
       if (zone) {
+        if (zone.type === 'spread') {
+          items.push({
+            label: zone.direction === 'row' ? 'Direction: Row' : 'Direction: Column',
+            action: () =>
+              store.setSpreadDirection(selectedZoneId, zone.direction === 'row' ? 'column' : 'row')
+          });
+          items.push({ divider: true });
+        }
         if (zone.type === 'stack') {
           items.push({
             label: `Shuffle (S)`,
@@ -211,6 +234,10 @@
       items.push({
         label: 'Create Zone',
         action: () => createZoneAt(clientX, clientY)
+      });
+      items.push({
+        label: 'Create Spread Zone',
+        action: () => createSpreadZoneAt(clientX, clientY)
       });
     }
 
@@ -404,11 +431,28 @@
     const { width: displayW, height: displayH } = getTemplateDisplaySize(template);
 
     // Multi-instance templates (e.g. a card backed by a data source) land
-    // as a real stack zone rather than a heap of overlapping entities. If
-    // the user already dropped onto an existing stack zone, just add to it.
-    if (unplaced.length > 1 && targetZone.type !== 'stack') {
+    // as a real stack zone rather than a heap of overlapping entities —
+    // unless the user dropped onto a zone with its own insertion semantics
+    // (stack, spread), in which case feed the instances into that zone.
+    if (
+      unplaced.length > 1 &&
+      targetZone.type !== 'stack' &&
+      targetZone.type !== 'spread'
+    ) {
       const result = store.spawnStackZoneFromTemplate(templateId, worldX, worldY, displayW, displayH, unplaced);
       if (result) store.selectZone(result.zoneId);
+      return;
+    }
+
+    if (targetZone.type === 'spread') {
+      // Insert at the pointer — bridge between the two cards the user
+      // dropped between. An empty spread falls back to index 0.
+      const insertIndex = ops.computeSpreadInsertIndex(
+        targetZone,
+        worldX - targetZone.x,
+        worldY - targetZone.y
+      );
+      store.spawnFromTemplate(templateId, targetZone.id, 0, 0, unplaced, insertIndex);
       return;
     }
 

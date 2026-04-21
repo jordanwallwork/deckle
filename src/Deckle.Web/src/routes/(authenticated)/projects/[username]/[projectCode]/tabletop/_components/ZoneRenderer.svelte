@@ -164,6 +164,19 @@
     store.deleteZone(zone.id);
   }
 
+  function handleDirectionToggle() {
+    if (zone.type !== 'spread') return;
+    store.setSpreadDirection(zone.id, zone.direction === 'row' ? 'column' : 'row');
+  }
+
+  function handleOverlapInput(e: Event) {
+    if (zone.type !== 'spread') return;
+    const target = e.target as HTMLInputElement;
+    const value = Number.parseInt(target.value, 10);
+    if (Number.isNaN(value)) return;
+    store.setSpreadOverlapTransient(zone.id, value);
+  }
+
   // Computed entity list for this zone (ordered)
   const zoneEntities = $derived(
     zone.entityIds
@@ -183,6 +196,45 @@
   // the new top happens behind the cards rather than as a snap.
   const shuffleAnimation = $derived(store.shuffleAnimation);
   const isShuffling = $derived(shuffleAnimation?.zoneId === zone.id);
+
+  // Drop indicator for spread zones: when a drag is hovering over this
+  // spread, draw a vertical/horizontal bar at the position where the
+  // dropped entity would land (computed from the pointer).
+  const spreadDropHover = $derived(store.spreadDropHover);
+  const isSpreadDropHover = $derived(
+    zone.type === 'spread' && spreadDropHover?.zoneId === zone.id
+  );
+
+  // Position of the insertion-point bar in local zone coords, along the
+  // primary axis. Uses the same step math as layoutSpread so the bar lands
+  // exactly between the two cards it's splitting.
+  const spreadIndicator = $derived.by(() => {
+    if (!isSpreadDropHover || zone.type !== 'spread') return null;
+    const size = zone.defaultSize;
+    if (!size) return null;
+    const step = Math.max(1, (zone.direction === 'row' ? size.width : size.height) - zone.overlap);
+    const index = spreadDropHover?.index ?? 0;
+    // index is position in the array *excluding* the dragged id, so the
+    // bar sits at i * step — between previous card's right edge and the
+    // next card's left edge, visually "the next card lands here".
+    const primary = index * step;
+    if (zone.direction === 'row') {
+      const crossAxis = (zone.height - size.height) / 2;
+      return {
+        left: primary - 2,
+        top: crossAxis,
+        width: 4,
+        height: size.height
+      };
+    }
+    const crossAxis = (zone.width - size.width) / 2;
+    return {
+      left: crossAxis,
+      top: primary - 2,
+      width: size.width,
+      height: 4
+    };
+  });
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -245,6 +297,20 @@
       <EntityWrapper {entity} disableDrag={isEditing} />
     {/each}
 
+  {:else if zone.type === 'spread'}
+    {#each zoneEntities as entity (entity.instanceId)}
+      <EntityWrapper {entity} disableDrag={isEditing} />
+    {/each}
+    {#if spreadIndicator}
+      <div
+        class="spread-drop-indicator"
+        style="left: {spreadIndicator.left}px; top: {spreadIndicator.top}px; width: {spreadIndicator.width}px; height: {spreadIndicator.height}px;"
+      ></div>
+    {/if}
+    {#if zone.entityIds.length === 0 && !isEditing}
+      <div class="spread-empty">Drop cards here ({zone.direction})</div>
+    {/if}
+
   {:else if zone.type === 'stack'}
     {#if stackTopEntity}
       {#if !isShuffling}
@@ -277,6 +343,26 @@
         placeholder="Zone name"
         aria-label="Zone name"
       />
+      {#if zone.type === 'spread'}
+        <button
+          class="edit-btn"
+          onclick={handleDirectionToggle}
+          title="Toggle direction"
+        >
+          {zone.direction === 'row' ? '↔' : '↕'}
+        </button>
+        <label class="overlap-control" title="Overlap (px)">
+          <span class="overlap-label">⇔</span>
+          <input
+            class="overlap-input"
+            type="number"
+            value={zone.overlap}
+            oninput={handleOverlapInput}
+            step="1"
+            aria-label="Overlap in pixels"
+          />
+        </label>
+      {/if}
       <button class="edit-btn delete" onclick={handleDelete} title="Delete zone">✕</button>
       <button class="edit-btn done" onclick={handleDone} title="Done">✓</button>
     </div>
@@ -370,6 +456,63 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .zone-spread {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .spread-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 0.8125rem;
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  .zone-spread.drop-hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.5);
+  }
+
+  .spread-drop-indicator {
+    position: absolute;
+    background: #3b82f6;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+  }
+
+  .overlap-control {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #2a2d3e;
+    border: 1px solid #3a3d4e;
+    border-radius: 4px;
+    padding: 0 0.25rem;
+    color: #c8cad8;
+    font-size: 0.75rem;
+  }
+
+  .overlap-label {
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+
+  .overlap-input {
+    background: transparent;
+    border: none;
+    color: #e8e9f0;
+    font-size: 0.75rem;
+    width: 3.5rem;
+    padding: 0.25rem;
+    outline: none;
   }
 
   .grid-lines {

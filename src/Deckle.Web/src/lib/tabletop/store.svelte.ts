@@ -115,12 +115,26 @@ export function createTabletopStore(
     applyTransient((s) => ops.moveEntity(s, instanceId, x, y));
   }
 
+  // If the target is a spread that hasn't been sized yet, seed it from the
+  // incoming entity's template before layout runs — otherwise `layoutSpread`
+  // no-ops and all entities land at (0, 0).
+  function ensureSpreadSizeFromEntity(s: TabletopState, instanceId: string, zoneId: string): void {
+    const target = s.zones[zoneId];
+    if (target?.type !== 'spread' || target.defaultSize) return;
+    const entity = s.entities[instanceId];
+    const template = entity ? templates[entity.templateId] : undefined;
+    if (template) ops.ensureSpreadDefaultSize(s, zoneId, template);
+  }
+
   function moveEntityToZone(
     instanceId: string,
     zoneId: string,
     opts: { insertIndex?: number; x?: number; y?: number } = {}
   ): void {
-    apply((s) => ops.moveEntityToZone(s, instanceId, zoneId, opts), `moveEntityToZone ${instanceId} → zone:${zoneId}`);
+    apply((s) => {
+      ensureSpreadSizeFromEntity(s, instanceId, zoneId);
+      ops.moveEntityToZone(s, instanceId, zoneId, opts);
+    }, `moveEntityToZone ${instanceId} → zone:${zoneId}`);
   }
 
   /**
@@ -133,7 +147,10 @@ export function createTabletopStore(
     zoneId: string,
     opts: { insertIndex?: number; x?: number; y?: number } = {}
   ): void {
-    applyTransient((s) => ops.moveEntityToZone(s, instanceId, zoneId, opts));
+    applyTransient((s) => {
+      ensureSpreadSizeFromEntity(s, instanceId, zoneId);
+      ops.moveEntityToZone(s, instanceId, zoneId, opts);
+    });
   }
 
   function moveZone(zoneId: string, x: number, y: number): void {
@@ -190,6 +207,38 @@ export function createTabletopStore(
       newId = ops.createFreeformZone(s, x, y, width, height, name);
     }, `createFreeformZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height}`);
     return newId;
+  }
+
+  function createSpreadZone(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    direction: 'row' | 'column' = 'row',
+    overlap = 40,
+    name?: string
+  ): string {
+    let newId = '';
+    apply((s) => {
+      newId = ops.createSpreadZone(s, x, y, width, height, direction, overlap, name);
+    }, `createSpreadZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height} dir:${direction} overlap:${overlap}`);
+    return newId;
+  }
+
+  function setSpreadDirection(zoneId: string, direction: 'row' | 'column'): void {
+    apply((s) => ops.setSpreadDirection(s, zoneId, direction), `setSpreadDirection ${zoneId} → ${direction}`);
+  }
+
+  function setSpreadOverlap(zoneId: string, overlap: number): void {
+    apply((s) => ops.setSpreadOverlap(s, zoneId, overlap), `setSpreadOverlap ${zoneId} → ${overlap}`);
+  }
+
+  /**
+   * Transient overlap update used by the edit-mode slider. The surrounding
+   * edit session already owns a single history entry via saveCheckpoint().
+   */
+  function setSpreadOverlapTransient(zoneId: string, overlap: number): void {
+    applyTransient((s) => ops.setSpreadOverlap(s, zoneId, overlap));
   }
 
   function deleteZone(zoneId: string): void {
@@ -349,21 +398,23 @@ export function createTabletopStore(
    * Spawn instances at the drop point. Pass `instances` to spawn a subset
    * (e.g. only the unplaced ones); omit to spawn all template instances.
    * Cards with a data source expand to one entity per row; everything else
-   * spawns a single entity. Returns the new instance IDs.
+   * spawns a single entity. `insertIndex` positions the first new entity in
+   * the zone's ordered array (default: append). Returns the new instance IDs.
    */
   function spawnFromTemplate(
     templateId: string,
     zoneId: string,
     x: number,
     y: number,
-    instances?: (Record<string, string> | null)[]
+    instances?: (Record<string, string> | null)[],
+    insertIndex?: number
   ): string[] {
     const template = templates[templateId];
     if (!template) return [];
     let newIds: string[] = [];
     apply((s) => {
-      newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances);
-    }, `spawnFromTemplate template:${templateId} → zone:${zoneId}`);
+      newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances, insertIndex);
+    }, `spawnFromTemplate template:${templateId} → zone:${zoneId}${insertIndex !== undefined ? ` @${insertIndex}` : ''}`);
     return newIds;
   }
 
@@ -438,6 +489,17 @@ export function createTabletopStore(
     isDraggingOverSidebar = value;
   }
 
+  /**
+   * Transient UI hint: while an entity is being dragged over a spread zone,
+   * record which zone and insertion index would receive it if dropped now.
+   * Consumed by ZoneRenderer to draw a drop indicator between cards.
+   */
+  let spreadDropHover = $state<{ zoneId: string; index: number } | null>(null);
+
+  function setSpreadDropHover(value: { zoneId: string; index: number } | null): void {
+    spreadDropHover = value;
+  }
+
   return {
     /** The reactive state. Components may read but should mutate via methods. */
     get state() {
@@ -470,6 +532,10 @@ export function createTabletopStore(
     renameZone,
     renameZoneTransient,
     createFreeformZone,
+    createSpreadZone,
+    setSpreadDirection,
+    setSpreadOverlap,
+    setSpreadOverlapTransient,
     deleteZone,
     setEditingZone,
     setEntityLocked,
@@ -501,6 +567,11 @@ export function createTabletopStore(
       return isDraggingOverSidebar;
     },
     setDraggingOverSidebar,
+
+    get spreadDropHover() {
+      return spreadDropHover;
+    },
+    setSpreadDropHover,
 
     toggleDebugMode
   };

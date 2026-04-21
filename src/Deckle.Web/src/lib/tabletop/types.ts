@@ -10,8 +10,9 @@
  * - freeform: entities positioned absolutely by (x, y) within the zone
  * - grid:     entities snap to a cell grid
  * - stack:    entities are piled; only the top is visible, with a count badge
+ * - spread:   entities laid in a row or column with a configurable overlap
  */
-export type ZoneType = 'freeform' | 'grid' | 'stack';
+export type ZoneType = 'freeform' | 'grid' | 'stack' | 'spread';
 
 export interface ZoneBase {
   id: string;
@@ -63,7 +64,29 @@ export interface StackZone extends ZoneBase {
   persistent: boolean;
 }
 
-export type Zone = FreeformZone | GridZone | StackZone;
+export interface SpreadZone extends ZoneBase {
+  type: 'spread';
+  /**
+   * Axis along which entities are laid out.
+   * - 'row':    horizontal, left → right (entityIds[0] leftmost)
+   * - 'column': vertical,   top  → bottom (entityIds[0] topmost)
+   */
+  direction: 'row' | 'column';
+  /**
+   * Number of pixels each entity overlaps the previous one along the
+   * primary axis. `0` means entities sit edge-to-edge; values approaching
+   * an entity's size produce a tight fan. Negative values introduce gaps.
+   */
+  overlap: number;
+  /**
+   * Display size (px) the spread expects its contained entities to be. Set
+   * from the first entity that enters the spread so the layout stays stable
+   * across adds/removes. Used by layout and insert-index math.
+   */
+  defaultSize?: { width: number; height: number };
+}
+
+export type Zone = FreeformZone | GridZone | StackZone | SpreadZone;
 
 /**
  * A single instance placed on the tabletop. Multiple entities may share

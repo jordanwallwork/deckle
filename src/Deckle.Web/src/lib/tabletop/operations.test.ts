@@ -4,13 +4,17 @@ import type {
   EntityTemplate,
   FreeformZone,
   GridZone,
+  SpreadZone,
   StackZone,
   TabletopState
 } from './types';
 import {
+  computeSpreadInsertIndex,
+  createSpreadZone,
   drawFromStack,
   findZoneAtPoint,
   flipEntity,
+  layoutSpread,
   mergeEntitiesIntoStack,
   mergeStackOntoStack,
   moveEntity,
@@ -21,10 +25,13 @@ import {
   rotateEntity,
   rotateStack,
   setRotation,
+  setSpreadDirection,
+  setSpreadOverlap,
   setStackFaceDown,
   setStackPersistent,
   shuffleStack,
   snapToGrid,
+  spawnEntity,
   spawnFromTemplate,
   spawnStackZoneFromTemplate
 } from './operations';
@@ -678,5 +685,354 @@ describe('findZoneAtPoint', () => {
     state.zones.grid.x = 0;
     state.zones.grid.y = 0;
     expect(findZoneAtPoint(state, 50, 50)?.id).toBe('grid');
+  });
+});
+
+describe('spread zones', () => {
+  function cardTemplate(): EntityTemplate {
+    return {
+      id: 'tpl',
+      name: 'Card',
+      type: 'Card',
+      widthPx: 126,
+      heightPx: 176,
+      widthMm: 63,
+      heightMm: 88,
+      isEditable: true,
+      instances: [null]
+    };
+  }
+
+  function addSpread(
+    state: TabletopState,
+    overrides: Partial<SpreadZone> = {}
+  ): SpreadZone {
+    const zone: SpreadZone = {
+      id: 'hand',
+      name: 'Hand',
+      type: 'spread',
+      x: 0,
+      y: 0,
+      width: 500,
+      height: 200,
+      direction: 'row',
+      overlap: 40,
+      defaultSize: { width: 126, height: 176 },
+      entityIds: [],
+      locked: false,
+      ...overrides
+    };
+    state.zones[zone.id] = zone;
+    state.zoneOrder.push(zone.id);
+    return zone;
+  }
+
+  describe('layoutSpread', () => {
+    it('lays row entities flush left, stepping by (width - overlap), centered vertically', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      state.entities.c = makeEntity({ instanceId: 'c', zoneId: spread.id });
+      spread.entityIds = ['a', 'b', 'c'];
+
+      layoutSpread(state, spread.id);
+
+      // step = 126 - 40 = 86
+      expect(state.entities.a.x).toBe(0);
+      expect(state.entities.b.x).toBe(86);
+      expect(state.entities.c.x).toBe(172);
+      // crossAxis = (200 - 176) / 2 = 12
+      expect(state.entities.a.y).toBe(12);
+      expect(state.entities.b.y).toBe(12);
+    });
+
+    it('lays column entities flush top with primary-axis step on y', () => {
+      const state = makeState();
+      const spread = addSpread(state, { direction: 'column', width: 200, height: 500 });
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+
+      layoutSpread(state, spread.id);
+
+      // step = 176 - 40 = 136
+      expect(state.entities.a.y).toBe(0);
+      expect(state.entities.b.y).toBe(136);
+      // crossAxis = (200 - 126) / 2 = 37
+      expect(state.entities.a.x).toBe(37);
+      expect(state.entities.b.x).toBe(37);
+    });
+
+    it('is a no-op when the zone has no defaultSize', () => {
+      const state = makeState();
+      const spread = addSpread(state, { defaultSize: undefined });
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id, x: 42, y: 99 });
+      spread.entityIds = ['a'];
+
+      layoutSpread(state, spread.id);
+
+      expect(state.entities.a.x).toBe(42);
+      expect(state.entities.a.y).toBe(99);
+    });
+  });
+
+  describe('computeSpreadInsertIndex', () => {
+    it('returns 0 for pointer left of the first card midpoint', () => {
+      const spread: SpreadZone = {
+        id: 'z', name: 'z', type: 'spread',
+        x: 0, y: 0, width: 500, height: 200,
+        direction: 'row', overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b', 'c'], locked: false
+      };
+      expect(computeSpreadInsertIndex(spread, 0, 100)).toBe(0);
+    });
+
+    it('returns N (end) when pointer is past all cards', () => {
+      const spread: SpreadZone = {
+        id: 'z', name: 'z', type: 'spread',
+        x: 0, y: 0, width: 500, height: 200,
+        direction: 'row', overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b', 'c'], locked: false
+      };
+      expect(computeSpreadInsertIndex(spread, 10_000, 100)).toBe(3);
+    });
+
+    it('returns an intermediate index when pointer is between cards', () => {
+      // step = 86, card midpoints at 63, 149, 235
+      const spread: SpreadZone = {
+        id: 'z', name: 'z', type: 'spread',
+        x: 0, y: 0, width: 500, height: 200,
+        direction: 'row', overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b', 'c'], locked: false
+      };
+      expect(computeSpreadInsertIndex(spread, 100, 100)).toBe(1);
+      expect(computeSpreadInsertIndex(spread, 200, 100)).toBe(2);
+    });
+
+    it('honours excludeId for same-zone reorder computations', () => {
+      const spread: SpreadZone = {
+        id: 'z', name: 'z', type: 'spread',
+        x: 0, y: 0, width: 500, height: 200,
+        direction: 'row', overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b', 'c'], locked: false
+      };
+      // Excluding one card makes the effective length 2, so max index is 2.
+      expect(computeSpreadInsertIndex(spread, 10_000, 100, 'b')).toBe(2);
+    });
+
+    it('uses the y axis when direction is column', () => {
+      const spread: SpreadZone = {
+        id: 'z', name: 'z', type: 'spread',
+        x: 0, y: 0, width: 200, height: 500,
+        direction: 'column', overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b'], locked: false
+      };
+      // step = 176 - 40 = 136, midpoints at 88, 224
+      expect(computeSpreadInsertIndex(spread, 100, 0)).toBe(0);
+      expect(computeSpreadInsertIndex(spread, 100, 100)).toBe(1);
+      expect(computeSpreadInsertIndex(spread, 100, 10_000)).toBe(2);
+    });
+  });
+
+  describe('spawnEntity into spread', () => {
+    it('appends at end by default (command default)', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      const template = cardTemplate();
+
+      const firstId = spawnEntity(state, template, spread.id, 0, 0);
+      const secondId = spawnEntity(state, template, spread.id, 0, 0);
+
+      expect(spread.entityIds).toEqual([firstId, secondId]);
+      // Layout placed them by index.
+      expect(state.entities[firstId].x).toBe(0);
+      expect(state.entities[secondId].x).toBe(86);
+    });
+
+    it('inserts at the given index when specified', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      const template = cardTemplate();
+
+      const a = spawnEntity(state, template, spread.id, 0, 0);
+      const b = spawnEntity(state, template, spread.id, 0, 0);
+      const c = spawnEntity(state, template, spread.id, 0, 0, null, 1);
+
+      expect(spread.entityIds).toEqual([a, c, b]);
+    });
+
+    it('sets defaultSize from the template when spread is empty', () => {
+      const state = makeState();
+      const spread = addSpread(state, { defaultSize: undefined });
+      const template = cardTemplate();
+
+      spawnEntity(state, template, spread.id, 0, 0);
+
+      // getTemplateDisplaySize uses mm * TABLETOP_PX_PER_MM (=2) → 63*2 = 126
+      expect(spread.defaultSize).toEqual({ width: 126, height: 176 });
+    });
+  });
+
+  describe('moveEntityToZone with spread', () => {
+    it('inserts at end by default (command default)', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+
+      // Move e1 out of the tableau into the spread with no insertIndex.
+      moveEntityToZone(state, 'e1', spread.id);
+
+      expect(spread.entityIds).toEqual(['a', 'b', 'e1']);
+      expect(state.entities.e1.zoneId).toBe(spread.id);
+      // Layout ran — e1 at index 2 means x=172
+      expect(state.entities.e1.x).toBe(172);
+    });
+
+    it('inserts at the given insertIndex', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+
+      moveEntityToZone(state, 'e1', spread.id, { insertIndex: 1 });
+
+      expect(spread.entityIds).toEqual(['a', 'e1', 'b']);
+      // After layout, e1 is at index 1 → x = 86
+      expect(state.entities.e1.x).toBe(86);
+      // b shifted to index 2 → x = 172
+      expect(state.entities.b.x).toBe(172);
+    });
+
+    it('re-lays out the source spread after removal', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      state.entities.c = makeEntity({ instanceId: 'c', zoneId: spread.id });
+      spread.entityIds = ['a', 'b', 'c'];
+      layoutSpread(state, spread.id);
+
+      moveEntityToZone(state, 'b', 'tableau', { x: 0, y: 0 });
+
+      expect(spread.entityIds).toEqual(['a', 'c']);
+      // a remained at 0; c closed the gap and is now at index 1 → x = 86
+      expect(state.entities.c.x).toBe(86);
+    });
+  });
+
+  describe('setSpreadDirection / setSpreadOverlap', () => {
+    it('re-lays out after direction change', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+      layoutSpread(state, spread.id);
+
+      setSpreadDirection(state, spread.id, 'column');
+
+      // step = 176 - 40 = 136
+      expect(state.entities.a.y).toBe(0);
+      expect(state.entities.b.y).toBe(136);
+      // crossAxis = (500 - 126)/2 is computed from current width (500 row zone
+      // kept same dims), but let's just check that x is consistent.
+      expect(state.entities.a.x).toBe(state.entities.b.x);
+    });
+
+    it('re-lays out after overlap change', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+      layoutSpread(state, spread.id);
+      expect(state.entities.b.x).toBe(86);
+
+      setSpreadOverlap(state, spread.id, 0);
+
+      // step = 126 - 0 = 126
+      expect(state.entities.b.x).toBe(126);
+    });
+  });
+
+  describe('createSpreadZone', () => {
+    it('adds a spread zone to state with editing mode set', () => {
+      const state = makeState();
+      const id = createSpreadZone(state, 100, 200, 500, 200, 'row', 50, 'Hand');
+      const zone = state.zones[id] as SpreadZone;
+      expect(zone.type).toBe('spread');
+      expect(zone.direction).toBe('row');
+      expect(zone.overlap).toBe(50);
+      expect(zone.name).toBe('Hand');
+      expect(state.editingZoneId).toBe(id);
+      expect(state.selectedZoneId).toBe(id);
+    });
+  });
+
+  describe('removeEntity from spread', () => {
+    it('re-lays out the spread after removal', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      state.entities.c = makeEntity({ instanceId: 'c', zoneId: spread.id });
+      spread.entityIds = ['a', 'b', 'c'];
+      layoutSpread(state, spread.id);
+
+      removeEntity(state, 'a');
+
+      expect(spread.entityIds).toEqual(['b', 'c']);
+      // After removal, b is at index 0 → x = 0, c at index 1 → x = 86
+      expect(state.entities.b.x).toBe(0);
+      expect(state.entities.c.x).toBe(86);
+    });
+  });
+
+  describe('reorderInZone in spread', () => {
+    it('re-lays out after reorder', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      state.entities.c = makeEntity({ instanceId: 'c', zoneId: spread.id });
+      spread.entityIds = ['a', 'b', 'c'];
+      layoutSpread(state, spread.id);
+
+      reorderInZone(state, 'a', 2);
+
+      expect(spread.entityIds).toEqual(['b', 'c', 'a']);
+      // b at 0 → 0, c at 1 → 86, a at 2 → 172
+      expect(state.entities.b.x).toBe(0);
+      expect(state.entities.c.x).toBe(86);
+      expect(state.entities.a.x).toBe(172);
+    });
+  });
+
+  describe('spawnFromTemplate with insertIndex into spread', () => {
+    it('appends by default and inserts at index when specified', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      const template: EntityTemplate = {
+        ...cardTemplate(),
+        instances: [{ Name: 'a' }, { Name: 'b' }]
+      };
+
+      const firstIds = spawnFromTemplate(state, template, spread.id, 0, 0);
+      expect(spread.entityIds).toEqual(firstIds);
+
+      const secondIds = spawnFromTemplate(state, template, spread.id, 0, 0, undefined, 1);
+      // First batch laid [a0, b0]; second batch of [a1, b1] starting at index 1
+      // produces [a0, a1, b1, b0].
+      expect(spread.entityIds).toEqual([firstIds[0], secondIds[0], secondIds[1], firstIds[1]]);
+    });
   });
 });

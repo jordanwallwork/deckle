@@ -8,6 +8,7 @@ import type {
   EntityTemplate,
   FreeformZone,
   GridZone,
+  SpreadZone,
   StackZone,
   TabletopState,
   Zone
@@ -34,6 +35,96 @@ function getZone(state: TabletopState, zoneId: string): Zone {
     throw new Error(`Zone not found: ${zoneId}`);
   }
   return zone;
+}
+
+/**
+ * Compute the layout step (px) between consecutive entities in a spread,
+ * given its direction and defaultSize. Kept public so the renderer and
+ * drop-target math use the same formula as the layout routine.
+ *
+ * Minimum step is 1px so a runaway overlap value can't collapse positions
+ * or make the insert-index math divide by zero.
+ */
+export function getSpreadStep(zone: SpreadZone): number {
+  const size = zone.defaultSize;
+  if (!size) return 0;
+  const primary = zone.direction === 'row' ? size.width : size.height;
+  return Math.max(1, primary - zone.overlap);
+}
+
+/**
+ * Recompute the (x, y) of every entity in a spread zone based on its
+ * index, direction, and overlap. Entities are laid flush to the zone's
+ * origin along the primary axis and centred on the cross axis. No-op if
+ * the zone isn't a spread or has no defaultSize yet.
+ */
+export function layoutSpread(state: TabletopState, zoneId: string): void {
+  const zone = state.zones[zoneId];
+  if (!zone || zone.type !== 'spread') return;
+  const size = zone.defaultSize;
+  if (!size) return;
+
+  const step = getSpreadStep(zone);
+  const crossAxis =
+    zone.direction === 'row'
+      ? (zone.height - size.height) / 2
+      : (zone.width - size.width) / 2;
+
+  for (let i = 0; i < zone.entityIds.length; i++) {
+    const entity = state.entities[zone.entityIds[i]];
+    if (!entity) continue;
+    if (zone.direction === 'row') {
+      entity.x = i * step;
+      entity.y = crossAxis;
+    } else {
+      entity.x = crossAxis;
+      entity.y = i * step;
+    }
+  }
+}
+
+/**
+ * Derive the insert index for a drag drop at (localX, localY) within a
+ * spread zone. Uses the same step as the layout so the position between
+ * two cards maps to the index that visually lands there. `excludeId` is
+ * filtered out first for same-zone reorders (where the dragged card's old
+ * slot is about to vanish from the array).
+ */
+export function computeSpreadInsertIndex(
+  zone: SpreadZone,
+  localX: number,
+  localY: number,
+  excludeId?: string
+): number {
+  const ids = excludeId
+    ? zone.entityIds.filter((id) => id !== excludeId)
+    : zone.entityIds;
+  if (ids.length === 0) return 0;
+  const size = zone.defaultSize;
+  if (!size) return ids.length;
+
+  const step = getSpreadStep(zone);
+  const pointer = zone.direction === 'row' ? localX : localY;
+  const half = (zone.direction === 'row' ? size.width : size.height) / 2;
+  const position = (pointer - half) / step;
+  return Math.max(0, Math.min(ids.length, Math.floor(position + 1)));
+}
+
+/**
+ * Set defaultSize on a spread zone from the given template's display size,
+ * if it doesn't already have one. Called when the first entity lands in an
+ * empty spread so subsequent layout / insert math has the dims it needs.
+ */
+export function ensureSpreadDefaultSize(
+  state: TabletopState,
+  zoneId: string,
+  template: EntityTemplate
+): void {
+  const zone = state.zones[zoneId];
+  if (!zone || zone.type !== 'spread') return;
+  if (zone.defaultSize) return;
+  const { width, height } = getTemplateDisplaySize(template);
+  zone.defaultSize = { width, height };
 }
 
 /**
@@ -71,8 +162,8 @@ export function moveEntity(
     const snapped = snapToGrid(zone, x, y);
     entity.x = snapped.x;
     entity.y = snapped.y;
-  } else if (zone.type === 'stack') {
-    // Stack positions are derived from the stack — ignore free movement.
+  } else if (zone.type === 'stack' || zone.type === 'spread') {
+    // Stack and spread positions are derived from the layout — ignore free movement.
   } else {
     entity.x = x;
     entity.y = y;
@@ -118,6 +209,9 @@ function maybeAutoDissolveStack(state: TabletopState, zoneId: string): void {
         entity.y = snapped.y;
       }
       targetZone.entityIds.push(lastId);
+      if (targetZone.type === 'spread') {
+        layoutSpread(state, targetZone.id);
+      }
     }
   }
 
@@ -161,7 +255,7 @@ export function moveEntityToZone(
     const snapped = snapToGrid(targetZone, opts.x ?? 0, opts.y ?? 0);
     entity.x = snapped.x;
     entity.y = snapped.y;
-  } else {
+  } else if (targetZone.type === 'stack') {
     // stack — positions are derived
     entity.x = 0;
     entity.y = 0;
@@ -176,11 +270,20 @@ export function moveEntityToZone(
       const reference = state.entities[referenceId];
       if (reference) entity.rotation = reference.rotation;
     }
+  } else {
+    // spread — positions are set by layoutSpread
+    entity.x = 0;
+    entity.y = 0;
+    layoutSpread(state, targetZoneId);
   }
 
   // Source stack may need to dissolve now that an entity has left it.
   if (sourceZoneId !== targetZoneId) {
     maybeAutoDissolveStack(state, sourceZoneId);
+    // Re-layout the source spread so the gap left by the departing entity closes.
+    if (state.zones[sourceZoneId]?.type === 'spread') {
+      layoutSpread(state, sourceZoneId);
+    }
   }
 }
 
@@ -369,6 +472,9 @@ export function reorderInZone(
   const clamped = Math.max(0, Math.min(filtered.length, newIndex));
   filtered.splice(clamped, 0, instanceId);
   zone.entityIds = filtered;
+  if (zone.type === 'spread') {
+    layoutSpread(state, zone.id);
+  }
 }
 
 /** Select an entity (null clears selection). Also clears zone selection. */
@@ -390,6 +496,10 @@ export function selectZone(state: TabletopState, zoneId: string | null): void {
 /**
  * Spawn a new entity from a template into the target zone.
  * Returns the new instance ID.
+ *
+ * `insertIndex` controls the position within the zone's entityIds — defaults
+ * to the end. Only meaningful for ordered layouts (stack / spread); for
+ * freeform/grid, position within the array is just z-order.
  */
 export function spawnEntity(
   state: TabletopState,
@@ -397,10 +507,15 @@ export function spawnEntity(
   targetZoneId: string,
   x: number,
   y: number,
-  mergeData: Record<string, string> | null = null
+  mergeData: Record<string, string> | null = null,
+  insertIndex?: number
 ): string {
   const zone = getZone(state, targetZoneId);
   const instanceId = makeId();
+
+  if (zone.type === 'spread') {
+    ensureSpreadDefaultSize(state, targetZoneId, template);
+  }
 
   let entityX = 0;
   let entityY = 0;
@@ -427,7 +542,16 @@ export function spawnEntity(
   };
 
   state.entities[instanceId] = entity;
-  zone.entityIds.push(instanceId);
+  const ids = [...zone.entityIds];
+  const idx = insertIndex ?? ids.length;
+  const clamped = Math.max(0, Math.min(ids.length, idx));
+  ids.splice(clamped, 0, instanceId);
+  zone.entityIds = ids;
+
+  if (zone.type === 'spread') {
+    layoutSpread(state, targetZoneId);
+  }
+
   return instanceId;
 }
 
@@ -436,6 +560,10 @@ export function spawnEntity(
  * Cards with a data source produce a pile of per-row instances; templates
  * without a data source fall back to a single entity.
  * Pass `instances` to spawn a subset (e.g. only the unplaced ones).
+ *
+ * For ordered zones (spread/stack), `insertIndex` positions the first new
+ * entity; subsequent entities are inserted after it so the batch lands
+ * contiguously in the order provided.
  */
 export function spawnFromTemplate(
   state: TabletopState,
@@ -443,11 +571,14 @@ export function spawnFromTemplate(
   targetZoneId: string,
   x: number,
   y: number,
-  instances?: (Record<string, string> | null)[]
+  instances?: (Record<string, string> | null)[],
+  insertIndex?: number
 ): string[] {
   const ids: string[] = [];
+  let idx = insertIndex;
   for (const mergeData of (instances ?? template.instances)) {
-    ids.push(spawnEntity(state, template, targetZoneId, x, y, mergeData));
+    ids.push(spawnEntity(state, template, targetZoneId, x, y, mergeData, idx));
+    if (idx !== undefined) idx++;
   }
   return ids;
 }
@@ -574,7 +705,9 @@ export function mergeEntitiesIntoStack(
   if (draggedTemplate.type !== targetTemplate.type) return null;
 
   const targetZone = state.zones[target.zoneId];
-  if (!targetZone || targetZone.type === 'stack') return null;
+  // A card already in an ordered zone (stack/spread) uses that zone's own
+  // insertion semantics — never form a new stack on top of it.
+  if (!targetZone || targetZone.type === 'stack' || targetZone.type === 'spread') return null;
 
   const { width, height } = getTemplateDisplaySize(draggedTemplate);
 
@@ -670,6 +803,9 @@ export function removeEntity(state: TabletopState, instanceId: string): void {
     state.selectedEntityId = null;
   }
   maybeAutoDissolveStack(state, zone.id);
+  if (state.zones[zone.id]?.type === 'spread') {
+    layoutSpread(state, zone.id);
+  }
 }
 
 /**
@@ -697,7 +833,75 @@ export function removeAllEntitiesForTemplate(state: TabletopState, templateId: s
 
   for (const zoneId of affectedZoneIds) {
     maybeAutoDissolveStack(state, zoneId);
+    if (state.zones[zoneId]?.type === 'spread') {
+      layoutSpread(state, zoneId);
+    }
   }
+}
+
+/**
+ * Create a new spread zone and add it to the tabletop. The new zone is
+ * returned with `locked: false` and with `editingZoneId` set so the UI
+ * renders it in edit mode immediately.
+ *
+ * defaultSize is filled in lazily from the first entity that lands in the
+ * spread (see `ensureSpreadDefaultSize`).
+ */
+export function createSpreadZone(
+  state: TabletopState,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  direction: 'row' | 'column' = 'row',
+  overlap = 40,
+  name = 'New Spread'
+): string {
+  const zone: SpreadZone = {
+    id: typeof crypto !== 'undefined' && crypto.randomUUID
+      ? `zone-${crypto.randomUUID()}`
+      : `zone-${Math.random().toString(36).slice(2)}`,
+    name,
+    type: 'spread',
+    x,
+    y,
+    width,
+    height,
+    direction,
+    overlap,
+    entityIds: [],
+    locked: false
+  };
+  state.zones[zone.id] = zone;
+  state.zoneOrder.push(zone.id);
+  state.editingZoneId = zone.id;
+  state.selectedZoneId = zone.id;
+  state.selectedEntityId = null;
+  return zone.id;
+}
+
+/** Switch a spread zone's direction (row/column) and re-layout. No-op for other zone types. */
+export function setSpreadDirection(
+  state: TabletopState,
+  zoneId: string,
+  direction: 'row' | 'column'
+): void {
+  const zone = getZone(state, zoneId);
+  if (zone.type !== 'spread') return;
+  zone.direction = direction;
+  layoutSpread(state, zoneId);
+}
+
+/** Update a spread zone's overlap (px) and re-layout. No-op for other zone types. */
+export function setSpreadOverlap(
+  state: TabletopState,
+  zoneId: string,
+  overlap: number
+): void {
+  const zone = getZone(state, zoneId);
+  if (zone.type !== 'spread') return;
+  zone.overlap = overlap;
+  layoutSpread(state, zoneId);
 }
 
 /**

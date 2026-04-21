@@ -22,7 +22,12 @@
     displayHeight: number;
     didMove: boolean;
     checkpointSaved: boolean;
-    detachedFromStack: boolean;
+    /**
+     * True once the drag has escaped an ordered zone (stack or spread) into
+     * a freely-positioned intermediate. Ordered zones lay their own entities
+     * out, so the drag has to detach before free movement works.
+     */
+    detachedFromOrdered: boolean;
     // When set, the drag moves the whole zone instead of the entity. Entered
     // when pointerdown lands on a stack's top card while that stack is
     // already the selected zone.
@@ -145,7 +150,7 @@
       displayHeight,
       didMove: false,
       checkpointSaved: false,
-      detachedFromStack: false,
+      detachedFromOrdered: false,
       zoneDrag
     };
     isDragging = true;
@@ -202,24 +207,26 @@
       return;
     }
 
-    // Stack zones ignore entity x/y, so a drag from the top of a stack has
-    // to first move the entity into a freeform/grid zone before free
-    // positioning works.
-    if (!drag.detachedFromStack) {
+    // Stack and spread zones both lay their own entities out, so a drag
+    // starting from one has to detach into a freely-positioned zone before
+    // free movement works.
+    if (!drag.detachedFromOrdered) {
       const currentZone = drag.store.state.zones[current.zoneId];
-      if (currentZone?.type === 'stack') {
+      if (currentZone?.type === 'stack' || currentZone?.type === 'spread') {
         const surfaceEl = drag.canvas?.surfaceEl;
         if (!surfaceEl) return;
         const rect = surfaceEl.getBoundingClientRect();
         const worldX = (e.clientX - rect.left) / zoom;
         const worldY = (e.clientY - rect.top) / zoom;
 
-        // Prefer the zone currently under the pointer; fall back to any
-        // non-stack zone so the entity has somewhere to live.
+        // Prefer a non-ordered zone under the pointer; fall back to any
+        // freeform/grid so the entity has somewhere to live.
+        const isFree = (t: { type: string } | null | undefined) =>
+          !!t && t.type !== 'stack' && t.type !== 'spread';
         let target = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
-        if (!target || target.id === currentZone.id || target.type === 'stack') {
+        if (!isFree(target) || target?.id === currentZone.id) {
           target =
-            Object.values(drag.store.state.zones).find((z) => z.type !== 'stack') ?? null;
+            Object.values(drag.store.state.zones).find((z) => isFree(z)) ?? null;
         }
         if (!target) return;
 
@@ -237,10 +244,10 @@
         }
         drag.dragStartX = e.clientX;
         drag.dragStartY = e.clientY;
-        drag.detachedFromStack = true;
+        drag.detachedFromOrdered = true;
         return;
       }
-      drag.detachedFromStack = true;
+      drag.detachedFromOrdered = true;
     }
 
     drag.store.moveEntityTransient(
@@ -248,6 +255,29 @@
       drag.entityStartX + dx,
       drag.entityStartY + dy
     );
+
+    // Publish a spread-hover hint so the target spread can render a drop
+    // indicator at the computed insert index. Cleared when not over a spread.
+    const surfaceEl = drag.canvas?.surfaceEl;
+    if (surfaceEl) {
+      const rect = surfaceEl.getBoundingClientRect();
+      const worldX = (e.clientX - rect.left) / zoom;
+      const worldY = (e.clientY - rect.top) / zoom;
+      const hoverZone = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
+      if (hoverZone?.type === 'spread') {
+        const localX = worldX - hoverZone.x;
+        const localY = worldY - hoverZone.y;
+        const index = ops.computeSpreadInsertIndex(
+          hoverZone,
+          localX,
+          localY,
+          drag.instanceId
+        );
+        drag.store.setSpreadDropHover({ zoneId: hoverZone.id, index });
+      } else {
+        drag.store.setSpreadDropHover(null);
+      }
+    }
   }
 
   function handleWindowPointerUp(e: PointerEvent) {
@@ -257,6 +287,7 @@
     isDragging = false;
 
     drag.store.setDraggingOverSidebar(false);
+    drag.store.setSpreadDropHover(null);
 
     window.removeEventListener('pointermove', handleWindowPointerMove);
     window.removeEventListener('pointerup', handleWindowPointerUp);
@@ -379,7 +410,8 @@
           draggedTemplate &&
           targetTemplate &&
           draggedTemplate.type === targetTemplate.type &&
-          targetEntityZone?.type !== 'stack'
+          targetEntityZone?.type !== 'stack' &&
+          targetEntityZone?.type !== 'spread'
         ) {
           drag.store.mergeEntitiesIntoStack(drag.instanceId, entityAtPoint.instanceId);
           return;
@@ -387,13 +419,25 @@
       }
 
       const targetZone = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
-      if (targetZone && targetZone.id !== current.zoneId) {
+      if (targetZone && (targetZone.id !== current.zoneId || targetZone.type === 'spread')) {
         const localX = worldX - targetZone.x - drag.displayWidth / 2;
         const localY = worldY - targetZone.y - drag.displayHeight / 2;
-        drag.store.moveEntityToZone(drag.instanceId, targetZone.id, {
-          x: localX,
-          y: localY
-        });
+        if (targetZone.type === 'spread') {
+          // Spread drops land at the insertion point derived from the
+          // pointer, so the user can slot the card anywhere in the row.
+          const insertIndex = ops.computeSpreadInsertIndex(
+            targetZone,
+            worldX - targetZone.x,
+            worldY - targetZone.y,
+            drag.instanceId
+          );
+          drag.store.moveEntityToZone(drag.instanceId, targetZone.id, { insertIndex });
+        } else {
+          drag.store.moveEntityToZone(drag.instanceId, targetZone.id, {
+            x: localX,
+            y: localY
+          });
+        }
       }
     }
   }

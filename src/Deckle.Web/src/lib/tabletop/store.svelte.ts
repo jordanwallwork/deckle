@@ -15,6 +15,38 @@ export interface TabletopStoreSnapshot {
   state: TabletopState;
 }
 
+/**
+ * Pick which cards are rendered during the shuffle animation. The set must
+ * include both the old top (visible before the shuffle) and the new top
+ * (visible after); the rest is a random sample of the remaining stack to
+ * make the fan-out feel populated.
+ *
+ * Returns the list in paint order: [newTop, ...extras, oldTop]. The old top
+ * is painted last so the user sees what they were already looking at at t=0;
+ * the renderer swaps z-indices mid-flight so the new top lands on top.
+ */
+export function pickShuffleAnimationCards(
+  newOrder: readonly string[],
+  oldTopId: string,
+  maxCards: number
+): string[] {
+  const newTop = newOrder[newOrder.length - 1];
+  const required = oldTopId === newTop ? [newTop] : [newTop, oldTopId];
+  const requiredSet = new Set(required);
+
+  const pool = newOrder.filter((id) => !requiredSet.has(id));
+  const wantExtra = Math.min(Math.max(0, maxCards - required.length), pool.length);
+
+  // Fisher–Yates partial sample
+  for (let i = 0; i < wantExtra; i++) {
+    const j = i + Math.floor(Math.random() * (pool.length - i));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const extras = pool.slice(0, wantExtra);
+
+  return oldTopId === newTop ? [newTop, ...extras] : [newTop, ...extras, oldTopId];
+}
+
 export function createTabletopStore(
   initialState: TabletopState,
   templates: Record<string, EntityTemplate>
@@ -69,6 +101,39 @@ export function createTabletopStore(
   }
 
   /**
+   * Wrap a pure operation so the store method pushes a history entry.
+   * Result, if any, propagates to the caller.
+   */
+  function withHistory<Args extends unknown[], R>(
+    op: (state: TabletopState, ...args: Args) => R,
+    name: string
+  ): (...args: Args) => R {
+    return (...args: Args): R => {
+      let result!: R;
+      apply(
+        (s) => {
+          result = op(s, ...args);
+        },
+        `${name}(${args.join(', ')})`
+      );
+      return result;
+    };
+  }
+
+  /** Wrap a pure operation so the store method skips history (drag-style). */
+  function withoutHistory<Args extends unknown[], R>(
+    op: (state: TabletopState, ...args: Args) => R
+  ): (...args: Args) => R {
+    return (...args: Args): R => {
+      let result!: R;
+      applyTransient((s) => {
+        result = op(s, ...args);
+      });
+      return result;
+    };
+  }
+
+  /**
    * Save the current state as a history entry. Call this at the start of
    * a transient sequence (e.g. on drag start) so undo returns to before it.
    */
@@ -104,16 +169,58 @@ export function createTabletopStore(
   }
 
   // ─── Operation wrappers ────────────────────────────────────────────────
-  // Each user-facing action wraps the pure operation with a history entry.
+  // Each user-facing action wraps the pure operation with a history entry
+  // (`withHistory`) or skips history for drag-style transient updates
+  // (`withoutHistory`). Operations that need extra logic (template lookup,
+  // animation orchestration, size seeding) stay as explicit functions below.
 
-  function moveEntity(instanceId: string, x: number, y: number): void {
-    apply((s) => ops.moveEntity(s, instanceId, x, y), `moveEntity ${instanceId} → (${x}, ${y})`);
+  const moveEntity = withHistory(ops.moveEntity, 'moveEntity');
+  const moveEntityTransient = withoutHistory(ops.moveEntity);
+  const moveZone = withHistory(ops.moveZone, 'moveZone');
+  const moveZoneTransient = withoutHistory(ops.moveZone);
+  const resizeZone = withHistory(ops.resizeZone, 'resizeZone');
+  const resizeZoneTransient = withoutHistory(ops.resizeZone);
+  const renameZone = withHistory(ops.renameZone, 'renameZone');
+  const renameZoneTransient = withoutHistory(ops.renameZone);
+  const setSpreadDirection = withHistory(ops.setSpreadDirection, 'setSpreadDirection');
+  const setSpreadOverlap = withHistory(ops.setSpreadOverlap, 'setSpreadOverlap');
+  const setSpreadOverlapTransient = withoutHistory(ops.setSpreadOverlap);
+  const deleteZone = withHistory(ops.deleteZone, 'deleteZone');
+  const setEntityLocked = withHistory(ops.setEntityLocked, 'setEntityLocked');
+  const setZoneLocked = withHistory(ops.setZoneLocked, 'setZoneLocked');
+  const flipEntity = withHistory(ops.flipEntity, 'flipEntity');
+  const rotateEntity = withHistory(ops.rotateEntity, 'rotateEntity');
+  const rotateStack = withHistory(ops.rotateStack, 'rotateStack');
+  const setRotation = withHistory(ops.setRotation, 'setRotation');
+  const setStackFaceDown = withHistory(ops.setStackFaceDown, 'setStackFaceDown');
+  const setStackFaceDownTransient = withoutHistory(ops.setStackFaceDown);
+  const rotateZoneEntities = withHistory(ops.rotateZoneEntities, 'rotateZoneEntities');
+  const shuffleZoneEntities = withHistory(ops.shuffleZoneEntities, 'shuffleZoneEntities');
+  const setStackPersistent = withHistory(ops.setStackPersistent, 'setStackPersistent');
+  const setStackPersistentTransient = withoutHistory(ops.setStackPersistent);
+  const setGridCellSizeTransient = withoutHistory(ops.setGridCellSize);
+  const reorderInZone = withHistory(ops.reorderInZone, 'reorderInZone');
+  const drawFromStack = withHistory(ops.drawFromStack, 'drawFromStack');
+  const removeEntity = withHistory(ops.removeEntity, 'removeEntity');
+  const removeAllEntitiesForTemplate = withHistory(
+    ops.removeAllEntitiesForTemplate,
+    'removeAllEntitiesForTemplate'
+  );
+  const createFreeformZone = withHistory(ops.createFreeformZone, 'createFreeformZone');
+  const createSpreadZone = withHistory(ops.createSpreadZone, 'createSpreadZone');
+
+  // Selection is ephemeral — no history needed. Edit mode is UI state too.
+  const selectEntity = withoutHistory(ops.selectEntity);
+  const selectZone = withoutHistory(ops.selectZone);
+  const setEditingZone = withoutHistory(ops.setEditingZone);
+
+  // changeZoneType needs the templates record so it can seed defaultSize
+  // from entities when converting freeform/grid → spread/stack.
+  function changeZoneTypeTransient(zoneId: string, newType: ZoneType): void {
+    applyTransient((s) => ops.changeZoneType(s, zoneId, newType, templates));
   }
 
-  /** Transient variant used by drag handlers; does not push history. */
-  function moveEntityTransient(instanceId: string, x: number, y: number): void {
-    applyTransient((s) => ops.moveEntity(s, instanceId, x, y));
-  }
+  // ─── Operations that need more than a direct pass-through ──────────────
 
   // If the target is a spread that hasn't been sized yet, seed it from the
   // incoming entity's template before layout runs — otherwise `layoutSpread`
@@ -134,7 +241,7 @@ export function createTabletopStore(
     apply((s) => {
       ensureSpreadSizeFromEntity(s, instanceId, zoneId);
       ops.moveEntityToZone(s, instanceId, zoneId, opts);
-    }, `moveEntityToZone ${instanceId} → zone:${zoneId}`);
+    }, `moveEntityToZone(${instanceId}, ${zoneId})`);
   }
 
   /**
@@ -153,151 +260,11 @@ export function createTabletopStore(
     });
   }
 
-  function moveZone(zoneId: string, x: number, y: number): void {
-    apply((s) => ops.moveZone(s, zoneId, x, y), `moveZone ${zoneId} → (${x}, ${y})`);
-  }
-
-  /** Transient variant used by drag handlers; does not push history. */
-  function moveZoneTransient(zoneId: string, x: number, y: number): void {
-    applyTransient((s) => ops.moveZone(s, zoneId, x, y));
-  }
-
-  function resizeZone(zoneId: string, width: number, height: number, x?: number, y?: number): void {
-    apply(
-      (s) => ops.resizeZone(s, zoneId, width, height, x, y),
-      `resizeZone ${zoneId} → ${width}×${height}`
-    );
-  }
-
-  /** Transient variant used by resize-handle drag handlers. */
-  function resizeZoneTransient(
-    zoneId: string,
-    width: number,
-    height: number,
-    x?: number,
-    y?: number
-  ): void {
-    applyTransient((s) => ops.resizeZone(s, zoneId, width, height, x, y));
-  }
-
-  function renameZone(zoneId: string, name: string): void {
-    apply((s) => ops.renameZone(s, zoneId, name), `renameZone ${zoneId} → "${name}"`);
-  }
-
-  /**
-   * Transient rename used by the in-edit name input. The surrounding edit
-   * session already owns a single history entry via saveCheckpoint().
-   */
-  function renameZoneTransient(zoneId: string, name: string): void {
-    applyTransient((s) => ops.renameZone(s, zoneId, name));
-  }
-
-  function createFreeformZone(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    name?: string
-  ): string {
-    let newId = '';
-    apply(
-      (s) => {
-        newId = ops.createFreeformZone(s, x, y, width, height, name);
-      },
-      `createFreeformZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height}`
-    );
-    return newId;
-  }
-
-  function createSpreadZone(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    direction: 'row' | 'column' = 'row',
-    overlap = 40,
-    name?: string
-  ): string {
-    let newId = '';
-    apply(
-      (s) => {
-        newId = ops.createSpreadZone(s, x, y, width, height, direction, overlap, name);
-      },
-      `createSpreadZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height} dir:${direction} overlap:${overlap}`
-    );
-    return newId;
-  }
-
-  function setSpreadDirection(zoneId: string, direction: 'row' | 'column'): void {
-    apply(
-      (s) => ops.setSpreadDirection(s, zoneId, direction),
-      `setSpreadDirection ${zoneId} → ${direction}`
-    );
-  }
-
-  function setSpreadOverlap(zoneId: string, overlap: number): void {
-    apply(
-      (s) => ops.setSpreadOverlap(s, zoneId, overlap),
-      `setSpreadOverlap ${zoneId} → ${overlap}`
-    );
-  }
-
-  /**
-   * Transient overlap update used by the edit-mode slider. The surrounding
-   * edit session already owns a single history entry via saveCheckpoint().
-   */
-  function setSpreadOverlapTransient(zoneId: string, overlap: number): void {
-    applyTransient((s) => ops.setSpreadOverlap(s, zoneId, overlap));
-  }
-
-  function deleteZone(zoneId: string): void {
-    apply((s) => ops.deleteZone(s, zoneId), `deleteZone ${zoneId}`);
-  }
-
-  // Edit mode is UI state — no history entry needed.
-  function setEditingZone(zoneId: string | null): void {
-    applyTransient((s) => ops.setEditingZone(s, zoneId));
-  }
-
-  function setEntityLocked(instanceId: string, locked: boolean): void {
-    apply(
-      (s) => ops.setEntityLocked(s, instanceId, locked),
-      `setEntityLocked ${instanceId} → ${locked}`
-    );
-  }
-
-  function setZoneLocked(zoneId: string, locked: boolean): void {
-    apply((s) => ops.setZoneLocked(s, zoneId, locked), `setZoneLocked ${zoneId} → ${locked}`);
-  }
-
-  function flipEntity(instanceId: string): void {
-    apply((s) => ops.flipEntity(s, instanceId), `flipEntity ${instanceId}`);
-  }
-
-  function rotateEntity(instanceId: string, delta: number): void {
-    apply((s) => ops.rotateEntity(s, instanceId, delta), `rotateEntity ${instanceId} Δ${delta}°`);
-  }
-
-  function setRotation(instanceId: string, degrees: number): void {
-    apply(
-      (s) => ops.setRotation(s, instanceId, degrees),
-      `setRotation ${instanceId} → ${degrees}°`
-    );
-  }
-
-  function rotateStack(zoneId: string, delta: number): void {
-    apply((s) => ops.rotateStack(s, zoneId, delta), `rotateStack ${zoneId} Δ${delta}°`);
-  }
-
   /**
    * Transient orchestration for the shuffle animation. The new order is
    * computed up-front so the renderer knows which card will end up on top
    * and can include it in the animation — preventing a visual pop when the
    * shuffle commits.
-   *
-   * `animatedIds` is rendered in array order: the first id is painted at
-   * the bottom, the last at the top. Z-indices are reversed mid-animation
-   * so the new top lands on top.
    */
   let shuffleAnimation = $state<{
     zoneId: string;
@@ -315,7 +282,7 @@ export function createTabletopStore(
 
     // Trivial cases — nothing visual to animate. Apply immediately.
     if (zone.entityIds.length < 2) {
-      apply((s) => ops.shuffleStack(s, zoneId), `shuffleStack ${zoneId}`);
+      apply((s) => ops.shuffleStack(s, zoneId), `shuffleStack(${zoneId})`);
       return;
     }
 
@@ -327,33 +294,8 @@ export function createTabletopStore(
     if (shuffleAnimation) completeShuffleAnimation();
 
     const newOrder = ops.computeShuffledOrder(zone.entityIds);
-    const newTop = newOrder[newOrder.length - 1];
     const oldTop = zone.entityIds[zone.entityIds.length - 1];
-
-    // Pick the cards to animate. Must include both old top (to match what's
-    // visible at t=0) and new top (to match what's visible at t=end). Fill
-    // the rest with random others so the fan-out feels populated.
-    const required: string[] = [];
-    if (oldTop !== newTop) required.push(newTop, oldTop);
-    else required.push(newTop);
-
-    const requiredSet = new Set(required);
-    const pool = newOrder.filter((id) => !requiredSet.has(id));
-    const wantExtra = Math.min(SHUFFLE_ANIMATION_CARDS - required.length, pool.length);
-    // Fisher–Yates partial sample
-    for (let i = 0; i < wantExtra; i++) {
-      const j = i + Math.floor(Math.random() * (pool.length - i));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    const extras = pool.slice(0, wantExtra);
-
-    // Array order: [newTop, ...extras, oldTop]
-    // - oldTop is last (highest paint order) → visible at start, matching the
-    //   underlying stack-top that was just hidden when this state went live.
-    // - newTop is first (lowest paint order initially) → animation swaps
-    //   z-indices mid-flight so it lands on top at the end.
-    const animatedIds: string[] =
-      oldTop === newTop ? [newTop, ...extras] : [newTop, ...extras, oldTop];
+    const animatedIds = pickShuffleAnimationCards(newOrder, oldTop, SHUFFLE_ANIMATION_CARDS);
 
     if (debugMode)
       console.log(`[tabletop] shuffleStack ${zoneId} (animated, ${animatedIds.length} cards)`);
@@ -367,14 +309,7 @@ export function createTabletopStore(
     shuffleAnimation = null;
     apply(
       (s) => ops.shuffleStack(s, pending.zoneId, pending.newOrder),
-      `commit shuffleStack ${pending.zoneId}`
-    );
-  }
-
-  function setStackFaceDown(zoneId: string, faceDown: boolean): void {
-    apply(
-      (s) => ops.setStackFaceDown(s, zoneId, faceDown),
-      `setStackFaceDown ${zoneId} → ${faceDown}`
+      `commit shuffleStack(${pending.zoneId})`
     );
   }
 
@@ -406,69 +341,18 @@ export function createTabletopStore(
       );
     }
 
-    apply((s) => ops.flipZoneEntities(s, zoneId), `flipZoneEntities ${zoneId}`);
+    apply((s) => ops.flipZoneEntities(s, zoneId), `flipZoneEntities(${zoneId})`);
   }
 
-  function rotateZoneEntities(zoneId: string, delta: number): void {
-    apply(
-      (s) => ops.rotateZoneEntities(s, zoneId, delta),
-      `rotateZoneEntities ${zoneId} Δ${delta}°`
-    );
-  }
-
-  function shuffleZoneEntities(zoneId: string): void {
-    apply((s) => ops.shuffleZoneEntities(s, zoneId), `shuffleZoneEntities ${zoneId}`);
-  }
-
-  function setStackFaceDownTransient(zoneId: string, faceDown: boolean): void {
-    applyTransient((s) => ops.setStackFaceDown(s, zoneId, faceDown));
-  }
-
-  function setStackPersistent(zoneId: string, persistent: boolean): void {
-    apply(
-      (s) => ops.setStackPersistent(s, zoneId, persistent),
-      `setStackPersistent ${zoneId} → ${persistent}`
-    );
-  }
-
-  function setStackPersistentTransient(zoneId: string, persistent: boolean): void {
-    applyTransient((s) => ops.setStackPersistent(s, zoneId, persistent));
-  }
-
-  function changeZoneTypeTransient(zoneId: string, newType: ZoneType): void {
-    applyTransient((s) => ops.changeZoneType(s, zoneId, newType));
-  }
-
-  function setGridCellSizeTransient(
-    zoneId: string,
-    cellWidth: number,
-    cellHeight: number,
-    columns: number
-  ): void {
-    applyTransient((s) => ops.setGridCellSize(s, zoneId, cellWidth, cellHeight, columns));
-  }
-
-  function reorderInZone(instanceId: string, newIndex: number): void {
-    apply(
-      (s) => ops.reorderInZone(s, instanceId, newIndex),
-      `reorderInZone ${instanceId} → index ${newIndex}`
-    );
-  }
-
-  function drawFromStack(stackZoneId: string, targetZoneId: string, x: number, y: number): void {
-    apply(
-      (s) => ops.drawFromStack(s, stackZoneId, targetZoneId, x, y),
-      `drawFromStack ${stackZoneId} → zone:${targetZoneId}`
-    );
-  }
-
+  // Template-bound spawn ops — can't use withHistory since they do a
+  // templates lookup before dispatching to the pure operation.
   function spawnEntity(templateId: string, zoneId: string, x: number, y: number): string | null {
     const template = templates[templateId];
     if (!template) return null;
     let newId: string | null = null;
     apply((s) => {
       newId = ops.spawnEntity(s, template, zoneId, x, y);
-    }, `spawnEntity template:${templateId} → zone:${zoneId}`);
+    }, `spawnEntity(${templateId}, ${zoneId})`);
     return newId;
   }
 
@@ -494,7 +378,7 @@ export function createTabletopStore(
       (s) => {
         newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances, insertIndex);
       },
-      `spawnFromTemplate template:${templateId} → zone:${zoneId}${insertIndex !== undefined ? ` @${insertIndex}` : ''}`
+      `spawnFromTemplate(${templateId}, ${zoneId}${insertIndex !== undefined ? `, @${insertIndex}` : ''})`
     );
     return newIds;
   }
@@ -515,17 +399,20 @@ export function createTabletopStore(
     const template = templates[templateId];
     if (!template) return null;
     let result: { zoneId: string; instanceIds: string[] } | null = null;
-    apply((s) => {
-      result = ops.spawnStackZoneFromTemplate(
-        s,
-        template,
-        worldX,
-        worldY,
-        displayWidth,
-        displayHeight,
-        instances
-      );
-    }, `spawnStackZoneFromTemplate template:${templateId} at (${worldX}, ${worldY})`);
+    apply(
+      (s) => {
+        result = ops.spawnStackZoneFromTemplate(
+          s,
+          template,
+          worldX,
+          worldY,
+          displayWidth,
+          displayHeight,
+          instances
+        );
+      },
+      `spawnStackZoneFromTemplate(${templateId})`
+    );
     return result;
   }
 
@@ -533,37 +420,11 @@ export function createTabletopStore(
     let zoneId: string | null = null;
     apply((s) => {
       zoneId = ops.mergeEntitiesIntoStack(s, templates, draggedId, targetId);
-    }, `mergeEntitiesIntoStack ${draggedId} → ${targetId}`);
+    }, `mergeEntitiesIntoStack(${draggedId}, ${targetId})`);
     return zoneId;
   }
 
-  function mergeStackOntoStack(draggedZoneId: string, targetZoneId: string): boolean {
-    let result = false;
-    apply((s) => {
-      result = ops.mergeStackOntoStack(s, draggedZoneId, targetZoneId);
-    }, `mergeStackOntoStack ${draggedZoneId} → ${targetZoneId}`);
-    return result;
-  }
-
-  function removeEntity(instanceId: string): void {
-    apply((s) => ops.removeEntity(s, instanceId), `removeEntity ${instanceId}`);
-  }
-
-  function removeAllEntitiesForTemplate(templateId: string): void {
-    apply(
-      (s) => ops.removeAllEntitiesForTemplate(s, templateId),
-      `removeAllEntitiesForTemplate template:${templateId}`
-    );
-  }
-
-  // Selection is ephemeral — no history needed.
-  function selectEntity(instanceId: string | null): void {
-    applyTransient((s) => ops.selectEntity(s, instanceId));
-  }
-
-  function selectZone(zoneId: string | null): void {
-    applyTransient((s) => ops.selectZone(s, zoneId));
-  }
+  const mergeStackOntoStack = withHistory(ops.mergeStackOntoStack, 'mergeStackOntoStack');
 
   // Transient UI flag: an entity drag is currently hovering over the sidebar.
   // Used to show a visual removal indicator without touching undo history.
@@ -672,4 +533,3 @@ export function createTabletopStore(
 }
 
 export type TabletopStore = ReturnType<typeof createTabletopStore>;
-

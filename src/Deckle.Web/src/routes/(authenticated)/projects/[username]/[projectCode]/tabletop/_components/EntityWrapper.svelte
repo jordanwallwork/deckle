@@ -42,7 +42,7 @@
 </script>
 
 <script lang="ts">
-  import type { Entity, StackZone } from '$lib/tabletop';
+  import type { Entity } from '$lib/tabletop';
   import { getTabletopApi } from '$lib/tabletop';
   import { getTemplateDisplaySize } from '$lib/tabletop/initialization';
   import * as ops from '$lib/tabletop/operations';
@@ -191,16 +191,7 @@
     drag.didMove = true;
 
     // Signal the sidebar when a drag hovers over it so it can show the removal indicator.
-    const sidebarEl = drag.canvas?.sidebarEl;
-    if (sidebarEl) {
-      const sRect = sidebarEl.getBoundingClientRect();
-      const over =
-        e.clientX >= sRect.left &&
-        e.clientX < sRect.right &&
-        e.clientY >= sRect.top &&
-        e.clientY < sRect.bottom;
-      drag.store.setDraggingOverSidebar(over);
-    }
+    drag.store.setDraggingOverSidebar(pointInElement(drag.canvas?.sidebarEl ?? null, e));
 
     const dx = dxScreen / zoom;
     const dy = dyScreen / zoom;
@@ -222,25 +213,22 @@
     if (!drag.detachedFromOrdered) {
       const currentZone = drag.store.state.zones[current.zoneId];
       if (currentZone?.type === 'stack' || currentZone?.type === 'spread') {
-        const surfaceEl = drag.canvas?.surfaceEl;
-        if (!surfaceEl) return;
-        const rect = surfaceEl.getBoundingClientRect();
-        const worldX = (e.clientX - rect.left) / zoom;
-        const worldY = (e.clientY - rect.top) / zoom;
+        const world = canvasToWorld(drag.canvas, e);
+        if (!world) return;
 
         // Prefer a non-ordered zone under the pointer; fall back to any
         // freeform/grid so the entity has somewhere to live.
         const isFree = (t: { type: string } | null | undefined) =>
           !!t && t.type !== 'stack' && t.type !== 'spread';
-        let target = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
+        let target = ops.findZoneAtPoint(drag.store.state, world.worldX, world.worldY);
         if (!isFree(target) || target?.id === currentZone.id) {
           target =
             Object.values(drag.store.state.zones).find((z) => isFree(z)) ?? null;
         }
         if (!target) return;
 
-        const localX = worldX - target.x - drag.displayWidth / 2;
-        const localY = worldY - target.y - drag.displayHeight / 2;
+        const localX = world.worldX - target.x - drag.displayWidth / 2;
+        const localY = world.worldY - target.y - drag.displayHeight / 2;
         drag.store.moveEntityToZoneTransient(drag.instanceId, target.id, {
           x: localX,
           y: localY
@@ -267,15 +255,12 @@
 
     // Publish a spread-hover hint so the target spread can render a drop
     // indicator at the computed insert index. Cleared when not over a spread.
-    const surfaceEl = drag.canvas?.surfaceEl;
-    if (surfaceEl) {
-      const rect = surfaceEl.getBoundingClientRect();
-      const worldX = (e.clientX - rect.left) / zoom;
-      const worldY = (e.clientY - rect.top) / zoom;
-      const hoverZone = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
+    const world = canvasToWorld(drag.canvas, e);
+    if (world) {
+      const hoverZone = ops.findZoneAtPoint(drag.store.state, world.worldX, world.worldY);
       if (hoverZone?.type === 'spread') {
-        const localX = worldX - hoverZone.x;
-        const localY = worldY - hoverZone.y;
+        const localX = world.worldX - hoverZone.x;
+        const localY = world.worldY - hoverZone.y;
         const index = ops.computeSpreadInsertIndex(
           hoverZone,
           localX,
@@ -287,6 +272,153 @@
         drag.store.setSpreadDropHover(null);
       }
     }
+  }
+
+  function pointInElement(el: HTMLElement | null, e: PointerEvent): boolean {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    return e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom;
+  }
+
+  function canvasToWorld(
+    canvas: ActiveDrag['canvas'],
+    e: PointerEvent
+  ): { worldX: number; worldY: number } | null {
+    const surfaceEl = canvas?.surfaceEl;
+    if (!surfaceEl) return null;
+    const zoom = canvas?.zoom ?? 1;
+    const rect = surfaceEl.getBoundingClientRect();
+    return {
+      worldX: (e.clientX - rect.left) / zoom,
+      worldY: (e.clientY - rect.top) / zoom
+    };
+  }
+
+  function handleZoneDragEnd(drag: ActiveDrag, e: PointerEvent): void {
+    if (!drag.zoneDrag) return;
+    suppressNextClick = true;
+
+    // Drop onto sidebar = remove the whole stack zone from the tabletop.
+    if (pointInElement(drag.canvas?.sidebarEl ?? null, e)) {
+      drag.store.deleteZone(drag.zoneDrag.zoneId);
+      return;
+    }
+
+    const world = canvasToWorld(drag.canvas, e);
+    if (!world) return;
+
+    // Drop onto another stack → merge the two stacks.
+    const targetZone = ops.findZoneAtPoint(
+      drag.store.state,
+      world.worldX,
+      world.worldY,
+      drag.zoneDrag.zoneId
+    );
+    if (targetZone?.type === 'stack') {
+      drag.store.mergeStackOntoStack(drag.zoneDrag.zoneId, targetZone.id);
+      return;
+    }
+
+    mergeStackOntoLooseEntity(drag, world.worldX, world.worldY);
+  }
+
+  function mergeStackOntoLooseEntity(drag: ActiveDrag, worldX: number, worldY: number): void {
+    if (!drag.zoneDrag) return;
+    const entityAtPoint = ops.findEntityAtPoint(
+      drag.store.state,
+      drag.store.templates,
+      worldX,
+      worldY
+    );
+    if (!entityAtPoint) return;
+
+    const draggedZone = drag.store.state.zones[drag.zoneDrag.zoneId];
+    if (draggedZone?.type !== 'stack') return;
+
+    const ds = draggedZone.defaultSize;
+    const entityTemplate = drag.store.templates[entityAtPoint.templateId];
+    if (!ds || !entityTemplate) return;
+
+    const { width, height } = getTemplateDisplaySize(entityTemplate);
+    if (width !== ds.width || height !== ds.height) return;
+
+    // Re-centre the stack over the target entity so the merge lands cleanly.
+    const entityZone = drag.store.state.zones[entityAtPoint.zoneId];
+    if (entityZone) {
+      const cx = entityZone.x + entityAtPoint.x + width / 2;
+      const cy = entityZone.y + entityAtPoint.y + height / 2;
+      drag.store.moveZoneTransient(
+        drag.zoneDrag.zoneId,
+        cx - draggedZone.width / 2,
+        cy - draggedZone.height / 2
+      );
+    }
+    drag.store.moveEntityToZone(entityAtPoint.instanceId, drag.zoneDrag.zoneId, {
+      insertIndex: 0
+    });
+  }
+
+  function handleEntityDragEnd(drag: ActiveDrag, current: Entity, e: PointerEvent): void {
+    // Drop onto sidebar = remove entity (and sibling instances for multi-instance templates).
+    if (pointInElement(drag.canvas?.sidebarEl ?? null, e)) {
+      drag.store.removeEntity(drag.instanceId);
+      return;
+    }
+
+    const world = canvasToWorld(drag.canvas, e);
+    if (!world) return;
+
+    // Entity-on-entity merge: dropped onto a same-type entity in a non-stack
+    // zone → create a new stack with both, dragged entity on top.
+    if (tryMergeEntitiesIntoStack(drag, current, world.worldX, world.worldY)) return;
+
+    const targetZone = ops.findZoneAtPoint(drag.store.state, world.worldX, world.worldY);
+    if (!targetZone) return;
+    if (targetZone.id === current.zoneId && targetZone.type !== 'spread') return;
+
+    if (targetZone.type === 'spread') {
+      // Spread drops land at the insertion point derived from the pointer,
+      // so the user can slot the card anywhere in the row.
+      const insertIndex = ops.computeSpreadInsertIndex(
+        targetZone,
+        world.worldX - targetZone.x,
+        world.worldY - targetZone.y,
+        drag.instanceId
+      );
+      drag.store.moveEntityToZone(drag.instanceId, targetZone.id, { insertIndex });
+      return;
+    }
+
+    const localX = world.worldX - targetZone.x - drag.displayWidth / 2;
+    const localY = world.worldY - targetZone.y - drag.displayHeight / 2;
+    drag.store.moveEntityToZone(drag.instanceId, targetZone.id, { x: localX, y: localY });
+  }
+
+  function tryMergeEntitiesIntoStack(
+    drag: ActiveDrag,
+    current: Entity,
+    worldX: number,
+    worldY: number
+  ): boolean {
+    const entityAtPoint = ops.findEntityAtPoint(
+      drag.store.state,
+      drag.store.templates,
+      worldX,
+      worldY,
+      drag.instanceId
+    );
+    if (!entityAtPoint) return false;
+
+    const draggedTemplate = drag.store.templates[current.templateId];
+    const targetTemplate = drag.store.templates[entityAtPoint.templateId];
+    if (!draggedTemplate || !targetTemplate) return false;
+    if (draggedTemplate.type !== targetTemplate.type) return false;
+
+    const targetEntityZone = drag.store.state.zones[entityAtPoint.zoneId];
+    if (targetEntityZone?.type === 'stack' || targetEntityZone?.type === 'spread') return false;
+
+    drag.store.mergeEntitiesIntoStack(drag.instanceId, entityAtPoint.instanceId);
+    return true;
   }
 
   function handleWindowPointerUp(e: PointerEvent) {
@@ -304,151 +436,14 @@
 
     if (!drag.didMove) return;
 
-    // Zone drags: check sidebar first, then check for stack merges.
     if (drag.zoneDrag) {
-      suppressNextClick = true;
-
-      // Drop onto sidebar = remove the whole stack zone from the tabletop.
-      const sidebarEl = drag.canvas?.sidebarEl;
-      if (sidebarEl) {
-        const sRect = sidebarEl.getBoundingClientRect();
-        if (
-          e.clientX >= sRect.left &&
-          e.clientX < sRect.right &&
-          e.clientY >= sRect.top &&
-          e.clientY < sRect.bottom
-        ) {
-          drag.store.deleteZone(drag.zoneDrag.zoneId);
-          return;
-        }
-      }
-
-      const surfaceEl = drag.canvas?.surfaceEl;
-      if (surfaceEl) {
-        const zoom = drag.canvas?.zoom ?? 1;
-        const rect = surfaceEl.getBoundingClientRect();
-        const worldX = (e.clientX - rect.left) / zoom;
-        const worldY = (e.clientY - rect.top) / zoom;
-        const targetZone = ops.findZoneAtPoint(
-          drag.store.state,
-          worldX,
-          worldY,
-          drag.zoneDrag.zoneId
-        );
-        if (targetZone?.type === 'stack') {
-          drag.store.mergeStackOntoStack(drag.zoneDrag.zoneId, targetZone.id);
-        } else {
-          // Drop onto a compatible single entity → merge it to the bottom of the stack.
-          const entityAtPoint = ops.findEntityAtPoint(
-            drag.store.state,
-            drag.store.templates,
-            worldX,
-            worldY
-          );
-          if (entityAtPoint) {
-            const draggedZone = drag.store.state.zones[drag.zoneDrag.zoneId];
-            if (draggedZone?.type === 'stack') {
-              const ds = (draggedZone as StackZone).defaultSize;
-              const entityTemplate = drag.store.templates[entityAtPoint.templateId];
-              if (ds && entityTemplate) {
-                const { width, height } = getTemplateDisplaySize(entityTemplate);
-                if (width === ds.width && height === ds.height) {
-                  const entityZone = drag.store.state.zones[entityAtPoint.zoneId];
-                  if (entityZone) {
-                    const cx = entityZone.x + entityAtPoint.x + width / 2;
-                    const cy = entityZone.y + entityAtPoint.y + height / 2;
-                    drag.store.moveZoneTransient(
-                      drag.zoneDrag.zoneId,
-                      cx - draggedZone.width / 2,
-                      cy - draggedZone.height / 2
-                    );
-                  }
-                  drag.store.moveEntityToZone(entityAtPoint.instanceId, drag.zoneDrag.zoneId, {
-                    insertIndex: 0
-                  });
-                }
-              }
-            }
-          }
-        }
-      }
+      handleZoneDragEnd(drag, e);
       return;
     }
 
     const current = drag.store.state.entities[drag.instanceId];
     if (!current) return;
-
-    // Drop onto sidebar = remove entity (and all sibling instances for multi-instance templates).
-    const sidebarEl = drag.canvas?.sidebarEl;
-    if (sidebarEl) {
-      const rect = sidebarEl.getBoundingClientRect();
-      if (
-        e.clientX >= rect.left &&
-        e.clientX < rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY < rect.bottom
-      ) {
-        drag.store.removeEntity(drag.instanceId);
-        return;
-      }
-    }
-
-    // Cross-zone drop: commit a zone change if the pointer landed in a
-    // zone other than the one the entity currently belongs to.
-    const surfaceEl = drag.canvas?.surfaceEl;
-    if (surfaceEl) {
-      const zoom = drag.canvas?.zoom ?? 1;
-      const rect = surfaceEl.getBoundingClientRect();
-      const worldX = (e.clientX - rect.left) / zoom;
-      const worldY = (e.clientY - rect.top) / zoom;
-
-      // Entity-on-entity merge: dropped onto a same-type entity in a non-stack
-      // zone → create a new stack with both, dragged entity on top.
-      const entityAtPoint = ops.findEntityAtPoint(
-        drag.store.state,
-        drag.store.templates,
-        worldX,
-        worldY,
-        drag.instanceId
-      );
-      if (entityAtPoint) {
-        const draggedTemplate = drag.store.templates[current.templateId];
-        const targetTemplate = drag.store.templates[entityAtPoint.templateId];
-        const targetEntityZone = drag.store.state.zones[entityAtPoint.zoneId];
-        if (
-          draggedTemplate &&
-          targetTemplate &&
-          draggedTemplate.type === targetTemplate.type &&
-          targetEntityZone?.type !== 'stack' &&
-          targetEntityZone?.type !== 'spread'
-        ) {
-          drag.store.mergeEntitiesIntoStack(drag.instanceId, entityAtPoint.instanceId);
-          return;
-        }
-      }
-
-      const targetZone = ops.findZoneAtPoint(drag.store.state, worldX, worldY);
-      if (targetZone && (targetZone.id !== current.zoneId || targetZone.type === 'spread')) {
-        const localX = worldX - targetZone.x - drag.displayWidth / 2;
-        const localY = worldY - targetZone.y - drag.displayHeight / 2;
-        if (targetZone.type === 'spread') {
-          // Spread drops land at the insertion point derived from the
-          // pointer, so the user can slot the card anywhere in the row.
-          const insertIndex = ops.computeSpreadInsertIndex(
-            targetZone,
-            worldX - targetZone.x,
-            worldY - targetZone.y,
-            drag.instanceId
-          );
-          drag.store.moveEntityToZone(drag.instanceId, targetZone.id, { insertIndex });
-        } else {
-          drag.store.moveEntityToZone(drag.instanceId, targetZone.id, {
-            x: localX,
-            y: localY
-          });
-        }
-      }
-    }
+    handleEntityDragEnd(drag, current, e);
   }
 
   function handleClick(e: MouseEvent) {

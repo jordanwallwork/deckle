@@ -14,6 +14,17 @@
  */
 export type ZoneType = 'freeform' | 'grid' | 'stack' | 'spread';
 
+/**
+ * Settings that belong to a specific zone type but survive conversion to a
+ * different type. When the user converts spread → grid → spread, the spread's
+ * previous direction/overlap should come back rather than reset to defaults.
+ */
+export interface ZoneTypeSettingsCache {
+  stack?: { faceDown: boolean; persistent: boolean };
+  spread?: { direction: 'row' | 'column'; overlap: number };
+  grid?: { cellWidth: number; cellHeight: number; columns: number };
+}
+
 export interface ZoneBase {
   id: string;
   name: string;
@@ -31,6 +42,11 @@ export interface ZoneBase {
   entityIds: string[];
   /** When true, the zone cannot be dragged or resized (except via edit mode). */
   locked: boolean;
+  /**
+   * Type-specific settings preserved across zone type conversions. Populated
+   * by `changeZoneType`; empty on fresh zones.
+   */
+  typeSettings?: ZoneTypeSettingsCache;
 }
 
 export interface FreeformZone extends ZoneBase {

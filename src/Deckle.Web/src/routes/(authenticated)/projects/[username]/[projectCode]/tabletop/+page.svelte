@@ -13,6 +13,10 @@
   );
 </script>
 
+<svelte:head>
+  <title>Tabletop · {data.project.name} · Deckle</title>
+</svelte:head>
+
 <div class="tabletop-page">
   {#if data.components.length === 0}
     <div class="empty-state">

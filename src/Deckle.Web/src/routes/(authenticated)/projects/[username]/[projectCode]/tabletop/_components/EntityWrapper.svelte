@@ -51,10 +51,16 @@
 
   let {
     entity,
-    disableDrag = false
+    disableDrag = false,
+    flipDelay = 0
   }: {
     entity: Entity;
     disableDrag?: boolean;
+    /**
+     * CSS `transition-delay` (ms) applied to the flip transform. Used by
+     * spread / grid zones to stagger a zone-wide flip into a wave.
+     */
+    flipDelay?: number;
   } = $props();
 
   const store = getTabletopApi();
@@ -91,16 +97,19 @@
 
   function onPointerDown(e: PointerEvent) {
     // Right-click: select the entity so the context menu has a target,
-    // but don't start a drag. When the entity is the top card of a stack
-    // zone, route the context menu to the stack itself — the top card is
-    // the stack's only clickable surface, so its context menu should be
-    // the stack's (shuffle / flip / persistent / draw) regardless of
-    // whether the stack was already selected.
+    // but don't start a drag. Two cases route the menu to the zone instead:
+    //   - Stack zones — the top card is the stack's only clickable surface,
+    //     so its context menu should always be the stack's (shuffle / flip /
+    //     persistent / draw).
+    //   - Any zone the user has already selected (e.g. via clicking the
+    //     zone background, or double-clicking an entity) — preserve that
+    //     selection so right-clicking on a card inside a packed spread /
+    //     grid still surfaces the zone menu and "Edit Zone" stays reachable.
     if (e.button === 2) {
       e.stopPropagation();
       const currentZone = store.state.zones[entity.zoneId];
-      if (currentZone?.type === 'stack') {
-        store.selectZone(currentZone.id);
+      if (currentZone?.type === 'stack' || store.state.selectedZoneId === entity.zoneId) {
+        store.selectZone(entity.zoneId);
       } else {
         store.selectEntity(entity.instanceId);
       }
@@ -477,7 +486,7 @@
   <div
     class="entity-flip-container"
     class:flipped={entity.isFlipped}
-    style="width: 100%; height: 100%;"
+    style="width: 100%; height: 100%; transition-delay: {flipDelay}ms;"
   >
     <div class="entity-front">
       <EntityView {entity} {template} {renderScale} side="front" />

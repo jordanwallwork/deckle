@@ -14,6 +14,7 @@ import {
   drawFromStack,
   findZoneAtPoint,
   flipEntity,
+  flipZoneEntities,
   layoutSpread,
   mergeEntitiesIntoStack,
   mergeStackOntoStack,
@@ -24,12 +25,14 @@ import {
   reorderInZone,
   rotateEntity,
   rotateStack,
+  rotateZoneEntities,
   setRotation,
   setSpreadDirection,
   setSpreadOverlap,
   setStackFaceDown,
   setStackPersistent,
   shuffleStack,
+  shuffleZoneEntities,
   snapToGrid,
   spawnEntity,
   spawnFromTemplate,
@@ -329,6 +332,86 @@ describe('setStackFaceDown', () => {
     // deck starts as ['e3', 'e4'] (e4 on top)
     setStackFaceDown(state, 'deck', false);
     expect(state.zones.deck.entityIds).toEqual(['e4', 'e3']);
+  });
+});
+
+describe('flipZoneEntities', () => {
+  it('toggles isFlipped on every entity in the zone', () => {
+    const state = makeState();
+    state.entities.e1.isFlipped = false;
+    state.entities.e2.isFlipped = true;
+    flipZoneEntities(state, 'tableau');
+    expect(state.entities.e1.isFlipped).toBe(true);
+    expect(state.entities.e2.isFlipped).toBe(false);
+  });
+
+  it('does not reverse entity order (unlike setStackFaceDown)', () => {
+    const state = makeState();
+    const before = [...state.zones.tableau.entityIds];
+    flipZoneEntities(state, 'tableau');
+    expect(state.zones.tableau.entityIds).toEqual(before);
+  });
+});
+
+describe('rotateZoneEntities', () => {
+  it('rotates every entity in the zone by the same delta', () => {
+    const state = makeState();
+    state.entities.e1.rotation = 45;
+    state.entities.e2.rotation = 315;
+    rotateZoneEntities(state, 'tableau', 90);
+    expect(state.entities.e1.rotation).toBe(135);
+    expect(state.entities.e2.rotation).toBe(45);
+  });
+
+  it('does not modify zone width/height (unlike rotateStack)', () => {
+    const state = makeState();
+    const beforeW = state.zones.tableau.width;
+    const beforeH = state.zones.tableau.height;
+    rotateZoneEntities(state, 'tableau', 90);
+    expect(state.zones.tableau.width).toBe(beforeW);
+    expect(state.zones.tableau.height).toBe(beforeH);
+  });
+});
+
+describe('shuffleZoneEntities', () => {
+  it('preserves the set of ids', () => {
+    const state = makeState();
+    (state.zones.tableau as FreeformZone).entityIds = ['a', 'b', 'c', 'd', 'e'];
+    const before = [...state.zones.tableau.entityIds];
+    shuffleZoneEntities(state, 'tableau');
+    expect([...state.zones.tableau.entityIds].sort()).toEqual([...before].sort());
+  });
+
+  it('re-lays out spread entities after shuffle', () => {
+    const state = makeState();
+    const spread: SpreadZone = {
+      id: 'spread1',
+      name: 'Spread',
+      type: 'spread',
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 200,
+      direction: 'row',
+      overlap: 20,
+      defaultSize: { width: 100, height: 150 },
+      entityIds: ['s1', 's2', 's3'],
+      locked: false
+    };
+    state.zones.spread1 = spread;
+    state.zoneOrder.push('spread1');
+    state.entities.s1 = makeEntity({ instanceId: 's1', zoneId: 'spread1' });
+    state.entities.s2 = makeEntity({ instanceId: 's2', zoneId: 'spread1' });
+    state.entities.s3 = makeEntity({ instanceId: 's3', zoneId: 'spread1' });
+
+    shuffleZoneEntities(state, 'spread1');
+
+    // Whatever the new order is, positions are contiguous along the row axis.
+    const step = 100 - 20; // size.width - overlap = 80
+    for (let i = 0; i < spread.entityIds.length; i++) {
+      const id = spread.entityIds[i];
+      expect(state.entities[id].x).toBe(i * step);
+    }
   });
 });
 

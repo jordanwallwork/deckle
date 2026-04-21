@@ -213,6 +213,21 @@
           }
           items.push({ divider: true });
         }
+        if ((zone.type === 'spread' || zone.type === 'grid') && zone.entityIds.length > 0) {
+          items.push({
+            label: `Shuffle (S)`,
+            action: () => store.shuffleZoneEntities(selectedZoneId)
+          });
+          items.push({
+            label: `Flip All (F)`,
+            action: () => store.flipZoneEntities(selectedZoneId)
+          });
+          items.push({
+            label: `Rotate 90° (R)`,
+            action: () => store.rotateZoneEntities(selectedZoneId, 90)
+          });
+          items.push({ divider: true });
+        }
         items.push({
           label: 'Edit Zone',
           disabled: zone.locked,
@@ -313,15 +328,30 @@
       }
     } else if (selectedZoneId) {
       const zone = store.state.zones[selectedZoneId];
-      if ((e.key === 's' || e.key === 'S') && zone?.type === 'stack') {
-        e.preventDefault();
-        store.shuffleStack(selectedZoneId);
-      } else if ((e.key === 'f' || e.key === 'F') && zone?.type === 'stack') {
-        e.preventDefault();
-        store.setStackFaceDown(selectedZoneId, !zone.faceDown);
-      } else if ((e.key === 'r' || e.key === 'R') && zone?.type === 'stack') {
-        e.preventDefault();
-        store.rotateStack(selectedZoneId, 90);
+      if (e.key === 's' || e.key === 'S') {
+        if (zone?.type === 'stack') {
+          e.preventDefault();
+          store.shuffleStack(selectedZoneId);
+        } else if (zone?.type === 'spread' || zone?.type === 'grid') {
+          e.preventDefault();
+          store.shuffleZoneEntities(selectedZoneId);
+        }
+      } else if (e.key === 'f' || e.key === 'F') {
+        if (zone?.type === 'stack') {
+          e.preventDefault();
+          store.setStackFaceDown(selectedZoneId, !zone.faceDown);
+        } else if (zone?.type === 'spread' || zone?.type === 'grid') {
+          e.preventDefault();
+          store.flipZoneEntities(selectedZoneId);
+        }
+      } else if (e.key === 'r' || e.key === 'R') {
+        if (zone?.type === 'stack') {
+          e.preventDefault();
+          store.rotateStack(selectedZoneId, 90);
+        } else if (zone?.type === 'spread' || zone?.type === 'grid') {
+          e.preventDefault();
+          store.rotateZoneEntities(selectedZoneId, 90);
+        }
       } else if (e.key === 'Escape') {
         store.selectZone(null);
       }

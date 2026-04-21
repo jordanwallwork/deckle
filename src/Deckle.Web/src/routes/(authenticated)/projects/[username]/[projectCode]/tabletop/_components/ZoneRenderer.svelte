@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Zone } from '$lib/tabletop';
+  import type { Zone, ZoneType } from '$lib/tabletop';
   import { getTabletopApi } from '$lib/tabletop';
   import { getContext } from 'svelte';
   import EntityWrapper from './EntityWrapper.svelte';
@@ -177,6 +177,32 @@
     store.setSpreadOverlapTransient(zone.id, value);
   }
 
+  function handleTypeChange(newType: ZoneType) {
+    if (zone.type === newType) return;
+    store.changeZoneTypeTransient(zone.id, newType);
+  }
+
+  function handleGridCellWidthInput(e: Event) {
+    if (zone.type !== 'grid') return;
+    const value = Number.parseInt((e.target as HTMLInputElement).value, 10);
+    if (Number.isNaN(value)) return;
+    store.setGridCellSizeTransient(zone.id, value, zone.cellHeight, zone.columns);
+  }
+
+  function handleGridCellHeightInput(e: Event) {
+    if (zone.type !== 'grid') return;
+    const value = Number.parseInt((e.target as HTMLInputElement).value, 10);
+    if (Number.isNaN(value)) return;
+    store.setGridCellSizeTransient(zone.id, zone.cellWidth, value, zone.columns);
+  }
+
+  function handleGridColumnsInput(e: Event) {
+    if (zone.type !== 'grid') return;
+    const value = Number.parseInt((e.target as HTMLInputElement).value, 10);
+    if (Number.isNaN(value)) return;
+    store.setGridCellSizeTransient(zone.id, zone.cellWidth, zone.cellHeight, value);
+  }
+
   // Computed entity list for this zone (ordered)
   const zoneEntities = $derived(
     zone.entityIds
@@ -196,6 +222,15 @@
   // the new top happens behind the cards rather than as a snap.
   const shuffleAnimation = $derived(store.shuffleAnimation);
   const isShuffling = $derived(shuffleAnimation?.zoneId === zone.id);
+
+  // Per-entity stagger for the wave flip on spread / grid zones. Only
+  // populated while the transient zoneFlipAnimation is live; EntityWrapper
+  // applies it as a CSS transition-delay so the cards flip in sequence.
+  const zoneFlipAnimation = $derived(store.zoneFlipAnimation);
+  function flipDelayFor(index: number): number {
+    if (!zoneFlipAnimation || zoneFlipAnimation.zoneId !== zone.id) return 0;
+    return index * zoneFlipAnimation.staggerMs;
+  }
 
   // Drop indicator for spread zones: when a drag is hovering over this
   // spread, draw a vertical/horizontal bar at the position where the
@@ -251,6 +286,9 @@
   {#if zone.type !== 'stack' && !isEditing}
     <div class="zone-label">
       {zone.name}
+      {#if zone.type === 'grid' || zone.type === 'spread'}
+        <span class="zone-count">{zoneEntities.length}</span>
+      {/if}
       {#if zone.locked}
         <span class="lock-badge" title="Locked">🔒</span>
       {/if}
@@ -293,13 +331,13 @@
       {/each}
     </svg>
 
-    {#each zoneEntities as entity (entity.instanceId)}
-      <EntityWrapper {entity} disableDrag={isEditing} />
+    {#each zoneEntities as entity, i (entity.instanceId)}
+      <EntityWrapper {entity} disableDrag={isEditing} flipDelay={flipDelayFor(i)} />
     {/each}
 
   {:else if zone.type === 'spread'}
-    {#each zoneEntities as entity (entity.instanceId)}
-      <EntityWrapper {entity} disableDrag={isEditing} />
+    {#each zoneEntities as entity, i (entity.instanceId)}
+      <EntityWrapper {entity} disableDrag={isEditing} flipDelay={flipDelayFor(i)} />
     {/each}
     {#if spreadIndicator}
       <div
@@ -343,12 +381,20 @@
         placeholder="Zone name"
         aria-label="Zone name"
       />
+      {#if zone.type !== 'freeform'}
+        <div class="type-selector" role="group" aria-label="Zone type">
+          {#each (['grid', 'stack', 'spread'] as ZoneType[]) as t}
+            <button
+              class="type-btn"
+              class:active={zone.type === t}
+              onclick={() => handleTypeChange(t)}
+              title="Switch to {t} zone"
+            >{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+          {/each}
+        </div>
+      {/if}
       {#if zone.type === 'spread'}
-        <button
-          class="edit-btn"
-          onclick={handleDirectionToggle}
-          title="Toggle direction"
-        >
+        <button class="edit-btn" onclick={handleDirectionToggle} title="Toggle direction">
           {zone.direction === 'row' ? '↔' : '↕'}
         </button>
         <label class="overlap-control" title="Overlap (px)">
@@ -362,6 +408,32 @@
             aria-label="Overlap in pixels"
           />
         </label>
+      {:else if zone.type === 'grid'}
+        <label class="grid-control" title="Cell width (px)">
+          <span class="grid-label">W</span>
+          <input class="grid-input" type="number" value={zone.cellWidth} oninput={handleGridCellWidthInput} min="1" step="1" aria-label="Cell width" />
+        </label>
+        <label class="grid-control" title="Cell height (px)">
+          <span class="grid-label">H</span>
+          <input class="grid-input" type="number" value={zone.cellHeight} oninput={handleGridCellHeightInput} min="1" step="1" aria-label="Cell height" />
+        </label>
+        <label class="grid-control" title="Columns">
+          <span class="grid-label">Cols</span>
+          <input class="grid-input" type="number" value={zone.columns} oninput={handleGridColumnsInput} min="1" step="1" aria-label="Columns" />
+        </label>
+      {:else if zone.type === 'stack'}
+        <button
+          class="edit-btn"
+          class:active={zone.faceDown}
+          onclick={() => store.setStackFaceDownTransient(zone.id, !zone.faceDown)}
+          title={zone.faceDown ? 'Face down (click to face up)' : 'Face up (click to face down)'}
+        >{zone.faceDown ? '▽' : '△'}</button>
+        <button
+          class="edit-btn"
+          class:active={zone.persistent}
+          onclick={() => store.setStackPersistentTransient(zone.id, !zone.persistent)}
+          title={zone.persistent ? 'Persistent (click to auto-dissolve)' : 'Auto-dissolve (click to persist)'}
+        >📌</button>
       {/if}
       <button class="edit-btn delete" onclick={handleDelete} title="Delete zone">✕</button>
       <button class="edit-btn done" onclick={handleDone} title="Done">✓</button>
@@ -398,12 +470,35 @@
     border-color: rgba(100, 160, 255, 0.5);
   }
 
-  .zone-stack.selected {
+  .zone-stack.selected,
+  .zone-grid.selected,
+  .zone-spread.selected {
     border-color: #f59e0b;
     border-style: solid;
     box-shadow:
       0 0 0 1px rgba(245, 158, 11, 0.35),
       0 0 12px rgba(245, 158, 11, 0.2);
+  }
+
+  .zone-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #3b82f6;
+    color: white;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .zone.selected .zone-count {
+    background: #f59e0b;
+    box-shadow: 0 1px 4px rgba(245, 158, 11, 0.4);
   }
 
   .zone.editing {
@@ -486,6 +581,76 @@
     pointer-events: none;
     z-index: 5;
     box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+  }
+
+  .type-selector {
+    display: flex;
+    align-items: center;
+    border: 1px solid #3a3d4e;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .type-btn {
+    background: #2a2d3e;
+    border: none;
+    border-right: 1px solid #3a3d4e;
+    color: #8a8d9e;
+    padding: 0 0.4rem;
+    height: 1.75rem;
+    cursor: pointer;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+  }
+
+  .type-btn:last-child {
+    border-right: none;
+  }
+
+  .type-btn:hover {
+    background: #3a3d4e;
+    color: #c8cad8;
+  }
+
+  .type-btn.active {
+    background: #1d4ed8;
+    color: white;
+  }
+
+  .grid-control {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #2a2d3e;
+    border: 1px solid #3a3d4e;
+    border-radius: 4px;
+    padding: 0 0.25rem;
+    color: #c8cad8;
+    font-size: 0.75rem;
+  }
+
+  .grid-label {
+    font-size: 0.6875rem;
+    opacity: 0.7;
+    white-space: nowrap;
+  }
+
+  .grid-input {
+    background: transparent;
+    border: none;
+    color: #e8e9f0;
+    font-size: 0.75rem;
+    width: 3rem;
+    padding: 0.25rem;
+    outline: none;
+  }
+
+  .edit-btn.active {
+    background: #1e3a5f;
+    border-color: #2563eb;
+    color: #93c5fd;
   }
 
   .overlap-control {

@@ -11,7 +11,8 @@ import type {
   SpreadZone,
   StackZone,
   TabletopState,
-  Zone
+  Zone,
+  ZoneType
 } from './types';
 import { getTemplateDisplaySize } from './initialization';
 
@@ -50,6 +51,21 @@ export function getSpreadStep(zone: SpreadZone): number {
   if (!size) return 0;
   const primary = zone.direction === 'row' ? size.width : size.height;
   return Math.max(1, primary - zone.overlap);
+}
+
+/**
+ * Place every entity in a grid zone into consecutive cells, filling
+ * left-to-right then top-to-bottom. No-op for non-grid zones.
+ */
+export function layoutGrid(state: TabletopState, zoneId: string): void {
+  const zone = state.zones[zoneId];
+  if (!zone || zone.type !== 'grid') return;
+  for (let i = 0; i < zone.entityIds.length; i++) {
+    const entity = state.entities[zone.entityIds[i]];
+    if (!entity) continue;
+    entity.x = (i % zone.columns) * zone.cellWidth;
+    entity.y = Math.floor(i / zone.columns) * zone.cellHeight;
+  }
 }
 
 /**
@@ -454,6 +470,55 @@ export function setStackFaceDown(
   for (const id of zone.entityIds) {
     const entity = state.entities[id];
     if (entity) entity.isFlipped = faceDown;
+  }
+}
+
+/**
+ * Toggle isFlipped on every entity in a zone. Unlike {@link setStackFaceDown},
+ * this does NOT reverse order — grid/spread layouts are positional, so a
+ * physical-style flip-and-reverse would scramble them.
+ */
+export function flipZoneEntities(state: TabletopState, zoneId: string): void {
+  const zone = getZone(state, zoneId);
+  for (const id of zone.entityIds) {
+    const entity = state.entities[id];
+    if (entity) entity.isFlipped = !entity.isFlipped;
+  }
+}
+
+/**
+ * Rotate every entity in a zone by the same delta (degrees). No layout or
+ * zone-bounds adjustments — intended for spread/grid where each entity has
+ * its own visible position. For stacks use {@link rotateStack}, which also
+ * swaps the zone's width/height on quarter turns.
+ */
+export function rotateZoneEntities(
+  state: TabletopState,
+  zoneId: string,
+  delta: number
+): void {
+  const zone = getZone(state, zoneId);
+  for (const id of zone.entityIds) {
+    const entity = state.entities[id];
+    if (!entity) continue;
+    const next = (entity.rotation + delta) % 360;
+    entity.rotation = next < 0 ? next + 360 : next;
+  }
+}
+
+/**
+ * Shuffle the order of entityIds in a zone. For spread/grid, entities are
+ * re-laid out so their visual positions match the new order. For stacks,
+ * prefer {@link shuffleStack} (same effect; exists for parity with the
+ * animation orchestrator in the store).
+ */
+export function shuffleZoneEntities(state: TabletopState, zoneId: string): void {
+  const zone = getZone(state, zoneId);
+  zone.entityIds = computeShuffledOrder(zone.entityIds);
+  if (zone.type === 'spread') {
+    layoutSpread(state, zoneId);
+  } else if (zone.type === 'grid') {
+    layoutGrid(state, zoneId);
   }
 }
 
@@ -1003,6 +1068,77 @@ export function setZoneLocked(state: TabletopState, zoneId: string, locked: bool
   if (locked && state.editingZoneId === zoneId) {
     state.editingZoneId = null;
   }
+}
+
+/**
+ * Convert a zone to a different type in-place, preserving its id, name,
+ * position, dimensions, entities, and locked state. Type-specific properties
+ * are set to sensible defaults; existing defaultSize is carried forward where
+ * applicable. For spread zones, layout is applied immediately.
+ */
+export function changeZoneType(
+  state: TabletopState,
+  zoneId: string,
+  newType: ZoneType
+): void {
+  const zone = getZone(state, zoneId);
+  if (zone.type === newType) return;
+
+  const { id, name, x, y, width, height, entityIds, locked } = zone;
+  const existingDefaultSize =
+    'defaultSize' in zone && zone.defaultSize ? zone.defaultSize : undefined;
+
+  let newZone: Zone;
+  switch (newType) {
+    case 'freeform':
+      newZone = { id, name, type: 'freeform', x, y, width, height, entityIds, locked };
+      break;
+    case 'grid':
+      newZone = {
+        id, name, type: 'grid', x, y, width, height, entityIds, locked,
+        cellWidth: 80, cellHeight: 80, columns: 5
+      };
+      break;
+    case 'stack':
+      newZone = {
+        id, name, type: 'stack', x, y, width, height, entityIds, locked,
+        faceDown: false, persistent: true, defaultSize: existingDefaultSize
+      };
+      break;
+    case 'spread':
+      newZone = {
+        id, name, type: 'spread', x, y, width, height, entityIds, locked,
+        direction: 'row', overlap: 40, defaultSize: existingDefaultSize
+      };
+      break;
+  }
+  state.zones[zoneId] = newZone;
+  if (newType === 'spread') {
+    layoutSpread(state, zoneId);
+  } else if (newType === 'grid') {
+    layoutGrid(state, zoneId);
+  } else if (newType === 'stack') {
+    for (const id of newZone.entityIds) {
+      const entity = state.entities[id];
+      if (entity) { entity.x = 0; entity.y = 0; }
+    }
+  }
+}
+
+/** Update grid cell dimensions and column count, then reflow entities. No-op for non-grid zones. */
+export function setGridCellSize(
+  state: TabletopState,
+  zoneId: string,
+  cellWidth: number,
+  cellHeight: number,
+  columns: number
+): void {
+  const zone = getZone(state, zoneId);
+  if (zone.type !== 'grid') return;
+  zone.cellWidth = Math.max(1, cellWidth);
+  zone.cellHeight = Math.max(1, cellHeight);
+  zone.columns = Math.max(1, columns);
+  layoutGrid(state, zoneId);
 }
 
 /** Draw the top card from a stack onto a target zone at (x, y). */

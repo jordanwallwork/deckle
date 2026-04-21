@@ -6,7 +6,7 @@
 // extra dependency. For history snapshots we use `structuredClone` — same
 // strategy as `templateElements.ts`.
 
-import type { TabletopState, EntityTemplate } from './types';
+import type { TabletopState, EntityTemplate, ZoneType } from './types';
 import * as ops from './operations';
 
 const MAX_HISTORY = 100;
@@ -162,14 +162,11 @@ export function createTabletopStore(
     applyTransient((s) => ops.moveZone(s, zoneId, x, y));
   }
 
-  function resizeZone(
-    zoneId: string,
-    width: number,
-    height: number,
-    x?: number,
-    y?: number
-  ): void {
-    apply((s) => ops.resizeZone(s, zoneId, width, height, x, y), `resizeZone ${zoneId} → ${width}×${height}`);
+  function resizeZone(zoneId: string, width: number, height: number, x?: number, y?: number): void {
+    apply(
+      (s) => ops.resizeZone(s, zoneId, width, height, x, y),
+      `resizeZone ${zoneId} → ${width}×${height}`
+    );
   }
 
   /** Transient variant used by resize-handle drag handlers. */
@@ -203,9 +200,12 @@ export function createTabletopStore(
     name?: string
   ): string {
     let newId = '';
-    apply((s) => {
-      newId = ops.createFreeformZone(s, x, y, width, height, name);
-    }, `createFreeformZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height}`);
+    apply(
+      (s) => {
+        newId = ops.createFreeformZone(s, x, y, width, height, name);
+      },
+      `createFreeformZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height}`
+    );
     return newId;
   }
 
@@ -219,18 +219,27 @@ export function createTabletopStore(
     name?: string
   ): string {
     let newId = '';
-    apply((s) => {
-      newId = ops.createSpreadZone(s, x, y, width, height, direction, overlap, name);
-    }, `createSpreadZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height} dir:${direction} overlap:${overlap}`);
+    apply(
+      (s) => {
+        newId = ops.createSpreadZone(s, x, y, width, height, direction, overlap, name);
+      },
+      `createSpreadZone "${name ?? ''}" at (${x}, ${y}) ${width}×${height} dir:${direction} overlap:${overlap}`
+    );
     return newId;
   }
 
   function setSpreadDirection(zoneId: string, direction: 'row' | 'column'): void {
-    apply((s) => ops.setSpreadDirection(s, zoneId, direction), `setSpreadDirection ${zoneId} → ${direction}`);
+    apply(
+      (s) => ops.setSpreadDirection(s, zoneId, direction),
+      `setSpreadDirection ${zoneId} → ${direction}`
+    );
   }
 
   function setSpreadOverlap(zoneId: string, overlap: number): void {
-    apply((s) => ops.setSpreadOverlap(s, zoneId, overlap), `setSpreadOverlap ${zoneId} → ${overlap}`);
+    apply(
+      (s) => ops.setSpreadOverlap(s, zoneId, overlap),
+      `setSpreadOverlap ${zoneId} → ${overlap}`
+    );
   }
 
   /**
@@ -251,7 +260,10 @@ export function createTabletopStore(
   }
 
   function setEntityLocked(instanceId: string, locked: boolean): void {
-    apply((s) => ops.setEntityLocked(s, instanceId, locked), `setEntityLocked ${instanceId} → ${locked}`);
+    apply(
+      (s) => ops.setEntityLocked(s, instanceId, locked),
+      `setEntityLocked ${instanceId} → ${locked}`
+    );
   }
 
   function setZoneLocked(zoneId: string, locked: boolean): void {
@@ -267,7 +279,10 @@ export function createTabletopStore(
   }
 
   function setRotation(instanceId: string, degrees: number): void {
-    apply((s) => ops.setRotation(s, instanceId, degrees), `setRotation ${instanceId} → ${degrees}°`);
+    apply(
+      (s) => ops.setRotation(s, instanceId, degrees),
+      `setRotation ${instanceId} → ${degrees}°`
+    );
   }
 
   function rotateStack(zoneId: string, delta: number): void {
@@ -324,10 +339,7 @@ export function createTabletopStore(
 
     const requiredSet = new Set(required);
     const pool = newOrder.filter((id) => !requiredSet.has(id));
-    const wantExtra = Math.min(
-      SHUFFLE_ANIMATION_CARDS - required.length,
-      pool.length
-    );
+    const wantExtra = Math.min(SHUFFLE_ANIMATION_CARDS - required.length, pool.length);
     // Fisher–Yates partial sample
     for (let i = 0; i < wantExtra; i++) {
       const j = i + Math.floor(Math.random() * (pool.length - i));
@@ -343,7 +355,8 @@ export function createTabletopStore(
     const animatedIds: string[] =
       oldTop === newTop ? [newTop, ...extras] : [newTop, ...extras, oldTop];
 
-    if (debugMode) console.log(`[tabletop] shuffleStack ${zoneId} (animated, ${animatedIds.length} cards)`);
+    if (debugMode)
+      console.log(`[tabletop] shuffleStack ${zoneId} (animated, ${animatedIds.length} cards)`);
     shuffleAnimation = { zoneId, newOrder, animatedIds };
   }
 
@@ -359,32 +372,97 @@ export function createTabletopStore(
   }
 
   function setStackFaceDown(zoneId: string, faceDown: boolean): void {
-    apply((s) => ops.setStackFaceDown(s, zoneId, faceDown), `setStackFaceDown ${zoneId} → ${faceDown}`);
+    apply(
+      (s) => ops.setStackFaceDown(s, zoneId, faceDown),
+      `setStackFaceDown ${zoneId} → ${faceDown}`
+    );
+  }
+
+  /**
+   * Transient animation hint for the wave flip on spread / grid zones.
+   * `staggerMs` is the delay between consecutive entities in `zone.entityIds`
+   * order; EntityWrapper applies it as `transition-delay`.
+   */
+  let zoneFlipAnimation = $state<{ zoneId: string; staggerMs: number } | null>(null);
+  let zoneFlipAnimationTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const ZONE_FLIP_STAGGER_MS = 30;
+  const ENTITY_FLIP_DURATION_MS = 350;
+
+  function flipZoneEntities(zoneId: string): void {
+    const zone = store.state.zones[zoneId];
+    const count = zone?.entityIds.length ?? 0;
+    const wave = (zone?.type === 'spread' || zone?.type === 'grid') && count > 1;
+
+    if (wave) {
+      zoneFlipAnimation = { zoneId, staggerMs: ZONE_FLIP_STAGGER_MS };
+      if (zoneFlipAnimationTimer) clearTimeout(zoneFlipAnimationTimer);
+      zoneFlipAnimationTimer = setTimeout(
+        () => {
+          zoneFlipAnimation = null;
+          zoneFlipAnimationTimer = null;
+        },
+        ZONE_FLIP_STAGGER_MS * (count - 1) + ENTITY_FLIP_DURATION_MS
+      );
+    }
+
+    apply((s) => ops.flipZoneEntities(s, zoneId), `flipZoneEntities ${zoneId}`);
+  }
+
+  function rotateZoneEntities(zoneId: string, delta: number): void {
+    apply(
+      (s) => ops.rotateZoneEntities(s, zoneId, delta),
+      `rotateZoneEntities ${zoneId} Δ${delta}°`
+    );
+  }
+
+  function shuffleZoneEntities(zoneId: string): void {
+    apply((s) => ops.shuffleZoneEntities(s, zoneId), `shuffleZoneEntities ${zoneId}`);
+  }
+
+  function setStackFaceDownTransient(zoneId: string, faceDown: boolean): void {
+    applyTransient((s) => ops.setStackFaceDown(s, zoneId, faceDown));
   }
 
   function setStackPersistent(zoneId: string, persistent: boolean): void {
-    apply((s) => ops.setStackPersistent(s, zoneId, persistent), `setStackPersistent ${zoneId} → ${persistent}`);
+    apply(
+      (s) => ops.setStackPersistent(s, zoneId, persistent),
+      `setStackPersistent ${zoneId} → ${persistent}`
+    );
+  }
+
+  function setStackPersistentTransient(zoneId: string, persistent: boolean): void {
+    applyTransient((s) => ops.setStackPersistent(s, zoneId, persistent));
+  }
+
+  function changeZoneTypeTransient(zoneId: string, newType: ZoneType): void {
+    applyTransient((s) => ops.changeZoneType(s, zoneId, newType));
+  }
+
+  function setGridCellSizeTransient(
+    zoneId: string,
+    cellWidth: number,
+    cellHeight: number,
+    columns: number
+  ): void {
+    applyTransient((s) => ops.setGridCellSize(s, zoneId, cellWidth, cellHeight, columns));
   }
 
   function reorderInZone(instanceId: string, newIndex: number): void {
-    apply((s) => ops.reorderInZone(s, instanceId, newIndex), `reorderInZone ${instanceId} → index ${newIndex}`);
+    apply(
+      (s) => ops.reorderInZone(s, instanceId, newIndex),
+      `reorderInZone ${instanceId} → index ${newIndex}`
+    );
   }
 
-  function drawFromStack(
-    stackZoneId: string,
-    targetZoneId: string,
-    x: number,
-    y: number
-  ): void {
-    apply((s) => ops.drawFromStack(s, stackZoneId, targetZoneId, x, y), `drawFromStack ${stackZoneId} → zone:${targetZoneId}`);
+  function drawFromStack(stackZoneId: string, targetZoneId: string, x: number, y: number): void {
+    apply(
+      (s) => ops.drawFromStack(s, stackZoneId, targetZoneId, x, y),
+      `drawFromStack ${stackZoneId} → zone:${targetZoneId}`
+    );
   }
 
-  function spawnEntity(
-    templateId: string,
-    zoneId: string,
-    x: number,
-    y: number
-  ): string | null {
+  function spawnEntity(templateId: string, zoneId: string, x: number, y: number): string | null {
     const template = templates[templateId];
     if (!template) return null;
     let newId: string | null = null;
@@ -412,9 +490,12 @@ export function createTabletopStore(
     const template = templates[templateId];
     if (!template) return [];
     let newIds: string[] = [];
-    apply((s) => {
-      newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances, insertIndex);
-    }, `spawnFromTemplate template:${templateId} → zone:${zoneId}${insertIndex !== undefined ? ` @${insertIndex}` : ''}`);
+    apply(
+      (s) => {
+        newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances, insertIndex);
+      },
+      `spawnFromTemplate template:${templateId} → zone:${zoneId}${insertIndex !== undefined ? ` @${insertIndex}` : ''}`
+    );
     return newIds;
   }
 
@@ -469,7 +550,10 @@ export function createTabletopStore(
   }
 
   function removeAllEntitiesForTemplate(templateId: string): void {
-    apply((s) => ops.removeAllEntitiesForTemplate(s, templateId), `removeAllEntitiesForTemplate template:${templateId}`);
+    apply(
+      (s) => ops.removeAllEntitiesForTemplate(s, templateId),
+      `removeAllEntitiesForTemplate template:${templateId}`
+    );
   }
 
   // Selection is ephemeral — no history needed.
@@ -549,8 +633,18 @@ export function createTabletopStore(
     get shuffleAnimation() {
       return shuffleAnimation;
     },
+    get zoneFlipAnimation() {
+      return zoneFlipAnimation;
+    },
     setStackFaceDown,
+    setStackFaceDownTransient,
+    flipZoneEntities,
+    rotateZoneEntities,
+    shuffleZoneEntities,
     setStackPersistent,
+    setStackPersistentTransient,
+    changeZoneTypeTransient,
+    setGridCellSizeTransient,
     reorderInZone,
     drawFromStack,
     spawnEntity,
@@ -578,3 +672,4 @@ export function createTabletopStore(
 }
 
 export type TabletopStore = ReturnType<typeof createTabletopStore>;
+

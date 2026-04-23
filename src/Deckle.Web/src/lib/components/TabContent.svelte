@@ -32,5 +32,6 @@
     gap: 0.75rem;
     margin-bottom: 1.5rem;
     width: 100%;
+    flex-wrap: wrap;
   }
 </style>

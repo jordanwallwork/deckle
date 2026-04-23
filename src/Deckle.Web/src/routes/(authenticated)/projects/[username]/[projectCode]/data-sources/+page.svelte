@@ -411,6 +411,19 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
+  }
+
+  @media (max-width: 600px) {
+    .card-content {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+
+    .source-actions {
+      flex-wrap: wrap;
+    }
   }
 
   .source-info h3 {

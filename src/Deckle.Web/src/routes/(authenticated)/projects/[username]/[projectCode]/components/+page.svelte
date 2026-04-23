@@ -119,7 +119,7 @@
 <TabContent>
   {#snippet actions()}
     {#if canEdit || hasExportableComponents}
-      <div>
+      <div class="actions-group">
         {#if hasExportableComponents}
           <Button variant="secondary" size="sm" onclick={navigateToExport}>Export</Button>
         {/if}
@@ -183,9 +183,14 @@
 />
 
 <style>
+  .actions-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
   .components-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
     gap: 1rem;
   }
 </style>

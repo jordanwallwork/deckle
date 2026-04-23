@@ -73,6 +73,13 @@
     display: flex;
     flex-direction: column;
   }
+
+  @media (max-width: 640px) {
+    .project-page-content {
+      padding: 1rem;
+    }
+  }
+
   .project-page-content.nopadding {
     padding: 0;
   }

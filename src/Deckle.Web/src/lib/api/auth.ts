@@ -7,35 +7,28 @@ import type {
   UpdateProfileRequest
 } from '$lib/types';
 
-/**
- * Authentication API
- */
+export interface PasswordAuthRequest {
+  email: string;
+  password: string;
+}
+
 export const authApi = {
-  /**
-   * Get current user information
-   */
   me: (fetchFn?: typeof fetch) => api.get<CurrentUser>('/auth/me', undefined, fetchFn),
 
-  /**
-   * Check if a username is available
-   */
+  register: (request: PasswordAuthRequest, fetchFn?: typeof fetch) =>
+    api.post<CurrentUser>('/auth/register', request, undefined, fetchFn),
+
+  loginWithPassword: (request: PasswordAuthRequest, fetchFn?: typeof fetch) =>
+    api.post<CurrentUser>('/auth/login/password', request, undefined, fetchFn),
+
   checkUsername: (username: string, fetchFn?: typeof fetch) =>
     api.get<UsernameAvailabilityResponse>(`/auth/username/check/${encodeURIComponent(username)}`, undefined, fetchFn),
 
-  /**
-   * Set the current user's username
-   */
   setUsername: (request: SetUsernameRequest, fetchFn?: typeof fetch) =>
     api.post<SetUsernameResponse>('/auth/username', request, undefined, fetchFn),
 
-  /**
-   * Get current user's full profile (including bio and external links)
-   */
   getProfile: (fetchFn?: typeof fetch) => api.get<CurrentUser>('/auth/profile', undefined, fetchFn),
 
-  /**
-   * Update current user's profile (bio and external links)
-   */
   updateProfile: (request: UpdateProfileRequest, fetchFn?: typeof fetch) =>
     api.put<void>('/auth/profile', request, undefined, fetchFn)
 };

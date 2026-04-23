@@ -8,6 +8,7 @@ import type {
   EntityTemplate,
   FreeformZone,
   GridZone,
+  GroupZone,
   SpreadZone,
   StackZone,
   TabletopState,
@@ -27,6 +28,14 @@ export const STACK_ZONE_PADDING = 10;
 /** Only Card entities can be placed in stack, spread, or grid zones. */
 export function isStackable(template: EntityTemplate): boolean {
   return template.type === 'Card';
+}
+
+/**
+ * GameBoard and PlayerMat templates spawn as freeform container zones
+ * (with the design rendered as a background) rather than as entities.
+ */
+export function isContainerTemplate(template: EntityTemplate): boolean {
+  return template.type === 'GameBoard' || template.type === 'PlayerMat';
 }
 
 /**
@@ -108,9 +117,23 @@ function getZone(state: TabletopState, zoneId: string): Zone {
 }
 
 /**
+ * Return the world-space (canvas-origin) top-left position of a zone.
+ * For top-level zones this is just zone.x / zone.y. For zones nested inside
+ * a freeform zone the x/y are parent-local, so we walk up the ancestry chain.
+ */
+export function getZoneWorldPos(state: TabletopState, zoneId: string): { x: number; y: number } {
+  const zone = state.zones[zoneId];
+  if (!zone) return { x: 0, y: 0 };
+  if (!zone.parentZoneId) return { x: zone.x, y: zone.y };
+  const parentPos = getZoneWorldPos(state, zone.parentZoneId);
+  return { x: parentPos.x + zone.x, y: parentPos.y + zone.y };
+}
+
+/**
  * Register a freshly-constructed zone with the state: store it, append to
- * zoneOrder, and optionally enter edit/select mode. Used by every zone
- * creation path so the bookkeeping stays consistent.
+ * zoneOrder (or to the parent's childZoneIds when nested), and optionally
+ * enter edit/select mode. Used by every zone creation path so the bookkeeping
+ * stays consistent.
  */
 function registerZone(
   state: TabletopState,
@@ -118,7 +141,15 @@ function registerZone(
   opts: { edit?: boolean; select?: boolean } = {}
 ): void {
   state.zones[zone.id] = zone;
-  state.zoneOrder.push(zone.id);
+  if (zone.parentZoneId) {
+    const parent = state.zones[zone.parentZoneId] as FreeformZone | undefined;
+    if (parent) {
+      if (!parent.childZoneIds) parent.childZoneIds = [];
+      parent.childZoneIds.push(zone.id);
+    }
+  } else {
+    state.zoneOrder.push(zone.id);
+  }
   if (opts.edit) state.editingZoneId = zone.id;
   if (opts.select) {
     state.selectedZoneId = zone.id;
@@ -182,6 +213,37 @@ export function layoutSpread(state: TabletopState, zoneId: string): void {
       entity.x = crossAxis;
       entity.y = i * step;
     }
+  }
+}
+
+/**
+ * Scatter every entity in a group zone loosely. Entities are assigned to grid
+ * cells (sized by count) so each one occupies its own region of the zone —
+ * overlap only occurs once the cells are smaller than the entities themselves.
+ * Random jitter within each cell (±30% of cell size) and a small rotation
+ * (±10°) give a natural scattered look. No-op for non-group zones.
+ */
+export function layoutGroup(state: TabletopState, zoneId: string): void {
+  const zone = state.zones[zoneId];
+  if (!zone || zone.type !== 'group') return;
+  const count = zone.entityIds.length;
+  if (count === 0) return;
+
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  const cellW = zone.width / cols;
+  const cellH = zone.height / rows;
+  const jitterX = cellW * 0.3;
+  const jitterY = cellH * 0.3;
+
+  for (let i = 0; i < zone.entityIds.length; i++) {
+    const entity = state.entities[zone.entityIds[i]];
+    if (!entity) continue;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    entity.x = (col + 0.5) * cellW + (Math.random() - 0.5) * jitterX;
+    entity.y = (row + 0.5) * cellH + (Math.random() - 0.5) * jitterY;
+    entity.rotation = normalizeDegrees((Math.random() - 0.5) * 20);
   }
 }
 
@@ -343,10 +405,20 @@ export function moveEntityToZone(
 
   entity.zoneId = targetZoneId;
 
+  // Undo the random rotation applied when the entity entered the group zone.
+  if (sourceZone.type === 'group' && sourceZoneId !== targetZoneId) {
+    entity.rotation = 0;
+  }
+
   // Update position based on target zone type
   if (targetZone.type === 'freeform') {
     entity.x = opts.x ?? 0;
     entity.y = opts.y ?? 0;
+  } else if (targetZone.type === 'group') {
+    // Land at the drop point if given; otherwise place across the full zone area.
+    entity.x = opts.x ?? targetZone.width * (0.15 + Math.random() * 0.7);
+    entity.y = opts.y ?? targetZone.height * (0.15 + Math.random() * 0.7);
+    entity.rotation = normalizeDegrees((Math.random() - 0.5) * 20);
   } else if (targetZone.type === 'grid') {
     const snapped = snapToGrid(targetZone, opts.x ?? 0, opts.y ?? 0);
     entity.x = snapped.x;
@@ -392,7 +464,8 @@ export function moveZone(state: TabletopState, zoneId: string, x: number, y: num
 
 /**
  * Find the zone whose rectangle contains a world-space point, or null if none.
- * If zones overlap, returns the one drawn on top (last in zoneOrder).
+ * If zones overlap, returns the one drawn on top (last in zoneOrder / childZoneIds).
+ * Recursively checks children of freeform zones, preferring deeper matches.
  * @param excludeZoneId  Optional zone to skip (e.g. the zone being dragged).
  */
 export function findZoneAtPoint(
@@ -403,18 +476,78 @@ export function findZoneAtPoint(
 ): Zone | null {
   for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
     const zone = state.zones[state.zoneOrder[i]];
-    if (!zone) continue;
-    if (zone.id === excludeZoneId) continue;
+    if (!zone || zone.id === excludeZoneId) continue;
     if (
       worldX >= zone.x &&
       worldX < zone.x + zone.width &&
       worldY >= zone.y &&
       worldY < zone.y + zone.height
     ) {
+      if (zone.type === 'freeform' && zone.childZoneIds?.length) {
+        const child = findChildZoneAtPoint(
+          state,
+          zone.childZoneIds,
+          zone.x,
+          zone.y,
+          worldX,
+          worldY,
+          excludeZoneId
+        );
+        if (child) return child;
+      }
       return zone;
     }
   }
   return null;
+}
+
+/**
+ * Recursively search a list of child zone IDs for the deepest zone that
+ * contains the given world-space point. parentWorldX/Y is the accumulated
+ * offset from the canvas origin to the parent's top-left corner.
+ */
+function findChildZoneAtPoint(
+  state: TabletopState,
+  childZoneIds: string[],
+  parentWorldX: number,
+  parentWorldY: number,
+  worldX: number,
+  worldY: number,
+  excludeZoneId?: string
+): Zone | null {
+  for (let i = childZoneIds.length - 1; i >= 0; i--) {
+    const child = state.zones[childZoneIds[i]];
+    if (!child || child.id === excludeZoneId) continue;
+    const childWorldX = parentWorldX + child.x;
+    const childWorldY = parentWorldY + child.y;
+    if (
+      worldX >= childWorldX &&
+      worldX < childWorldX + child.width &&
+      worldY >= childWorldY &&
+      worldY < childWorldY + child.height
+    ) {
+      if (child.type === 'freeform' && child.childZoneIds?.length) {
+        const nested = findChildZoneAtPoint(
+          state,
+          child.childZoneIds,
+          childWorldX,
+          childWorldY,
+          worldX,
+          worldY,
+          excludeZoneId
+        );
+        if (nested) return nested;
+      }
+      return child;
+    }
+  }
+  return null;
+}
+
+/** Roll a die entity: set diceValue to a random integer in [1, maxFaces]. */
+export function rollDie(state: TabletopState, instanceId: string, maxFaces: number): void {
+  const entity = getEntity(state, instanceId);
+  entity.diceValue = Math.floor(Math.random() * maxFaces) + 1;
 }
 
 /** Toggle an entity's flipped state (front ↔ back). */
@@ -575,6 +708,8 @@ export function shuffleZoneEntities(state: TabletopState, zoneId: string): void 
     layoutSpread(state, zoneId);
   } else if (zone.type === 'grid') {
     layoutGrid(state, zoneId);
+  } else if (zone.type === 'group') {
+    layoutGroup(state, zoneId);
   }
 }
 
@@ -636,7 +771,7 @@ export function spawnEntity(
 
   let entityX = 0;
   let entityY = 0;
-  if (zone.type === 'freeform') {
+  if (zone.type === 'freeform' || zone.type === 'group') {
     entityX = x;
     entityY = y;
   } else if (zone.type === 'grid') {
@@ -727,6 +862,49 @@ export function getUnplacedInstances(
 }
 
 /**
+ * Create a group zone centered on (worldX, worldY) and spawn instances from
+ * the template into it. Used when dropping a multi-instance non-stackable
+ * template (e.g. a Dice set) so all instances land as a loose cluster rather
+ * than a heap of overlapping entities.
+ *
+ * Zone size scales with the square root of the instance count so the group
+ * stays tight for a few dice but grows gracefully for larger sets.
+ */
+export function spawnGroupZoneFromTemplate(
+  state: TabletopState,
+  template: EntityTemplate,
+  worldX: number,
+  worldY: number,
+  displayWidth: number,
+  displayHeight: number,
+  instances?: (Record<string, string> | null)[]
+): { zoneId: string; instanceIds: string[] } {
+  const count = (instances ?? template.instances).length;
+  const cols = Math.ceil(Math.sqrt(count));
+  const side = Math.max(displayWidth * 4, cols * displayWidth * 2);
+
+  const zone: GroupZone = {
+    id: makeId('zone'),
+    name: template.name,
+    type: 'group',
+    x: worldX - side / 2,
+    y: worldY - side / 2,
+    width: side,
+    height: side,
+    entityIds: [],
+    locked: false
+  };
+
+  registerZone(state, zone);
+
+  const cx = side / 2;
+  const cy = side / 2;
+  const instanceIds = spawnFromTemplate(state, template, zone.id, cx, cy, instances);
+  layoutGroup(state, zone.id);
+  return { zoneId: zone.id, instanceIds };
+}
+
+/**
  * Create a face-down stack zone centered on (worldX, worldY) and spawn
  * instances from the template into it. Pass `instances` to spawn a subset
  * (e.g. only the unplaced ones). Used when dragging a multi-instance template
@@ -785,27 +963,72 @@ export function findEntityAtPoint(
   for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
     const zone = state.zones[state.zoneOrder[i]];
     if (!zone || zone.type === 'stack') continue;
-    for (let j = zone.entityIds.length - 1; j >= 0; j--) {
-      const entityId = zone.entityIds[j];
-      if (entityId === excludeInstanceId) continue;
-      const entity = state.entities[entityId];
-      if (!entity) continue;
-      const template = templates[entity.templateId];
-      if (!template) continue;
-      const { width, height } = getTemplateDisplaySize(template);
-      const quarterTurns = Math.round(entity.rotation / 90);
-      const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
-      const hitW = isOddQuarterTurn ? height : width;
-      const hitH = isOddQuarterTurn ? width : height;
-      // Entities render rotated about their centre, so the AABB stays anchored
-      // at the same centre — shift the origin to match.
-      const cx = zone.x + entity.x + width / 2;
-      const cy = zone.y + entity.y + height / 2;
-      const ex = cx - hitW / 2;
-      const ey = cy - hitH / 2;
-      if (worldX >= ex && worldX < ex + hitW && worldY >= ey && worldY < ey + hitH) {
-        return entity;
-      }
+    const result = findEntityInZoneAtPoint(
+      state,
+      templates,
+      zone,
+      zone.x,
+      zone.y,
+      worldX,
+      worldY,
+      excludeInstanceId
+    );
+    if (result) return result;
+  }
+  return null;
+}
+
+function findEntityInZoneAtPoint(
+  state: TabletopState,
+  templates: Record<string, EntityTemplate>,
+  zone: Zone,
+  zoneWorldX: number,
+  zoneWorldY: number,
+  worldX: number,
+  worldY: number,
+  excludeInstanceId?: string
+): Entity | null {
+  // Check children of freeform zones first — they render on top.
+  if (zone.type === 'freeform' && zone.childZoneIds?.length) {
+    for (let i = zone.childZoneIds.length - 1; i >= 0; i--) {
+      const child = state.zones[zone.childZoneIds[i]];
+      if (!child || child.type === 'stack') continue;
+      const childWorldX = zoneWorldX + child.x;
+      const childWorldY = zoneWorldY + child.y;
+      const result = findEntityInZoneAtPoint(
+        state,
+        templates,
+        child,
+        childWorldX,
+        childWorldY,
+        worldX,
+        worldY,
+        excludeInstanceId
+      );
+      if (result) return result;
+    }
+  }
+
+  for (let j = zone.entityIds.length - 1; j >= 0; j--) {
+    const entityId = zone.entityIds[j];
+    if (entityId === excludeInstanceId) continue;
+    const entity = state.entities[entityId];
+    if (!entity) continue;
+    const template = templates[entity.templateId];
+    if (!template) continue;
+    const { width, height } = getTemplateDisplaySize(template);
+    const quarterTurns = Math.round(entity.rotation / 90);
+    const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
+    const hitW = isOddQuarterTurn ? height : width;
+    const hitH = isOddQuarterTurn ? width : height;
+    // Entities render rotated about their centre, so the AABB stays anchored
+    // at the same centre — shift the origin to match.
+    const cx = zoneWorldX + entity.x + width / 2;
+    const cy = zoneWorldY + entity.y + height / 2;
+    const ex = cx - hitW / 2;
+    const ey = cy - hitH / 2;
+    if (worldX >= ex && worldX < ex + hitW && worldY >= ey && worldY < ey + hitH) {
+      return entity;
     }
   }
   return null;
@@ -1002,6 +1225,33 @@ export function createSpreadZone(
   return zone.id;
 }
 
+/**
+ * Create a new group zone and add it to the tabletop. Enters edit mode
+ * immediately so the user can rename and resize it.
+ */
+export function createGroupZone(
+  state: TabletopState,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  name = 'New Group'
+): string {
+  const zone: GroupZone = {
+    id: makeId('zone'),
+    name,
+    type: 'group',
+    x,
+    y,
+    width,
+    height,
+    entityIds: [],
+    locked: false
+  };
+  registerZone(state, zone, { edit: true, select: true });
+  return zone.id;
+}
+
 /** Switch a spread zone's direction (row/column) and re-layout. No-op for other zone types. */
 export function setSpreadDirection(
   state: TabletopState,
@@ -1023,9 +1273,10 @@ export function setSpreadOverlap(state: TabletopState, zoneId: string, overlap: 
 }
 
 /**
- * Create a new freeform zone and add it to the tabletop. The new zone is
- * returned with `locked: false` and with `editingZoneId` set so the UI
- * renders it in edit mode immediately.
+ * Create a new freeform zone. When `parentZoneId` is given the zone is nested
+ * inside that freeform zone and x/y are parent-local; otherwise x/y are
+ * world-space and the zone is added to the top-level zoneOrder.
+ * The new zone enters edit mode immediately.
  */
 export function createFreeformZone(
   state: TabletopState,
@@ -1033,7 +1284,8 @@ export function createFreeformZone(
   y: number,
   width: number,
   height: number,
-  name = 'New Zone'
+  name = 'New Zone',
+  parentZoneId?: string
 ): string {
   const zone: FreeformZone = {
     id: makeId('zone'),
@@ -1044,7 +1296,8 @@ export function createFreeformZone(
     width,
     height,
     entityIds: [],
-    locked: false
+    locked: false,
+    ...(parentZoneId ? { parentZoneId } : {})
   };
   registerZone(state, zone, { edit: true, select: true });
   return zone.id;
@@ -1076,17 +1329,108 @@ export function resizeZone(
   if (y !== undefined) zone.y = y;
 }
 
-/** Delete a zone and every entity it contains. */
+/** Delete a zone, all its entities, and all nested child zones recursively. */
 export function deleteZone(state: TabletopState, zoneId: string): void {
   const zone = state.zones[zoneId];
   if (!zone) return;
+
+  // Recursively delete child zones first.
+  if (zone.type === 'freeform' && zone.childZoneIds?.length) {
+    for (const childId of [...zone.childZoneIds]) {
+      deleteZone(state, childId);
+    }
+  }
+
   for (const id of [...zone.entityIds]) {
     delete state.entities[id];
   }
+
+  // Remove from parent's child list or from the top-level order.
+  if (zone.parentZoneId) {
+    const parent = state.zones[zone.parentZoneId] as FreeformZone | undefined;
+    if (parent?.childZoneIds) {
+      parent.childZoneIds = parent.childZoneIds.filter((id) => id !== zoneId);
+    }
+  } else {
+    state.zoneOrder = state.zoneOrder.filter((id) => id !== zoneId);
+  }
+
   delete state.zones[zoneId];
-  state.zoneOrder = state.zoneOrder.filter((id) => id !== zoneId);
   if (state.selectedZoneId === zoneId) state.selectedZoneId = null;
   if (state.editingZoneId === zoneId) state.editingZoneId = null;
+}
+
+/**
+ * Nest `childZoneId` inside `parentZoneId` (which must be a freeform zone).
+ * The child's world-space position is converted to parent-local coordinates so
+ * it stays visually in place. No-op when the parent is not a freeform zone or
+ * when nesting would create a cycle.
+ */
+export function nestZone(
+  state: TabletopState,
+  childZoneId: string,
+  parentZoneId: string
+): void {
+  const child = state.zones[childZoneId];
+  const parent = state.zones[parentZoneId] as FreeformZone | undefined;
+  if (!child || !parent || parent.type !== 'freeform') return;
+  if (childZoneId === parentZoneId) return;
+  if (isAncestor(state, parentZoneId, childZoneId)) return;
+
+  const childWorldPos = getZoneWorldPos(state, childZoneId);
+
+  // Remove from current context.
+  if (child.parentZoneId) {
+    const oldParent = state.zones[child.parentZoneId] as FreeformZone | undefined;
+    if (oldParent?.childZoneIds) {
+      oldParent.childZoneIds = oldParent.childZoneIds.filter((id) => id !== childZoneId);
+    }
+  } else {
+    state.zoneOrder = state.zoneOrder.filter((id) => id !== childZoneId);
+  }
+
+  // Convert to parent-local coordinates.
+  const parentWorldPos = getZoneWorldPos(state, parentZoneId);
+  child.x = childWorldPos.x - parentWorldPos.x;
+  child.y = childWorldPos.y - parentWorldPos.y;
+  child.parentZoneId = parentZoneId;
+
+  if (!parent.childZoneIds) parent.childZoneIds = [];
+  parent.childZoneIds.push(childZoneId);
+}
+
+/**
+ * Remove a zone from its parent freeform zone, promoting it to the top-level
+ * zoneOrder. The zone's local coordinates are converted back to world space so
+ * it stays visually in place. No-op when the zone has no parent.
+ */
+export function unnestZone(state: TabletopState, zoneId: string): void {
+  const zone = state.zones[zoneId];
+  if (!zone?.parentZoneId) return;
+
+  const worldPos = getZoneWorldPos(state, zoneId);
+  const parent = state.zones[zone.parentZoneId] as FreeformZone | undefined;
+  if (parent?.childZoneIds) {
+    parent.childZoneIds = parent.childZoneIds.filter((id) => id !== zoneId);
+  }
+
+  zone.x = worldPos.x;
+  zone.y = worldPos.y;
+  delete zone.parentZoneId;
+  state.zoneOrder.push(zoneId);
+}
+
+function isAncestor(
+  state: TabletopState,
+  potentialAncestorId: string,
+  zoneId: string
+): boolean {
+  let current = state.zones[zoneId];
+  while (current?.parentZoneId) {
+    if (current.parentZoneId === potentialAncestorId) return true;
+    current = state.zones[current.parentZoneId];
+  }
+  return false;
 }
 
 /** Enter/leave edit mode for a zone. Pass null to exit. */
@@ -1155,7 +1499,7 @@ export function changeZoneType(
   const zone = getZone(state, zoneId);
   if (zone.type === newType) return;
 
-  const { id, name, x, y, width, height, entityIds, locked } = zone;
+  const { id, name, x, y, width, height, entityIds, locked, parentZoneId } = zone;
   const existingDefaultSize =
     'defaultSize' in zone && zone.defaultSize ? zone.defaultSize : undefined;
 
@@ -1174,13 +1518,19 @@ export function changeZoneType(
     };
   }
 
-  const base = { id, name, x, y, width, height, entityIds, locked, typeSettings: cache };
+  const base = {
+    id, name, x, y, width, height, entityIds, locked, typeSettings: cache,
+    ...(parentZoneId !== undefined ? { parentZoneId } : {})
+  };
   const defaultSize = existingDefaultSize ?? deriveDefaultSizeFromEntities(state, zone, templates);
 
   let newZone: Zone;
   switch (newType) {
     case 'freeform':
       newZone = { ...base, type: 'freeform' };
+      break;
+    case 'group':
+      newZone = { ...base, type: 'group' };
       break;
     case 'grid': {
       const prev = cache.grid;
@@ -1221,6 +1571,8 @@ export function changeZoneType(
     layoutSpread(state, zoneId);
   } else if (newType === 'grid') {
     layoutGrid(state, zoneId);
+  } else if (newType === 'group') {
+    layoutGroup(state, zoneId);
   } else if (newType === 'stack') {
     for (const id of newZone.entityIds) {
       const entity = state.entities[id];
@@ -1246,6 +1598,39 @@ export function setGridCellSize(
   zone.cellHeight = Math.max(1, cellHeight);
   zone.columns = Math.max(1, columns);
   layoutGrid(state, zoneId);
+}
+
+/**
+ * Create a freeform zone that uses the given template's design as its visual
+ * background. Used when spawning GameBoard or PlayerMat templates — they act
+ * as containers that other zones and entities can be parented into, while
+ * still displaying their designed artwork.
+ *
+ * The zone is sized to the template's physical display dimensions and centred
+ * on (worldX, worldY). Returns the new zone id.
+ */
+export function spawnBoardZone(
+  state: TabletopState,
+  template: EntityTemplate,
+  worldX: number,
+  worldY: number,
+  displayWidth: number,
+  displayHeight: number
+): string {
+  const zone: FreeformZone = {
+    id: makeId('zone'),
+    name: template.name,
+    type: 'freeform',
+    x: worldX - displayWidth / 2,
+    y: worldY - displayHeight / 2,
+    width: displayWidth,
+    height: displayHeight,
+    entityIds: [],
+    locked: false,
+    backgroundTemplateId: template.id
+  };
+  registerZone(state, zone, { select: true });
+  return zone.id;
 }
 
 /** Draw the top card from a stack onto a target zone at (x, y). */

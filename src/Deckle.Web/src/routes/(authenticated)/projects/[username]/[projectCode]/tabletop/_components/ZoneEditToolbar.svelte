@@ -18,7 +18,7 @@
   // automatically when entities are detached/dropped onto open canvas,
   // and converting any other zone back to freeform would scatter its
   // contents without serving a real editing intent.
-  const SWITCHABLE_TYPES: ZoneType[] = ['grid', 'stack', 'spread'];
+  const SWITCHABLE_TYPES: ZoneType[] = ['grid', 'group', 'stack', 'spread'];
 
   function handleRenameInput(e: Event) {
     store.renameZoneTransient(zone.id, (e.target as HTMLInputElement).value);

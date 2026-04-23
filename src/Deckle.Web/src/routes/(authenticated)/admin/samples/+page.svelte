@@ -210,9 +210,6 @@
 
   const totalPages = $derived(Math.ceil(data.samplesResponse.totalCount / data.currentPageSize));
 
-  $effect(() => {
-    setBreadcrumbs(buildAdminSamplesBreadcrumbs());
-  });
 </script>
 
 <svelte:head>

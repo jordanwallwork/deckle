@@ -11,8 +11,9 @@
  * - grid:     entities snap to a cell grid
  * - stack:    entities are piled; only the top is visible, with a count badge
  * - spread:   entities laid in a row or column with a configurable overlap
+ * - group:    entities clustered loosely around the zone's midpoint; freely draggable
  */
-export type ZoneType = 'freeform' | 'grid' | 'stack' | 'spread';
+export type ZoneType = 'freeform' | 'grid' | 'stack' | 'spread' | 'group';
 
 /**
  * Settings that belong to a specific zone type but survive conversion to a
@@ -29,7 +30,10 @@ export interface ZoneBase {
   id: string;
   name: string;
   type: ZoneType;
-  /** World-space position of the zone on the tabletop canvas (px). */
+  /**
+   * Position on the tabletop canvas (px). For top-level zones this is world
+   * space; for zones nested inside a freeform zone it is parent-local space.
+   */
   x: number;
   y: number;
   /** Zone dimensions (px). */
@@ -47,10 +51,26 @@ export interface ZoneBase {
    * by `changeZoneType`; empty on fresh zones.
    */
   typeSettings?: ZoneTypeSettingsCache;
+  /**
+   * Set when this zone is nested inside a freeform zone. The zone's x/y are
+   * then relative to the parent's top-left rather than to the canvas origin.
+   */
+  parentZoneId?: string;
 }
 
 export interface FreeformZone extends ZoneBase {
   type: 'freeform';
+  /**
+   * IDs of zones nested directly inside this freeform zone, in render order
+   * (last = on top). Absent or empty when there are no children.
+   */
+  childZoneIds?: string[];
+  /**
+   * When set, this zone renders the named template's design as its visual
+   * background. Used for GameBoard and PlayerMat zones so that the
+   * board/mat acts as a freeform container while still displaying its design.
+   */
+  backgroundTemplateId?: string;
 }
 
 export interface GridZone extends ZoneBase {
@@ -102,7 +122,11 @@ export interface SpreadZone extends ZoneBase {
   defaultSize?: { width: number; height: number };
 }
 
-export type Zone = FreeformZone | GridZone | StackZone | SpreadZone;
+export interface GroupZone extends ZoneBase {
+  type: 'group';
+}
+
+export type Zone = FreeformZone | GridZone | StackZone | SpreadZone | GroupZone;
 
 /**
  * A single instance placed on the tabletop. Multiple entities may share
@@ -131,6 +155,8 @@ export interface Entity {
   label?: string;
   /** When true, the entity cannot be dragged. */
   locked: boolean;
+  /** For Dice entities: the result of the last roll (1 – maxFaces). Absent until first roll. */
+  diceValue?: number;
 }
 
 export interface TabletopState {

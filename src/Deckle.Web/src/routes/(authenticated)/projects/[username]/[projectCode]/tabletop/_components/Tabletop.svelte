@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GameComponent } from '$lib/types';
+  import type { GameComponent, DiceComponent } from '$lib/types';
   import type { TabletopState, EntityTemplate } from '$lib/tabletop';
   import { createTabletopStore, setTabletopApi } from '$lib/tabletop';
   import { setContext } from 'svelte';
@@ -70,6 +70,13 @@
   const NEW_SPREAD_WIDTH = 400;
   const NEW_SPREAD_HEIGHT = 220;
 
+  const MAX_FACES: Record<string, number> = { D4: 4, D6: 6, D8: 8, D10: 10, D12: 12, D20: 20 };
+
+  function getDiceMaxFaces(templateId: string): number {
+    const comp = components.find((c) => c.id === templateId) as DiceComponent | undefined;
+    return MAX_FACES[comp?.diceType ?? ''] ?? 6;
+  }
+
   function createZoneAt(clientX: number, clientY: number) {
     const world = getWorldPoint(clientX, clientY);
     if (!world) return;
@@ -91,6 +98,17 @@
       NEW_SPREAD_HEIGHT,
       'row',
       40
+    );
+  }
+
+  function createGroupZoneAt(clientX: number, clientY: number) {
+    const world = getWorldPoint(clientX, clientY);
+    if (!world) return;
+    store.createGroupZone(
+      world.x - NEW_ZONE_WIDTH / 2,
+      world.y - NEW_ZONE_HEIGHT / 2,
+      NEW_ZONE_WIDTH,
+      NEW_ZONE_HEIGHT
     );
   }
 
@@ -121,6 +139,16 @@
     if (selectedId) {
       const entity = store.state.entities[selectedId];
       const zone = entity ? store.state.zones[entity.zoneId] : null;
+      const entityTemplate = entity ? templates[entity.templateId] : null;
+      const isDie = entityTemplate?.type === 'Dice';
+
+      if (isDie && entity) {
+        items.push({
+          label: `Roll (S)`,
+          action: () => store.rollDie(selectedId, getDiceMaxFaces(entity.templateId))
+        });
+        items.push({ divider: true });
+      }
 
       items.push({
         label: `Flip (F)`,
@@ -145,11 +173,10 @@
       });
 
       // Move to zone submenu — non-stackable entities can only move to freeform zones
-      const entityTemplate = entity ? templates[entity.templateId] : null;
       const entityStackable = entityTemplate ? ops.isStackable(entityTemplate) : true;
       const otherZones = store.state.zoneOrder
         .map((id) => store.state.zones[id])
-        .filter((z) => z && z.id !== entity?.zoneId && (entityStackable || z.type === 'freeform'));
+        .filter((z) => z && z.id !== entity?.zoneId && (entityStackable || z.type === 'freeform' || z.type === 'group'));
 
       if (otherZones.length > 0) {
         items.push({ divider: true });
@@ -162,7 +189,7 @@
         });
       }
 
-      if (zone?.type === 'freeform' && zone.entityIds.length > 1) {
+      if ((zone?.type === 'freeform' || zone?.type === 'group') && zone.entityIds.length > 1) {
         items.push({ divider: true });
         items.push({
           label: 'Send to Front',
@@ -215,7 +242,7 @@
           }
           items.push({ divider: true });
         }
-        if ((zone.type === 'spread' || zone.type === 'grid') && zone.entityIds.length > 0) {
+        if ((zone.type === 'spread' || zone.type === 'grid' || zone.type === 'group') && zone.entityIds.length > 0) {
           items.push({
             label: `Shuffle (S)`,
             action: () => store.shuffleZoneEntities(selectedZoneId)
@@ -227,6 +254,25 @@
           items.push({
             label: `Rotate 90° (R)`,
             action: () => store.rotateZoneEntities(selectedZoneId, 90)
+          });
+          items.push({ divider: true });
+        }
+        if (zone.type === 'freeform') {
+          items.push({
+            label: 'Add Zone',
+            disabled: zone.locked,
+            action: () => {
+              const childWidth = 200;
+              const childHeight = 150;
+              store.createFreeformZone(
+                (zone.width - childWidth) / 2,
+                (zone.height - childHeight) / 2,
+                childWidth,
+                childHeight,
+                'New Zone',
+                zone.id
+              );
+            }
           });
           items.push({ divider: true });
         }
@@ -255,6 +301,10 @@
       items.push({
         label: 'Create Spread Zone',
         action: () => createSpreadZoneAt(clientX, clientY)
+      });
+      items.push({
+        label: 'Create Group Zone',
+        action: () => createGroupZoneAt(clientX, clientY)
       });
     }
 
@@ -317,13 +367,19 @@
           store.rotateEntity(selectedId, 90);
         }
       } else if (e.key === 's' || e.key === 'S') {
-        // The top card of a stack is the only clickable surface, so a selected
-        // entity in a stack is usually the user's proxy for the stack itself.
         const entity = store.state.entities[selectedId];
-        const zone = entity ? store.state.zones[entity.zoneId] : null;
-        if (zone?.type === 'stack') {
+        const entityTemplate = entity ? templates[entity.templateId] : null;
+        if (entityTemplate?.type === 'Dice' && entity) {
           e.preventDefault();
-          store.shuffleStack(zone.id);
+          store.rollDie(selectedId, getDiceMaxFaces(entity.templateId));
+        } else {
+          // The top card of a stack is the only clickable surface, so a selected
+          // entity in a stack is usually the user's proxy for the stack itself.
+          const zone = entity ? store.state.zones[entity.zoneId] : null;
+          if (zone?.type === 'stack') {
+            e.preventDefault();
+            store.shuffleStack(zone.id);
+          }
         }
       } else if (e.key === 'Escape') {
         store.selectEntity(null);
@@ -334,7 +390,7 @@
         if (zone?.type === 'stack') {
           e.preventDefault();
           store.shuffleStack(selectedZoneId);
-        } else if (zone?.type === 'spread' || zone?.type === 'grid') {
+        } else if (zone?.type === 'spread' || zone?.type === 'grid' || zone?.type === 'group') {
           e.preventDefault();
           store.shuffleZoneEntities(selectedZoneId);
         }
@@ -342,7 +398,7 @@
         if (zone?.type === 'stack') {
           e.preventDefault();
           store.setStackFaceDown(selectedZoneId, !zone.faceDown);
-        } else if (zone?.type === 'spread' || zone?.type === 'grid') {
+        } else if (zone?.type === 'spread' || zone?.type === 'grid' || zone?.type === 'group') {
           e.preventDefault();
           store.flipZoneEntities(selectedZoneId);
         }
@@ -350,7 +406,7 @@
         if (zone?.type === 'stack') {
           e.preventDefault();
           store.rotateStack(selectedZoneId, 90);
-        } else if (zone?.type === 'spread' || zone?.type === 'grid') {
+        } else if (zone?.type === 'spread' || zone?.type === 'grid' || zone?.type === 'group') {
           e.preventDefault();
           store.rotateZoneEntities(selectedZoneId, 90);
         }
@@ -371,7 +427,7 @@
 
   function fitView() {
     if (!canvasEl) return;
-    const zones = Object.values(store.state.zones);
+    const zones = store.state.zoneOrder.map((id) => store.state.zones[id]).filter(Boolean);
     if (zones.length === 0) {
       zoom = 1;
       panX = 0;
@@ -452,6 +508,13 @@
     const template = store.templates[templateId];
     if (!template) return;
 
+    // GameBoard and PlayerMat become freeform container zones rather than entities.
+    if (ops.isContainerTemplate(template)) {
+      const { width: displayW, height: displayH } = getTemplateDisplaySize(template);
+      store.spawnBoardZone(templateId, worldX, worldY, displayW, displayH);
+      return;
+    }
+
     // Only spawn the instances that aren't already on the tabletop — no duplicates.
     const unplaced = ops.getUnplacedInstances(store.state, template);
     if (unplaced.length === 0) return;
@@ -462,13 +525,21 @@
       ?? store.state.zones[store.state.zoneOrder[0]];
     if (!droppedOnZone) return;
 
-    // Non-stackable entities (GameBoard, PlayerMat, Dice) can only live in
-    // freeform zones — redirect the drop if the user aimed at a stack/spread/grid.
-    const targetZone = (!stackable && droppedOnZone.type !== 'freeform')
-      ? (Object.values(store.state.zones).find(z => z.type === 'freeform') ?? droppedOnZone)
+    // Non-stackable entities (Dice etc.) can only live in freeform or group zones
+    // — redirect the drop if the user aimed at a stack/spread/grid.
+    const targetZone = (!stackable && droppedOnZone.type !== 'freeform' && droppedOnZone.type !== 'group')
+      ? (Object.values(store.state.zones).find(z => z.type === 'freeform' || z.type === 'group') ?? droppedOnZone)
       : droppedOnZone;
 
     const { width: displayW, height: displayH } = getTemplateDisplaySize(template);
+
+    // Multi-instance non-stackable templates (e.g. a Dice set) land as a group
+    // zone so all instances are visible as a loose cluster rather than a heap.
+    if (!stackable && unplaced.length > 1) {
+      const result = store.spawnGroupZoneFromTemplate(templateId, worldX, worldY, displayW, displayH, unplaced);
+      if (result) store.selectZone(result.zoneId);
+      return;
+    }
 
     // Multi-instance stackable templates (e.g. a card backed by a data source)
     // land as a real stack zone rather than a heap of overlapping entities —
@@ -485,21 +556,23 @@
       return;
     }
 
+    const targetZoneWorldPos = ops.getZoneWorldPos(store.state, targetZone.id);
+
     if (stackable && targetZone.type === 'spread') {
       // Insert at the pointer — bridge between the two cards the user
       // dropped between. An empty spread falls back to index 0.
       const insertIndex = ops.computeSpreadInsertIndex(
         targetZone,
-        worldX - targetZone.x,
-        worldY - targetZone.y
+        worldX - targetZoneWorldPos.x,
+        worldY - targetZoneWorldPos.y
       );
       store.spawnFromTemplate(templateId, targetZone.id, 0, 0, unplaced, insertIndex);
       return;
     }
 
     // Center the entity on the drop point (freeform/grid); stack zones ignore xy.
-    const localX = worldX - targetZone.x - displayW / 2;
-    const localY = worldY - targetZone.y - displayH / 2;
+    const localX = worldX - targetZoneWorldPos.x - displayW / 2;
+    const localY = worldY - targetZoneWorldPos.y - displayH / 2;
 
     store.spawnFromTemplate(templateId, targetZone.id, localX, localY, unplaced);
   }

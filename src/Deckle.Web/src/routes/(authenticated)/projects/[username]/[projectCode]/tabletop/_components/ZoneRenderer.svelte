@@ -1,12 +1,16 @@
 <script lang="ts">
   import type { Zone } from '$lib/tabletop';
   import { getTabletopApi } from '$lib/tabletop';
+  import * as ops from '$lib/tabletop/operations';
   import { getContext } from 'svelte';
   import EntityWrapper from './EntityWrapper.svelte';
+  import EntityView from './EntityView.svelte';
   import GridRenderer from './GridRenderer.svelte';
+  import GroupRenderer from './GroupRenderer.svelte';
   import SpreadRenderer from './SpreadRenderer.svelte';
   import StackRenderer from './StackRenderer.svelte';
   import ZoneEditToolbar from './ZoneEditToolbar.svelte';
+  import ZoneRenderer from './ZoneRenderer.svelte';
 
   let { zone }: { zone: Zone } = $props();
 
@@ -35,7 +39,10 @@
 
   function isZoneBackgroundEvent(e: Event): boolean {
     const target = e.target as HTMLElement;
-    return target === e.currentTarget || target.classList.contains('zone-bg');
+    // Only match this zone's own zone-bg, not a nested zone's zone-bg that
+    // bubbled up — check the direct parent matches this zone's element.
+    return target === e.currentTarget ||
+      (target.classList.contains('zone-bg') && target.parentElement === e.currentTarget);
   }
 
   function handleZoneClick(e: MouseEvent) {
@@ -69,6 +76,7 @@
     originY: number;
     originWidth: number;
     originHeight: number;
+    needsCheckpoint?: boolean;
   }
 
   let editDrag: EditDrag | null = null;
@@ -89,19 +97,49 @@
     };
     // History is captured once on edit enter — drags here stay transient.
     window.addEventListener('pointermove', handleEditDragMove);
-    window.addEventListener('pointerup', handleEditDragEnd);
-    window.addEventListener('pointercancel', handleEditDragEnd);
+    window.addEventListener('pointerup', handleEditDragUp);
+    window.addEventListener('pointercancel', handleEditDragCancel);
+  }
+
+  // Move a board/mat zone by dragging when the zone is selected (no edit mode needed).
+  function startMoveDrag(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    editDrag = {
+      kind: 'move',
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      originX: zone.x,
+      originY: zone.y,
+      originWidth: zone.width,
+      originHeight: zone.height,
+      needsCheckpoint: true
+    };
+    window.addEventListener('pointermove', handleEditDragMove);
+    window.addEventListener('pointerup', handleEditDragUp);
+    window.addEventListener('pointercancel', handleEditDragCancel);
   }
 
   function handleEditDragMove(e: PointerEvent) {
     const drag = editDrag;
     if (!drag) return;
+    if (drag.needsCheckpoint) {
+      store.saveCheckpoint();
+      drag.needsCheckpoint = false;
+    }
     const zoom = canvas?.zoom ?? 1;
     const dx = (e.clientX - drag.startClientX) / zoom;
     const dy = (e.clientY - drag.startClientY) / zoom;
 
     if (drag.kind === 'move') {
       store.moveZoneTransient(zone.id, drag.originX + dx, drag.originY + dy);
+      // Highlight the freeform zone the dragged zone's centre has entered,
+      // mirroring the nest logic that runs on drop in tryNestOrUnnest().
+      const worldPos = ops.getZoneWorldPos(store.state, zone.id);
+      const cx = worldPos.x + zone.width / 2;
+      const cy = worldPos.y + zone.height / 2;
+      const nestTarget = ops.findZoneAtPoint(store.state, cx, cy, zone.id);
+      store.setDropTargetZoneId(nestTarget?.type === 'freeform' ? nestTarget.id : null);
       return;
     }
 
@@ -147,11 +185,42 @@
     store.resizeZoneTransient(zone.id, newW, newH, newX, newY);
   }
 
-  function handleEditDragEnd() {
+  function cleanupEditDrag() {
     editDrag = null;
+    store.setDropTargetZoneId(null);
     window.removeEventListener('pointermove', handleEditDragMove);
-    window.removeEventListener('pointerup', handleEditDragEnd);
-    window.removeEventListener('pointercancel', handleEditDragEnd);
+    window.removeEventListener('pointerup', handleEditDragUp);
+    window.removeEventListener('pointercancel', handleEditDragCancel);
+  }
+
+  function handleEditDragUp(e: PointerEvent) {
+    const drag = editDrag;
+    cleanupEditDrag();
+    if (drag?.kind === 'move') {
+      tryNestOrUnnest();
+    }
+  }
+
+  function handleEditDragCancel() {
+    cleanupEditDrag();
+  }
+
+  /**
+   * After a move drag ends, check whether the zone's centre landed inside a
+   * different freeform zone (→ nest it) or outside any freeform zone while
+   * already nested (→ promote it back to the top level).
+   */
+  function tryNestOrUnnest() {
+    const worldPos = ops.getZoneWorldPos(store.state, zone.id);
+    const cx = worldPos.x + zone.width / 2;
+    const cy = worldPos.y + zone.height / 2;
+    const dropTarget = ops.findZoneAtPoint(store.state, cx, cy, zone.id);
+
+    if (dropTarget?.type === 'freeform' && dropTarget.id !== zone.parentZoneId) {
+      store.nestZone(zone.id, dropTarget.id);
+    } else if (zone.parentZoneId && dropTarget?.type !== 'freeform') {
+      store.unnestZone(zone.id);
+    }
   }
 
   function handleDone() {
@@ -175,6 +244,38 @@
     if (!zoneFlipAnimation || zoneFlipAnimation.zoneId !== zone.id) return 0;
     return index * zoneFlipAnimation.staggerMs;
   }
+
+  // Background rendering for GameBoard / PlayerMat zones.
+  const bgTemplate = $derived(
+    zone.type === 'freeform' && zone.backgroundTemplateId
+      ? store.templates[zone.backgroundTemplateId]
+      : null
+  );
+  const bgRenderScale = $derived(
+    bgTemplate && bgTemplate.widthPx > 0 ? zone.width / bgTemplate.widthPx : 1
+  );
+  // Non-freeform zones (stack/grid/spread/group) and board/mat zones can be
+  // dragged directly when selected; plain freeform zones require edit mode.
+  const isSelectedMoveable = $derived(
+    isSelected && !zone.locked && !isEditing && (zone.type !== 'freeform' || !!bgTemplate)
+  );
+
+  // Synthetic entity used only for EntityView's rendering path — no interaction.
+  const bgEntity = $derived(
+    bgTemplate
+      ? {
+          instanceId: `${zone.id}-bg`,
+          templateId: bgTemplate.id,
+          zoneId: zone.id,
+          x: 0,
+          y: 0,
+          rotation: 0,
+          isFlipped: false,
+          mergeData: null as Record<string, string> | null,
+          locked: true
+        }
+      : null
+  );
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -184,14 +285,16 @@
   class:selected={isSelected}
   class:editing={isEditing}
   class:locked={zone.locked}
+  class:board-zone={bgTemplate !== null}
+  class:drop-hover={store.dropTargetZoneId === zone.id}
   style="left: {zone.x}px; top: {zone.y}px; width: {zone.width}px; height: {zone.height}px;"
   onclick={handleZoneClick}
   oncontextmenu={handleZoneContextMenu}
 >
-  {#if zone.type !== 'stack' && !isEditing}
+  {#if zone.type !== 'stack' && !isEditing && !bgTemplate}
     <div class="zone-label">
       {zone.name}
-      {#if zone.type === 'grid' || zone.type === 'spread'}
+      {#if zone.type === 'grid' || zone.type === 'spread' || zone.type === 'group'}
         <span class="zone-count">{zoneEntities.length}</span>
       {/if}
       {#if zone.locked}
@@ -200,15 +303,31 @@
     </div>
   {/if}
 
+  {#if bgEntity && bgTemplate}
+    <div class="zone-board-bg" aria-hidden="true">
+      <EntityView entity={bgEntity} template={bgTemplate} renderScale={bgRenderScale} side="front" />
+    </div>
+  {/if}
+
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="zone-bg"
-    onpointerdown={(e) => isEditing && startEditDrag(e, 'move')}
+    class:selected-moveable={isSelectedMoveable}
+    onpointerdown={(e) => {
+      if (isEditing) startEditDrag(e, 'move');
+      else if (isSelectedMoveable) startMoveDrag(e);
+    }}
   ></div>
 
   {#if zone.type === 'freeform'}
     {#each zoneEntities as entity (entity.instanceId)}
       <EntityWrapper {entity} disableDrag={isEditing} />
+    {/each}
+    {#each zone.childZoneIds ?? [] as childId (childId)}
+      {@const childZone = store.state.zones[childId]}
+      {#if childZone}
+        <ZoneRenderer zone={childZone} />
+      {/if}
     {/each}
   {:else if zone.type === 'grid'}
     <GridRenderer {zone} entities={zoneEntities} {isEditing} {flipDelayFor} />
@@ -216,6 +335,8 @@
     <SpreadRenderer {zone} entities={zoneEntities} {isEditing} {flipDelayFor} />
   {:else if zone.type === 'stack'}
     <StackRenderer {zone} entities={zoneEntities} {isEditing} {isSelected} />
+  {:else if zone.type === 'group'}
+    <GroupRenderer {zone} entities={zoneEntities} {isEditing} />
   {/if}
 
   {#if isEditing}
@@ -242,7 +363,8 @@
 
   .zone-stack.selected,
   .zone-grid.selected,
-  .zone-spread.selected {
+  .zone-spread.selected,
+  .zone-group.selected {
     border-color: #f59e0b;
     border-style: solid;
     box-shadow:
@@ -304,12 +426,49 @@
     pointer-events: auto;
   }
 
-  .zone.editing .zone-bg {
+  .zone.editing .zone-bg,
+  .zone-bg.selected-moveable {
     cursor: move;
   }
 
   .zone-freeform {
     background: rgba(255, 255, 255, 0.03);
+  }
+
+  /* Board/mat zones render their design as a background — no dashed border or tint. */
+  .board-zone {
+    background: transparent;
+    border-color: transparent;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  .board-zone.selected {
+    border-color: rgba(100, 160, 255, 0.6);
+    border-style: solid;
+    box-shadow:
+      0 0 0 1px rgba(100, 160, 255, 0.3),
+      0 0 12px rgba(100, 160, 255, 0.15);
+  }
+
+  .board-zone.editing {
+    border-color: #3b82f6;
+    border-style: solid;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+  }
+
+  .board-zone.drop-hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.5);
+    border-style: solid;
+  }
+
+  .zone-board-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
   }
 
   .zone-grid {
@@ -327,9 +486,14 @@
     background: rgba(255, 255, 255, 0.03);
   }
 
-  .zone-spread.drop-hover {
-    background: rgba(59, 130, 246, 0.08);
+  .zone-group {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .zone.drop-hover {
+    background: rgba(59, 130, 246, 0.1);
     border-color: rgba(59, 130, 246, 0.5);
+    border-style: solid;
   }
 
   .resize-handle {

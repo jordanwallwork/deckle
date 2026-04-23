@@ -186,8 +186,11 @@ export function createTabletopStore(
   const setSpreadOverlap = withHistory(ops.setSpreadOverlap, 'setSpreadOverlap');
   const setSpreadOverlapTransient = withoutHistory(ops.setSpreadOverlap);
   const deleteZone = withHistory(ops.deleteZone, 'deleteZone');
+  const nestZone = withHistory(ops.nestZone, 'nestZone');
+  const unnestZone = withHistory(ops.unnestZone, 'unnestZone');
   const setEntityLocked = withHistory(ops.setEntityLocked, 'setEntityLocked');
   const setZoneLocked = withHistory(ops.setZoneLocked, 'setZoneLocked');
+  const rollDie = withHistory(ops.rollDie, 'rollDie');
   const flipEntity = withHistory(ops.flipEntity, 'flipEntity');
   const rotateEntity = withHistory(ops.rotateEntity, 'rotateEntity');
   const rotateStack = withHistory(ops.rotateStack, 'rotateStack');
@@ -202,6 +205,23 @@ export function createTabletopStore(
   const reorderInZone = withHistory(ops.reorderInZone, 'reorderInZone');
   const createFreeformZone = withHistory(ops.createFreeformZone, 'createFreeformZone');
   const createSpreadZone = withHistory(ops.createSpreadZone, 'createSpreadZone');
+  const createGroupZone = withHistory(ops.createGroupZone, 'createGroupZone');
+
+  function spawnBoardZone(
+    templateId: string,
+    worldX: number,
+    worldY: number,
+    displayWidth: number,
+    displayHeight: number
+  ): string | null {
+    const template = templates[templateId];
+    if (!template) return null;
+    let newId: string | null = null;
+    apply((s) => {
+      newId = ops.spawnBoardZone(s, template, worldX, worldY, displayWidth, displayHeight);
+    }, `spawnBoardZone(${templateId})`);
+    return newId;
+  }
 
   function drawFromStack(stackZoneId: string, targetZoneId: string, x: number, y: number): string | null {
     let topId: string | null = null;
@@ -255,6 +275,8 @@ export function createTabletopStore(
     if (template) ops.ensureSpreadDefaultSize(s, zoneId, template);
   }
 
+  // Template-bound spawn ops — can't use withHistory since they do a
+  // templates lookup before dispatching to the pure operation.
   function moveEntityToZone(
     instanceId: string,
     zoneId: string,
@@ -263,7 +285,7 @@ export function createTabletopStore(
     const entity = store.state.entities[instanceId];
     const template = entity ? templates[entity.templateId] : null;
     const targetZone = store.state.zones[zoneId];
-    if (template && targetZone && !ops.isStackable(template) && targetZone.type !== 'freeform') return;
+    if (template && targetZone && !ops.isStackable(template) && targetZone.type !== 'freeform' && targetZone.type !== 'group') return;
 
     const sourceZoneId = store.state.entities[instanceId]?.zoneId;
     apply((s) => {
@@ -289,7 +311,7 @@ export function createTabletopStore(
     const entity = store.state.entities[instanceId];
     const template = entity ? templates[entity.templateId] : null;
     const targetZone = store.state.zones[zoneId];
-    if (template && targetZone && !ops.isStackable(template) && targetZone.type !== 'freeform') return;
+    if (template && targetZone && !ops.isStackable(template) && targetZone.type !== 'freeform' && targetZone.type !== 'group') return;
 
     const sourceZoneId = store.state.entities[instanceId]?.zoneId;
     applyTransient((s) => {
@@ -386,8 +408,6 @@ export function createTabletopStore(
     apply((s) => ops.flipZoneEntities(s, zoneId), `flipZoneEntities(${zoneId})`);
   }
 
-  // Template-bound spawn ops — can't use withHistory since they do a
-  // templates lookup before dispatching to the pure operation.
   function spawnEntity(templateId: string, zoneId: string, x: number, y: number): string | null {
     const template = templates[templateId];
     if (!template) return null;
@@ -425,6 +445,31 @@ export function createTabletopStore(
       `spawnFromTemplate(${templateId}, ${zoneId}${insertIndex !== undefined ? `, @${insertIndex}` : ''})`
     );
     return newIds;
+  }
+
+  /**
+   * Create a new group zone centered on (worldX, worldY) and spawn instances
+   * from the template into it. Pass `instances` to spawn a subset (e.g. only
+   * the unplaced ones); omit to spawn all template instances. Single undoable action.
+   */
+  function spawnGroupZoneFromTemplate(
+    templateId: string,
+    worldX: number,
+    worldY: number,
+    displayWidth: number,
+    displayHeight: number,
+    instances?: (Record<string, string> | null)[]
+  ): { zoneId: string; instanceIds: string[] } | null {
+    const template = templates[templateId];
+    if (!template) return null;
+    let result: { zoneId: string; instanceIds: string[] } | null = null;
+    apply(
+      (s) => {
+        result = ops.spawnGroupZoneFromTemplate(s, template, worldX, worldY, displayWidth, displayHeight, instances);
+      },
+      `spawnGroupZoneFromTemplate(${templateId})`
+    );
+    return result;
   }
 
   /**
@@ -499,6 +544,17 @@ export function createTabletopStore(
     spreadDropHover = value;
   }
 
+  /**
+   * Transient UI hint: the zone that would receive an entity/zone drop if
+   * released now. Used by ZoneRenderer to highlight the destination zone
+   * background during a drag.
+   */
+  let dropTargetZoneId = $state<string | null>(null);
+
+  function setDropTargetZoneId(value: string | null): void {
+    dropTargetZoneId = value;
+  }
+
   return {
     /** The reactive state. Components may read but should mutate via methods. */
     get state() {
@@ -532,13 +588,18 @@ export function createTabletopStore(
     renameZoneTransient,
     createFreeformZone,
     createSpreadZone,
+    createGroupZone,
+    spawnBoardZone,
     setSpreadDirection,
     setSpreadOverlap,
     setSpreadOverlapTransient,
     deleteZone,
+    nestZone,
+    unnestZone,
     setEditingZone,
     setEntityLocked,
     setZoneLocked,
+    rollDie,
     flipEntity,
     rotateEntity,
     rotateStack,
@@ -564,6 +625,7 @@ export function createTabletopStore(
     drawFromStack,
     spawnEntity,
     spawnFromTemplate,
+    spawnGroupZoneFromTemplate,
     spawnStackZoneFromTemplate,
     mergeEntitiesIntoStack,
     mergeStackOntoStack,
@@ -581,6 +643,11 @@ export function createTabletopStore(
       return spreadDropHover;
     },
     setSpreadDropHover,
+
+    get dropTargetZoneId() {
+      return dropTargetZoneId;
+    },
+    setDropTargetZoneId,
 
     toggleDebugMode
   };

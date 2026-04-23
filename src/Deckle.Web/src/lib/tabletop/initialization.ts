@@ -115,7 +115,9 @@ export function buildInitialTabletop(input: TabletopInitInput): TabletopInitResu
       widthMm,
       heightMm,
       isEditable: isEditableComponent(c),
-      instances: buildInstances(componentRows[c.id])
+      instances: isDice(c)
+        ? Array.from({ length: Math.max(1, c.number) }, () => null)
+        : buildInstances(componentRows[c.id])
     };
   }
 

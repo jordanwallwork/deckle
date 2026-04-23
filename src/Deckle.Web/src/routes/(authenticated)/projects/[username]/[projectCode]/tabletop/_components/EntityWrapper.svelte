@@ -126,14 +126,15 @@
 
     e.stopPropagation();
 
-    // If the stack is already the selected zone (typically via a prior
-    // double-click), pressing on its top card is a potential zone drag.
-    // Defer any selection change until pointerup — a pure click still
-    // selects the entity (via onclick), but a drag moves the whole zone
-    // without flipping selection to the top card.
+    // If an ordered zone (stack/spread/grid) is already the selected zone,
+    // pressing on an entity is a potential zone drag. Defer any selection
+    // change until pointerup — a pure click still selects the entity (via
+    // onclick), but a drag moves the whole zone without flipping selection.
     const currentZone = store.state.zones[entity.zoneId];
     const zoneDrag =
-      currentZone?.type === 'stack' &&
+      (currentZone?.type === 'stack' ||
+        currentZone?.type === 'spread' ||
+        currentZone?.type === 'grid') &&
       !currentZone.locked &&
       store.state.selectedZoneId === currentZone.id
         ? {
@@ -196,14 +197,40 @@
     const dx = dxScreen / zoom;
     const dy = dyScreen / zoom;
 
-    // Double-click-drag on a stack: translate the whole zone instead of
-    // detaching the top card.
+    // Zone-drag on a selected ordered zone (stack/spread/grid): translate the
+    // whole zone instead of detaching an entity.
     if (drag.zoneDrag) {
       drag.store.moveZoneTransient(
         drag.zoneDrag.zoneId,
         drag.zoneDrag.zoneStartX + dx,
         drag.zoneDrag.zoneStartY + dy
       );
+      const draggedZone = drag.store.state.zones[drag.zoneDrag.zoneId];
+      // For stacks: check for a same-type merge target first (takes priority over nesting).
+      if (draggedZone?.type === 'stack') {
+        const zoneWorld = canvasToWorld(drag.canvas, e);
+        if (zoneWorld) {
+          const mergeTarget = ops.findZoneAtPoint(
+            drag.store.state,
+            zoneWorld.worldX,
+            zoneWorld.worldY,
+            drag.zoneDrag.zoneId
+          );
+          if (mergeTarget?.type === 'stack') {
+            drag.store.setDropTargetZoneId(mergeTarget.id);
+            return;
+          }
+        }
+      }
+      // For all zone types: highlight a freeform zone when the dragged zone's
+      // centre is hovering over one (potential nest target).
+      if (draggedZone) {
+        const worldPos = ops.getZoneWorldPos(drag.store.state, drag.zoneDrag.zoneId);
+        const cx = worldPos.x + draggedZone.width / 2;
+        const cy = worldPos.y + draggedZone.height / 2;
+        const nestTarget = ops.findZoneAtPoint(drag.store.state, cx, cy, drag.zoneDrag.zoneId);
+        drag.store.setDropTargetZoneId(nestTarget?.type === 'freeform' ? nestTarget.id : null);
+      }
       return;
     }
 
@@ -227,8 +254,9 @@
         }
         if (!target) return;
 
-        const localX = world.worldX - target.x - drag.displayWidth / 2;
-        const localY = world.worldY - target.y - drag.displayHeight / 2;
+        const targetWorldPos = ops.getZoneWorldPos(drag.store.state, target.id);
+        const localX = world.worldX - targetWorldPos.x - drag.displayWidth / 2;
+        const localY = world.worldY - targetWorldPos.y - drag.displayHeight / 2;
         drag.store.moveEntityToZoneTransient(drag.instanceId, target.id, {
           x: localX,
           y: localY
@@ -255,12 +283,14 @@
 
     // Publish a spread-hover hint so the target spread can render a drop
     // indicator at the computed insert index. Cleared when not over a spread.
+    // Also publish a drop-target zone ID for background highlighting.
     const world = canvasToWorld(drag.canvas, e);
     if (world) {
       const hoverZone = ops.findZoneAtPoint(drag.store.state, world.worldX, world.worldY);
       if (hoverZone?.type === 'spread') {
-        const localX = world.worldX - hoverZone.x;
-        const localY = world.worldY - hoverZone.y;
+        const hoverZoneWorldPos = ops.getZoneWorldPos(drag.store.state, hoverZone.id);
+        const localX = world.worldX - hoverZoneWorldPos.x;
+        const localY = world.worldY - hoverZoneWorldPos.y;
         const index = ops.computeSpreadInsertIndex(
           hoverZone,
           localX,
@@ -271,6 +301,11 @@
       } else {
         drag.store.setSpreadDropHover(null);
       }
+
+      // Highlight the zone the entity would land in if released now. Skip
+      // highlighting the entity's own zone (just repositioning within it).
+      const isNewZone = hoverZone && hoverZone.id !== current.zoneId;
+      drag.store.setDropTargetZoneId(isNewZone ? hoverZone!.id : null);
     }
   }
 
@@ -298,55 +333,63 @@
     if (!drag.zoneDrag) return;
     suppressNextClick = true;
 
-    // Drop onto sidebar = remove the whole stack zone from the tabletop.
+    // Drop onto sidebar = remove the zone from the tabletop.
     if (pointInElement(drag.canvas?.sidebarEl ?? null, e)) {
       drag.store.deleteZone(drag.zoneDrag.zoneId);
       return;
     }
 
-    const world = canvasToWorld(drag.canvas, e);
-    if (!world) return;
+    const draggedZone = drag.store.state.zones[drag.zoneDrag.zoneId];
 
-    // Drop onto another stack → merge the two stacks.
-    const targetZone = ops.findZoneAtPoint(
-      drag.store.state,
-      world.worldX,
-      world.worldY,
-      drag.zoneDrag.zoneId
-    );
-    if (targetZone?.type === 'stack') {
-      drag.store.mergeStackOntoStack(drag.zoneDrag.zoneId, targetZone.id);
-      return;
+    // Stack-only drop behaviours: merge onto another stack, or absorb a loose entity.
+    if (draggedZone?.type === 'stack') {
+      const world = canvasToWorld(drag.canvas, e);
+      if (world) {
+        const targetZone = ops.findZoneAtPoint(
+          drag.store.state,
+          world.worldX,
+          world.worldY,
+          drag.zoneDrag.zoneId
+        );
+        if (targetZone?.type === 'stack') {
+          drag.store.mergeStackOntoStack(drag.zoneDrag.zoneId, targetZone.id);
+          return;
+        }
+        if (mergeStackOntoLooseEntity(drag, world.worldX, world.worldY)) return;
+      }
     }
 
-    mergeStackOntoLooseEntity(drag, world.worldX, world.worldY);
+    // Nest into (or unnest from) a freeform zone based on where the dragged
+    // zone's centre landed — mirrors ZoneRenderer's edit-mode nest logic.
+    tryNestOrUnnestZoneDrag(drag);
   }
 
-  function mergeStackOntoLooseEntity(drag: ActiveDrag, worldX: number, worldY: number): void {
-    if (!drag.zoneDrag) return;
+  function mergeStackOntoLooseEntity(drag: ActiveDrag, worldX: number, worldY: number): boolean {
+    if (!drag.zoneDrag) return false;
     const entityAtPoint = ops.findEntityAtPoint(
       drag.store.state,
       drag.store.templates,
       worldX,
       worldY
     );
-    if (!entityAtPoint) return;
+    if (!entityAtPoint) return false;
 
     const draggedZone = drag.store.state.zones[drag.zoneDrag.zoneId];
-    if (draggedZone?.type !== 'stack') return;
+    if (draggedZone?.type !== 'stack') return false;
 
     const ds = draggedZone.defaultSize;
     const entityTemplate = drag.store.templates[entityAtPoint.templateId];
-    if (!ds || !entityTemplate) return;
+    if (!ds || !entityTemplate) return false;
 
     const { width, height } = getTemplateDisplaySize(entityTemplate);
-    if (width !== ds.width || height !== ds.height) return;
+    if (width !== ds.width || height !== ds.height) return false;
 
     // Re-centre the stack over the target entity so the merge lands cleanly.
     const entityZone = drag.store.state.zones[entityAtPoint.zoneId];
     if (entityZone) {
-      const cx = entityZone.x + entityAtPoint.x + width / 2;
-      const cy = entityZone.y + entityAtPoint.y + height / 2;
+      const entityZoneWorldPos = ops.getZoneWorldPos(drag.store.state, entityAtPoint.zoneId);
+      const cx = entityZoneWorldPos.x + entityAtPoint.x + width / 2;
+      const cy = entityZoneWorldPos.y + entityAtPoint.y + height / 2;
       drag.store.moveZoneTransient(
         drag.zoneDrag.zoneId,
         cx - draggedZone.width / 2,
@@ -356,6 +399,24 @@
     drag.store.moveEntityToZone(entityAtPoint.instanceId, drag.zoneDrag.zoneId, {
       insertIndex: 0
     });
+    return true;
+  }
+
+  function tryNestOrUnnestZoneDrag(drag: ActiveDrag): void {
+    if (!drag.zoneDrag) return;
+    const zone = drag.store.state.zones[drag.zoneDrag.zoneId];
+    if (!zone) return;
+
+    const worldPos = ops.getZoneWorldPos(drag.store.state, drag.zoneDrag.zoneId);
+    const cx = worldPos.x + zone.width / 2;
+    const cy = worldPos.y + zone.height / 2;
+    const dropTarget = ops.findZoneAtPoint(drag.store.state, cx, cy, drag.zoneDrag.zoneId);
+
+    if (dropTarget?.type === 'freeform' && dropTarget.id !== zone.parentZoneId) {
+      drag.store.nestZone(drag.zoneDrag.zoneId, dropTarget.id);
+    } else if (zone.parentZoneId && dropTarget?.type !== 'freeform') {
+      drag.store.unnestZone(drag.zoneDrag.zoneId);
+    }
   }
 
   function handleEntityDragEnd(drag: ActiveDrag, current: Entity, e: PointerEvent): void {
@@ -380,18 +441,20 @@
     if (targetZone.type === 'spread' && dragTemplate && ops.isStackable(dragTemplate)) {
       // Spread drops land at the insertion point derived from the pointer,
       // so the user can slot the card anywhere in the row.
+      const spreadWorldPos = ops.getZoneWorldPos(drag.store.state, targetZone.id);
       const insertIndex = ops.computeSpreadInsertIndex(
         targetZone,
-        world.worldX - targetZone.x,
-        world.worldY - targetZone.y,
+        world.worldX - spreadWorldPos.x,
+        world.worldY - spreadWorldPos.y,
         drag.instanceId
       );
       drag.store.moveEntityToZone(drag.instanceId, targetZone.id, { insertIndex });
       return;
     }
 
-    const localX = world.worldX - targetZone.x - drag.displayWidth / 2;
-    const localY = world.worldY - targetZone.y - drag.displayHeight / 2;
+    const targetZoneWorldPos = ops.getZoneWorldPos(drag.store.state, targetZone.id);
+    const localX = world.worldX - targetZoneWorldPos.x - drag.displayWidth / 2;
+    const localY = world.worldY - targetZoneWorldPos.y - drag.displayHeight / 2;
     drag.store.moveEntityToZone(drag.instanceId, targetZone.id, { x: localX, y: localY });
   }
 
@@ -431,6 +494,7 @@
 
     drag.store.setDraggingOverSidebar(false);
     drag.store.setSpreadDropHover(null);
+    drag.store.setDropTargetZoneId(null);
 
     window.removeEventListener('pointermove', handleWindowPointerMove);
     window.removeEventListener('pointerup', handleWindowPointerUp);

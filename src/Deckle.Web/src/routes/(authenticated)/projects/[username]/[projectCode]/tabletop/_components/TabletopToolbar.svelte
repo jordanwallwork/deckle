@@ -40,10 +40,15 @@
     store.state.selectedZoneId ? store.state.zones[store.state.selectedZoneId] : null
   );
 
+  const selectedEntityTemplate = $derived(
+    selectedEntity ? store.templates[selectedEntity.templateId] : null
+  );
+  const isDiceSelected = $derived(selectedEntityTemplate?.type === 'Dice');
+
   const canFlip = $derived(!!selectedEntity || selectedZone?.type === 'stack');
   const canRotate = $derived(!!selectedEntity || selectedZone?.type === 'stack');
   const canShuffle = $derived(
-    selectedEntityZone?.type === 'stack' || selectedZone?.type === 'stack'
+    !isDiceSelected && (selectedEntityZone?.type === 'stack' || selectedZone?.type === 'stack')
   );
 </script>
 
@@ -84,7 +89,11 @@
   <div class="toolbar-group shortcuts">
     <span class="shortcut" class:disabled={!canFlip}><kbd>F</kbd> Flip</span>
     <span class="shortcut" class:disabled={!canRotate}><kbd>R</kbd> Rotate</span>
-    <span class="shortcut" class:disabled={!canShuffle}><kbd>S</kbd> Shuffle</span>
+    {#if isDiceSelected}
+      <span class="shortcut"><kbd>S</kbd> Roll</span>
+    {:else}
+      <span class="shortcut" class:disabled={!canShuffle}><kbd>S</kbd> Shuffle</span>
+    {/if}
   </div>
 </div>
 

@@ -1,12 +1,14 @@
 using Deckle.API.Configurators;
 using Deckle.API.Services;
 using Deckle.API.Services.Email;
+using Deckle.Domain.Entities;
 using Deckle.Email;
 using Deckle.Email.Abstractions;
 using Exceptionless;
 using Hangfire;
 using Hangfire.PostgreSql;
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Reflection;
 using System.Security.Claims;
@@ -19,6 +21,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDeckleApplicationServices(this IServiceCollection services)
     {
+        services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddScoped<IProjectAuthorizationService, ProjectAuthorizationService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IProjectService, ProjectService>();
@@ -105,6 +108,18 @@ public static class ServiceCollectionExtensions
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+            });
+
+            // "auth" — 5 attempts per minute per IP for register/login endpoints.
+            options.AddPolicy("auth", context =>
+            {
+                var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 5,
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0
                 });

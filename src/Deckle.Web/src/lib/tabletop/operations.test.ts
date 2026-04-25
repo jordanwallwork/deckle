@@ -1,0 +1,1341 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import type {
+  Entity,
+  EntityTemplate,
+  FreeformZone,
+  GridZone,
+  SpreadZone,
+  StackZone,
+  TabletopState
+} from './types';
+import {
+  changeZoneType,
+  computeSpreadInsertIndex,
+  createSpreadZone,
+  drawFromStack,
+  findZoneAtPoint,
+  flipEntity,
+  flipZoneEntities,
+  isStackable,
+  layoutSpread,
+  mergeEntitiesIntoStack,
+  mergeStackOntoStack,
+  moveEntity,
+  moveEntityToZone,
+  moveZone,
+  removeEntity,
+  reorderInZone,
+  resizeStackZoneToContents,
+  rotateEntity,
+  rotateStack,
+  rotateZoneEntities,
+  setRotation,
+  setSpreadDirection,
+  setSpreadOverlap,
+  setStackFaceDown,
+  setStackPersistent,
+  shuffleStack,
+  shuffleZoneEntities,
+  snapToGrid,
+  spawnEntity,
+  spawnFromTemplate,
+  spawnStackZoneFromTemplate,
+  STACK_ZONE_PADDING
+} from './operations';
+
+function makeEntity(overrides: Partial<Entity> & { instanceId: string; zoneId: string }): Entity {
+  return {
+    templateId: 't',
+    x: 0,
+    y: 0,
+    rotation: 0,
+    isFlipped: false,
+    mergeData: null,
+    locked: false,
+    ...overrides
+  };
+}
+
+function makeState(): TabletopState {
+  const tableau: FreeformZone = {
+    id: 'tableau',
+    name: 'Tableau',
+    type: 'freeform',
+    x: 0,
+    y: 0,
+    width: 800,
+    height: 600,
+    entityIds: ['e1', 'e2'],
+    locked: false
+  };
+  const grid: GridZone = {
+    id: 'grid',
+    name: 'Grid',
+    type: 'grid',
+    x: 1000,
+    y: 0,
+    width: 480,
+    height: 320,
+    cellWidth: 80,
+    cellHeight: 80,
+    columns: 6,
+    entityIds: [],
+    locked: false
+  };
+  const deck: StackZone = {
+    id: 'deck',
+    name: 'Deck',
+    type: 'stack',
+    x: 0,
+    y: 700,
+    width: 200,
+    height: 300,
+    faceDown: true,
+    persistent: true,
+    entityIds: ['e3', 'e4'],
+    locked: false
+  };
+
+  return {
+    entities: {
+      e1: makeEntity({ instanceId: 'e1', zoneId: 'tableau', x: 10, y: 20 }),
+      e2: makeEntity({ instanceId: 'e2', zoneId: 'tableau', x: 100, y: 20 }),
+      e3: makeEntity({ instanceId: 'e3', zoneId: 'deck', isFlipped: true }),
+      e4: makeEntity({ instanceId: 'e4', zoneId: 'deck', isFlipped: true })
+    },
+    zones: {
+      tableau,
+      grid,
+      deck
+    },
+    zoneOrder: ['tableau', 'grid', 'deck'],
+    selectedEntityIds: [],
+    selectedZoneId: null,
+    editingZoneId: null
+  };
+}
+
+describe('snapToGrid', () => {
+  const zone: GridZone = {
+    id: 'g',
+    name: 'g',
+    type: 'grid',
+    x: 0,
+    y: 0,
+    width: 480,
+    height: 320,
+    cellWidth: 80,
+    cellHeight: 80,
+    columns: 6,
+    entityIds: [],
+    locked: false
+  };
+
+  it('snaps to the nearest cell', () => {
+    expect(snapToGrid(zone, 30, 45)).toEqual({ x: 0, y: 80, index: 6 });
+    expect(snapToGrid(zone, 85, 0)).toEqual({ x: 80, y: 0, index: 1 });
+  });
+
+  it('clamps to the zone columns', () => {
+    const result = snapToGrid(zone, 10_000, 0);
+    expect(result.x).toBe(5 * 80);
+  });
+});
+
+describe('moveEntity', () => {
+  let state: TabletopState;
+  beforeEach(() => {
+    state = makeState();
+  });
+
+  it('updates x/y within a freeform zone', () => {
+    moveEntity(state, 'e1', 200, 300);
+    expect(state.entities.e1.x).toBe(200);
+    expect(state.entities.e1.y).toBe(300);
+  });
+
+  it('snaps x/y inside a grid zone', () => {
+    state.entities.e1.zoneId = 'grid';
+    (state.zones.grid as GridZone).entityIds = ['e1'];
+    moveEntity(state, 'e1', 45, 210);
+    expect(state.entities.e1.x).toBe(80); // col 1
+    expect(state.entities.e1.y).toBe(240); // row 3
+  });
+
+  it('is a no-op for stack zones', () => {
+    moveEntity(state, 'e3', 500, 500);
+    expect(state.entities.e3.x).toBe(0);
+    expect(state.entities.e3.y).toBe(0);
+  });
+});
+
+describe('moveEntityToZone', () => {
+  let state: TabletopState;
+  beforeEach(() => {
+    state = makeState();
+  });
+
+  it('moves the entity between zone entityIds arrays', () => {
+    moveEntityToZone(state, 'e1', 'grid', { x: 0, y: 0 });
+    expect(state.zones.tableau.entityIds).toEqual(['e2']);
+    expect(state.zones.grid.entityIds).toEqual(['e1']);
+    expect(state.entities.e1.zoneId).toBe('grid');
+  });
+
+  it('preserves flip state when moving into a face-down stack', () => {
+    expect(state.entities.e1.isFlipped).toBe(false);
+    moveEntityToZone(state, 'e1', 'deck');
+    expect(state.entities.e1.isFlipped).toBe(false);
+    expect(state.entities.e1.zoneId).toBe('deck');
+  });
+
+  it('preserves flip state when moving into a face-up stack', () => {
+    (state.zones.deck as StackZone).faceDown = false;
+    state.entities.e1.isFlipped = true;
+    moveEntityToZone(state, 'e1', 'deck');
+    expect(state.entities.e1.isFlipped).toBe(true);
+  });
+
+  it('respects insertIndex', () => {
+    moveEntityToZone(state, 'e1', 'deck', { insertIndex: 0 });
+    expect(state.zones.deck.entityIds).toEqual(['e1', 'e3', 'e4']);
+  });
+
+  it('adopts the existing rotation of a stack when moved onto it', () => {
+    state.entities.e3.rotation = 90;
+    state.entities.e4.rotation = 90;
+    state.entities.e1.rotation = 0;
+    moveEntityToZone(state, 'e1', 'deck');
+    expect(state.entities.e1.rotation).toBe(90);
+  });
+
+  it('keeps its own rotation when moved onto an empty stack', () => {
+    (state.zones.deck as StackZone).entityIds = [];
+    state.entities.e1.rotation = 45;
+    moveEntityToZone(state, 'e1', 'deck');
+    expect(state.entities.e1.rotation).toBe(45);
+  });
+});
+
+describe('moveZone', () => {
+  it('updates the zone world-space position without touching entities', () => {
+    const state = makeState();
+    moveZone(state, 'deck', 1500, 200);
+    expect(state.zones.deck.x).toBe(1500);
+    expect(state.zones.deck.y).toBe(200);
+    // Entities inside keep their local coords
+    expect(state.entities.e3.x).toBe(0);
+    expect(state.entities.e3.y).toBe(0);
+  });
+});
+
+describe('flipEntity / rotateEntity / setRotation', () => {
+  let state: TabletopState;
+  beforeEach(() => {
+    state = makeState();
+  });
+
+  it('toggles flip', () => {
+    flipEntity(state, 'e1');
+    expect(state.entities.e1.isFlipped).toBe(true);
+    flipEntity(state, 'e1');
+    expect(state.entities.e1.isFlipped).toBe(false);
+  });
+
+  it('rotates normalized to [0,360)', () => {
+    rotateEntity(state, 'e1', 90);
+    expect(state.entities.e1.rotation).toBe(90);
+    rotateEntity(state, 'e1', 360);
+    expect(state.entities.e1.rotation).toBe(90);
+    rotateEntity(state, 'e1', -180);
+    expect(state.entities.e1.rotation).toBe(270);
+  });
+
+  it('setRotation normalizes negatives', () => {
+    setRotation(state, 'e1', -45);
+    expect(state.entities.e1.rotation).toBe(315);
+  });
+});
+
+describe('shuffleStack', () => {
+  it('preserves the set of ids and only shuffles stack zones', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).entityIds = ['a', 'b', 'c', 'd', 'e'];
+    const before = [...state.zones.deck.entityIds];
+    shuffleStack(state, 'deck');
+    expect([...state.zones.deck.entityIds].sort()).toEqual([...before].sort());
+  });
+
+  it('is a no-op for non-stack zones', () => {
+    const state = makeState();
+    const before = [...state.zones.tableau.entityIds];
+    shuffleStack(state, 'tableau');
+    expect(state.zones.tableau.entityIds).toEqual(before);
+  });
+});
+
+describe('rotateStack', () => {
+  it('rotates every entity in the stack by the same delta', () => {
+    const state = makeState();
+    state.entities.e3.rotation = 45;
+    state.entities.e4.rotation = 315;
+    rotateStack(state, 'deck', 90);
+    expect(state.entities.e3.rotation).toBe(135);
+    expect(state.entities.e4.rotation).toBe(45);
+  });
+
+  it('is a no-op for non-stack zones', () => {
+    const state = makeState();
+    state.entities.e1.rotation = 0;
+    rotateStack(state, 'tableau', 90);
+    expect(state.entities.e1.rotation).toBe(0);
+  });
+
+  it('swaps the zone width/height on a 90° rotation and keeps the centre', () => {
+    const state = makeState();
+    const deck = state.zones.deck as StackZone;
+    deck.x = 0;
+    deck.y = 700;
+    deck.width = 200;
+    deck.height = 300;
+    deck.defaultSize = { width: 180, height: 260 };
+    const cxBefore = deck.x + deck.width / 2;
+    const cyBefore = deck.y + deck.height / 2;
+
+    rotateStack(state, 'deck', 90);
+
+    expect(deck.width).toBe(300);
+    expect(deck.height).toBe(200);
+    expect(deck.x + deck.width / 2).toBe(cxBefore);
+    expect(deck.y + deck.height / 2).toBe(cyBefore);
+    expect(deck.defaultSize).toEqual({ width: 260, height: 180 });
+  });
+
+  it('preserves width/height on a 180° rotation', () => {
+    const state = makeState();
+    const deck = state.zones.deck as StackZone;
+    deck.width = 200;
+    deck.height = 300;
+    rotateStack(state, 'deck', 180);
+    expect(deck.width).toBe(200);
+    expect(deck.height).toBe(300);
+  });
+});
+
+describe('setStackFaceDown', () => {
+  it('flips all entities in the stack', () => {
+    const state = makeState();
+    setStackFaceDown(state, 'deck', false);
+    expect((state.zones.deck as StackZone).faceDown).toBe(false);
+    expect(state.entities.e3.isFlipped).toBe(false);
+    expect(state.entities.e4.isFlipped).toBe(false);
+  });
+
+  it('reverses the entity order when flipping', () => {
+    const state = makeState();
+    // deck starts as ['e3', 'e4'] (e4 on top)
+    setStackFaceDown(state, 'deck', false);
+    expect(state.zones.deck.entityIds).toEqual(['e4', 'e3']);
+  });
+});
+
+describe('flipZoneEntities', () => {
+  it('toggles isFlipped on every entity in the zone', () => {
+    const state = makeState();
+    state.entities.e1.isFlipped = false;
+    state.entities.e2.isFlipped = true;
+    flipZoneEntities(state, 'tableau');
+    expect(state.entities.e1.isFlipped).toBe(true);
+    expect(state.entities.e2.isFlipped).toBe(false);
+  });
+
+  it('does not reverse entity order (unlike setStackFaceDown)', () => {
+    const state = makeState();
+    const before = [...state.zones.tableau.entityIds];
+    flipZoneEntities(state, 'tableau');
+    expect(state.zones.tableau.entityIds).toEqual(before);
+  });
+});
+
+describe('rotateZoneEntities', () => {
+  it('rotates every entity in the zone by the same delta', () => {
+    const state = makeState();
+    state.entities.e1.rotation = 45;
+    state.entities.e2.rotation = 315;
+    rotateZoneEntities(state, 'tableau', 90);
+    expect(state.entities.e1.rotation).toBe(135);
+    expect(state.entities.e2.rotation).toBe(45);
+  });
+
+  it('does not modify zone width/height (unlike rotateStack)', () => {
+    const state = makeState();
+    const beforeW = state.zones.tableau.width;
+    const beforeH = state.zones.tableau.height;
+    rotateZoneEntities(state, 'tableau', 90);
+    expect(state.zones.tableau.width).toBe(beforeW);
+    expect(state.zones.tableau.height).toBe(beforeH);
+  });
+});
+
+describe('shuffleZoneEntities', () => {
+  it('preserves the set of ids', () => {
+    const state = makeState();
+    (state.zones.tableau as FreeformZone).entityIds = ['a', 'b', 'c', 'd', 'e'];
+    const before = [...state.zones.tableau.entityIds];
+    shuffleZoneEntities(state, 'tableau');
+    expect([...state.zones.tableau.entityIds].sort()).toEqual([...before].sort());
+  });
+
+  it('re-lays out spread entities after shuffle', () => {
+    const state = makeState();
+    const spread: SpreadZone = {
+      id: 'spread1',
+      name: 'Spread',
+      type: 'spread',
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 200,
+      direction: 'row',
+      overlap: 20,
+      defaultSize: { width: 100, height: 150 },
+      entityIds: ['s1', 's2', 's3'],
+      locked: false
+    };
+    state.zones.spread1 = spread;
+    state.zoneOrder.push('spread1');
+    state.entities.s1 = makeEntity({ instanceId: 's1', zoneId: 'spread1' });
+    state.entities.s2 = makeEntity({ instanceId: 's2', zoneId: 'spread1' });
+    state.entities.s3 = makeEntity({ instanceId: 's3', zoneId: 'spread1' });
+
+    shuffleZoneEntities(state, 'spread1');
+
+    // Whatever the new order is, positions are contiguous along the row axis.
+    const step = 100 - 20; // size.width - overlap = 80
+    for (let i = 0; i < spread.entityIds.length; i++) {
+      const id = spread.entityIds[i];
+      expect(state.entities[id].x).toBe(i * step);
+    }
+  });
+});
+
+describe('isStackable', () => {
+  function makeTemplate(type: EntityTemplate['type']): EntityTemplate {
+    return {
+      id: 't',
+      name: 'T',
+      type,
+      widthPx: 100,
+      heightPx: 100,
+      widthMm: 50,
+      heightMm: 50,
+      isEditable: false,
+      instances: [null]
+    };
+  }
+
+  it('returns true for Card', () => {
+    expect(isStackable(makeTemplate('Card'))).toBe(true);
+  });
+
+  it('returns false for GameBoard', () => {
+    expect(isStackable(makeTemplate('GameBoard'))).toBe(false);
+  });
+
+  it('returns false for PlayerMat', () => {
+    expect(isStackable(makeTemplate('PlayerMat'))).toBe(false);
+  });
+
+  it('returns false for Dice', () => {
+    expect(isStackable(makeTemplate('Dice'))).toBe(false);
+  });
+});
+
+describe('mergeEntitiesIntoStack', () => {
+  function makeTemplate(): EntityTemplate {
+    return {
+      id: 'tpl',
+      name: 'Card',
+      type: 'Card',
+      widthPx: 126,
+      heightPx: 176,
+      widthMm: 63,
+      heightMm: 88,
+      isEditable: true,
+      instances: [null]
+    };
+  }
+
+  it('creates a stack zone at the target entity position', () => {
+    const state = makeState();
+    const templates: Record<string, EntityTemplate> = { t: makeTemplate() };
+    state.entities.e1.templateId = 't';
+    state.entities.e2.templateId = 't';
+    state.entities.e1.x = 50;
+    state.entities.e1.y = 100;
+
+    const zoneId = mergeEntitiesIntoStack(state, templates, 'e2', 'e1');
+    expect(zoneId).not.toBeNull();
+    const zone = state.zones[zoneId!] as StackZone;
+    expect(zone.type).toBe('stack');
+    expect(zone.entityIds).toEqual(['e1', 'e2']);
+  });
+
+  it('uses swapped dimensions when target is rotated 90°', () => {
+    const state = makeState();
+    const templates: Record<string, EntityTemplate> = { t: makeTemplate() };
+    state.entities.e1.templateId = 't';
+    state.entities.e2.templateId = 't';
+    state.entities.e1.rotation = 90;
+
+    const zoneId = mergeEntitiesIntoStack(state, templates, 'e2', 'e1');
+    const zone = state.zones[zoneId!] as StackZone;
+    // Template is 126×176 px; rotated 90° → zone should be 176×126
+    expect(zone.width).toBe(176);
+    expect(zone.height).toBe(126);
+    expect(zone.defaultSize).toEqual({ width: 176, height: 126 });
+  });
+
+  it('uses normal dimensions when target is rotated 180°', () => {
+    const state = makeState();
+    const templates: Record<string, EntityTemplate> = { t: makeTemplate() };
+    state.entities.e1.templateId = 't';
+    state.entities.e2.templateId = 't';
+    state.entities.e1.rotation = 180;
+
+    const zoneId = mergeEntitiesIntoStack(state, templates, 'e2', 'e1');
+    const zone = state.zones[zoneId!] as StackZone;
+    expect(zone.width).toBe(126);
+    expect(zone.height).toBe(176);
+  });
+
+  it('returns null for non-stackable template types', () => {
+    const state = makeState();
+    const nonStackableTemplate: EntityTemplate = {
+      id: 't',
+      name: 'Board',
+      type: 'GameBoard',
+      widthPx: 300,
+      heightPx: 300,
+      widthMm: 150,
+      heightMm: 150,
+      isEditable: true,
+      instances: [null]
+    };
+    const templates: Record<string, EntityTemplate> = { t: nonStackableTemplate };
+    state.entities.e1.templateId = 't';
+    state.entities.e2.templateId = 't';
+
+    expect(mergeEntitiesIntoStack(state, templates, 'e2', 'e1')).toBeNull();
+    expect(Object.keys(state.zones)).toHaveLength(3); // no new stack created
+  });
+});
+
+describe('mergeStackOntoStack', () => {
+  function makeStateWithTwoStacks(): TabletopState {
+    const state = makeState();
+    const stack2: StackZone = {
+      id: 'stack2',
+      name: 'Stack 2',
+      type: 'stack',
+      x: 400,
+      y: 700,
+      width: 126,
+      height: 176,
+      faceDown: false,
+      persistent: false,
+      defaultSize: { width: 126, height: 176 },
+      entityIds: ['e5', 'e6'],
+      locked: false
+    };
+    (state.zones.deck as StackZone).defaultSize = { width: 126, height: 176 };
+    state.zones.stack2 = stack2;
+    state.zoneOrder.push('stack2');
+    state.entities.e5 = makeEntity({ instanceId: 'e5', zoneId: 'stack2' });
+    state.entities.e6 = makeEntity({ instanceId: 'e6', zoneId: 'stack2' });
+    return state;
+  }
+
+  it('moves all entities from dragged stack onto top of target stack', () => {
+    const state = makeStateWithTwoStacks();
+    const result = mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(result).toBe(true);
+    expect(state.zones.deck.entityIds).toEqual(['e3', 'e4', 'e5', 'e6']);
+    expect(state.entities.e5.zoneId).toBe('deck');
+    expect(state.entities.e6.zoneId).toBe('deck');
+  });
+
+  it('removes the dragged zone from state', () => {
+    const state = makeStateWithTwoStacks();
+    mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(state.zones.stack2).toBeUndefined();
+    expect(state.zoneOrder).not.toContain('stack2');
+  });
+
+  it('returns false when defaultSizes do not match', () => {
+    const state = makeStateWithTwoStacks();
+    (state.zones.stack2 as StackZone).defaultSize = { width: 200, height: 300 };
+    const result = mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(result).toBe(false);
+    expect(state.zones.stack2).toBeDefined();
+  });
+
+  it('returns false for same zone', () => {
+    const state = makeStateWithTwoStacks();
+    expect(mergeStackOntoStack(state, 'deck', 'deck')).toBe(false);
+  });
+
+  it('returns false when either zone is not a stack', () => {
+    const state = makeStateWithTwoStacks();
+    expect(mergeStackOntoStack(state, 'deck', 'tableau')).toBe(false);
+  });
+
+  it('aligns dragged entities to the target stack rotation', () => {
+    const state = makeStateWithTwoStacks();
+    state.entities.e3.rotation = 90;
+    state.entities.e4.rotation = 90;
+    state.entities.e5.rotation = 0;
+    state.entities.e6.rotation = 0;
+    mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(state.entities.e5.rotation).toBe(90);
+    expect(state.entities.e6.rotation).toBe(90);
+  });
+
+  it('clears selectedZoneId if the dragged zone was selected', () => {
+    const state = makeStateWithTwoStacks();
+    state.selectedZoneId = 'stack2';
+    mergeStackOntoStack(state, 'stack2', 'deck');
+    expect(state.selectedZoneId).toBeNull();
+  });
+});
+
+describe('reorderInZone', () => {
+  it('moves an entity to a new index within its zone', () => {
+    const state = makeState();
+    state.zones.tableau.entityIds = ['a', 'b', 'c', 'd'];
+    state.entities.a = makeEntity({ instanceId: 'a', zoneId: 'tableau' });
+    state.entities.b = makeEntity({ instanceId: 'b', zoneId: 'tableau' });
+    state.entities.c = makeEntity({ instanceId: 'c', zoneId: 'tableau' });
+    state.entities.d = makeEntity({ instanceId: 'd', zoneId: 'tableau' });
+
+    reorderInZone(state, 'a', 3);
+    expect(state.zones.tableau.entityIds).toEqual(['b', 'c', 'd', 'a']);
+  });
+});
+
+describe('spawnFromTemplate', () => {
+  function makeTemplate(instances: EntityTemplate['instances']): EntityTemplate {
+    return {
+      id: 'tpl',
+      name: 'Card',
+      type: 'Card',
+      widthPx: 200,
+      heightPx: 300,
+      widthMm: 63,
+      heightMm: 88,
+      isEditable: true,
+      instances
+    };
+  }
+
+  it('spawns a single entity with null mergeData for non-data-source templates', () => {
+    const state = makeState();
+    const template = makeTemplate([null]);
+    const ids = spawnFromTemplate(state, template, 'tableau', 50, 60);
+    expect(ids).toHaveLength(1);
+    const entity = state.entities[ids[0]];
+    expect(entity.mergeData).toBeNull();
+    expect(entity.x).toBe(50);
+    expect(entity.y).toBe(60);
+    expect(state.zones.tableau.entityIds).toContain(ids[0]);
+  });
+
+  it('spawns one entity per row, each carrying its row data', () => {
+    const state = makeState();
+    const template = makeTemplate([{ Name: 'Alice' }, { Name: 'Bob' }, { Name: 'Cara' }]);
+    const ids = spawnFromTemplate(state, template, 'tableau', 10, 20);
+    expect(ids).toHaveLength(3);
+    expect(state.entities[ids[0]].mergeData).toEqual({ Name: 'Alice' });
+    expect(state.entities[ids[1]].mergeData).toEqual({ Name: 'Bob' });
+    expect(state.entities[ids[2]].mergeData).toEqual({ Name: 'Cara' });
+  });
+
+  it('piles spawned entities into a stack zone', () => {
+    const state = makeState();
+    const template = makeTemplate([{ Name: 'a' }, { Name: 'b' }]);
+    const ids = spawnFromTemplate(state, template, 'deck', 0, 0);
+    expect(state.zones.deck.entityIds.slice(-2)).toEqual(ids);
+    // Stack is face-down → new entities adopt the stack face.
+    expect(state.entities[ids[0]].isFlipped).toBe(true);
+  });
+});
+
+describe('spawnStackZoneFromTemplate', () => {
+  function makeTemplate(instances: EntityTemplate['instances']): EntityTemplate {
+    return {
+      id: 'tpl',
+      name: 'Heroes',
+      type: 'Card',
+      widthPx: 200,
+      heightPx: 300,
+      widthMm: 63,
+      heightMm: 88,
+      isEditable: true,
+      instances
+    };
+  }
+
+  it('creates a new face-down stack zone centered on the drop point', () => {
+    const state = makeState();
+    const template = makeTemplate([{ Name: 'a' }, { Name: 'b' }, { Name: 'c' }]);
+    const displayW = 126;
+    const displayH = 176;
+
+    const { zoneId, instanceIds } = spawnStackZoneFromTemplate(
+      state,
+      template,
+      500,
+      400,
+      displayW,
+      displayH
+    );
+
+    const zone = state.zones[zoneId] as StackZone;
+    expect(zone).toBeDefined();
+    expect(zone.type).toBe('stack');
+    expect(zone.name).toBe('Heroes');
+    // Centered on (500, 400) with default 20px padding on each side.
+    expect(zone.width).toBe(displayW + STACK_ZONE_PADDING * 2);
+    expect(zone.height).toBe(displayH + STACK_ZONE_PADDING * 2);
+    expect(zone.x).toBe(500 - zone.width / 2);
+    expect(zone.y).toBe(400 - zone.height / 2);
+    expect(state.zoneOrder).toContain(zoneId);
+    expect(zone.entityIds).toEqual(instanceIds);
+    expect(instanceIds).toHaveLength(3);
+    expect(state.entities[instanceIds[0]].mergeData).toEqual({ Name: 'a' });
+    expect(state.entities[instanceIds[0]].isFlipped).toBe(true);
+    // New stack zones default to non-persistent with the dropped component's
+    // display size cached as defaultSize.
+    expect(zone.persistent).toBe(false);
+    expect(zone.defaultSize).toEqual({ width: displayW, height: displayH });
+  });
+});
+
+describe('resizeStackZoneToContents', () => {
+  function makeTemplateWithSize(id: string, widthMm: number, heightMm: number): EntityTemplate {
+    return {
+      id,
+      name: id,
+      type: 'Card',
+      widthPx: widthMm * 2,
+      heightPx: heightMm * 2,
+      widthMm,
+      heightMm,
+      isEditable: true,
+      instances: [null]
+    };
+  }
+
+  it('is a no-op for non-stack zones', () => {
+    const state = makeState();
+    const templates: Record<string, EntityTemplate> = {
+      t: makeTemplateWithSize('t', 63, 88)
+    };
+    const before = { ...state.zones.tableau };
+    resizeStackZoneToContents(state, 'tableau', templates);
+    expect(state.zones.tableau.width).toBe(before.width);
+    expect(state.zones.tableau.height).toBe(before.height);
+  });
+
+  it('is a no-op for empty stacks', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).entityIds = [];
+    const templates: Record<string, EntityTemplate> = {
+      t: makeTemplateWithSize('t', 63, 88)
+    };
+    const before = { width: state.zones.deck.width, height: state.zones.deck.height };
+    resizeStackZoneToContents(state, 'deck', templates);
+    expect(state.zones.deck.width).toBe(before.width);
+    expect(state.zones.deck.height).toBe(before.height);
+  });
+
+  it('sizes the zone to the largest entity plus padding', () => {
+    const state = makeState();
+    const smallTemplate = makeTemplateWithSize('small', 40, 60); // 80px × 120px display
+    const largeTemplate = makeTemplateWithSize('large', 63, 88); // 126px × 176px display
+    state.entities.e3.templateId = 'small';
+    state.entities.e4.templateId = 'large';
+    const templates = { small: smallTemplate, large: largeTemplate };
+
+    resizeStackZoneToContents(state, 'deck', templates);
+
+    const zone = state.zones.deck as StackZone;
+    expect(zone.width).toBe(126 + STACK_ZONE_PADDING * 2);
+    expect(zone.height).toBe(176 + STACK_ZONE_PADDING * 2);
+    expect(zone.defaultSize).toEqual({ width: 126, height: 176 });
+  });
+
+  it('preserves the zone centre when resizing', () => {
+    const state = makeState();
+    const deck = state.zones.deck as StackZone;
+    deck.x = 100;
+    deck.y = 200;
+    deck.width = 80;
+    deck.height = 120;
+    const cxBefore = deck.x + deck.width / 2; // 140
+    const cyBefore = deck.y + deck.height / 2; // 260
+
+    const largeTemplate = makeTemplateWithSize('large', 63, 88);
+    state.entities.e3.templateId = 'large';
+    state.entities.e4.templateId = 'large';
+    const templates = { large: largeTemplate };
+
+    resizeStackZoneToContents(state, 'deck', templates);
+
+    expect(deck.x + deck.width / 2).toBeCloseTo(cxBefore);
+    expect(deck.y + deck.height / 2).toBeCloseTo(cyBefore);
+  });
+
+  it('is a no-op when the zone is already the correct size', () => {
+    const state = makeState();
+    const template = makeTemplateWithSize('t', 63, 88); // 126×176 display
+    state.entities.e3.templateId = 't';
+    state.entities.e4.templateId = 't';
+    const deck = state.zones.deck as StackZone;
+    deck.width = 126 + STACK_ZONE_PADDING * 2;
+    deck.height = 176 + STACK_ZONE_PADDING * 2;
+    deck.x = 10;
+    deck.y = 20;
+    const templates = { t: template };
+
+    resizeStackZoneToContents(state, 'deck', templates);
+
+    expect(deck.x).toBe(10);
+    expect(deck.y).toBe(20);
+  });
+
+  it('accounts for entity rotation when computing dimensions', () => {
+    const state = makeState();
+    const template = makeTemplateWithSize('t', 63, 88); // portrait: 126×176 display
+    state.entities.e3.templateId = 't';
+    state.entities.e4.templateId = 't';
+    state.entities.e3.rotation = 90;
+    state.entities.e4.rotation = 90;
+    const templates = { t: template };
+
+    resizeStackZoneToContents(state, 'deck', templates);
+
+    const zone = state.zones.deck as StackZone;
+    // Rotated 90°: 126w×176h → 176w×126h
+    expect(zone.width).toBe(176 + STACK_ZONE_PADDING * 2);
+    expect(zone.height).toBe(126 + STACK_ZONE_PADDING * 2);
+    expect(zone.defaultSize).toEqual({ width: 176, height: 126 });
+  });
+});
+
+describe('auto-dissolve of non-persistent stacks', () => {
+  it('promotes the last entity to a freeform zone and removes the stack', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = false;
+    (state.zones.deck as StackZone).defaultSize = { width: 120, height: 180 };
+
+    // 2 → 1: moving e4 out triggers dissolve of the deck.
+    moveEntityToZone(state, 'e4', 'tableau', { x: 0, y: 0 });
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.zoneOrder).not.toContain('deck');
+    // e3 (the last remaining) should now live in the tableau.
+    expect(state.entities.e3.zoneId).toBe('tableau');
+    expect(state.zones.tableau.entityIds).toContain('e3');
+  });
+
+  it('leaves persistent stacks alone', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = true;
+
+    moveEntityToZone(state, 'e4', 'tableau', { x: 0, y: 0 });
+
+    expect(state.zones.deck).toBeDefined();
+    expect(state.zones.deck.entityIds).toEqual(['e3']);
+    expect(state.entities.e3.zoneId).toBe('deck');
+  });
+
+  it('dissolves after drawFromStack drops the stack to one card', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = false;
+
+    drawFromStack(state, 'deck', 'tableau', 10, 20);
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.entities.e3.zoneId).toBe('tableau');
+  });
+
+  it('dissolves after removeEntity drops the stack to one card', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = false;
+
+    removeEntity(state, 'e4');
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.entities.e4).toBeUndefined();
+    expect(state.entities.e3.zoneId).toBe('tableau');
+  });
+
+  it('removes the zone entirely when dissolved from zero entities', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).persistent = false;
+    (state.zones.deck as StackZone).entityIds = [];
+    delete state.entities.e3;
+    delete state.entities.e4;
+
+    // Toggling to non-persistent re-checks the condition.
+    setStackPersistent(state, 'deck', false);
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.zoneOrder).not.toContain('deck');
+  });
+});
+
+describe('setStackPersistent', () => {
+  it('toggles the flag without dissolving a well-stocked stack', () => {
+    const state = makeState();
+    setStackPersistent(state, 'deck', false);
+    expect((state.zones.deck as StackZone).persistent).toBe(false);
+    // 2 entities → no dissolve.
+    expect(state.zones.deck.entityIds).toEqual(['e3', 'e4']);
+  });
+
+  it('dissolves immediately when flipped to non-persistent with one entity', () => {
+    const state = makeState();
+    (state.zones.deck as StackZone).entityIds = ['e3'];
+
+    setStackPersistent(state, 'deck', false);
+
+    expect(state.zones.deck).toBeUndefined();
+    expect(state.entities.e3.zoneId).toBe('tableau');
+  });
+});
+
+describe('findZoneAtPoint', () => {
+  let state: TabletopState;
+  beforeEach(() => {
+    state = makeState();
+  });
+
+  it('finds the zone containing a point', () => {
+    expect(findZoneAtPoint(state, 100, 100)?.id).toBe('tableau');
+    expect(findZoneAtPoint(state, 1050, 40)?.id).toBe('grid');
+    expect(findZoneAtPoint(state, 50, 800)?.id).toBe('deck');
+  });
+
+  it('returns null when no zone contains the point', () => {
+    expect(findZoneAtPoint(state, 900, 900)).toBeNull();
+  });
+
+  it('returns the top-most zone when zones overlap', () => {
+    // Make grid overlap tableau and put grid on top
+    state.zones.grid.x = 0;
+    state.zones.grid.y = 0;
+    expect(findZoneAtPoint(state, 50, 50)?.id).toBe('grid');
+  });
+});
+
+describe('spread zones', () => {
+  function cardTemplate(): EntityTemplate {
+    return {
+      id: 'tpl',
+      name: 'Card',
+      type: 'Card',
+      widthPx: 126,
+      heightPx: 176,
+      widthMm: 63,
+      heightMm: 88,
+      isEditable: true,
+      instances: [null]
+    };
+  }
+
+  function addSpread(state: TabletopState, overrides: Partial<SpreadZone> = {}): SpreadZone {
+    const zone: SpreadZone = {
+      id: 'hand',
+      name: 'Hand',
+      type: 'spread',
+      x: 0,
+      y: 0,
+      width: 500,
+      height: 200,
+      direction: 'row',
+      overlap: 40,
+      defaultSize: { width: 126, height: 176 },
+      entityIds: [],
+      locked: false,
+      ...overrides
+    };
+    state.zones[zone.id] = zone;
+    state.zoneOrder.push(zone.id);
+    return zone;
+  }
+
+  describe('layoutSpread', () => {
+    it('lays row entities flush left, stepping by (width - overlap), centered vertically', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      state.entities.c = makeEntity({ instanceId: 'c', zoneId: spread.id });
+      spread.entityIds = ['a', 'b', 'c'];
+
+      layoutSpread(state, spread.id);
+
+      // step = 126 - 40 = 86
+      expect(state.entities.a.x).toBe(0);
+      expect(state.entities.b.x).toBe(86);
+      expect(state.entities.c.x).toBe(172);
+      // crossAxis = (200 - 176) / 2 = 12
+      expect(state.entities.a.y).toBe(12);
+      expect(state.entities.b.y).toBe(12);
+    });
+
+    it('lays column entities flush top with primary-axis step on y', () => {
+      const state = makeState();
+      const spread = addSpread(state, { direction: 'column', width: 200, height: 500 });
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+
+      layoutSpread(state, spread.id);
+
+      // step = 176 - 40 = 136
+      expect(state.entities.a.y).toBe(0);
+      expect(state.entities.b.y).toBe(136);
+      // crossAxis = (200 - 126) / 2 = 37
+      expect(state.entities.a.x).toBe(37);
+      expect(state.entities.b.x).toBe(37);
+    });
+
+    it('is a no-op when the zone has no defaultSize', () => {
+      const state = makeState();
+      const spread = addSpread(state, { defaultSize: undefined });
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id, x: 42, y: 99 });
+      spread.entityIds = ['a'];
+
+      layoutSpread(state, spread.id);
+
+      expect(state.entities.a.x).toBe(42);
+      expect(state.entities.a.y).toBe(99);
+    });
+  });
+
+  describe('computeSpreadInsertIndex', () => {
+    it('returns 0 for pointer left of the first card midpoint', () => {
+      const spread: SpreadZone = {
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 200,
+        direction: 'row',
+        overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b', 'c'],
+        locked: false
+      };
+      expect(computeSpreadInsertIndex(spread, 0, 100)).toBe(0);
+    });
+
+    it('returns N (end) when pointer is past all cards', () => {
+      const spread: SpreadZone = {
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 200,
+        direction: 'row',
+        overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b', 'c'],
+        locked: false
+      };
+      expect(computeSpreadInsertIndex(spread, 10_000, 100)).toBe(3);
+    });
+
+    it('returns an intermediate index when pointer is between cards', () => {
+      // step = 86, card midpoints at 63, 149, 235
+      const spread: SpreadZone = {
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 200,
+        direction: 'row',
+        overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b', 'c'],
+        locked: false
+      };
+      expect(computeSpreadInsertIndex(spread, 100, 100)).toBe(1);
+      expect(computeSpreadInsertIndex(spread, 200, 100)).toBe(2);
+    });
+
+    it('honours excludeId for same-zone reorder computations', () => {
+      const spread: SpreadZone = {
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 200,
+        direction: 'row',
+        overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b', 'c'],
+        locked: false
+      };
+      // Excluding one card makes the effective length 2, so max index is 2.
+      expect(computeSpreadInsertIndex(spread, 10_000, 100, 'b')).toBe(2);
+    });
+
+    it('uses the y axis when direction is column', () => {
+      const spread: SpreadZone = {
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 500,
+        direction: 'column',
+        overlap: 40,
+        defaultSize: { width: 126, height: 176 },
+        entityIds: ['a', 'b'],
+        locked: false
+      };
+      // step = 176 - 40 = 136, midpoints at 88, 224
+      expect(computeSpreadInsertIndex(spread, 100, 0)).toBe(0);
+      expect(computeSpreadInsertIndex(spread, 100, 100)).toBe(1);
+      expect(computeSpreadInsertIndex(spread, 100, 10_000)).toBe(2);
+    });
+  });
+
+  describe('spawnEntity into spread', () => {
+    it('appends at end by default (command default)', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      const template = cardTemplate();
+
+      const firstId = spawnEntity(state, template, spread.id, 0, 0);
+      const secondId = spawnEntity(state, template, spread.id, 0, 0);
+
+      expect(spread.entityIds).toEqual([firstId, secondId]);
+      // Layout placed them by index.
+      expect(state.entities[firstId].x).toBe(0);
+      expect(state.entities[secondId].x).toBe(86);
+    });
+
+    it('inserts at the given index when specified', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      const template = cardTemplate();
+
+      const a = spawnEntity(state, template, spread.id, 0, 0);
+      const b = spawnEntity(state, template, spread.id, 0, 0);
+      const c = spawnEntity(state, template, spread.id, 0, 0, null, 1);
+
+      expect(spread.entityIds).toEqual([a, c, b]);
+    });
+
+    it('sets defaultSize from the template when spread is empty', () => {
+      const state = makeState();
+      const spread = addSpread(state, { defaultSize: undefined });
+      const template = cardTemplate();
+
+      spawnEntity(state, template, spread.id, 0, 0);
+
+      // getTemplateDisplaySize uses mm * TABLETOP_PX_PER_MM (=2) → 63*2 = 126
+      expect(spread.defaultSize).toEqual({ width: 126, height: 176 });
+    });
+  });
+
+  describe('moveEntityToZone with spread', () => {
+    it('inserts at end by default (command default)', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+
+      // Move e1 out of the tableau into the spread with no insertIndex.
+      moveEntityToZone(state, 'e1', spread.id);
+
+      expect(spread.entityIds).toEqual(['a', 'b', 'e1']);
+      expect(state.entities.e1.zoneId).toBe(spread.id);
+      // Layout ran — e1 at index 2 means x=172
+      expect(state.entities.e1.x).toBe(172);
+    });
+
+    it('inserts at the given insertIndex', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+
+      moveEntityToZone(state, 'e1', spread.id, { insertIndex: 1 });
+
+      expect(spread.entityIds).toEqual(['a', 'e1', 'b']);
+      // After layout, e1 is at index 1 → x = 86
+      expect(state.entities.e1.x).toBe(86);
+      // b shifted to index 2 → x = 172
+      expect(state.entities.b.x).toBe(172);
+    });
+
+    it('re-lays out the source spread after removal', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      state.entities.c = makeEntity({ instanceId: 'c', zoneId: spread.id });
+      spread.entityIds = ['a', 'b', 'c'];
+      layoutSpread(state, spread.id);
+
+      moveEntityToZone(state, 'b', 'tableau', { x: 0, y: 0 });
+
+      expect(spread.entityIds).toEqual(['a', 'c']);
+      // a remained at 0; c closed the gap and is now at index 1 → x = 86
+      expect(state.entities.c.x).toBe(86);
+    });
+  });
+
+  describe('setSpreadDirection / setSpreadOverlap', () => {
+    it('re-lays out after direction change', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+      layoutSpread(state, spread.id);
+
+      setSpreadDirection(state, spread.id, 'column');
+
+      // step = 176 - 40 = 136
+      expect(state.entities.a.y).toBe(0);
+      expect(state.entities.b.y).toBe(136);
+      // crossAxis = (500 - 126)/2 is computed from current width (500 row zone
+      // kept same dims), but let's just check that x is consistent.
+      expect(state.entities.a.x).toBe(state.entities.b.x);
+    });
+
+    it('re-lays out after overlap change', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      spread.entityIds = ['a', 'b'];
+      layoutSpread(state, spread.id);
+      expect(state.entities.b.x).toBe(86);
+
+      setSpreadOverlap(state, spread.id, 0);
+
+      // step = 126 - 0 = 126
+      expect(state.entities.b.x).toBe(126);
+    });
+  });
+
+  describe('createSpreadZone', () => {
+    it('adds a spread zone to state with editing mode set', () => {
+      const state = makeState();
+      const id = createSpreadZone(state, 100, 200, 500, 200, 'row', 50, 'Hand');
+      const zone = state.zones[id] as SpreadZone;
+      expect(zone.type).toBe('spread');
+      expect(zone.direction).toBe('row');
+      expect(zone.overlap).toBe(50);
+      expect(zone.name).toBe('Hand');
+      expect(state.editingZoneId).toBe(id);
+      expect(state.selectedZoneId).toBe(id);
+    });
+  });
+
+  describe('removeEntity from spread', () => {
+    it('re-lays out the spread after removal', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      state.entities.c = makeEntity({ instanceId: 'c', zoneId: spread.id });
+      spread.entityIds = ['a', 'b', 'c'];
+      layoutSpread(state, spread.id);
+
+      removeEntity(state, 'a');
+
+      expect(spread.entityIds).toEqual(['b', 'c']);
+      // After removal, b is at index 0 → x = 0, c at index 1 → x = 86
+      expect(state.entities.b.x).toBe(0);
+      expect(state.entities.c.x).toBe(86);
+    });
+  });
+
+  describe('reorderInZone in spread', () => {
+    it('re-lays out after reorder', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      state.entities.a = makeEntity({ instanceId: 'a', zoneId: spread.id });
+      state.entities.b = makeEntity({ instanceId: 'b', zoneId: spread.id });
+      state.entities.c = makeEntity({ instanceId: 'c', zoneId: spread.id });
+      spread.entityIds = ['a', 'b', 'c'];
+      layoutSpread(state, spread.id);
+
+      reorderInZone(state, 'a', 2);
+
+      expect(spread.entityIds).toEqual(['b', 'c', 'a']);
+      // b at 0 → 0, c at 1 → 86, a at 2 → 172
+      expect(state.entities.b.x).toBe(0);
+      expect(state.entities.c.x).toBe(86);
+      expect(state.entities.a.x).toBe(172);
+    });
+  });
+
+  describe('changeZoneType from group', () => {
+    it('zeroes entity rotations when converting a group zone to any other type', () => {
+      const state = makeState();
+      // Put e1 and e2 in the grid with non-zero rotation (as if they arrived from a group).
+      state.entities.e1.zoneId = 'group';
+      state.entities.e2.zoneId = 'group';
+      state.entities.e1.rotation = 10;
+      state.entities.e2.rotation = 350;
+      state.zones.group.entityIds = ['e1', 'e2'];
+      state.zones.tableau.entityIds = [];
+
+      changeZoneType(state, 'group', 'freeform');
+
+      expect(state.entities.e1.rotation).toBe(0);
+      expect(state.entities.e2.rotation).toBe(0);
+    });
+  });
+
+  describe('spawnFromTemplate with insertIndex into spread', () => {
+    it('appends by default and inserts at index when specified', () => {
+      const state = makeState();
+      const spread = addSpread(state);
+      const template: EntityTemplate = {
+        ...cardTemplate(),
+        instances: [{ Name: 'a' }, { Name: 'b' }]
+      };
+
+      const firstIds = spawnFromTemplate(state, template, spread.id, 0, 0);
+      expect(spread.entityIds).toEqual(firstIds);
+
+      const secondIds = spawnFromTemplate(state, template, spread.id, 0, 0, undefined, 1);
+      // First batch laid [a0, b0]; second batch of [a1, b1] starting at index 1
+      // produces [a0, a1, b1, b0].
+      expect(spread.entityIds).toEqual([firstIds[0], secondIds[0], secondIds[1], firstIds[1]]);
+    });
+  });
+});
+

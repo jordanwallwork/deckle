@@ -1,6 +1,7 @@
 <script lang="ts">
   import { authApi, ApiError } from '$lib/api';
   import { config } from '$lib/config';
+  import { page } from '$app/state';
 
   type Mode = 'login' | 'register';
 
@@ -11,8 +12,15 @@
   let isSubmitting = $state(false);
   let error = $state<string | null>(null);
 
+  function getReturnUrl(): string {
+    const raw = page.url.searchParams.get('returnUrl') ?? '';
+    return raw.startsWith('/') && !raw.startsWith('//') ? raw : '/projects';
+  }
+
   function handleGoogleSignIn(): void {
-    window.location.href = `${config.apiUrl}/auth/login`;
+    const returnUrl = page.url.searchParams.get('returnUrl');
+    const target = returnUrl ? `${config.apiUrl}/auth/login?returnUrl=${encodeURIComponent(returnUrl)}` : `${config.apiUrl}/auth/login`;
+    window.location.href = target;
   }
 
   function switchMode(next: Mode): void {
@@ -48,7 +56,7 @@
       } else {
         await authApi.loginWithPassword({ email: email.trim(), password });
       }
-      window.location.href = '/projects';
+      window.location.href = getReturnUrl();
     } catch (err) {
       if (err instanceof ApiError) {
         error = err.message;

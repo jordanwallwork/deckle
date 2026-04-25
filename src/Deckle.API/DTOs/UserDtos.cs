@@ -36,6 +36,10 @@ public record UpdateProfileRequest(
 
 public record SetUsernameRequest(string Username);
 
+public record RegisterRequest(string Email, string Password);
+
+public record PasswordLoginRequest(string Email, string Password);
+
 public record UsernameAvailabilityResponse(bool Available, string? Error = null);
 
 // Admin User Management DTOs

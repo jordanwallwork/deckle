@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { authApi, ApiError } from '$lib/api';
   import { config } from '$lib/config';
 
@@ -49,7 +48,7 @@
       } else {
         await authApi.loginWithPassword({ email: email.trim(), password });
       }
-      goto('/projects');
+      window.location.href = '/projects';
     } catch (err) {
       if (err instanceof ApiError) {
         error = err.message;

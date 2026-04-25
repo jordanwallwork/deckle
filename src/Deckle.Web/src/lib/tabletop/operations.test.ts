@@ -9,6 +9,7 @@ import type {
   TabletopState
 } from './types';
 import {
+  changeZoneType,
   computeSpreadInsertIndex,
   createSpreadZone,
   drawFromStack,
@@ -108,7 +109,7 @@ function makeState(): TabletopState {
       deck
     },
     zoneOrder: ['tableau', 'grid', 'deck'],
-    selectedEntityId: null,
+    selectedEntityIds: [],
     selectedZoneId: null,
     editingZoneId: null
   };
@@ -420,7 +421,17 @@ describe('shuffleZoneEntities', () => {
 
 describe('isStackable', () => {
   function makeTemplate(type: EntityTemplate['type']): EntityTemplate {
-    return { id: 't', name: 'T', type, widthPx: 100, heightPx: 100, widthMm: 50, heightMm: 50, isEditable: false, instances: [null] };
+    return {
+      id: 't',
+      name: 'T',
+      type,
+      widthPx: 100,
+      heightPx: 100,
+      widthMm: 50,
+      heightMm: 50,
+      isEditable: false,
+      instances: [null]
+    };
   }
 
   it('returns true for Card', () => {
@@ -944,10 +955,7 @@ describe('spread zones', () => {
     };
   }
 
-  function addSpread(
-    state: TabletopState,
-    overrides: Partial<SpreadZone> = {}
-  ): SpreadZone {
+  function addSpread(state: TabletopState, overrides: Partial<SpreadZone> = {}): SpreadZone {
     const zone: SpreadZone = {
       id: 'hand',
       name: 'Hand',
@@ -1021,22 +1029,36 @@ describe('spread zones', () => {
   describe('computeSpreadInsertIndex', () => {
     it('returns 0 for pointer left of the first card midpoint', () => {
       const spread: SpreadZone = {
-        id: 'z', name: 'z', type: 'spread',
-        x: 0, y: 0, width: 500, height: 200,
-        direction: 'row', overlap: 40,
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 200,
+        direction: 'row',
+        overlap: 40,
         defaultSize: { width: 126, height: 176 },
-        entityIds: ['a', 'b', 'c'], locked: false
+        entityIds: ['a', 'b', 'c'],
+        locked: false
       };
       expect(computeSpreadInsertIndex(spread, 0, 100)).toBe(0);
     });
 
     it('returns N (end) when pointer is past all cards', () => {
       const spread: SpreadZone = {
-        id: 'z', name: 'z', type: 'spread',
-        x: 0, y: 0, width: 500, height: 200,
-        direction: 'row', overlap: 40,
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 200,
+        direction: 'row',
+        overlap: 40,
         defaultSize: { width: 126, height: 176 },
-        entityIds: ['a', 'b', 'c'], locked: false
+        entityIds: ['a', 'b', 'c'],
+        locked: false
       };
       expect(computeSpreadInsertIndex(spread, 10_000, 100)).toBe(3);
     });
@@ -1044,11 +1066,18 @@ describe('spread zones', () => {
     it('returns an intermediate index when pointer is between cards', () => {
       // step = 86, card midpoints at 63, 149, 235
       const spread: SpreadZone = {
-        id: 'z', name: 'z', type: 'spread',
-        x: 0, y: 0, width: 500, height: 200,
-        direction: 'row', overlap: 40,
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 200,
+        direction: 'row',
+        overlap: 40,
         defaultSize: { width: 126, height: 176 },
-        entityIds: ['a', 'b', 'c'], locked: false
+        entityIds: ['a', 'b', 'c'],
+        locked: false
       };
       expect(computeSpreadInsertIndex(spread, 100, 100)).toBe(1);
       expect(computeSpreadInsertIndex(spread, 200, 100)).toBe(2);
@@ -1056,11 +1085,18 @@ describe('spread zones', () => {
 
     it('honours excludeId for same-zone reorder computations', () => {
       const spread: SpreadZone = {
-        id: 'z', name: 'z', type: 'spread',
-        x: 0, y: 0, width: 500, height: 200,
-        direction: 'row', overlap: 40,
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 500,
+        height: 200,
+        direction: 'row',
+        overlap: 40,
         defaultSize: { width: 126, height: 176 },
-        entityIds: ['a', 'b', 'c'], locked: false
+        entityIds: ['a', 'b', 'c'],
+        locked: false
       };
       // Excluding one card makes the effective length 2, so max index is 2.
       expect(computeSpreadInsertIndex(spread, 10_000, 100, 'b')).toBe(2);
@@ -1068,11 +1104,18 @@ describe('spread zones', () => {
 
     it('uses the y axis when direction is column', () => {
       const spread: SpreadZone = {
-        id: 'z', name: 'z', type: 'spread',
-        x: 0, y: 0, width: 200, height: 500,
-        direction: 'column', overlap: 40,
+        id: 'z',
+        name: 'z',
+        type: 'spread',
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 500,
+        direction: 'column',
+        overlap: 40,
         defaultSize: { width: 126, height: 176 },
-        entityIds: ['a', 'b'], locked: false
+        entityIds: ['a', 'b'],
+        locked: false
       };
       // step = 176 - 40 = 136, midpoints at 88, 224
       expect(computeSpreadInsertIndex(spread, 100, 0)).toBe(0);
@@ -1258,6 +1301,24 @@ describe('spread zones', () => {
     });
   });
 
+  describe('changeZoneType from group', () => {
+    it('zeroes entity rotations when converting a group zone to any other type', () => {
+      const state = makeState();
+      // Put e1 and e2 in the grid with non-zero rotation (as if they arrived from a group).
+      state.entities.e1.zoneId = 'group';
+      state.entities.e2.zoneId = 'group';
+      state.entities.e1.rotation = 10;
+      state.entities.e2.rotation = 350;
+      state.zones.group.entityIds = ['e1', 'e2'];
+      state.zones.tableau.entityIds = [];
+
+      changeZoneType(state, 'group', 'freeform');
+
+      expect(state.entities.e1.rotation).toBe(0);
+      expect(state.entities.e2.rotation).toBe(0);
+    });
+  });
+
   describe('spawnFromTemplate with insertIndex into spread', () => {
     it('appends by default and inserts at index when specified', () => {
       const state = makeState();
@@ -1277,3 +1338,4 @@ describe('spread zones', () => {
     });
   });
 });
+

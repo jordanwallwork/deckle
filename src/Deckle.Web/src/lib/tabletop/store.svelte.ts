@@ -252,9 +252,109 @@ export function createTabletopStore(
   }
 
   // Selection is ephemeral — no history needed. Edit mode is UI state too.
-  const selectEntity = withoutHistory(ops.selectEntity);
+  const selectSingleEntity = withoutHistory(ops.selectSingleEntity);
+  const setSelectedEntities = withoutHistory(ops.setSelectedEntities);
+  const addEntityToSelection = withoutHistory(ops.addEntityToSelection);
+  const removeEntityFromSelection = withoutHistory(ops.removeEntityFromSelection);
+  const toggleEntitySelection = withoutHistory(ops.toggleEntitySelection);
   const selectZone = withoutHistory(ops.selectZone);
   const setEditingZone = withoutHistory(ops.setEditingZone);
+
+  function selectAllEntitiesInZone(zoneId: string): void {
+    const zone = store.state.zones[zoneId];
+    if (!zone) return;
+    applyTransient((s) => ops.setSelectedEntities(s, zone.entityIds));
+  }
+
+  /**
+   * Flip every entity in the given list as a single undoable step. Individual
+   * missing entities are skipped.
+   */
+  function flipEntities(ids: readonly string[]): void {
+    if (ids.length === 0) return;
+    apply((s) => {
+      for (const id of ids) {
+        if (s.entities[id]) ops.flipEntity(s, id);
+      }
+    }, `flipEntities(${ids.length})`);
+  }
+
+  /**
+   * Rotate every entity in the given list by the same delta as a single
+   * undoable step. Stack zones containing selected entities are not given
+   * the `rotateStack` treatment here — the caller handles that case separately.
+   */
+  function rotateEntities(ids: readonly string[], delta: number): void {
+    if (ids.length === 0) return;
+    apply((s) => {
+      for (const id of ids) {
+        if (s.entities[id]) ops.rotateEntity(s, id, delta);
+      }
+    }, `rotateEntities(${ids.length}, ${delta})`);
+  }
+
+  /**
+   * Roll every Dice-type entity in the selection. Non-dice entities are
+   * ignored. Single undoable step.
+   */
+  function rollDiceEntities(ids: readonly string[], maxFacesFor: (id: string) => number): void {
+    const diceIds = ids.filter((id) => {
+      const entity = store.state.entities[id];
+      return entity && templates[entity.templateId]?.type === 'Dice';
+    });
+    if (diceIds.length === 0) return;
+    apply((s) => {
+      for (const id of diceIds) {
+        ops.rollDie(s, id, maxFacesFor(id));
+      }
+    }, `rollDiceEntities(${diceIds.length})`);
+  }
+
+  /**
+   * Move every selected entity into `destZoneId` as a single undoable step.
+   * `perEntityPos` maps instanceId → local (x, y) within the destination (used
+   * only when the destination is freeform/grid; ordered zones derive positions
+   * from their layout). Source stack/spread bookkeeping (auto-dissolve, reflow)
+   * is handled per move via `ops.moveEntityToZone`.
+   */
+  function moveSelectionToZone(
+    ids: readonly string[],
+    destZoneId: string,
+    perEntityPos: Record<string, { x: number; y: number }>
+  ): void {
+    if (ids.length === 0) return;
+    const sourceZoneIds = new Set<string>();
+    for (const id of ids) {
+      const entity = store.state.entities[id];
+      if (entity) sourceZoneIds.add(entity.zoneId);
+    }
+    apply((s) => {
+      const destZone = s.zones[destZoneId];
+      if (!destZone) return;
+      for (const id of ids) {
+        const entity = s.entities[id];
+        if (!entity) continue;
+        const template = templates[entity.templateId];
+        if (
+          template &&
+          !ops.isStackable(template) &&
+          destZone.type !== 'freeform' &&
+          destZone.type !== 'group'
+        ) {
+          continue;
+        }
+        const pos = perEntityPos[id];
+        if (destZone.type === 'spread') {
+          ops.ensureSpreadDefaultSize(s, destZoneId, template!);
+        }
+        ops.moveEntityToZone(s, id, destZoneId, pos ? { x: pos.x, y: pos.y } : {});
+      }
+      for (const sourceId of sourceZoneIds) {
+        ops.resizeStackZoneToContents(s, sourceId, templates);
+      }
+      ops.resizeStackZoneToContents(s, destZoneId, templates);
+    }, `moveSelectionToZone(${ids.length} → ${destZoneId})`);
+  }
 
   // changeZoneType needs the templates record so it can seed defaultSize
   // from entities when converting freeform/grid → spread/stack.
@@ -631,7 +731,16 @@ export function createTabletopStore(
     mergeStackOntoStack,
     removeEntity,
     removeAllEntitiesForTemplate,
-    selectEntity,
+    selectSingleEntity,
+    setSelectedEntities,
+    addEntityToSelection,
+    removeEntityFromSelection,
+    toggleEntitySelection,
+    selectAllEntitiesInZone,
+    flipEntities,
+    rotateEntities,
+    rollDiceEntities,
+    moveSelectionToZone,
     selectZone,
 
     get isDraggingOverSidebar() {

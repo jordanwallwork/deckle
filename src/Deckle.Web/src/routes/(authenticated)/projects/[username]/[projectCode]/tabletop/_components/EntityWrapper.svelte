@@ -32,6 +32,15 @@
     // when pointerdown lands on a stack's top card while that stack is
     // already the selected zone.
     zoneDrag: { zoneId: string; zoneStartX: number; zoneStartY: number } | null;
+    /**
+     * Non-null when the pointerdown landed on an entity that's part of a
+     * multi-selection (>= 2 entities). The whole selection moves with the
+     * same world delta and lands in the same destination zone on drop.
+     * Populated (and repopulated post-detach) with each entity's post-detach
+     * start position so per-frame movement can be a simple delta.
+     */
+    multiIds: string[] | null;
+    multiStartPositions: Record<string, { x: number; y: number; zoneId: string }>;
   }
 
   let activeDrag: ActiveDrag | null = null;
@@ -65,7 +74,7 @@
 
   const store = getTabletopApi();
   const template = $derived(store.templates[entity.templateId]);
-  const isSelected = $derived(store.state.selectedEntityId === entity.instanceId);
+  const isSelected = $derived(store.state.selectedEntityIds.includes(entity.instanceId));
 
   // Canvas geometry context — provided by <Tabletop>. Reading through a
   // getter keeps the values reactive without prop drilling.
@@ -110,16 +119,30 @@
       const currentZone = store.state.zones[entity.zoneId];
       if (currentZone?.type === 'stack' || store.state.selectedZoneId === entity.zoneId) {
         store.selectZone(entity.zoneId);
-      } else {
-        store.selectEntity(entity.instanceId);
+      } else if (e.ctrlKey || e.metaKey) {
+        store.toggleEntitySelection(entity.instanceId);
+      } else if (!store.state.selectedEntityIds.includes(entity.instanceId)) {
+        store.selectSingleEntity(entity.instanceId);
       }
       return;
     }
     if (disableDrag) return;
+
+    // Ctrl/Meta + left click: toggle this entity in/out of the multi-selection
+    // without starting a drag. Swallow the event so the canvas-level marquee
+    // handler and any zone-bg selector stay out of it.
+    if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
+      e.stopPropagation();
+      store.toggleEntitySelection(entity.instanceId);
+      return;
+    }
+
     if (entity.locked) {
       // Locked entities still select on click but can't be dragged.
       e.stopPropagation();
-      store.selectEntity(entity.instanceId);
+      if (!store.state.selectedEntityIds.includes(entity.instanceId)) {
+        store.selectSingleEntity(entity.instanceId);
+      }
       return;
     }
     if (e.button !== 0) return;
@@ -144,8 +167,25 @@
           }
         : null;
 
-    if (!zoneDrag) {
-      store.selectEntity(entity.instanceId);
+    // Multi-drag: if the entity is part of an existing multi-selection
+    // (>= 2 entries including this one), the whole selection drags together.
+    // Selection is preserved — a pure click later collapses it via handleClick.
+    const currentSelection = store.state.selectedEntityIds;
+    const isInMultiSelection =
+      !zoneDrag &&
+      currentSelection.length > 1 &&
+      currentSelection.includes(entity.instanceId);
+
+    let multiIds: string[] | null = null;
+    const multiStartPositions: Record<string, { x: number; y: number; zoneId: string }> = {};
+    if (isInMultiSelection) {
+      multiIds = [...currentSelection];
+      for (const id of multiIds) {
+        const e2 = store.state.entities[id];
+        if (e2) multiStartPositions[id] = { x: e2.x, y: e2.y, zoneId: e2.zoneId };
+      }
+    } else if (!zoneDrag) {
+      store.selectSingleEntity(entity.instanceId);
     }
 
     activeDrag = {
@@ -161,7 +201,9 @@
       didMove: false,
       checkpointSaved: false,
       detachedFromOrdered: false,
-      zoneDrag
+      zoneDrag,
+      multiIds,
+      multiStartPositions
     };
     isDragging = true;
 
@@ -196,6 +238,63 @@
 
     const dx = dxScreen / zoom;
     const dy = dyScreen / zoom;
+
+    // Multi-entity drag: every selected entity moves in parallel by the same
+    // world delta. On first movement, detach anything sitting in an ordered
+    // zone so it can track freely.
+    if (drag.multiIds) {
+      if (!drag.detachedFromOrdered) {
+        for (const id of drag.multiIds) {
+          const ent = drag.store.state.entities[id];
+          if (!ent) continue;
+          const zone = drag.store.state.zones[ent.zoneId];
+          if (zone?.type !== 'stack' && zone?.type !== 'spread') continue;
+          const tpl = drag.store.templates[ent.templateId];
+          if (!tpl) continue;
+          const { width: entW, height: entH } = getTemplateDisplaySize(tpl);
+          const visual = ops.getEntityVisualWorldPos(drag.store.state, drag.store.templates, id);
+          if (!visual) continue;
+          // Re-use the single-entity detach, but pass the entity's own visual
+          // centre as the pointer so it lands in place.
+          ops.detachEntityToFreeform(
+            drag.store.state,
+            id,
+            visual.x + entW / 2,
+            visual.y + entH / 2,
+            entW,
+            entH
+          );
+        }
+        // Recapture start positions post-detach.
+        for (const id of drag.multiIds) {
+          const ent = drag.store.state.entities[id];
+          if (ent) drag.multiStartPositions[id] = { x: ent.x, y: ent.y, zoneId: ent.zoneId };
+        }
+        const primary = drag.store.state.entities[drag.instanceId];
+        if (primary) {
+          drag.entityStartX = primary.x;
+          drag.entityStartY = primary.y;
+        }
+        drag.dragStartX = e.clientX;
+        drag.dragStartY = e.clientY;
+        drag.detachedFromOrdered = true;
+        return;
+      }
+
+      for (const id of drag.multiIds) {
+        const start = drag.multiStartPositions[id];
+        if (!start) continue;
+        drag.store.moveEntityTransient(id, start.x + dx, start.y + dy);
+      }
+
+      // Drop target highlight for the destination zone, based on pointer.
+      const world = canvasToWorld(drag.canvas, e);
+      if (world) {
+        const hoverZone = ops.findZoneAtPoint(drag.store.state, world.worldX, world.worldY);
+        drag.store.setDropTargetZoneId(hoverZone?.id ?? null);
+      }
+      return;
+    }
 
     // Zone-drag on a selected ordered zone (stack/spread/grid): translate the
     // whole zone instead of detaching an entity.
@@ -419,6 +518,45 @@
     }
   }
 
+  function handleMultiEntityDragEnd(drag: ActiveDrag, e: PointerEvent): void {
+    if (!drag.multiIds) return;
+    suppressNextClick = true;
+
+    // Drop onto sidebar = remove every selected entity.
+    if (pointInElement(drag.canvas?.sidebarEl ?? null, e)) {
+      for (const id of drag.multiIds) {
+        if (drag.store.state.entities[id]) drag.store.removeEntity(id);
+      }
+      return;
+    }
+
+    const world = canvasToWorld(drag.canvas, e);
+    if (!world) return;
+
+    let targetZone = ops.findZoneAtPoint(drag.store.state, world.worldX, world.worldY);
+    if (!targetZone) {
+      // No zone under the pointer — fall back to the topmost freeform zone so
+      // the selection still lands somewhere rather than vanishing off-canvas.
+      targetZone =
+        Object.values(drag.store.state.zones).find((z) => z.type === 'freeform') ?? null;
+    }
+    if (!targetZone) return;
+
+    const destZoneWorldPos = ops.getZoneWorldPos(drag.store.state, targetZone.id);
+    const perEntityPos: Record<string, { x: number; y: number }> = {};
+    for (const id of drag.multiIds) {
+      const ent = drag.store.state.entities[id];
+      if (!ent) continue;
+      const sourceZoneWorldPos = ops.getZoneWorldPos(drag.store.state, ent.zoneId);
+      perEntityPos[id] = {
+        x: sourceZoneWorldPos.x + ent.x - destZoneWorldPos.x,
+        y: sourceZoneWorldPos.y + ent.y - destZoneWorldPos.y
+      };
+    }
+
+    drag.store.moveSelectionToZone(drag.multiIds, targetZone.id, perEntityPos);
+  }
+
   function handleEntityDragEnd(drag: ActiveDrag, current: Entity, e: PointerEvent): void {
     // Drop onto sidebar = remove entity (and sibling instances for multi-instance templates).
     if (pointInElement(drag.canvas?.sidebarEl ?? null, e)) {
@@ -507,18 +645,33 @@
       return;
     }
 
+    if (drag.multiIds) {
+      handleMultiEntityDragEnd(drag, e);
+      return;
+    }
+
     const current = drag.store.state.entities[drag.instanceId];
     if (!current) return;
     handleEntityDragEnd(drag, current, e);
   }
 
   function handleClick(e: MouseEvent) {
-    e.stopPropagation();
     if (suppressNextClick) {
       suppressNextClick = false;
       return;
     }
-    store.selectEntity(entity.instanceId);
+    // Ctrl/Meta click was already handled as a toggle in onPointerDown —
+    // don't let the trailing click event clobber that toggle.
+    if (e.ctrlKey || e.metaKey) {
+      e.stopPropagation();
+      return;
+    }
+    e.stopPropagation();
+    // Pure click on an entity always collapses the selection to just this
+    // one. If it was already the single-selected entity this is a no-op;
+    // if it was part of a multi-selection, this is the "deselect the rest"
+    // UX expected after a non-drag click.
+    store.selectSingleEntity(entity.instanceId);
   }
 
   function handleDoubleClick(e: MouseEvent) {

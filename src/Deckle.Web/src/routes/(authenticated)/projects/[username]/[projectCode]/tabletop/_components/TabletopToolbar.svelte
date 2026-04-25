@@ -30,25 +30,31 @@
   //   F: selected entity (any), or selected stack zone
   //   R: selected entity (any)
   //   S: selected entity sitting in a stack zone, or selected stack zone
-  const selectedEntity = $derived(
-    store.state.selectedEntityId ? store.state.entities[store.state.selectedEntityId] : null
+  const selectedEntityIds = $derived(store.state.selectedEntityIds);
+  const primarySelectedEntity = $derived(
+    selectedEntityIds.length > 0 ? store.state.entities[selectedEntityIds[0]] : null
   );
   const selectedEntityZone = $derived(
-    selectedEntity ? store.state.zones[selectedEntity.zoneId] : null
+    selectedEntityIds.length === 1 && primarySelectedEntity
+      ? store.state.zones[primarySelectedEntity.zoneId]
+      : null
   );
   const selectedZone = $derived(
     store.state.selectedZoneId ? store.state.zones[store.state.selectedZoneId] : null
   );
 
-  const selectedEntityTemplate = $derived(
-    selectedEntity ? store.templates[selectedEntity.templateId] : null
+  const hasAnyDiceSelected = $derived(
+    selectedEntityIds.some((id) => {
+      const entity = store.state.entities[id];
+      return entity && store.templates[entity.templateId]?.type === 'Dice';
+    })
   );
-  const isDiceSelected = $derived(selectedEntityTemplate?.type === 'Dice');
 
-  const canFlip = $derived(!!selectedEntity || selectedZone?.type === 'stack');
-  const canRotate = $derived(!!selectedEntity || selectedZone?.type === 'stack');
+  const canFlip = $derived(selectedEntityIds.length > 0 || selectedZone?.type === 'stack');
+  const canRotate = $derived(selectedEntityIds.length > 0 || selectedZone?.type === 'stack');
   const canShuffle = $derived(
-    !isDiceSelected && (selectedEntityZone?.type === 'stack' || selectedZone?.type === 'stack')
+    !hasAnyDiceSelected &&
+      (selectedEntityZone?.type === 'stack' || selectedZone?.type === 'stack')
   );
 </script>
 
@@ -89,7 +95,7 @@
   <div class="toolbar-group shortcuts">
     <span class="shortcut" class:disabled={!canFlip}><kbd>F</kbd> Flip</span>
     <span class="shortcut" class:disabled={!canRotate}><kbd>R</kbd> Rotate</span>
-    {#if isDiceSelected}
+    {#if hasAnyDiceSelected}
       <span class="shortcut"><kbd>S</kbd> Roll</span>
     {:else}
       <span class="shortcut" class:disabled={!canShuffle}><kbd>S</kbd> Shuffle</span>

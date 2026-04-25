@@ -164,8 +164,8 @@ export interface TabletopState {
   zones: Record<string, Zone>;
   /** Rendering order of zones on the canvas. */
   zoneOrder: string[];
-  /** Selected entity instance (for keyboard shortcuts / context menus). */
-  selectedEntityId: string | null;
+  /** Instance IDs of currently-selected entities, in insertion order. Empty = none. */
+  selectedEntityIds: string[];
   /** Selected zone (for zone-level operations like shuffle). */
   selectedZoneId: string | null;
   /**

@@ -4,7 +4,7 @@ vi.mock('$lib/api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('$lib/api')>();
   return {
     ...mod,
-    authApi: { me: vi.fn() }
+    authApi: { getProfile: vi.fn() }
   };
 });
 
@@ -21,15 +21,15 @@ describe('account settings page load', () => {
 
   it('returns user data on success', async () => {
     const user = { id: '1', email: 'alice@example.com', username: 'alice' };
-    vi.mocked(authApi.me).mockResolvedValue(user as any);
+    vi.mocked(authApi.getProfile).mockResolvedValue(user as any);
 
     const result = await load(makeEvent());
 
     expect(result).toEqual({ user });
   });
 
-  it('throws a 500 error when authApi.me fails', async () => {
-    vi.mocked(authApi.me).mockRejectedValue(new Error('Network error'));
+  it('throws a 500 error when authApi.getProfile fails', async () => {
+    vi.mocked(authApi.getProfile).mockRejectedValue(new Error('Network error'));
 
     await expect(load(makeEvent())).rejects.toMatchObject({ status: 500 });
   });

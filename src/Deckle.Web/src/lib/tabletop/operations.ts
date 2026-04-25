@@ -153,7 +153,7 @@ function registerZone(
   if (opts.edit) state.editingZoneId = zone.id;
   if (opts.select) {
     state.selectedZoneId = zone.id;
-    state.selectedEntityId = null;
+    state.selectedEntityIds = [];
   }
 }
 
@@ -729,20 +729,119 @@ export function reorderInZone(state: TabletopState, instanceId: string, newIndex
   }
 }
 
-/** Select an entity (null clears selection). Also clears zone selection. */
-export function selectEntity(state: TabletopState, instanceId: string | null): void {
-  state.selectedEntityId = instanceId;
-  if (instanceId !== null) {
-    state.selectedZoneId = null;
+/** Replace the selection with the given IDs (duplicates stripped). Clears zone selection when the result is non-empty. */
+export function setSelectedEntities(state: TabletopState, ids: readonly string[]): void {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (!seen.has(id) && state.entities[id]) {
+      seen.add(id);
+      unique.push(id);
+    }
   }
+  state.selectedEntityIds = unique;
+  if (unique.length > 0) state.selectedZoneId = null;
+}
+
+/** Add one entity to the selection (no-op if already present). Clears zone selection. */
+export function addEntityToSelection(state: TabletopState, id: string): void {
+  if (!state.entities[id]) return;
+  if (state.selectedEntityIds.includes(id)) return;
+  state.selectedEntityIds = [...state.selectedEntityIds, id];
+  state.selectedZoneId = null;
+}
+
+/** Remove one entity from the selection. */
+export function removeEntityFromSelection(state: TabletopState, id: string): void {
+  if (!state.selectedEntityIds.includes(id)) return;
+  state.selectedEntityIds = state.selectedEntityIds.filter((x) => x !== id);
+}
+
+/** Toggle one entity in/out of the selection. */
+export function toggleEntitySelection(state: TabletopState, id: string): void {
+  if (state.selectedEntityIds.includes(id)) {
+    removeEntityFromSelection(state, id);
+  } else {
+    addEntityToSelection(state, id);
+  }
+}
+
+/** Replace the selection with a single entity (null clears). Clears zone selection. */
+export function selectSingleEntity(state: TabletopState, instanceId: string | null): void {
+  state.selectedEntityIds = instanceId ? [instanceId] : [];
+  if (instanceId !== null) state.selectedZoneId = null;
 }
 
 /** Select a zone (null clears selection). Also clears entity selection. */
 export function selectZone(state: TabletopState, zoneId: string | null): void {
   state.selectedZoneId = zoneId;
   if (zoneId !== null) {
-    state.selectedEntityId = null;
+    state.selectedEntityIds = [];
   }
+}
+
+/**
+ * World-space top-left of an entity's visual rect (ignoring rotation). For a
+ * stack-top entity this is the centre-aligned position within the zone's
+ * padding; for every other zone type it's zoneWorld + entity(x, y).
+ * Returns null if the entity or its template is missing.
+ */
+export function getEntityVisualWorldPos(
+  state: TabletopState,
+  templates: Record<string, EntityTemplate>,
+  instanceId: string
+): { x: number; y: number } | null {
+  const entity = state.entities[instanceId];
+  if (!entity) return null;
+  const zone = state.zones[entity.zoneId];
+  if (!zone) return null;
+  const template = templates[entity.templateId];
+  if (!template) return null;
+  const { width, height } = getTemplateDisplaySize(template);
+  const zoneWorld = getZoneWorldPos(state, zone.id);
+  if (zone.type === 'stack') {
+    return {
+      x: zoneWorld.x + (zone.width - width) / 2,
+      y: zoneWorld.y + (zone.height - height) / 2
+    };
+  }
+  return { x: zoneWorld.x + entity.x, y: zoneWorld.y + entity.y };
+}
+
+/**
+ * Detach an entity from an ordered zone (stack/spread) into the nearest
+ * freely-positioned zone, centred on the pointer's world position. Used
+ * mid-drag when an entity first needs to escape its stack/spread layout so
+ * it can track the pointer freely. No-op if the entity is already in a
+ * freeform/grid/group zone.
+ */
+export function detachEntityToFreeform(
+  state: TabletopState,
+  instanceId: string,
+  pointerWorldX: number,
+  pointerWorldY: number,
+  displayW: number,
+  displayH: number
+): { zoneId: string; localX: number; localY: number } | null {
+  const entity = state.entities[instanceId];
+  if (!entity) return null;
+  const currentZone = state.zones[entity.zoneId];
+  if (!currentZone) return null;
+  if (currentZone.type !== 'stack' && currentZone.type !== 'spread') return null;
+
+  const isFree = (t: { type: string; id: string } | null | undefined) =>
+    !!t && t.type !== 'stack' && t.type !== 'spread' && t.id !== currentZone.id;
+  let target = findZoneAtPoint(state, pointerWorldX, pointerWorldY);
+  if (!isFree(target)) {
+    target = Object.values(state.zones).find((z) => isFree(z)) ?? null;
+  }
+  if (!target) return null;
+
+  const targetWorldPos = getZoneWorldPos(state, target.id);
+  const localX = pointerWorldX - targetWorldPos.x - displayW / 2;
+  const localY = pointerWorldY - targetWorldPos.y - displayH / 2;
+  moveEntityToZone(state, instanceId, target.id, { x: localX, y: localY });
+  return { zoneId: target.id, localX, localY };
 }
 
 /**
@@ -1150,8 +1249,8 @@ export function removeEntity(state: TabletopState, instanceId: string): void {
   const zone = getZone(state, entity.zoneId);
   zone.entityIds = zone.entityIds.filter((id) => id !== instanceId);
   delete state.entities[instanceId];
-  if (state.selectedEntityId === instanceId) {
-    state.selectedEntityId = null;
+  if (state.selectedEntityIds.includes(instanceId)) {
+    state.selectedEntityIds = state.selectedEntityIds.filter((id) => id !== instanceId);
   }
   maybeAutoDissolveStack(state, zone.id);
   if (state.zones[zone.id]?.type === 'spread') {
@@ -1178,8 +1277,9 @@ export function removeAllEntitiesForTemplate(state: TabletopState, templateId: s
     delete state.entities[instanceId];
   }
 
-  if (state.selectedEntityId && toRemove.includes(state.selectedEntityId)) {
-    state.selectedEntityId = null;
+  if (state.selectedEntityIds.length > 0) {
+    const removedSet = new Set(toRemove);
+    state.selectedEntityIds = state.selectedEntityIds.filter((id) => !removedSet.has(id));
   }
 
   for (const zoneId of affectedZoneIds) {
@@ -1366,11 +1466,7 @@ export function deleteZone(state: TabletopState, zoneId: string): void {
  * it stays visually in place. No-op when the parent is not a freeform zone or
  * when nesting would create a cycle.
  */
-export function nestZone(
-  state: TabletopState,
-  childZoneId: string,
-  parentZoneId: string
-): void {
+export function nestZone(state: TabletopState, childZoneId: string, parentZoneId: string): void {
   const child = state.zones[childZoneId];
   const parent = state.zones[parentZoneId] as FreeformZone | undefined;
   if (!child || !parent || parent.type !== 'freeform') return;
@@ -1420,11 +1516,7 @@ export function unnestZone(state: TabletopState, zoneId: string): void {
   state.zoneOrder.push(zoneId);
 }
 
-function isAncestor(
-  state: TabletopState,
-  potentialAncestorId: string,
-  zoneId: string
-): boolean {
+function isAncestor(state: TabletopState, potentialAncestorId: string, zoneId: string): boolean {
   let current = state.zones[zoneId];
   while (current?.parentZoneId) {
     if (current.parentZoneId === potentialAncestorId) return true;
@@ -1438,7 +1530,7 @@ export function setEditingZone(state: TabletopState, zoneId: string | null): voi
   state.editingZoneId = zoneId;
   if (zoneId !== null) {
     state.selectedZoneId = zoneId;
-    state.selectedEntityId = null;
+    state.selectedEntityIds = [];
   }
 }
 
@@ -1519,7 +1611,15 @@ export function changeZoneType(
   }
 
   const base = {
-    id, name, x, y, width, height, entityIds, locked, typeSettings: cache,
+    id,
+    name,
+    x,
+    y,
+    width,
+    height,
+    entityIds,
+    locked,
+    typeSettings: cache,
     ...(parentZoneId !== undefined ? { parentZoneId } : {})
   };
   const defaultSize = existingDefaultSize ?? deriveDefaultSizeFromEntities(state, zone, templates);
@@ -1567,6 +1667,15 @@ export function changeZoneType(
     }
   }
   state.zones[zoneId] = newZone;
+
+  // Straighten them when leaving group
+  if (zone.type === 'group') {
+    for (const entityId of newZone.entityIds) {
+      const entity = state.entities[entityId];
+      if (entity) entity.rotation = 0;
+    }
+  }
+
   if (newType === 'spread') {
     layoutSpread(state, zoneId);
   } else if (newType === 'grid') {

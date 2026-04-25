@@ -142,7 +142,7 @@ export function buildInitialTabletop(input: TabletopInitInput): TabletopInitResu
     entities: {},
     zones,
     zoneOrder,
-    selectedEntityId: null,
+    selectedEntityIds: [],
     selectedZoneId: null,
     editingZoneId: null
   };

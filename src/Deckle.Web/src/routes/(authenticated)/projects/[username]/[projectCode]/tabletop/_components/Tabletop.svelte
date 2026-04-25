@@ -127,11 +127,14 @@
       target === e.currentTarget ||
       target.classList.contains('canvas-surface')
     ) {
-      store.selectEntity(null);
+      store.selectSingleEntity(null);
       store.selectZone(null);
     }
 
-    const selectedId = store.state.selectedEntityId;
+    // Context menu operates on a single "primary" entity — the first selected.
+    // Multi-entity context-menu actions aren't in scope for this pass.
+    const selectedId =
+      store.state.selectedEntityIds.length > 0 ? store.state.selectedEntityIds[0] : null;
     const selectedZoneId = store.state.selectedZoneId;
 
     const items: ContextMenuItem[] = [];
@@ -350,39 +353,75 @@
       return;
     }
 
-    const selectedId = store.state.selectedEntityId;
+    const selectedIds = store.state.selectedEntityIds;
+    const singleSelectedId = selectedIds.length === 1 ? selectedIds[0] : null;
     const selectedZoneId = store.state.selectedZoneId;
 
-    if (selectedId) {
+    // Ctrl+A: select every entity in the selected container zone.
+    if (modKey && (e.key === 'a' || e.key === 'A')) {
+      if (selectedZoneId) {
+        const zone = store.state.zones[selectedZoneId];
+        if (
+          zone &&
+          (zone.type === 'group' ||
+            zone.type === 'stack' ||
+            zone.type === 'spread' ||
+            zone.type === 'grid')
+        ) {
+          e.preventDefault();
+          store.selectAllEntitiesInZone(selectedZoneId);
+        }
+      }
+      return;
+    }
+
+    if (selectedIds.length > 0) {
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        store.flipEntity(selectedId);
+        store.flipEntities(selectedIds);
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        const entityForRotate = store.state.entities[selectedId];
-        const zoneForRotate = entityForRotate ? store.state.zones[entityForRotate.zoneId] : null;
-        if (zoneForRotate?.type === 'stack') {
-          store.rotateStack(zoneForRotate.id, 90);
-        } else {
-          store.rotateEntity(selectedId, 90);
+        // Exactly one selected AND it's in a stack zone → rotate the whole stack
+        // so the zone's bounding box swaps correctly on quarter turns.
+        if (singleSelectedId) {
+          const entityForRotate = store.state.entities[singleSelectedId];
+          const zoneForRotate = entityForRotate
+            ? store.state.zones[entityForRotate.zoneId]
+            : null;
+          if (zoneForRotate?.type === 'stack') {
+            store.rotateStack(zoneForRotate.id, 90);
+            return;
+          }
         }
+        store.rotateEntities(selectedIds, 90);
       } else if (e.key === 's' || e.key === 'S') {
-        const entity = store.state.entities[selectedId];
-        const entityTemplate = entity ? templates[entity.templateId] : null;
-        if (entityTemplate?.type === 'Dice' && entity) {
-          e.preventDefault();
-          store.rollDie(selectedId, getDiceMaxFaces(entity.templateId));
-        } else {
-          // The top card of a stack is the only clickable surface, so a selected
-          // entity in a stack is usually the user's proxy for the stack itself.
+        // Priority when exactly one is selected: dice → roll; stack top → shuffle.
+        if (singleSelectedId) {
+          const entity = store.state.entities[singleSelectedId];
+          const entityTemplate = entity ? templates[entity.templateId] : null;
+          if (entityTemplate?.type === 'Dice' && entity) {
+            e.preventDefault();
+            store.rollDie(singleSelectedId, getDiceMaxFaces(entity.templateId));
+            return;
+          }
           const zone = entity ? store.state.zones[entity.zoneId] : null;
           if (zone?.type === 'stack') {
             e.preventDefault();
             store.shuffleStack(zone.id);
+            return;
           }
         }
+        // Multi-selection with any dice: roll them all.
+        const hasDice = selectedIds.some((id) => {
+          const entity = store.state.entities[id];
+          return entity && templates[entity.templateId]?.type === 'Dice';
+        });
+        if (hasDice) {
+          e.preventDefault();
+          store.rollDiceEntities(selectedIds, getDiceMaxFaces);
+        }
       } else if (e.key === 'Escape') {
-        store.selectEntity(null);
+        store.setSelectedEntities([]);
       }
     } else if (selectedZoneId) {
       const zone = store.state.zones[selectedZoneId];
@@ -414,7 +453,7 @@
         store.selectZone(null);
       }
     } else if (e.key === 'Escape') {
-      store.selectEntity(null);
+      store.setSelectedEntities([]);
       store.selectZone(null);
     }
   }
@@ -470,10 +509,13 @@
     }
   }
 
-  // Click on empty canvas = deselect
+  // Click on empty canvas = deselect.
   function handleCanvasClick(e: MouseEvent) {
+    // Ctrl/Meta click on empty canvas is a no-op — reserved for adjusting
+    // a multi-selection, not for clearing it.
+    if (e.ctrlKey || e.metaKey) return;
     if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains('canvas-surface')) {
-      store.selectEntity(null);
+      store.selectSingleEntity(null);
       store.selectZone(null);
     }
   }

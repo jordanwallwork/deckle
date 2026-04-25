@@ -47,6 +47,9 @@
 
   function handleZoneClick(e: MouseEvent) {
     if (isEditing) return;
+    // Ctrl/Meta click on zone background is reserved for adjusting an entity
+    // multi-selection — don't let it clobber that by selecting the zone.
+    if (e.ctrlKey || e.metaKey) return;
     e.stopPropagation();
     if (isZoneBackgroundEvent(e)) {
       store.selectZone(zone.id);

@@ -64,6 +64,42 @@ public static partial class AuthEndpoints
         .AllowAnonymous()
         .WithName("Login");
 
+        group.MapPost("/register", async (RegisterRequest request, IUserService userService, HttpContext context) =>
+        {
+            var (success, error, user) = await userService.RegisterWithPasswordAsync(request.Email, request.Password);
+
+            if (!success || user == null)
+            {
+                return Results.BadRequest(new { error });
+            }
+
+            var principal = UserService.CreatePrincipalFromUser(user);
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+            return Results.Ok(UserService.GetCurrentUserFromClaims(principal));
+        })
+        .AllowAnonymous()
+        .RequireRateLimiting("auth")
+        .WithName("RegisterWithPassword");
+
+        group.MapPost("/login/password", async (PasswordLoginRequest request, IUserService userService, HttpContext context) =>
+        {
+            var (success, error, user) = await userService.LoginWithPasswordAsync(request.Email, request.Password);
+
+            if (!success || user == null)
+            {
+                return Results.BadRequest(new { error });
+            }
+
+            var principal = UserService.CreatePrincipalFromUser(user);
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+            return Results.Ok(UserService.GetCurrentUserFromClaims(principal));
+        })
+        .AllowAnonymous()
+        .RequireRateLimiting("auth")
+        .WithName("LoginWithPassword");
+
         group.MapPost("/logout", async (HttpContext context) =>
         {
             await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

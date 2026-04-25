@@ -6,6 +6,8 @@ public class User
 
     public string? GoogleId { get; set; }
 
+    public string? PasswordHash { get; set; }
+
     public string Email { get; set; } = string.Empty;
 
     public string? Username { get; set; }

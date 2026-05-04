@@ -1,6 +1,8 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
+  import { get } from 'svelte/store';
   import { templateStore } from '$lib/stores/templateElements';
+  import { zoomActionStore } from '$lib/stores/zoomAction';
   import type { TemplateElement, ElementType } from '../types';
   import { getElementIcon } from '$lib/utils/icons';
   import { createElementOfType } from '../elementFactory';
@@ -194,8 +196,21 @@
     templateStore.updateElement(element.id, { locked: !element.locked });
   }
 
+  function handleZoomToSelection() {
+    const fn = get(zoomActionStore);
+    if (fn) fn(element.id);
+  }
+
   function getContextMenuItems(): ContextMenuItem[] {
     const items: ContextMenuItem[] = [];
+
+    // Zoom to selection
+    items.push({
+      label: 'Zoom to Selection',
+      action: handleZoomToSelection
+    });
+
+    items.push({ divider: true });
 
     // Duplicate action (available for all non-root elements)
     items.push({

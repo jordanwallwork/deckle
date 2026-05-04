@@ -12,6 +12,7 @@
   import { componentsApi } from '$lib/api';
   import { saveActionStore } from '$lib/stores/saveAction';
   import { goto } from '$app/navigation';
+  import { zoomActionStore } from '$lib/stores/zoomAction';
 
   let {
     component,
@@ -79,6 +80,60 @@
     panzoomInstance = instance;
     panzoomElement = element;
   }
+
+  // Register zoom-to-element function when panzoom is ready
+  $effect(() => {
+    if (!panzoomInstance || !panzoomElement) return;
+
+    const inst = panzoomInstance;
+    const contentEl = panzoomElement;
+
+    zoomActionStore.register((elementId: string) => {
+      const viewerEl = contentEl.parentElement as HTMLDivElement;
+      if (!viewerEl) return;
+
+      const targetEl = document.querySelector(`[data-element-id="${elementId}"]`);
+      if (!targetEl) return;
+
+      const targetRect = targetEl.getBoundingClientRect();
+      if (targetRect.width === 0 || targetRect.height === 0) return;
+
+      const viewerRect = viewerEl.getBoundingClientRect();
+      const currentScale = inst.getScale();
+      const currentPan = inst.getPan();
+
+      const targetCenterX = targetRect.left + targetRect.width / 2;
+      const targetCenterY = targetRect.top + targetRect.height / 2;
+      const viewerCenterX = viewerRect.left + viewerRect.width / 2;
+      const viewerCenterY = viewerRect.top + viewerRect.height / 2;
+
+      // Natural (unscaled) element dimensions
+      const naturalW = targetRect.width / currentScale;
+      const naturalH = targetRect.height / currentScale;
+
+      // Scale to fit element with padding, capped at max scale
+      const padding = 40;
+      const newScale = Math.min(
+        (viewerRect.width - padding * 2) / naturalW,
+        (viewerRect.height - padding * 2) / naturalH,
+        5
+      );
+
+      // Pan so the element center aligns with the viewer center at the new scale.
+      // Derivation: with panzoom's transform translate(tx,ty) scale(s) and
+      // transform-origin 50% 50%, a natural point p satisfies:
+      //   viewport = viewerCenter + tx + s*(p - contentNaturalHalfSize)
+      // Setting viewport = viewerCenter and solving for new tx/ty:
+      //   newTx = newScale * (viewerCenter - targetCenter + currentPan) / currentScale
+      const newPanX = (newScale * (viewerCenterX - targetCenterX + currentPan.x)) / currentScale;
+      const newPanY = (newScale * (viewerCenterY - targetCenterY + currentPan.y)) / currentScale;
+
+      inst.zoom(newScale, { animate: true });
+      inst.pan(newPanX, newPanY, { animate: true });
+    });
+
+    return () => zoomActionStore.unregister();
+  });
 
   function handleExport() {
     // Clear any previous error

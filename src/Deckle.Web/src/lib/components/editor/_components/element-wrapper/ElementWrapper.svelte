@@ -4,6 +4,8 @@
   import DragHandles from './DragHandles.svelte';
   import RotationHandle from './RotationHandle.svelte';
   import { templateStore, highlightedElementIds, editingElementId } from '$lib/stores/templateElements';
+  import { get } from 'svelte/store';
+  import { zoomActionStore } from '$lib/stores/zoomAction';
   import { spacingToCss, dimensionValue } from '../../utils';
   import { createElementOfType } from '../../elementFactory';
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
@@ -133,8 +135,21 @@
     templateStore.removeElement(element.id);
   }
 
+  function handleZoomToSelection() {
+    const fn = get(zoomActionStore);
+    if (fn) fn(element.id);
+  }
+
   function getContextMenuItems(): ContextMenuItem[] {
     const items: ContextMenuItem[] = [];
+
+    // Zoom to selection
+    items.push({
+      label: 'Zoom to Selection',
+      action: handleZoomToSelection
+    });
+
+    items.push({ divider: true });
 
     // Duplicate action
     items.push({

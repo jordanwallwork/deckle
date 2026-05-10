@@ -100,7 +100,7 @@ public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpCo
             UpdatedAt = DateTime.UtcNow
         };
 
-        Db.GoogleSheetsDataSources.Add(ds);
+        await Db.GoogleSheetsDataSources.AddAsync(ds);
         await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new

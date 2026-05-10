@@ -91,8 +91,8 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
             UpdatedAt = DateTime.UtcNow
         };
 
-        Db.Projects.Add(project);
-        Db.UserProjects.Add(new UserProject
+        await Db.Projects.AddAsync(project);
+        await Db.UserProjects.AddAsync(new UserProject
         {
             UserId = UserId,
             ProjectId = project.Id,

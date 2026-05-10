@@ -72,13 +72,12 @@ public sealed class FileTools(AppDbContext db, IHttpContextAccessor httpContextA
         if (!await HasProjectAccessAsync(projectId))
             return McpErrors.ProjectNotFound;
 
-        var tags = await Db.Files
+        var tagLists = await Db.Files
             .Where(f => f.ProjectId == projectId && f.Status == Deckle.Domain.Entities.FileStatus.Confirmed)
-            .SelectMany(f => f.Tags)
-            .Distinct()
-            .OrderBy(t => t)
+            .Select(f => f.Tags)
             .ToListAsync();
 
+        var tags = tagLists.SelectMany(t => t).Distinct().OrderBy(t => t).ToList();
         return JsonSerializer.Serialize(tags);
     }
 }

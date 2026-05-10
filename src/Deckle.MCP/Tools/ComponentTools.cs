@@ -106,7 +106,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             UpdatedAt = DateTime.UtcNow
         };
 
-        Db.Cards.Add(card);
+        await Db.Cards.AddAsync(card);
         await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
@@ -149,7 +149,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             UpdatedAt = DateTime.UtcNow
         };
 
-        Db.Dices.Add(dice);
+        await Db.Dices.AddAsync(dice);
         await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
@@ -193,7 +193,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             UpdatedAt = DateTime.UtcNow
         };
 
-        Db.GameBoards.Add(board);
+        await Db.GameBoards.AddAsync(board);
         await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
@@ -236,7 +236,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             UpdatedAt = DateTime.UtcNow
         };
 
-        Db.PlayerMats.Add(mat);
+        await Db.PlayerMats.AddAsync(mat);
         await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new

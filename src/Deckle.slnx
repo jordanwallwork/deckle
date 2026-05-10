@@ -14,6 +14,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Deckle.API.Tests/Deckle.API.Tests.csproj" />
+    <Project Path="Deckle.MCP.Tests/Deckle.MCP.Tests.csproj" />
   </Folder>
   <Project Path="Deckle.AppHost/Deckle.AppHost.csproj" />
   <Project Path="Deckle.ServiceDefaults/Deckle.ServiceDefaults.csproj" />

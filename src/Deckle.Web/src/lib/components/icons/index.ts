@@ -18,6 +18,7 @@ export { default as LogoutIcon } from './LogoutIcon.svelte';
 export { default as MaximizeIcon } from './MaximizeIcon.svelte';
 export { default as MenuIcon } from './MenuIcon.svelte';
 export { default as MinimizeIcon } from './MinimizeIcon.svelte';
+export { default as PlugIcon } from './PlugIcon.svelte';
 export { default as PlusIcon } from './PlusIcon.svelte';
 export { default as SettingsIcon } from './SettingsIcon.svelte';
 export { default as TableIcon } from './TableIcon.svelte';

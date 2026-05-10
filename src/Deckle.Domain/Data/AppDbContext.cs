@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
+    public DbSet<ApiKey> ApiKeys { get; set; }
     public DbSet<Project> Projects { get; set; }
     public DbSet<UserProject> UserProjects { get; set; }
     public DbSet<DataSource> DataSources { get; set; }
@@ -99,6 +100,31 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasConversion<string>()
                 .HasDefaultValue(UserRole.User);
+        });
+
+        modelBuilder.Entity<ApiKey>(entity =>
+        {
+            entity.HasKey(ak => ak.Id);
+
+            entity.Property(ak => ak.Name)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(ak => ak.KeyHash)
+                .IsRequired()
+                .HasMaxLength(500);
+
+            entity.Property(ak => ak.CreatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(ak => ak.User)
+                .WithMany(u => u.ApiKeys)
+                .HasForeignKey(ak => ak.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(ak => ak.KeyHash).IsUnique();
+            entity.HasIndex(ak => ak.UserId);
         });
 
         modelBuilder.Entity<Project>(entity =>

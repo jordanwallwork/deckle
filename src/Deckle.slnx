@@ -9,6 +9,9 @@
     <Project Path="Deckle.Email/Deckle.Email.csproj" />
     <Project Path="Deckle.Email.Abstractions/Deckle.Email.Abstractions.csproj" />
   </Folder>
+  <Folder Name="/Services/">
+    <Project Path="Deckle.MCP/Deckle.MCP.csproj" />
+  </Folder>
   <Folder Name="/Tests/">
     <Project Path="Deckle.API.Tests/Deckle.API.Tests.csproj" />
   </Folder>

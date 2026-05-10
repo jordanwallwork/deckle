@@ -73,6 +73,7 @@ public static class WebApplicationExtensions
         app.MapFileDirectoryEndpoints();
         app.MapAdminEndpoints();
         app.MapUserEndpoints();
+        app.MapApiKeyEndpoints();
 
         return app;
     }

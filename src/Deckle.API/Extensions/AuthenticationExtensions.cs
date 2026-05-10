@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Deckle.API.Auth;
 using Deckle.API.DTOs;
 using Deckle.API.Services;
 using Microsoft.AspNetCore.Authentication;
@@ -21,7 +22,9 @@ public static class AuthenticationExtensions
             options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
         })
         .AddCookie(options => ConfigureCookieOptions(options, configuration, environment))
-        .AddGoogle(options => ConfigureGoogleOptions(options, configuration));
+        .AddGoogle(options => ConfigureGoogleOptions(options, configuration))
+        .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+            ApiKeyAuthenticationHandler.SchemeName, null);
 
         return services;
     }
@@ -32,6 +35,10 @@ public static class AuthenticationExtensions
         {
             options.AddPolicy("AdminOnly", policy =>
                 policy.RequireRole("Administrator"));
+
+            options.AddPolicy("ApiKey", policy =>
+                policy.AddAuthenticationSchemes(ApiKeyAuthenticationHandler.SchemeName)
+                      .RequireAuthenticatedUser());
         });
 
         return services;

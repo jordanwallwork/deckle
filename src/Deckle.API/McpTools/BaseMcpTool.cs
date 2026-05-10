@@ -2,7 +2,7 @@ using Deckle.Domain.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
-namespace Deckle.MCP.Tools;
+namespace Deckle.API.McpTools;
 
 public abstract class BaseMcpTool(AppDbContext db, IHttpContextAccessor httpContextAccessor)
 {

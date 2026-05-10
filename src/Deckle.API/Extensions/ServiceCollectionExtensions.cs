@@ -1,4 +1,5 @@
 using Deckle.API.Configurators;
+using Deckle.API.McpTools;
 using Deckle.API.Services;
 using Deckle.API.Services.Email;
 using Deckle.Domain.Entities;
@@ -88,6 +89,20 @@ public static class ServiceCollectionExtensions
 
         // Background services
         services.AddHostedService<FileCleanupService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddDeckleMcpTools(this IServiceCollection services)
+    {
+        services.AddHttpContextAccessor();
+        services
+            .AddMcpServer()
+            .WithHttpTransport()
+            .WithTools<ProjectTools>()
+            .WithTools<ComponentTools>()
+            .WithTools<DataSourceTools>()
+            .WithTools<FileTools>();
 
         return services;
     }

@@ -3,8 +3,11 @@
   import { Card } from '$lib/components';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import ApiKeysCard from './_components/ApiKeysCard.svelte';
+  import { config } from '$lib/config';
 
   let { data }: { data: PageData } = $props();
+
+  const mcpUrl = `${config.apiUrl}/mcp`;
 </script>
 
 <PageHeader>
@@ -33,12 +36,9 @@
         Generate a key in the section above and copy it somewhere safe — it is only shown once.
       </p>
 
-      <h3>2. Find the MCP server URL</h3>
-      <p class="prose">
-        The MCP server runs alongside the Deckle API. Your administrator can tell you the URL; it
-        follows the pattern:
-      </p>
-      <pre class="code-block">https://&lt;mcp-host&gt;/mcp</pre>
+      <h3>2. MCP server URL</h3>
+      <p class="prose">The MCP server runs alongside the Deckle API at:</p>
+      <pre class="code-block">{mcpUrl}</pre>
 
       <h3>3. Configure Claude Desktop</h3>
       <p class="prose">
@@ -48,7 +48,7 @@
   "mcpServers": {
     "deckle": {
       "type": "http",
-      "url": "https://<mcp-host>/mcp",
+      "url": "${mcpUrl}",
       "headers": {
         "X-API-Key": "<your-api-key>"
       }

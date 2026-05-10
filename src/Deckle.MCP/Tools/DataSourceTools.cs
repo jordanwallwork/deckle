@@ -159,13 +159,14 @@ public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpCo
 
         var urlStr = url.ToString();
 
+        var timeout = TimeSpan.FromSeconds(1);
         foreach (var pattern in new[] { @"docs\.google\.com/spreadsheets/d/([a-zA-Z0-9-_]+)", @"spreadsheets/d/([a-zA-Z0-9-_]+)" })
         {
-            var match = Regex.Match(urlStr, pattern);
+            var match = Regex.Match(urlStr, pattern, RegexOptions.None, timeout);
             if (match.Success) { spreadsheetId = match.Groups[1].Value; break; }
         }
 
-        var gidMatch = Regex.Match(urlStr, @"[#?&]gid=(\d+)");
+        var gidMatch = Regex.Match(urlStr, @"[#?&]gid=(\d+)", RegexOptions.None, timeout);
         if (gidMatch.Success && int.TryParse(gidMatch.Groups[1].Value, out var parsedGid))
             sheetGid = parsedGid;
 

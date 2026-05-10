@@ -38,6 +38,14 @@ var api = builder.AddProject<Projects.Deckle_API>("api")
         service.Name = "api";
     });
 
+var mcp = builder.AddProject<Projects.Deckle_MCP>("mcp")
+    .WithReference(database)
+    .WaitFor(database)
+    .PublishAsDockerComposeService((resource, service) =>
+    {
+        service.Name = "mcp";
+    });
+
 web.WithReference(api)
     .WithEnvironment("PUBLIC_API_URL", api.GetEndpoint("http"));
 

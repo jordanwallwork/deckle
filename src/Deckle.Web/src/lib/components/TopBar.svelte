@@ -3,7 +3,7 @@
   import type { CurrentUser } from '$lib/types';
   import Avatar from './Avatar.svelte';
   import LogoMark from './LogoMark.svelte';
-  import { SettingsIcon, LogoutIcon, MenuIcon } from './icons';
+  import { SettingsIcon, LogoutIcon, MenuIcon, PlugIcon } from './icons';
   import { topbarProject } from '$lib/stores/topbarProject';
   import { topbarTabs } from '$lib/stores/topbarTabs';
   import { page } from '$app/stores';
@@ -132,6 +132,10 @@
               <a href="/account/settings" class="dropdown-item">
                 <SettingsIcon size={16} />
                 Account Settings
+              </a>
+              <a href="/account/mcp" class="dropdown-item">
+                <PlugIcon size={16} />
+                AI Agent Access
               </a>
               <button class="dropdown-item" onclick={handleSignOut}>
                 <LogoutIcon size={16} />

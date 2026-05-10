@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Deckle.API\Deckle.API.csproj" />
+    <ProjectReference Include="..\Deckle.MCP\Deckle.MCP.csproj" />
   </ItemGroup>
 
 </Project>

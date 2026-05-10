@@ -2,7 +2,9 @@ using Deckle.API.DTOs;
 using Deckle.API.Services;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using System.Security.Claims;
 
 namespace Deckle.API.Tests.Services;
@@ -19,7 +21,8 @@ public class UserServiceTests : IDisposable
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
         _context = new AppDbContext(options);
-        _service = new UserService(_context);
+        var passwordHasher = new Mock<IPasswordHasher<User>>().Object;
+        _service = new UserService(_context, passwordHasher);
     }
 
     #region Helpers

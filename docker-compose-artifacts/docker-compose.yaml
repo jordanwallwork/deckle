@@ -70,6 +70,31 @@ services:
         condition: "service_started"
     networks:
       - "aspire"
+  mcp:
+    image: "${MCP_IMAGE}"
+    environment:
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+      OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      HTTP_PORTS: "${MCP_PORT}"
+      ConnectionStrings__deckledb: "Host=postgres;Port=5432;Username=postgres;Password=${POSTGRES_PASSWORD};Database=deckledb"
+      DECKLEDB_HOST: "postgres"
+      DECKLEDB_PORT: "5432"
+      DECKLEDB_USERNAME: "postgres"
+      DECKLEDB_PASSWORD: "${POSTGRES_PASSWORD}"
+      DECKLEDB_URI: "postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/deckledb"
+      DECKLEDB_DATABASENAME: "deckledb"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://compose-dashboard:18889"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+      OTEL_SERVICE_NAME: "mcp"
+    expose:
+      - "${MCP_PORT}"
+    depends_on:
+      postgres:
+        condition: "service_started"
+    networks:
+      - "aspire"
 networks:
   aspire:
     driver: "bridge"

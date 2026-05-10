@@ -93,11 +93,16 @@ jobs:
           cd src/Deckle.Web
           docker build -t deckle-web:local .
 
+      - name: Build MCP container
+        run: |
+          cd src
+          docker build -f Deckle.MCP/Dockerfile -t deckle-mcp:local .
+
       - name: Prepare docker-compose artifacts
         run: |
           # Copy template and replace environment variables with actual image names
           cp docker-compose-artifacts/docker-compose.yaml docker-compose-artifacts/docker-compose.yaml.template
-          sed 's/\${API_IMAGE}/deckle-api:local/g; s/\${WEB_IMAGE}/deckle-web:local/g' docker-compose-artifacts/docker-compose.yaml.template > docker-compose-artifacts/docker-compose.yaml
+          sed 's/\${API_IMAGE}/deckle-api:local/g; s/\${WEB_IMAGE}/deckle-web:local/g; s/\${MCP_IMAGE}/deckle-mcp:local/g' docker-compose-artifacts/docker-compose.yaml.template > docker-compose-artifacts/docker-compose.yaml
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -203,5 +208,8 @@ jobs:
 
           echo "Triggering Railway Web deployment..."
           curl -f -X POST "${{ secrets.RAILWAY_WEB_WEBHOOK_URL }}" || echo "Warning: Web webhook failed"
+
+          echo "Triggering Railway MCP deployment..."
+          curl -f -X POST "${{ secrets.RAILWAY_MCP_WEBHOOK_URL }}" || echo "Warning: MCP webhook failed"
 
           echo "Railway deployments triggered successfully"

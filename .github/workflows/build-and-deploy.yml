@@ -202,14 +202,18 @@ jobs:
 
       - name: Trigger Railway Deployment
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          RAILWAY_API_WEBHOOK_URL: ${{ secrets.RAILWAY_API_WEBHOOK_URL }}
+          RAILWAY_WEB_WEBHOOK_URL: ${{ secrets.RAILWAY_WEB_WEBHOOK_URL }}
+          RAILWAY_MCP_WEBHOOK_URL: ${{ secrets.RAILWAY_MCP_WEBHOOK_URL }}
         run: |
           echo "Triggering Railway API deployment..."
-          curl -f -X POST "${{ secrets.RAILWAY_API_WEBHOOK_URL }}" || echo "Warning: API webhook failed"
+          curl -f -X POST "$RAILWAY_API_WEBHOOK_URL" || echo "Warning: API webhook failed"
 
           echo "Triggering Railway Web deployment..."
-          curl -f -X POST "${{ secrets.RAILWAY_WEB_WEBHOOK_URL }}" || echo "Warning: Web webhook failed"
+          curl -f -X POST "$RAILWAY_WEB_WEBHOOK_URL" || echo "Warning: Web webhook failed"
 
           echo "Triggering Railway MCP deployment..."
-          curl -f -X POST "${{ secrets.RAILWAY_MCP_WEBHOOK_URL }}" || echo "Warning: MCP webhook failed"
+          curl -f -X POST "$RAILWAY_MCP_WEBHOOK_URL" || echo "Warning: MCP webhook failed"
 
           echo "Railway deployments triggered successfully"

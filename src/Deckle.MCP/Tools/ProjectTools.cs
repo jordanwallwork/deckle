@@ -10,22 +10,15 @@ namespace Deckle.MCP.Tools;
 
 [McpServerToolType]
 public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpContextAccessor)
+    : BaseMcpTool(db, httpContextAccessor)
 {
-    private Guid UserId => GetUserId();
-
-    private Guid GetUserId()
-    {
-        var claim = httpContextAccessor.HttpContext?.User?.FindFirst("user_id")?.Value;
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Not authenticated");
-    }
-
     [McpServerTool, Description("List all projects the authenticated user has access to.")]
     public async Task<string> ListProjects()
     {
-        var projects = await db.UserProjects
+        var projects = await Db.UserProjects
             .Where(up => up.UserId == UserId)
             .Join(
-                db.UserProjects.Where(ownerUp => ownerUp.Role == ProjectRole.Owner),
+                Db.UserProjects.Where(ownerUp => ownerUp.Role == ProjectRole.Owner),
                 up => up.ProjectId,
                 ownerUp => ownerUp.ProjectId,
                 (up, ownerUp) => new
@@ -49,10 +42,10 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
     public async Task<string> GetProject(
         [Description("The project ID (GUID).")] Guid projectId)
     {
-        var project = await db.UserProjects
+        var project = await Db.UserProjects
             .Where(up => up.UserId == UserId && up.ProjectId == projectId)
             .Join(
-                db.UserProjects.Where(ownerUp => ownerUp.Role == ProjectRole.Owner),
+                Db.UserProjects.Where(ownerUp => ownerUp.Role == ProjectRole.Owner),
                 up => up.ProjectId,
                 ownerUp => ownerUp.ProjectId,
                 (up, ownerUp) => new
@@ -70,7 +63,7 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
             .FirstOrDefaultAsync();
 
         return project == null
-            ? """{"error":"Project not found"}"""
+            ? McpErrors.ProjectNotFound
             : JsonSerializer.Serialize(project);
     }
 
@@ -84,7 +77,7 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
         if (!Enum.TryParse<ProjectVisibility>(visibility, out var vis))
             vis = ProjectVisibility.Private;
 
-        var user = await db.Users.FindAsync(UserId);
+        var user = await Db.Users.FindAsync(UserId);
         var ownerUsername = user?.Username ?? string.Empty;
 
         var project = new Project
@@ -98,8 +91,8 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
             UpdatedAt = DateTime.UtcNow
         };
 
-        db.Projects.Add(project);
-        db.UserProjects.Add(new UserProject
+        Db.Projects.Add(project);
+        Db.UserProjects.Add(new UserProject
         {
             UserId = UserId,
             ProjectId = project.Id,
@@ -107,7 +100,7 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
             JoinedAt = DateTime.UtcNow
         });
 
-        await db.SaveChangesAsync();
+        await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
         {
@@ -130,13 +123,13 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
         [Description("New description (or null to clear).")] string? description = null,
         [Description("New visibility: Private, Public, or Teaser.")] string visibility = "Private")
     {
-        var userProject = await db.UserProjects
+        var userProject = await Db.UserProjects
             .Include(up => up.Project)
             .FirstOrDefaultAsync(up => up.UserId == UserId && up.ProjectId == projectId
                 && up.Role == ProjectRole.Owner);
 
         if (userProject == null)
-            return """{"error":"Project not found or you are not the owner"}""";
+            return McpErrors.ProjectNotFoundOrNotOwner;
 
         if (!Enum.TryParse<ProjectVisibility>(visibility, out var vis))
             vis = ProjectVisibility.Private;
@@ -146,7 +139,7 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
         userProject.Project.Visibility = vis;
         userProject.Project.UpdatedAt = DateTime.UtcNow;
 
-        await db.SaveChangesAsync();
+        await Db.SaveChangesAsync();
         return JsonSerializer.Serialize(new { userProject.Project.Id, userProject.Project.Name, Status = "updated" });
     }
 
@@ -154,30 +147,30 @@ public sealed class ProjectTools(AppDbContext db, IHttpContextAccessor httpConte
     public async Task<string> DeleteProject(
         [Description("The project ID to delete.")] Guid projectId)
     {
-        var userProject = await db.UserProjects
+        var userProject = await Db.UserProjects
             .Include(up => up.Project)
             .FirstOrDefaultAsync(up => up.UserId == UserId && up.ProjectId == projectId
                 && up.Role == ProjectRole.Owner);
 
         if (userProject == null)
-            return """{"error":"Project not found or you are not the owner"}""";
+            return McpErrors.ProjectNotFoundOrNotOwner;
 
-        db.Projects.Remove(userProject.Project);
-        await db.SaveChangesAsync();
-        return """{"status":"deleted"}""";
+        Db.Projects.Remove(userProject.Project);
+        await Db.SaveChangesAsync();
+        return McpErrors.Deleted;
     }
 
     [McpServerTool, Description("List all members of a project.")]
     public async Task<string> ListProjectMembers(
         [Description("The project ID.")] Guid projectId)
     {
-        var hasAccess = await db.UserProjects
+        var hasAccess = await Db.UserProjects
             .AnyAsync(up => up.UserId == UserId && up.ProjectId == projectId);
 
         if (!hasAccess)
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
-        var members = await db.UserProjects
+        var members = await Db.UserProjects
             .Where(up => up.ProjectId == projectId)
             .Select(up => new
             {

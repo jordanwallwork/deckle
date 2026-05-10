@@ -11,26 +11,16 @@ namespace Deckle.MCP.Tools;
 
 [McpServerToolType]
 public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpContextAccessor)
+    : BaseMcpTool(db, httpContextAccessor)
 {
-    private Guid UserId => GetUserId();
-
-    private Guid GetUserId()
-    {
-        var claim = httpContextAccessor.HttpContext?.User?.FindFirst("user_id")?.Value;
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Not authenticated");
-    }
-
-    private async Task<bool> HasProjectAccessAsync(Guid projectId) =>
-        await db.UserProjects.AnyAsync(up => up.UserId == UserId && up.ProjectId == projectId);
-
     [McpServerTool, Description("List all data sources in a project.")]
     public async Task<string> ListDataSources(
         [Description("The project ID.")] Guid projectId)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
-        var sources = await db.DataSources
+        var sources = await Db.DataSources
             .Where(ds => ds.ProjectId == projectId)
             .Select(ds => new
             {
@@ -51,13 +41,13 @@ public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpCo
     public async Task<string> GetDataSource(
         [Description("The data source ID.")] Guid dataSourceId)
     {
-        var ds = await db.DataSources.FirstOrDefaultAsync(d => d.Id == dataSourceId);
+        var ds = await Db.DataSources.FirstOrDefaultAsync(d => d.Id == dataSourceId);
 
         if (ds == null)
-            return """{"error":"Data source not found"}""";
+            return McpErrors.DataSourceNotFound;
 
         if (ds.ProjectId.HasValue && !await HasProjectAccessAsync(ds.ProjectId.Value))
-            return """{"error":"Access denied"}""";
+            return McpErrors.AccessDenied;
 
         if (ds is GoogleSheetsDataSource gs)
         {
@@ -84,7 +74,7 @@ public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpCo
         [Description("The full Google Sheets URL (e.g. https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0).")] string googleSheetsUrl)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
         if (!Uri.TryCreate(googleSheetsUrl, UriKind.Absolute, out var uri))
             return """{"error":"Invalid Google Sheets URL"}""";
@@ -110,8 +100,8 @@ public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpCo
             UpdatedAt = DateTime.UtcNow
         };
 
-        db.GoogleSheetsDataSources.Add(ds);
-        await db.SaveChangesAsync();
+        Db.GoogleSheetsDataSources.Add(ds);
+        await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
         {
@@ -129,19 +119,19 @@ public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpCo
         [Description("List of column header names.")] List<string> headers,
         [Description("Number of data rows (excluding the header row).")] int rowCount)
     {
-        var ds = await db.DataSources.FirstOrDefaultAsync(d => d.Id == dataSourceId);
+        var ds = await Db.DataSources.FirstOrDefaultAsync(d => d.Id == dataSourceId);
 
         if (ds == null)
-            return """{"error":"Data source not found"}""";
+            return McpErrors.DataSourceNotFound;
 
         if (ds.ProjectId.HasValue && !await HasProjectAccessAsync(ds.ProjectId.Value))
-            return """{"error":"Access denied"}""";
+            return McpErrors.AccessDenied;
 
         ds.Headers = headers;
         ds.RowCount = rowCount;
         ds.UpdatedAt = DateTime.UtcNow;
 
-        await db.SaveChangesAsync();
+        await Db.SaveChangesAsync();
         return JsonSerializer.Serialize(new { ds.Id, ds.Name, ds.Headers, ds.RowCount, Status = "synced" });
     }
 
@@ -149,17 +139,17 @@ public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpCo
     public async Task<string> DeleteDataSource(
         [Description("The data source ID to delete.")] Guid dataSourceId)
     {
-        var ds = await db.DataSources.FirstOrDefaultAsync(d => d.Id == dataSourceId);
+        var ds = await Db.DataSources.FirstOrDefaultAsync(d => d.Id == dataSourceId);
 
         if (ds == null)
-            return """{"error":"Data source not found"}""";
+            return McpErrors.DataSourceNotFound;
 
         if (!ds.ProjectId.HasValue || !await HasProjectAccessAsync(ds.ProjectId.Value))
-            return """{"error":"Access denied"}""";
+            return McpErrors.AccessDenied;
 
-        db.DataSources.Remove(ds);
-        await db.SaveChangesAsync();
-        return """{"status":"deleted"}""";
+        Db.DataSources.Remove(ds);
+        await Db.SaveChangesAsync();
+        return McpErrors.Deleted;
     }
 
     private static (string? spreadsheetId, int? sheetGid) ExtractGoogleSheetsIds(Uri url)

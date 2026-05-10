@@ -9,27 +9,17 @@ namespace Deckle.MCP.Tools;
 
 [McpServerToolType]
 public sealed class FileTools(AppDbContext db, IHttpContextAccessor httpContextAccessor)
+    : BaseMcpTool(db, httpContextAccessor)
 {
-    private Guid UserId => GetUserId();
-
-    private Guid GetUserId()
-    {
-        var claim = httpContextAccessor.HttpContext?.User?.FindFirst("user_id")?.Value;
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Not authenticated");
-    }
-
-    private async Task<bool> HasProjectAccessAsync(Guid projectId) =>
-        await db.UserProjects.AnyAsync(up => up.UserId == UserId && up.ProjectId == projectId);
-
     [McpServerTool, Description("List all files in a project, optionally filtered by tag.")]
     public async Task<string> ListFiles(
         [Description("The project ID.")] Guid projectId,
         [Description("Optional tag to filter files by.")] string? tag = null)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
-        var query = db.Files
+        var query = Db.Files
             .Where(f => f.ProjectId == projectId &&
                         f.Status == Deckle.Domain.Entities.FileStatus.Confirmed);
 
@@ -58,9 +48,9 @@ public sealed class FileTools(AppDbContext db, IHttpContextAccessor httpContextA
         [Description("The project ID.")] Guid projectId)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
-        var dirs = await db.FileDirectories
+        var dirs = await Db.FileDirectories
             .Where(d => d.ProjectId == projectId)
             .Select(d => new
             {
@@ -80,9 +70,9 @@ public sealed class FileTools(AppDbContext db, IHttpContextAccessor httpContextA
         [Description("The project ID.")] Guid projectId)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
-        var tags = await db.Files
+        var tags = await Db.Files
             .Where(f => f.ProjectId == projectId && f.Status == Deckle.Domain.Entities.FileStatus.Confirmed)
             .SelectMany(f => f.Tags)
             .Distinct()

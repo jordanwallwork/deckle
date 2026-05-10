@@ -10,26 +10,16 @@ namespace Deckle.MCP.Tools;
 
 [McpServerToolType]
 public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpContextAccessor)
+    : BaseMcpTool(db, httpContextAccessor)
 {
-    private Guid UserId => GetUserId();
-
-    private Guid GetUserId()
-    {
-        var claim = httpContextAccessor.HttpContext?.User?.FindFirst("user_id")?.Value;
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Not authenticated");
-    }
-
-    private async Task<bool> HasProjectAccessAsync(Guid projectId) =>
-        await db.UserProjects.AnyAsync(up => up.UserId == UserId && up.ProjectId == projectId);
-
     [McpServerTool, Description("List all components in a project (cards, dice, game boards, player mats).")]
     public async Task<string> ListComponents(
         [Description("The project ID.")] Guid projectId)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
-        var components = await db.Components
+        var components = await Db.Components
             .Where(c => c.ProjectId == projectId)
             .Select(c => new
             {
@@ -48,15 +38,15 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
     public async Task<string> GetComponent(
         [Description("The component ID.")] Guid componentId)
     {
-        var component = await db.Components
+        var component = await Db.Components
             .Include(c => c.Project)
             .FirstOrDefaultAsync(c => c.Id == componentId);
 
         if (component == null || !component.ProjectId.HasValue)
-            return """{"error":"Component not found"}""";
+            return McpErrors.ComponentNotFound;
 
         if (!await HasProjectAccessAsync(component.ProjectId.Value))
-            return """{"error":"Access denied"}""";
+            return McpErrors.AccessDenied;
 
         return component switch
         {
@@ -99,7 +89,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
         [Description("Whether the card is horizontal (landscape). Default false = portrait.")] bool horizontal = false)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
         if (!Enum.TryParse<CardSize>(size, out var cardSize))
             return $"{{\"error\":\"Invalid card size '{size}'. Valid values: {string.Join(", ", Enum.GetNames<CardSize>())}\"}}";
@@ -116,8 +106,8 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             UpdatedAt = DateTime.UtcNow
         };
 
-        db.Cards.Add(card);
-        await db.SaveChangesAsync();
+        Db.Cards.Add(card);
+        await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
         {
@@ -137,7 +127,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
         [Description("Number of dice in the set.")] int number = 1)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
         if (!Enum.TryParse<DiceType>(diceType, out var dt))
             return $"{{\"error\":\"Invalid DiceType '{diceType}'\"}}";
@@ -159,8 +149,8 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             UpdatedAt = DateTime.UtcNow
         };
 
-        db.Dices.Add(dice);
-        await db.SaveChangesAsync();
+        Db.Dices.Add(dice);
+        await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
         {
@@ -181,7 +171,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
         [Description("Custom height in mm (only used if presetSize is null).")] decimal? customHeightMm = null)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
         GameBoardSize? gbSize = null;
         if (presetSize != null && !Enum.TryParse<GameBoardSize>(presetSize, out var parsedSize))
@@ -203,8 +193,8 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             UpdatedAt = DateTime.UtcNow
         };
 
-        db.GameBoards.Add(board);
-        await db.SaveChangesAsync();
+        Db.GameBoards.Add(board);
+        await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
         {
@@ -224,7 +214,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
         [Description("Custom height in mm (only used if presetSize is null).")] decimal? customHeightMm = null)
     {
         if (!await HasProjectAccessAsync(projectId))
-            return """{"error":"Project not found"}""";
+            return McpErrors.ProjectNotFound;
 
         PlayerMatSize? pmSize = null;
         if (presetSize != null && !Enum.TryParse<PlayerMatSize>(presetSize, out var parsedSize))
@@ -246,8 +236,8 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             UpdatedAt = DateTime.UtcNow
         };
 
-        db.PlayerMats.Add(mat);
-        await db.SaveChangesAsync();
+        Db.PlayerMats.Add(mat);
+        await Db.SaveChangesAsync();
 
         return JsonSerializer.Serialize(new
         {
@@ -261,18 +251,18 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
     public async Task<string> DeleteComponent(
         [Description("The component ID to delete.")] Guid componentId)
     {
-        var component = await db.Components
+        var component = await Db.Components
             .FirstOrDefaultAsync(c => c.Id == componentId);
 
         if (component == null || !component.ProjectId.HasValue)
-            return """{"error":"Component not found"}""";
+            return McpErrors.ComponentNotFound;
 
         if (!await HasProjectAccessAsync(component.ProjectId.Value))
-            return """{"error":"Access denied"}""";
+            return McpErrors.AccessDenied;
 
-        db.Components.Remove(component);
-        await db.SaveChangesAsync();
-        return """{"status":"deleted"}""";
+        Db.Components.Remove(component);
+        await Db.SaveChangesAsync();
+        return McpErrors.Deleted;
     }
 
     [McpServerTool, Description("Link a data source to a component (card, game board, or player mat). Pass null dataSourceId to unlink.")]
@@ -280,21 +270,21 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
         [Description("The component ID.")] Guid componentId,
         [Description("The data source ID to link, or null to unlink.")] Guid? dataSourceId)
     {
-        var component = await db.Components
+        var component = await Db.Components
             .FirstOrDefaultAsync(c => c.Id == componentId);
 
         if (component == null || !component.ProjectId.HasValue)
-            return """{"error":"Component not found"}""";
+            return McpErrors.ComponentNotFound;
 
         if (!await HasProjectAccessAsync(component.ProjectId.Value))
-            return """{"error":"Access denied"}""";
+            return McpErrors.AccessDenied;
 
         if (component is not IDataSourceComponent dsc)
             return """{"error":"This component type does not support data sources"}""";
 
         if (dataSourceId.HasValue)
         {
-            var dataSource = await db.DataSources
+            var dataSource = await Db.DataSources
                 .FirstOrDefaultAsync(ds => ds.Id == dataSourceId.Value && ds.ProjectId == component.ProjectId);
 
             if (dataSource == null)
@@ -308,7 +298,7 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
         }
 
         component.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        await Db.SaveChangesAsync();
         return JsonSerializer.Serialize(new { componentId, dataSourceId, Status = "updated" });
     }
 }

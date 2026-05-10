@@ -174,10 +174,12 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             return McpErrors.ProjectNotFound;
 
         GameBoardSize? gbSize = null;
-        if (presetSize != null && !Enum.TryParse<GameBoardSize>(presetSize, out var parsedSize))
-            return $"{{\"error\":\"Invalid GameBoardSize '{presetSize}'\"}}";
-        else if (presetSize != null)
-            gbSize = Enum.Parse<GameBoardSize>(presetSize);
+        if (presetSize != null)
+        {
+            if (!Enum.TryParse<GameBoardSize>(presetSize, out var gbSizeParsed))
+                return $"{{\"error\":\"Invalid GameBoardSize '{presetSize}'\"}}";
+            gbSize = gbSizeParsed;
+        }
 
         var board = new GameBoard
         {
@@ -217,10 +219,12 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
             return McpErrors.ProjectNotFound;
 
         PlayerMatSize? pmSize = null;
-        if (presetSize != null && !Enum.TryParse<PlayerMatSize>(presetSize, out var parsedSize))
-            return $"{{\"error\":\"Invalid PlayerMatSize '{presetSize}'\"}}";
-        else if (presetSize != null)
-            pmSize = Enum.Parse<PlayerMatSize>(presetSize);
+        if (presetSize != null)
+        {
+            if (!Enum.TryParse<PlayerMatSize>(presetSize, out var pmSizeParsed))
+                return $"{{\"error\":\"Invalid PlayerMatSize '{presetSize}'\"}}";
+            pmSize = pmSizeParsed;
+        }
 
         var mat = new PlayerMat
         {

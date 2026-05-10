@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
+using Deckle.API.Auth;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
-using Deckle.MCP.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 
-namespace Deckle.MCP.Tests.Auth;
+namespace Deckle.API.Tests.Auth;
 
 public class ApiKeyAuthenticationHandlerTests : IDisposable
 {

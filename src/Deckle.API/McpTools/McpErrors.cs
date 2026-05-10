@@ -1,4 +1,4 @@
-namespace Deckle.MCP.Tools;
+namespace Deckle.API.McpTools;
 
 internal static class McpErrors
 {

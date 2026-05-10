@@ -1,14 +1,14 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Deckle.API.McpTools;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
-using Deckle.MCP.Tools;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using File = Deckle.Domain.Entities.File;
 
-namespace Deckle.MCP.Tests.Tools;
+namespace Deckle.API.Tests.McpTools;
 
 public class FileToolsTests : IDisposable
 {

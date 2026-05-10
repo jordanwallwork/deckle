@@ -4,6 +4,7 @@ using Deckle.Domain.Data;
 using Exceptionless;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol.AspNetCore;
 using Scalar.AspNetCore;
 
 namespace Deckle.API.Extensions;
@@ -74,6 +75,8 @@ public static class WebApplicationExtensions
         app.MapAdminEndpoints();
         app.MapUserEndpoints();
         app.MapApiKeyEndpoints();
+
+        app.MapMcp("/mcp").RequireAuthorization("ApiKey");
 
         return app;
     }

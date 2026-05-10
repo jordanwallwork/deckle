@@ -27,6 +27,9 @@ builder.Services.AddDeckleInfrastructure(builder.Configuration);
 // Application services
 builder.Services.AddDeckleApplicationServices();
 
+// MCP tools
+builder.Services.AddDeckleMcpTools();
+
 // Exception tracking
 builder.Services.AddExceptionlessIfConfigured(builder.Configuration);
 

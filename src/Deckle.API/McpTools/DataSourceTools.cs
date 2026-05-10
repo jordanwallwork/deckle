@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
 
-namespace Deckle.MCP.Tools;
+namespace Deckle.API.McpTools;
 
 [McpServerToolType]
 public sealed class DataSourceTools(AppDbContext db, IHttpContextAccessor httpContextAccessor)

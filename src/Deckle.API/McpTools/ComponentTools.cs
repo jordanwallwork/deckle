@@ -251,6 +251,69 @@ public sealed class ComponentTools(AppDbContext db, IHttpContextAccessor httpCon
         });
     }
 
+    [McpServerTool, Description("Get the design JSON for a specific part of an editable component (Card, PlayerMat, GameBoard). Valid parts: 'front', 'back'.")]
+    public async Task<string> GetComponentDesign(
+        [Description("The component ID.")] Guid componentId,
+        [Description("The design part to retrieve ('front' or 'back').")] string part)
+    {
+        var component = await Db.Components
+            .FirstOrDefaultAsync(c => c.Id == componentId);
+
+        if (component == null || !component.ProjectId.HasValue)
+            return McpErrors.ComponentNotFound;
+
+        if (!await HasProjectAccessAsync(component.ProjectId.Value))
+            return McpErrors.AccessDenied;
+
+        if (component is not IEditableComponent editableComponent)
+            return """{"error":"This component type does not support designs"}""";
+
+        string? design;
+        try
+        {
+            design = editableComponent.GetDesign(part);
+        }
+        catch (ArgumentException)
+        {
+            return $"{{\"error\":\"Invalid part '{part}'. Valid values: front, back\"}}";
+        }
+
+        return JsonSerializer.Serialize(new { componentId, part, design });
+    }
+
+    [McpServerTool, Description("Save the design JSON for a specific part of an editable component (Card, PlayerMat, GameBoard). Valid parts: 'front', 'back'. Pass null design to clear it.")]
+    public async Task<string> SaveComponentDesign(
+        [Description("The component ID.")] Guid componentId,
+        [Description("The design part to save ('front' or 'back').")] string part,
+        [Description("The design JSON to save, or null to clear.")] string? design)
+    {
+        var component = await Db.Components
+            .FirstOrDefaultAsync(c => c.Id == componentId);
+
+        if (component == null || !component.ProjectId.HasValue)
+            return McpErrors.ComponentNotFound;
+
+        if (!await HasProjectAccessAsync(component.ProjectId.Value))
+            return McpErrors.AccessDenied;
+
+        if (component is not IEditableComponent editableComponent)
+            return """{"error":"This component type does not support designs"}""";
+
+        try
+        {
+            editableComponent.SetDesign(part, design);
+        }
+        catch (ArgumentException)
+        {
+            return $"{{\"error\":\"Invalid part '{part}'. Valid values: front, back\"}}";
+        }
+
+        component.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync();
+
+        return JsonSerializer.Serialize(new { componentId, part, Status = "saved" });
+    }
+
     [McpServerTool, Description("Delete a component from a project.")]
     public async Task<string> DeleteComponent(
         [Description("The component ID to delete.")] Guid componentId)

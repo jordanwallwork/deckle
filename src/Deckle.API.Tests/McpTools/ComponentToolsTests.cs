@@ -408,6 +408,162 @@ public class ComponentToolsTests : IDisposable
 
     #endregion
 
+    #region GetComponentDesign
+
+    [Fact]
+    public async Task GetComponentDesign_FrontPart_ReturnsDesign()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var card = await SeedCard(projectId);
+        card.FrontDesign = """{"elements":[]}""";
+        await _context.SaveChangesAsync();
+
+        var result = await CreateTools(userId).GetComponentDesign(card.Id, "front");
+
+        var json = JsonSerializer.Deserialize<JsonElement>(result);
+        Assert.Equal("""{"elements":[]}""", json.GetProperty("design").GetString());
+        Assert.Equal("front", json.GetProperty("part").GetString());
+    }
+
+    [Fact]
+    public async Task GetComponentDesign_NullDesign_ReturnsNullDesign()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var card = await SeedCard(projectId);
+
+        var result = await CreateTools(userId).GetComponentDesign(card.Id, "front");
+
+        var json = JsonSerializer.Deserialize<JsonElement>(result);
+        Assert.Equal(JsonValueKind.Null, json.GetProperty("design").ValueKind);
+    }
+
+    [Fact]
+    public async Task GetComponentDesign_NotFound_ReturnsError()
+    {
+        var (userId, _) = await SeedOwnerWithProject();
+
+        var result = await CreateTools(userId).GetComponentDesign(Guid.NewGuid(), "front");
+
+        Assert.Equal(McpErrors.ComponentNotFound, result);
+    }
+
+    [Fact]
+    public async Task GetComponentDesign_NoAccess_ReturnsAccessDenied()
+    {
+        var (_, projectId) = await SeedOwnerWithProject();
+        var card = await SeedCard(projectId);
+
+        var result = await CreateTools(Guid.NewGuid()).GetComponentDesign(card.Id, "front");
+
+        Assert.Equal(McpErrors.AccessDenied, result);
+    }
+
+    [Fact]
+    public async Task GetComponentDesign_DiceNotEditable_ReturnsError()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var dice = await SeedDice(projectId);
+
+        var result = await CreateTools(userId).GetComponentDesign(dice.Id, "front");
+
+        Assert.Contains("error", result);
+        Assert.Contains("not support designs", result);
+    }
+
+    [Fact]
+    public async Task GetComponentDesign_InvalidPart_ReturnsError()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var card = await SeedCard(projectId);
+
+        var result = await CreateTools(userId).GetComponentDesign(card.Id, "side");
+
+        Assert.Contains("error", result);
+        Assert.Contains("side", result);
+    }
+
+    #endregion
+
+    #region SaveComponentDesign
+
+    [Fact]
+    public async Task SaveComponentDesign_FrontPart_PersistsDesign()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var card = await SeedCard(projectId);
+        const string design = """{"elements":[]}""";
+
+        var result = await CreateTools(userId).SaveComponentDesign(card.Id, "front", design);
+
+        var json = JsonSerializer.Deserialize<JsonElement>(result);
+        Assert.Equal("saved", json.GetProperty("Status").GetString());
+        _context.ChangeTracker.Clear();
+        var updated = await _context.Cards.FindAsync(card.Id);
+        Assert.Equal(design, updated!.FrontDesign);
+    }
+
+    [Fact]
+    public async Task SaveComponentDesign_NullDesign_ClearsDesign()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var card = await SeedCard(projectId);
+        card.FrontDesign = """{"elements":[]}""";
+        await _context.SaveChangesAsync();
+
+        await CreateTools(userId).SaveComponentDesign(card.Id, "front", null);
+
+        _context.ChangeTracker.Clear();
+        var updated = await _context.Cards.FindAsync(card.Id);
+        Assert.Null(updated!.FrontDesign);
+    }
+
+    [Fact]
+    public async Task SaveComponentDesign_NotFound_ReturnsError()
+    {
+        var (userId, _) = await SeedOwnerWithProject();
+
+        var result = await CreateTools(userId).SaveComponentDesign(Guid.NewGuid(), "front", "{}");
+
+        Assert.Equal(McpErrors.ComponentNotFound, result);
+    }
+
+    [Fact]
+    public async Task SaveComponentDesign_NoAccess_ReturnsAccessDenied()
+    {
+        var (_, projectId) = await SeedOwnerWithProject();
+        var card = await SeedCard(projectId);
+
+        var result = await CreateTools(Guid.NewGuid()).SaveComponentDesign(card.Id, "front", "{}");
+
+        Assert.Equal(McpErrors.AccessDenied, result);
+    }
+
+    [Fact]
+    public async Task SaveComponentDesign_DiceNotEditable_ReturnsError()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var dice = await SeedDice(projectId);
+
+        var result = await CreateTools(userId).SaveComponentDesign(dice.Id, "front", "{}");
+
+        Assert.Contains("error", result);
+        Assert.Contains("not support designs", result);
+    }
+
+    [Fact]
+    public async Task SaveComponentDesign_InvalidPart_ReturnsError()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var card = await SeedCard(projectId);
+
+        var result = await CreateTools(userId).SaveComponentDesign(card.Id, "side", "{}");
+
+        Assert.Contains("error", result);
+        Assert.Contains("side", result);
+    }
+
+    #endregion
+
     #region LinkDataSource
 
     [Fact]

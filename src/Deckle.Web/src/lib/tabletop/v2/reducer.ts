@@ -35,7 +35,13 @@ export type DragState =
 export type DragInputEvent =
   | { type: 'pile-down'; pileId: string; world: Point }
   | { type: 'move'; world: Point }
-  | { type: 'up'; world: Point }
+  | {
+      type: 'up';
+      world: Point;
+      /** True when the pointer was released over the component sidebar (the
+       *  shell does the DOM hit-test): the dragged pile is removed. */
+      overSidebar?: boolean;
+    }
   | { type: 'cancel' };
 
 /**
@@ -47,6 +53,7 @@ export type DragMutation =
   | { type: 'begin' }
   | { type: 'raise-pile'; pileId: string }
   | { type: 'move-pile'; pileId: string; x: number; y: number }
+  | { type: 'remove-pile'; pileId: string }
   | { type: 'commit' }
   | { type: 'rollback' }
   | { type: 'select'; selection: Selection };
@@ -122,9 +129,16 @@ function stepPile(
       return { drag, mutations: [move] };
     }
     case 'up': {
-      if (drag.active) return idle([{ type: 'commit' }]);
-      // Press-and-release without movement: a click. Select the pile.
-      return idle([{ type: 'select', selection: { kind: 'piles', pileIds: [drag.pileId] } }]);
+      if (!drag.active) {
+        // Press-and-release without movement: a click. Select the pile.
+        return idle([{ type: 'select', selection: { kind: 'piles', pileIds: [drag.pileId] } }]);
+      }
+      if (event.overSidebar) {
+        // Dropping onto the sidebar removes the pile — inside the still-open
+        // transaction, so the whole gesture is a single undo step.
+        return idle([{ type: 'remove-pile', pileId: drag.pileId }, { type: 'commit' }]);
+      }
+      return idle([{ type: 'commit' }]);
     }
     case 'cancel':
       return idle(drag.active ? [{ type: 'rollback' }] : []);

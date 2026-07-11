@@ -35,6 +35,9 @@ function run(state: TabletopState, events: DragInputEvent[]) {
         case 'move-pile':
           ops.movePileTo(state, mutation.pileId, mutation.x, mutation.y);
           break;
+        case 'remove-pile':
+          ops.removePile(state, mutation.pileId);
+          break;
         case 'commit':
           normalize(state, templates, { dev: true });
           history = hist.commitTransaction(history, tx!);
@@ -145,6 +148,42 @@ describe('drag reducer — moving a pile', () => {
 
     expect(emitted).toHaveLength(0);
     expect(state.piles.p1.x).toBe(100);
+  });
+
+  it('releasing a drag over the sidebar removes the pile and its cards as one undo step', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 300, 0)
+    );
+    const before = structuredClone(initial);
+
+    const result = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(20, 100) },
+      { type: 'up', world: at(20, 100), overSidebar: true }
+    ]);
+
+    expect(result.state.piles.p1).toBeUndefined();
+    expect(result.state.cards.c1).toBeUndefined();
+    expect(result.state.rootPileIds).toEqual(['p2']);
+    expect(result.history.past).toHaveLength(1);
+
+    // One undo restores the pile exactly as it was before the gesture.
+    const undone = hist.undo(result.history, structuredClone(result.state));
+    expect(undone!.state).toEqual(before);
+  });
+
+  it('a sub-threshold release over the sidebar is still just a click — nothing is removed', () => {
+    const initial = stateWithPiles(singleCardPile('p1', 'c1', 100, 100));
+
+    const { state, history } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'up', world: at(100, 100), overSidebar: true }
+    ]);
+
+    expect(state.piles.p1).toBeDefined();
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+    expect(history.past).toHaveLength(0);
   });
 
   it('a locked pile refuses the grab entirely', () => {

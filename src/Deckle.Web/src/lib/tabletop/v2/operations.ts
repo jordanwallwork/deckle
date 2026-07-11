@@ -78,6 +78,64 @@ export function spawnPileFromTemplate(
   return pile.id;
 }
 
+function serializeMergeData(mergeData: Record<string, string> | null): string {
+  if (mergeData === null) return 'null';
+  const sorted = Object.keys(mergeData).sort();
+  return JSON.stringify(Object.fromEntries(sorted.map((k) => [k, mergeData[k]])));
+}
+
+/**
+ * Return the subset of template.instances not yet on the table, so re-dropping
+ * a component can never duplicate cards. For data-source templates, identity
+ * is mergeData content (duplicate rows share identity); for non-data-source
+ * templates (all null mergeData), identity is by count. Carried over from v1
+ * unchanged.
+ */
+export function getUnplacedInstances(
+  state: TabletopState,
+  template: Template
+): (Record<string, string> | null)[] {
+  const placed = Object.values(state.cards).filter((c) => c.templateId === template.id);
+
+  if (template.instances.every((inst) => inst === null)) {
+    const remaining = template.instances.length - placed.length;
+    return remaining > 0 ? template.instances.slice(0, remaining) : [];
+  }
+
+  const placedKeys = new Set(placed.map((c) => serializeMergeData(c.mergeData)));
+  return template.instances.filter((inst) => !placedKeys.has(serializeMergeData(inst)));
+}
+
+// ─── Removal ───────────────────────────────────────────────────────────────
+
+/** Remove a pile and all of its cards from the table. */
+export function removePile(state: TabletopState, pileId: string): void {
+  const pile = getPile(state, pileId);
+  const ids = containerPileIds(state, pile);
+  const index = ids.indexOf(pileId);
+  if (index !== -1) ids.splice(index, 1);
+  for (const cardId of pile.cardIds) {
+    delete state.cards[cardId];
+  }
+  delete state.piles[pileId];
+}
+
+/**
+ * Remove every card of a template from the table (the sidebar's remove-all).
+ * Piles left with zero cards are removed with their container entries.
+ */
+export function removeAllCardsOfTemplate(state: TabletopState, templateId: string): void {
+  for (const pile of Object.values(state.piles)) {
+    const keep = pile.cardIds.filter((id) => state.cards[id]?.templateId !== templateId);
+    if (keep.length === pile.cardIds.length) continue;
+    for (const cardId of pile.cardIds) {
+      if (state.cards[cardId]?.templateId === templateId) delete state.cards[cardId];
+    }
+    pile.cardIds = keep;
+    if (pile.cardIds.length === 0) removePile(state, pile.id);
+  }
+}
+
 // ─── Movement / ordering ───────────────────────────────────────────────────
 
 /**

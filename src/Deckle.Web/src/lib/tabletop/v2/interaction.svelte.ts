@@ -26,6 +26,9 @@ export function createInteraction(store: TabletopStore) {
       case 'move-pile':
         store.updateTransient((s) => ops.movePileTo(s, mutation.pileId, mutation.x, mutation.y));
         break;
+      case 'remove-pile':
+        store.updateTransient((s) => ops.removePile(s, mutation.pileId));
+        break;
       case 'commit':
         store.commitTransaction();
         break;
@@ -61,8 +64,8 @@ export function createInteraction(store: TabletopStore) {
     move(world: Point): void {
       dispatch({ type: 'move', world });
     },
-    up(world: Point): void {
-      dispatch({ type: 'up', world });
+    up(world: Point, overSidebar = false): void {
+      dispatch({ type: 'up', world, overSidebar });
     },
     cancel(): void {
       dispatch({ type: 'cancel' });

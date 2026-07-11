@@ -2,6 +2,7 @@ export * from './types';
 export * from './geometry';
 export * from './operations';
 export * from './normalize';
+export * from './drop';
 export * from './history';
 export * from './reducer';
 export {

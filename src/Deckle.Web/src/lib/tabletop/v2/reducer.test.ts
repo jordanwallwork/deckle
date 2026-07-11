@@ -510,3 +510,306 @@ describe('drag reducer — grab gestures (split and merge)', () => {
     expect(undone!.state).toEqual(before);
   });
 });
+
+// Standard card footprint is 127 × 177.8px (63.5 × 88.9mm at 2px/mm), so a
+// pile at (100, 100) covers x 36.5–163.5, y 11.1–188.9.
+describe('drag reducer — marquee selection', () => {
+  it('a drag on empty table selects exactly the unlocked piles intersecting the rectangle, in render order', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 400, 100),
+      singleCardPile('p3', 'c3', 250, 100, { locked: true }), // inside the rect but locked
+      singleCardPile('p4', 'c4', 900, 900) // far outside
+    );
+
+    const { state, drag, history, emitted } = run(initial, [
+      { type: 'background-down', world: at(0, 0) },
+      { type: 'move', world: at(470, 150) },
+      { type: 'up', world: at(470, 150) }
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p1', 'p2'] });
+    expect(drag).toEqual({ mode: 'idle' });
+    // Selection is ephemeral: no transaction, no history entries.
+    expect(history.past).toHaveLength(0);
+    expect(emitted.filter((m) => m.type === 'begin')).toHaveLength(0);
+  });
+
+  it('the selection tracks the rectangle live while dragging', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 400, 100)
+    );
+
+    const { state } = run(initial, [
+      { type: 'background-down', world: at(0, 0) },
+      { type: 'move', world: at(200, 150) } // covers p1 only so far
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+  });
+
+  it('is rotation-aware: a sideways card is caught by the area it actually covers', () => {
+    // Rotated 90°, the card at (300, 300) spans x 211.1–388.9; upright it
+    // only reaches x 363.5. The marquee starts at x 380 — inside the
+    // sideways footprint, outside the upright one.
+    const marquee: DragInputEvent[] = [
+      { type: 'background-down', world: at(380, 250) },
+      { type: 'move', world: at(450, 340) },
+      { type: 'up', world: at(450, 340) }
+    ];
+
+    const sideways = stateWithPiles({
+      pile: makePile({ id: 'p1', cardIds: ['c1'], x: 300, y: 300 }),
+      cards: [makeCard({ id: 'c1', rotation: 90 })]
+    });
+    expect(run(sideways, marquee).state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+
+    const upright = stateWithPiles(singleCardPile('p1', 'c1', 300, 300));
+    expect(run(upright, marquee).state.selection).toEqual({ kind: 'none' });
+  });
+
+  it('tests the true rotated rectangle, not its axis-aligned bounding box', () => {
+    // A 45°-rotated card at (300, 300) has an axis-aligned bounding box out
+    // to ≈(407.8, 407.8), but the card itself stops at the diagonal edge
+    // x+y = 300+300+89.8. A marquee in the bounding box's empty corner
+    // misses; one straddling the diagonal edge hits.
+    const rotated = () =>
+      stateWithPiles({
+        pile: makePile({ id: 'p1', cardIds: ['c1'], x: 300, y: 300 }),
+        cards: [makeCard({ id: 'c1', rotation: 45 })]
+      });
+
+    const inCorner = run(rotated(), [
+      { type: 'background-down', world: at(390, 390) },
+      { type: 'move', world: at(405, 405) },
+      { type: 'up', world: at(405, 405) }
+    ]);
+    expect(inCorner.state.selection).toEqual({ kind: 'none' });
+
+    const onEdge = run(rotated(), [
+      { type: 'background-down', world: at(385, 300) },
+      { type: 'move', world: at(400, 310) },
+      { type: 'up', world: at(400, 310) }
+    ]);
+    expect(onEdge.state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+  });
+
+  it('a plain background click clears the selection; Ctrl/Cmd background click keeps it', () => {
+    const initial = stateWithPiles(singleCardPile('p1', 'c1', 100, 100));
+    initial.selection = { kind: 'piles', pileIds: ['p1'] };
+
+    const plain = run(structuredClone(initial), [
+      { type: 'background-down', world: at(600, 600) },
+      { type: 'up', world: at(600, 600) }
+    ]);
+    expect(plain.state.selection).toEqual({ kind: 'none' });
+
+    const ctrl = run(structuredClone(initial), [
+      { type: 'background-down', world: at(600, 600), ctrl: true },
+      { type: 'up', world: at(600, 600) }
+    ]);
+    expect(ctrl.state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+  });
+
+  it('Escape mid-marquee restores the selection that existed before it began', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 400, 100)
+    );
+    initial.selection = { kind: 'piles', pileIds: ['p2'] };
+
+    const { state, drag, history } = run(initial, [
+      { type: 'background-down', world: at(0, 0) },
+      { type: 'move', world: at(470, 150) }, // live selection is now [p1, p2]
+      { type: 'cancel' }
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p2'] });
+    expect(drag).toEqual({ mode: 'idle' });
+    expect(history.past).toHaveLength(0);
+  });
+
+  it('Ctrl/Cmd+click adds and removes piles from a marquee-built selection', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 400, 100),
+      singleCardPile('p3', 'c3', 900, 900)
+    );
+
+    const { state } = run(initial, [
+      // Marquee over p1 and p2…
+      { type: 'background-down', world: at(0, 0) },
+      { type: 'move', world: at(470, 150) },
+      { type: 'up', world: at(470, 150) },
+      // …then Ctrl+click adds p3 and removes p1.
+      { type: 'pile-down', pileId: 'p3', world: at(900, 900), ctrl: true },
+      { type: 'up', world: at(900, 900) },
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100), ctrl: true },
+      { type: 'up', world: at(100, 100) }
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p2', 'p3'] });
+  });
+});
+
+describe('drag reducer — multi-pile drag', () => {
+  /** Three cards: p1 and p2 selected, p3 a bystander. */
+  function multiState() {
+    const state = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 400, 100),
+      singleCardPile('p3', 'c3', 700, 700)
+    );
+    state.selection = { kind: 'piles', pileIds: ['p1', 'p2'] };
+    return state;
+  }
+
+  it('dragging one selected pile moves the whole selection by the same delta as one undo step', () => {
+    const initial = multiState();
+    const before = structuredClone(initial);
+
+    const result = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(150, 180) },
+      { type: 'up', world: at(150, 180) }
+    ]);
+
+    expect(result.state.piles.p1).toMatchObject({ x: 150, y: 180 });
+    expect(result.state.piles.p2).toMatchObject({ x: 450, y: 180 });
+    expect(result.state.piles.p3).toMatchObject({ x: 700, y: 700 }); // bystander untouched
+    // The dragged group raises above unselected neighbours, in selection order.
+    expect(result.state.rootPileIds).toEqual(['p3', 'p1', 'p2']);
+    expect(result.history.past).toHaveLength(1);
+
+    // One undo rewinds the entire group move.
+    const undone = hist.undo(result.history, structuredClone(result.state));
+    expect(undone!.state).toEqual(before);
+  });
+
+  it('the selection stays selected after the group move', () => {
+    const { state } = run(multiState(), [
+      { type: 'pile-down', pileId: 'p2', world: at(400, 100) },
+      { type: 'move', world: at(430, 120) },
+      { type: 'up', world: at(430, 120) }
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p1', 'p2'] });
+  });
+
+  it('Escape mid-multi-drag restores every pile to its prior position', () => {
+    const initial = multiState();
+    const before = structuredClone(initial);
+
+    const { state, drag, history } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(300, 400) },
+      { type: 'cancel' }
+    ]);
+
+    expect(state).toEqual(before);
+    expect(drag).toEqual({ mode: 'idle' });
+    expect(history.past).toHaveLength(0);
+  });
+
+  it('a locked pile in the selection stays put while the rest move', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 400, 100, { locked: true })
+    );
+    initial.selection = { kind: 'piles', pileIds: ['p1', 'p2'] };
+
+    const { state, history } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(150, 100) },
+      { type: 'up', world: at(150, 100) }
+    ]);
+
+    expect(state.piles.p1).toMatchObject({ x: 150, y: 100 });
+    expect(state.piles.p2).toMatchObject({ x: 400, y: 100 });
+    expect(history.past).toHaveLength(1);
+  });
+
+  it('grabbing a locked pile of the selection refuses the drag but still click-selects it', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100, { locked: true }),
+      singleCardPile('p2', 'c2', 400, 100)
+    );
+    initial.selection = { kind: 'piles', pileIds: ['p1', 'p2'] };
+
+    const { state, history } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(300, 300) },
+      { type: 'up', world: at(300, 300) }
+    ]);
+
+    expect(state.piles.p1).toMatchObject({ x: 100, y: 100 });
+    expect(state.piles.p2).toMatchObject({ x: 400, y: 100 });
+    expect(history.past).toHaveLength(0);
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+  });
+
+  it('dropping the group onto a pile merges every card pile into it in selection order', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 200, 300),
+      singleCardPile('target', 'c3', 600, 100)
+    );
+    initial.selection = { kind: 'piles', pileIds: ['p1', 'p2'] };
+
+    const { state, history } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(600, 100) }, // pointer ends over the target
+      { type: 'up', world: at(600, 100) }
+    ]);
+
+    expect(state.piles.p1).toBeUndefined();
+    expect(state.piles.p2).toBeUndefined();
+    expect(state.piles.target.cardIds).toEqual(['c3', 'c1', 'c2']);
+    expect(state.rootPileIds).toEqual(['target']);
+    expect(history.past).toHaveLength(1);
+  });
+
+  it('a mixed group dropped onto a pile merges the cards and places the die where it was dragged', () => {
+    const initial = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      {
+        pile: makePile({ id: 'die', cardIds: ['d1'], x: 150, y: 200 }),
+        cards: [makeCard({ id: 'd1', templateId: 'tpl-dice' })]
+      },
+      singleCardPile('target', 'c3', 600, 100)
+    );
+    initial.selection = { kind: 'piles', pileIds: ['p1', 'die'] };
+
+    const { state } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(600, 100) }, // delta (500, 0)
+      { type: 'up', world: at(600, 100) }
+    ]);
+
+    expect(state.piles.p1).toBeUndefined();
+    expect(state.piles.target.cardIds).toEqual(['c3', 'c1']);
+    expect(state.piles.die).toMatchObject({ x: 650, y: 200, cardIds: ['d1'] });
+  });
+
+  it('releasing the group over the sidebar removes every dragged pile as one undo step', () => {
+    const initial = multiState();
+    const before = structuredClone(initial);
+
+    const result = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(20, 100) },
+      { type: 'up', world: at(20, 100), overSidebar: true }
+    ]);
+
+    expect(result.state.piles.p1).toBeUndefined();
+    expect(result.state.piles.p2).toBeUndefined();
+    expect(result.state.cards.c1).toBeUndefined();
+    expect(result.state.cards.c2).toBeUndefined();
+    expect(result.state.rootPileIds).toEqual(['p3']);
+    expect(result.history.past).toHaveLength(1);
+
+    const undone = hist.undo(result.history, structuredClone(result.state));
+    expect(undone!.state).toEqual(before);
+  });
+});

@@ -252,6 +252,135 @@ describe('pile drops — merge precedence in the shared resolver', () => {
   });
 });
 
+describe('multi-pile drops — a selection through the shared resolver', () => {
+  const templates = makeTemplates(cardTemplate(), diceTemplate());
+
+  it('over empty table: every pile places at its own centre, in payload order', () => {
+    const state = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 400, 100)
+    );
+
+    const plan = resolveDrop(state, templates, { kind: 'piles', pileIds: ['p1', 'p2'] }, { x: 900, y: 900 });
+
+    expect(plan).toEqual({
+      kind: 'multi',
+      plans: [
+        { kind: 'place-pile', pileId: 'p1', x: 100, y: 100 },
+        { kind: 'place-pile', pileId: 'p2', x: 400, y: 100 }
+      ]
+    });
+  });
+
+  it('over another pile: every mergeable pile merges into it, in payload order', () => {
+    const state = stateWithPiles(
+      singleCardPile('p1', 'c1', 550, 100),
+      singleCardPile('p2', 'c2', 650, 150),
+      singleCardPile('target', 'c3', 600, 100)
+    );
+
+    const plan = resolveDrop(state, templates, { kind: 'piles', pileIds: ['p1', 'p2'] }, { x: 600, y: 100 });
+
+    expect(plan).toEqual({
+      kind: 'multi',
+      plans: [
+        { kind: 'merge-piles', sourcePileId: 'p1', targetPileId: 'target' },
+        { kind: 'merge-piles', sourcePileId: 'p2', targetPileId: 'target' }
+      ]
+    });
+  });
+
+  it('dragged piles never count as merge targets for each other', () => {
+    // Two overlapping selected piles released with the pointer over both.
+    const state = stateWithPiles(
+      singleCardPile('p1', 'c1', 100, 100),
+      singleCardPile('p2', 'c2', 110, 100)
+    );
+
+    const plan = resolveDrop(state, templates, { kind: 'piles', pileIds: ['p1', 'p2'] }, { x: 105, y: 100 });
+
+    expect(plan).toEqual({
+      kind: 'multi',
+      plans: [
+        { kind: 'place-pile', pileId: 'p1', x: 100, y: 100 },
+        { kind: 'place-pile', pileId: 'p2', x: 110, y: 100 }
+      ]
+    });
+  });
+
+  it('a locked pile under the pointer refuses the whole group: everything places', () => {
+    const state = stateWithPiles(
+      singleCardPile('p1', 'c1', 550, 100),
+      singleCardPile('p2', 'c2', 650, 150),
+      singleCardPile('target', 'c3', 600, 100, { locked: true })
+    );
+
+    const plan = resolveDrop(state, templates, { kind: 'piles', pileIds: ['p1', 'p2'] }, { x: 600, y: 100 });
+
+    expect(plan).toEqual({
+      kind: 'multi',
+      plans: [
+        { kind: 'place-pile', pileId: 'p1', x: 550, y: 100 },
+        { kind: 'place-pile', pileId: 'p2', x: 650, y: 150 }
+      ]
+    });
+  });
+
+  it('a mixed selection over a pile: cards merge, the die places where it sits', () => {
+    const state = stateWithPiles(
+      singleCardPile('p1', 'c1', 560, 100),
+      {
+        pile: makePile({ id: 'die', cardIds: ['d1'], x: 700, y: 200 }),
+        cards: [makeCard({ id: 'd1', templateId: 'tpl-dice' })]
+      },
+      singleCardPile('target', 'c3', 600, 100)
+    );
+
+    const plan = resolveDrop(state, templates, { kind: 'piles', pileIds: ['p1', 'die'] }, { x: 600, y: 100 });
+
+    expect(plan).toEqual({
+      kind: 'multi',
+      plans: [
+        { kind: 'merge-piles', sourcePileId: 'p1', targetPileId: 'target' },
+        { kind: 'place-pile', pileId: 'die', x: 700, y: 200 }
+      ]
+    });
+  });
+
+  it('unknown ids are skipped; an all-ghost payload resolves to a no-op', () => {
+    const state = stateWithPiles(singleCardPile('p1', 'c1', 100, 100));
+
+    expect(resolveDrop(state, templates, { kind: 'piles', pileIds: ['ghost'] }, { x: 0, y: 0 })).toEqual({ kind: 'none' });
+    expect(resolveDrop(state, templates, { kind: 'piles', pileIds: ['p1', 'ghost'] }, { x: 900, y: 900 })).toEqual({
+      kind: 'multi',
+      plans: [{ kind: 'place-pile', pileId: 'p1', x: 100, y: 100 }]
+    });
+  });
+
+  it('applying a multi plan merges in order and normalize stays clean', () => {
+    const state = stateWithPiles(
+      singleCardPile('p1', 'c1', 550, 100),
+      singleCardPile('p2', 'c2', 650, 150),
+      singleCardPile('target', 'c3', 600, 100)
+    );
+
+    applyDropPlan(state, templates, {
+      kind: 'multi',
+      plans: [
+        { kind: 'merge-piles', sourcePileId: 'p1', targetPileId: 'target' },
+        { kind: 'merge-piles', sourcePileId: 'p2', targetPileId: 'target' }
+      ]
+    });
+    normalize(state, templates, { dev: true });
+
+    expect(state.piles.p1).toBeUndefined();
+    expect(state.piles.p2).toBeUndefined();
+    // Payload (selection) order becomes stacking order on the target.
+    expect(state.piles.target.cardIds).toEqual(['c3', 'c1', 'c2']);
+    expect(state.rootPileIds).toEqual(['target']);
+  });
+});
+
 describe('removePile (the round-trip out)', () => {
   it('removes the pile and all of its cards from the table', () => {
     const templates = makeTemplates(cardTemplate());

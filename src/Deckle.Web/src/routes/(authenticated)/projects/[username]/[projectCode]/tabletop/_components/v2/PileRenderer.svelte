@@ -20,7 +20,7 @@
   const cardSize = $derived(template ? templateDisplaySize(template) : { width: 0, height: 0 });
 
   const selected = $derived(isPileSelected(store.state, pile.id));
-  const dragging = $derived(interaction.draggingPileId === pile.id);
+  const dragging = $derived(interaction.draggingPileIds.includes(pile.id));
 
   /**
    * Underlay peek: cards below the top card whose rotated AABB exceeds the

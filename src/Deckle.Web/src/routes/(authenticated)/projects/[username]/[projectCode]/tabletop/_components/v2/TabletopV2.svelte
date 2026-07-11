@@ -103,12 +103,12 @@
   function handleWindowPointerMove(e: PointerEvent) {
     if (!interaction.isDragging) return;
     interaction.move(clientToWorld(e.clientX, e.clientY));
-    pileOverSidebar = interaction.draggingPileId !== null && pointerOverSidebar(e);
+    pileOverSidebar = interaction.draggingPileIds.length > 0 && pointerOverSidebar(e);
   }
 
   function handleWindowPointerUp(e: PointerEvent) {
     if (!interaction.isDragging) return;
-    const overSidebar = interaction.draggingPileId !== null && pointerOverSidebar(e);
+    const overSidebar = interaction.draggingPileIds.length > 0 && pointerOverSidebar(e);
     pileOverSidebar = false;
     interaction.up(clientToWorld(e.clientX, e.clientY), overSidebar);
   }
@@ -119,15 +119,13 @@
     interaction.cancel();
   }
 
-  // Click on empty canvas = deselect (Ctrl/Meta reserved for multi-select).
-  function handleCanvasClick(e: MouseEvent) {
-    if (e.ctrlKey || e.metaKey) return;
-    if (
-      e.target === e.currentTarget ||
-      (e.target as HTMLElement).classList.contains('canvas-surface')
-    ) {
-      store.setSelection({ kind: 'none' });
-    }
+  // Pointer-down reaching the canvas is a background press (piles stop
+  // propagation): the reducer turns it into a marquee, or a deselect click.
+  function handleCanvasPointerDown(e: PointerEvent) {
+    if (e.button !== 0) return;
+    interaction.backgroundDown(clientToWorld(e.clientX, e.clientY), {
+      ctrl: e.ctrlKey || e.metaKey
+    });
   }
 
   // ─── Keyboard shortcuts ───────────────────────────────────────────────────
@@ -238,7 +236,7 @@
     <div
       class="canvas"
       class:drop-target={isDropTarget}
-      onclick={handleCanvasClick}
+      onpointerdown={handleCanvasPointerDown}
       onwheel={handleWheel}
       ondragover={handleCanvasDragOver}
       ondragleave={handleCanvasDragLeave}
@@ -257,6 +255,13 @@
             <PileRenderer {pile} />
           {/if}
         {/each}
+        {#if interaction.marqueeRect}
+          {@const r = interaction.marqueeRect}
+          <div
+            class="marquee"
+            style="left: {r.x}px; top: {r.y}px; width: {r.width}px; height: {r.height}px;"
+          ></div>
+        {/if}
       </div>
     </div>
   </div>
@@ -308,5 +313,13 @@
     width: 0;
     height: 0;
     overflow: visible;
+  }
+
+  .marquee {
+    position: absolute;
+    border: 1px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.12);
+    pointer-events: none;
+    z-index: 200;
   }
 </style>

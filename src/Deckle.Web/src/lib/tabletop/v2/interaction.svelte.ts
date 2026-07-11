@@ -3,7 +3,8 @@
 // module dispatches them through `step` and applies the emitted mutations.
 
 import { applyDropPlan } from './drop';
-import type { Point } from './geometry';
+import type { Point, Rect } from './geometry';
+import { rectFromPoints } from './geometry';
 import type { DragMutation, DragState } from './reducer';
 import { step, type DragInputEvent } from './reducer';
 import * as ops from './operations';
@@ -13,8 +14,16 @@ export function createInteraction(store: TabletopStore) {
   let drag = $state.raw<DragState>({ mode: 'idle' });
 
   const isDragging = $derived(drag.mode !== 'idle');
-  /** The pile currently being dragged (for overlay/elevated rendering). */
-  const draggingPileId = $derived(drag.mode === 'pile' && drag.active ? drag.pileId : null);
+  /** The piles currently being dragged (for overlay/elevated rendering). */
+  const draggingPileIds = $derived.by((): string[] => {
+    if (drag.mode === 'pile' && drag.active) return [drag.pileId];
+    if (drag.mode === 'multi' && drag.active) return drag.pileIds;
+    return [];
+  });
+  /** The live marquee rectangle in world coordinates, or null. */
+  const marqueeRect = $derived.by((): Rect | null =>
+    drag.mode === 'marquee' && drag.active ? rectFromPoints(drag.start, drag.current) : null
+  );
 
   function applyMutation(mutation: DragMutation): void {
     switch (mutation.type) {
@@ -61,8 +70,11 @@ export function createInteraction(store: TabletopStore) {
     get isDragging() {
       return isDragging;
     },
-    get draggingPileId() {
-      return draggingPileId;
+    get draggingPileIds() {
+      return draggingPileIds;
+    },
+    get marqueeRect() {
+      return marqueeRect;
     },
 
     pileDown(
@@ -78,6 +90,9 @@ export function createInteraction(store: TabletopStore) {
         alt: opts.alt,
         ctrl: opts.ctrl
       });
+    },
+    backgroundDown(world: Point, opts: { ctrl?: boolean } = {}): void {
+      dispatch({ type: 'background-down', world, ctrl: opts.ctrl });
     },
     move(world: Point): void {
       dispatch({ type: 'move', world });

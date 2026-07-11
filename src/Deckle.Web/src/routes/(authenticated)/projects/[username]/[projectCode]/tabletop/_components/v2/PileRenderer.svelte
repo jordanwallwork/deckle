@@ -1,6 +1,12 @@
 <script lang="ts">
-  import type { Pile } from '$lib/tabletop/v2';
-  import { getTabletopApi, isPileSelected, pileFootprint, templateDisplaySize } from '$lib/tabletop/v2';
+  import type { Card, Pile, Template } from '$lib/tabletop/v2';
+  import {
+    cardAabbSize,
+    getTabletopApi,
+    isPileSelected,
+    pileFootprint,
+    templateDisplaySize
+  } from '$lib/tabletop/v2';
   import CardFace from './CardFace.svelte';
 
   let { pile }: { pile: Pile } = $props();
@@ -16,11 +22,42 @@
   const selected = $derived(isPileSelected(store.state, pile.id));
   const dragging = $derived(interaction.draggingPileId === pile.id);
 
+  /**
+   * Underlay peek: cards below the top card whose rotated AABB exceeds the
+   * top card's — a larger or sideways card visibly pokes out behind it.
+   * Fully covered cards are skipped, so a plain same-size deck renders only
+   * its top card.
+   */
+  const underlays = $derived.by((): { card: Card; template: Template }[] => {
+    if (!topCard || !template || pile.cardIds.length < 2) return [];
+    const topSize = cardAabbSize(topCard, template);
+    const peeking: { card: Card; template: Template }[] = [];
+    for (const cardId of pile.cardIds.slice(0, -1)) {
+      const card = store.state.cards[cardId];
+      const cardTemplate = card ? store.templates[card.templateId] : undefined;
+      if (!card || !cardTemplate) continue;
+      const size = cardAabbSize(card, cardTemplate);
+      if (size.width > topSize.width || size.height > topSize.height) {
+        peeking.push({ card, template: cardTemplate });
+      }
+    }
+    return peeking;
+  });
+
+  // Plain drag pulls the top card; Alt+drag moves the whole pile.
   function handlePointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
-    interaction.pileDown(pile.id, api.clientToWorld(e.clientX, e.clientY));
+    interaction.pileDown(pile.id, api.clientToWorld(e.clientX, e.clientY), { alt: e.altKey });
+  }
+
+  // The count badge is the whole-pile drag handle.
+  function handleBadgePointerDown(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    interaction.pileDown(pile.id, api.clientToWorld(e.clientX, e.clientY), { viaBadge: true });
   }
 </script>
 
@@ -33,6 +70,16 @@
   style="left: {pile.x}px; top: {pile.y}px; width: {footprint.width}px; height: {footprint.height}px;"
   onpointerdown={handlePointerDown}
 >
+  {#each underlays as underlay (underlay.card.id)}
+    {@const size = templateDisplaySize(underlay.template)}
+    <div
+      class="under-card"
+      style="width: {size.width}px; height: {size.height}px; transform: rotate({underlay.card
+        .rotation}deg);"
+    >
+      <CardFace card={underlay.card} template={underlay.template} />
+    </div>
+  {/each}
   {#if topCard && template}
     <div
       class="top-card"
@@ -42,8 +89,12 @@
     </div>
   {/if}
   {#if pile.cardIds.length > 1}
-    <!-- Ticket 03 turns the badge into the whole-pile drag handle. -->
-    <span class="count-badge">{pile.cardIds.length}</span>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <span
+      class="count-badge"
+      title="Drag to move the whole pile"
+      onpointerdown={handleBadgePointerDown}>{pile.cardIds.length}</span
+    >
   {/if}
 </div>
 
@@ -64,6 +115,8 @@
     outline-offset: 2px;
   }
 
+  /* Dragged piles float above all neighbours; the surface has no other
+     stacking contexts, so this doubles as the drag overlay layer. */
   .pile.dragging {
     cursor: grabbing;
     filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45));
@@ -74,7 +127,15 @@
     cursor: default;
   }
 
+  .under-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+  }
+
   .top-card {
+    position: relative;
     flex-shrink: 0;
   }
 
@@ -96,6 +157,11 @@
     font-weight: 600;
     line-height: 1;
     z-index: 1;
-    pointer-events: none;
+    cursor: grab;
+  }
+
+  .count-badge:hover {
+    background: #2c2f42;
+    border-color: #4a4e63;
   }
 </style>

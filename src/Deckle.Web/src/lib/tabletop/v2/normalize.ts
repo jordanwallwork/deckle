@@ -3,8 +3,9 @@
 // SPEC's invariants. Violations throw in dev and repair silently in prod, so
 // every operation test doubles as an invariant test.
 //
-// Wired so far (ticket 01): referential integrity. Later tickets add the
-// empty-pile, splay, spread-layout and grid-snap invariants here.
+// Wired so far: referential integrity (ticket 01) and no-empty-piles
+// (ticket 03). Later tickets add the splay, spread-layout and grid-snap
+// invariants here.
 
 import type { TabletopState, Templates } from './types';
 
@@ -29,7 +30,27 @@ export function normalize(state: TabletopState, templates: Templates, opts: Norm
     if (opts.dev) throw new InvariantViolation(message);
   };
 
+  noEmptyPiles(state, fail);
   referentialIntegrity(state, fail);
+}
+
+/**
+ * Invariant: a pile with zero cards may not exist after a commit — deletion
+ * here is the only stack-dissolve mechanism (no operation removes emptied
+ * piles itself, except where the pile's cards were deliberately destroyed).
+ */
+function noEmptyPiles(state: TabletopState, fail: (message: string) => void): void {
+  for (const pile of Object.values(state.piles)) {
+    if (pile.cardIds.length > 0) continue;
+    fail(`pile ${pile.id} has no cards`);
+    const container =
+      pile.zoneId === null ? state.rootPileIds : state.zones[pile.zoneId]?.pileIds;
+    if (container) {
+      const index = container.indexOf(pile.id);
+      if (index !== -1) container.splice(index, 1);
+    }
+    delete state.piles[pile.id];
+  }
 }
 
 /**

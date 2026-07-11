@@ -2,6 +2,7 @@
 // forward pointer events (already converted to world coordinates); this
 // module dispatches them through `step` and applies the emitted mutations.
 
+import { applyDropPlan } from './drop';
 import type { Point } from './geometry';
 import type { DragMutation, DragState } from './reducer';
 import { step, type DragInputEvent } from './reducer';
@@ -23,11 +24,17 @@ export function createInteraction(store: TabletopStore) {
       case 'raise-pile':
         store.updateTransient((s) => ops.raisePile(s, mutation.pileId));
         break;
+      case 'split-top':
+        store.updateTransient((s) => ops.splitTopCard(s, mutation.sourcePileId, mutation.newPileId));
+        break;
       case 'move-pile':
         store.updateTransient((s) => ops.movePileTo(s, mutation.pileId, mutation.x, mutation.y));
         break;
       case 'remove-pile':
         store.updateTransient((s) => ops.removePile(s, mutation.pileId));
+        break;
+      case 'drop':
+        store.updateTransient((s) => applyDropPlan(s, store.templates, mutation.plan));
         break;
       case 'commit':
         store.commitTransaction();
@@ -58,8 +65,8 @@ export function createInteraction(store: TabletopStore) {
       return draggingPileId;
     },
 
-    pileDown(pileId: string, world: Point): void {
-      dispatch({ type: 'pile-down', pileId, world });
+    pileDown(pileId: string, world: Point, opts: { viaBadge?: boolean; alt?: boolean } = {}): void {
+      dispatch({ type: 'pile-down', pileId, world, viaBadge: opts.viaBadge, alt: opts.alt });
     },
     move(world: Point): void {
       dispatch({ type: 'move', world });

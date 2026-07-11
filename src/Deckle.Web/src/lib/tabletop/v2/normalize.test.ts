@@ -162,6 +162,50 @@ describe('normalize — referential integrity', () => {
   });
 });
 
+describe('normalize — no empty piles', () => {
+  it('an empty pile on the root: throws in dev, is deleted with its root entry in prod', () => {
+    expectThrowsInDevRepairsInProd(
+      () => {
+        const state = stateWithPiles(singleCardPile('p1', 'c1'));
+        state.piles.husk = makePile({ id: 'husk', cardIds: [], x: 50, y: 50 });
+        state.rootPileIds.push('husk');
+        return state;
+      },
+      (state) => {
+        expect(state.piles.husk).toBeUndefined();
+        expect(state.rootPileIds).toEqual(['p1']);
+      }
+    );
+  });
+
+  it('an empty pile inside a zone: throws in dev, is deleted with its zone entry in prod', () => {
+    expectThrowsInDevRepairsInProd(
+      () => {
+        const state = stateWithPiles(singleCardPile('p1', 'c1'));
+        const zone: FreeformZone = {
+          id: 'z1',
+          name: 'Zone',
+          type: 'freeform',
+          x: 0,
+          y: 0,
+          width: 200,
+          height: 200,
+          pileIds: ['husk'],
+          locked: false
+        };
+        state.zones.z1 = zone;
+        state.zoneOrder.push('z1');
+        state.piles.husk = makePile({ id: 'husk', cardIds: [], zoneId: 'z1' });
+        return state;
+      },
+      (state) => {
+        expect(state.piles.husk).toBeUndefined();
+        expect(state.zones.z1.pileIds).toEqual([]);
+      }
+    );
+  });
+});
+
 describe('normalize — ephemeral state pruning', () => {
   it('drops deleted piles from the selection without throwing', () => {
     const state = stateWithPiles(singleCardPile('p1', 'c1'));

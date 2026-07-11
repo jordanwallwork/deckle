@@ -28,6 +28,15 @@ export interface Rect {
   height: number;
 }
 
+export function pointInRect(point: Point, rect: Rect): boolean {
+  return (
+    point.x >= rect.x &&
+    point.x <= rect.x + rect.width &&
+    point.y >= rect.y &&
+    point.y <= rect.y + rect.height
+  );
+}
+
 /** Display size (px) for a template rendered at physical scale. */
 export function templateDisplaySize(template: Template): Size {
   return {

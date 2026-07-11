@@ -6,11 +6,16 @@
 // window pointer listeners; the reducer itself never touches the DOM or the
 // store, so synthetic pointer sequences drive it in tests.
 //
-// Modes wired so far (ticket 01): moving a pile with a plain drag. Later
-// tickets add top-card split, multi-pile drag, marquee, zone move/resize and
-// pan as further modes of this same machine.
+// Modes wired so far: pile drags with the two grab gestures (ticket 03) —
+// a plain drag splits the top card off a multi-card pile at drag start; a
+// badge or Alt grab moves the whole pile; drops resolve through the shared
+// drop resolver (merge onto a pile's footprint, otherwise place). Later
+// tickets add multi-pile drag, marquee, zone move/resize and pan as further
+// modes of this same machine.
 
 import type { Point } from './geometry';
+import { resolveDrop, type DropPlan } from './drop';
+import { makeId } from './operations';
 import type { Selection, TabletopState, Templates } from './types';
 
 /**
@@ -23,7 +28,18 @@ export type DragState =
   | { mode: 'idle' }
   | {
       mode: 'pile';
+      /**
+       * The pile being dragged. Before activation this is the pile under the
+       * pointer; a 'top-card' grab on a multi-card pile swaps it for the
+       * freshly split single-card pile at activation.
+       */
       pileId: string;
+      /**
+       * 'top-card': plain grab — splits the top card off a multi-card pile
+       * at activation (degenerates to a whole move for piles of one).
+       * 'whole': badge or Alt grab — always moves the entire pile.
+       */
+      grabKind: 'top-card' | 'whole';
       /** Pointer world position at grab. */
       grab: Point;
       /** Pile centre at grab; drag applies the pointer's world delta to it. */
@@ -33,7 +49,15 @@ export type DragState =
     };
 
 export type DragInputEvent =
-  | { type: 'pile-down'; pileId: string; world: Point }
+  | {
+      type: 'pile-down';
+      pileId: string;
+      world: Point;
+      /** True when the grab started on the pile's count badge. */
+      viaBadge?: boolean;
+      /** True when Alt was held — same meaning as a badge grab. */
+      alt?: boolean;
+    }
   | { type: 'move'; world: Point }
   | {
       type: 'up';
@@ -52,8 +76,10 @@ export type DragInputEvent =
 export type DragMutation =
   | { type: 'begin' }
   | { type: 'raise-pile'; pileId: string }
+  | { type: 'split-top'; sourcePileId: string; newPileId: string }
   | { type: 'move-pile'; pileId: string; x: number; y: number }
   | { type: 'remove-pile'; pileId: string }
+  | { type: 'drop'; plan: DropPlan }
   | { type: 'commit' }
   | { type: 'rollback' }
   | { type: 'select'; selection: Selection };
@@ -91,6 +117,7 @@ function stepIdle(event: DragInputEvent, ctx: ReducerContext): StepResult {
     drag: {
       mode: 'pile',
       pileId: event.pileId,
+      grabKind: event.viaBadge || event.alt ? 'whole' : 'top-card',
       grab: event.world,
       pileStart: { x: pile.x, y: pile.y },
       active: false
@@ -111,22 +138,15 @@ function stepPile(
       if (!drag.active && Math.hypot(dx, dy) < DRAG_THRESHOLD) {
         return { drag, mutations: [] };
       }
-      const move: DragMutation = {
-        type: 'move-pile',
-        pileId: drag.pileId,
-        x: drag.pileStart.x + dx,
-        y: drag.pileStart.y + dy
-      };
       if (!drag.active) {
-        // First frame past the threshold: open the transaction and raise the
-        // pile above its neighbours (inside the transaction, so a rollback
-        // restores the render order too).
-        return {
-          drag: { ...drag, active: true },
-          mutations: [{ type: 'begin' }, { type: 'raise-pile', pileId: drag.pileId }, move]
-        };
+        return activate(drag, dx, dy, ctx);
       }
-      return { drag, mutations: [move] };
+      return {
+        drag,
+        mutations: [
+          { type: 'move-pile', pileId: drag.pileId, x: drag.pileStart.x + dx, y: drag.pileStart.y + dy }
+        ]
+      };
     }
     case 'up': {
       if (!drag.active) {
@@ -138,7 +158,15 @@ function stepPile(
         // transaction, so the whole gesture is a single undo step.
         return idle([{ type: 'remove-pile', pileId: drag.pileId }, { type: 'commit' }]);
       }
-      return idle([{ type: 'commit' }]);
+      // Everything else goes through the shared drop resolver: merge onto the
+      // pile under the pointer, or stay where the pile visually sits.
+      const plan = resolveDrop(
+        ctx.state,
+        ctx.templates,
+        { kind: 'pile', pileId: drag.pileId },
+        event.world
+      );
+      return idle([{ type: 'drop', plan }, { type: 'commit' }]);
     }
     case 'cancel':
       return idle(drag.active ? [{ type: 'rollback' }] : []);
@@ -147,4 +175,38 @@ function stepPile(
       // of the current gesture to stay consistent.
       return idle(drag.active ? [{ type: 'rollback' }] : []);
   }
+}
+
+/**
+ * First frame past the threshold: open the transaction and start the grab
+ * proper. A 'top-card' grab on a multi-card pile splits the top card off
+ * right here — the split pile (spawned at the source centre, on top of the
+ * root render order) becomes the dragged pile. Whole grabs and piles of one
+ * just get raised above their neighbours. Everything happens inside the
+ * transaction, so a rollback restores the split and the render order too.
+ */
+function activate(
+  drag: Extract<DragState, { mode: 'pile' }>,
+  dx: number,
+  dy: number,
+  ctx: ReducerContext
+): StepResult {
+  const source = ctx.state.piles[drag.pileId];
+  const splits = drag.grabKind === 'top-card' && source !== undefined && source.cardIds.length > 1;
+  const pileId = splits ? makeId('pile') : drag.pileId;
+
+  const mutations: DragMutation[] = [{ type: 'begin' }];
+  if (splits) {
+    mutations.push({ type: 'split-top', sourcePileId: drag.pileId, newPileId: pileId });
+  } else {
+    mutations.push({ type: 'raise-pile', pileId });
+  }
+  mutations.push({
+    type: 'move-pile',
+    pileId,
+    x: drag.pileStart.x + dx,
+    y: drag.pileStart.y + dy
+  });
+
+  return { drag: { ...drag, pileId, active: true }, mutations };
 }

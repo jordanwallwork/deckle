@@ -2,7 +2,7 @@
 // state in place — callers wrap them in the store's transaction/commit API.
 // Operations stay minimal: the normalize pass owns cross-cutting bookkeeping.
 
-import type { Card, Pile, Selection, TabletopState, Template } from './types';
+import type { Card, Pile, Selection, TabletopState, Template, Templates } from './types';
 
 export function makeId(prefix = 'id'): string {
   const suffix =
@@ -134,6 +134,63 @@ export function removeAllCardsOfTemplate(state: TabletopState, templateId: strin
     pile.cardIds = keep;
     if (pile.cardIds.length === 0) removePile(state, pile.id);
   }
+}
+
+// ─── Split / merge ─────────────────────────────────────────────────────────
+
+/**
+ * Whether a pile can take part in a merge: every card's template must be
+ * mergeable (dice and tokens are not). Locked-target gating lives in the
+ * drop resolver — this is the capability check only.
+ */
+export function isPileMergeable(state: TabletopState, templates: Templates, pile: Pile): boolean {
+  return pile.cardIds.every((cardId) => {
+    const card = state.cards[cardId];
+    const template = card ? templates[card.templateId] : undefined;
+    return template?.mergeable === true;
+  });
+}
+
+/**
+ * Split the top card off a multi-card pile into a new zoneless single-card
+ * pile at the source's centre, appended to the root render order (above its
+ * neighbours). The caller supplies the new pile's id so the reducer can keep
+ * addressing the split pile in later drag frames. No-op on piles of one —
+ * those move whole; there is nothing to split.
+ */
+export function splitTopCard(state: TabletopState, sourcePileId: string, newPileId: string): void {
+  const source = getPile(state, sourcePileId);
+  if (source.cardIds.length < 2) return;
+  const topCardId = source.cardIds[source.cardIds.length - 1];
+  source.cardIds = source.cardIds.slice(0, -1);
+  const pile: Pile = {
+    id: newPileId,
+    zoneId: null,
+    x: source.x,
+    y: source.y,
+    locked: false,
+    cardIds: [topCardId]
+  };
+  state.piles[newPileId] = pile;
+  state.rootPileIds.push(newPileId);
+}
+
+/**
+ * Merge the source pile onto the target: the source's cards land on top in
+ * their existing order, each keeping its own rotation and face state. The
+ * source pile is deleted (a pile with zero cards may not exist). Dropping a
+ * drawn card back onto its source deck goes through here and restores the
+ * deck exactly.
+ */
+export function mergePiles(state: TabletopState, sourcePileId: string, targetPileId: string): void {
+  if (sourcePileId === targetPileId) return;
+  const source = getPile(state, sourcePileId);
+  const target = getPile(state, targetPileId);
+  target.cardIds = [...target.cardIds, ...source.cardIds];
+  const ids = containerPileIds(state, source);
+  const index = ids.indexOf(sourcePileId);
+  if (index !== -1) ids.splice(index, 1);
+  delete state.piles[sourcePileId];
 }
 
 // ─── Movement / ordering ───────────────────────────────────────────────────

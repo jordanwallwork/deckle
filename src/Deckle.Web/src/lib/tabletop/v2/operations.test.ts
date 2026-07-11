@@ -3,14 +3,17 @@ import { emptyTabletopState } from './initialization';
 import { normalize } from './normalize';
 import {
   clearSelection,
+  isPileMergeable,
   isPileSelected,
+  mergePiles,
   movePileTo,
   normalizeDegrees,
   raisePile,
   setSelection,
-  spawnPileFromTemplate
+  spawnPileFromTemplate,
+  splitTopCard
 } from './operations';
-import { cardTemplate, makeTemplates, singleCardPile, stateWithPiles } from './fixtures';
+import { cardTemplate, diceTemplate, makeTemplates, singleCardPile, stateWithPiles } from './fixtures';
 import { cardAabbSize, pileFootprint, templateDisplaySize, PX_PER_MM } from './geometry';
 import { makeCard, makePile } from './fixtures';
 
@@ -63,6 +66,102 @@ describe('spawnPileFromTemplate', () => {
     expect(spawnPileFromTemplate(state, template, [], 0, 0)).toBeNull();
     expect(Object.keys(state.piles)).toHaveLength(0);
     expect(Object.keys(state.cards)).toHaveLength(0);
+  });
+});
+
+describe('splitTopCard', () => {
+  const templates = makeTemplates(cardTemplate());
+
+  it('pulls the top card into a new single-card pile at the source centre, on top of the render order', () => {
+    const state = stateWithPiles(
+      {
+        pile: makePile({ id: 'p1', cardIds: ['c1', 'c2', 'c3'], x: 150, y: 250 }),
+        cards: [makeCard({ id: 'c1' }), makeCard({ id: 'c2' }), makeCard({ id: 'c3' })]
+      },
+      singleCardPile('p2', 'c4', 500, 0)
+    );
+
+    splitTopCard(state, 'p1', 'split');
+    normalize(state, templates, { dev: true });
+
+    expect(state.piles.p1.cardIds).toEqual(['c1', 'c2']);
+    expect(state.piles.split).toMatchObject({
+      zoneId: null,
+      x: 150,
+      y: 250,
+      locked: false,
+      cardIds: ['c3']
+    });
+    expect(state.rootPileIds).toEqual(['p1', 'p2', 'split']);
+  });
+
+  it('is a no-op on a pile of one — single cards move whole, never split', () => {
+    const state = stateWithPiles(singleCardPile('p1', 'c1'));
+    const before = structuredClone(state);
+
+    splitTopCard(state, 'p1', 'split');
+
+    expect(state).toEqual(before);
+  });
+});
+
+describe('mergePiles', () => {
+  const templates = makeTemplates(cardTemplate());
+
+  it('stacks the source\'s cards on top of the target in order, each keeping rotation and face state', () => {
+    const state = stateWithPiles(
+      {
+        pile: makePile({ id: 'target', cardIds: ['t1'], x: 0, y: 0 }),
+        cards: [makeCard({ id: 't1' })]
+      },
+      {
+        pile: makePile({ id: 'source', cardIds: ['s1', 's2'], x: 10, y: 10 }),
+        cards: [
+          makeCard({ id: 's1', rotation: 90, isFlipped: true }),
+          makeCard({ id: 's2', rotation: 180 })
+        ]
+      }
+    );
+
+    mergePiles(state, 'source', 'target');
+    normalize(state, templates, { dev: true });
+
+    expect(state.piles.source).toBeUndefined();
+    expect(state.piles.target.cardIds).toEqual(['t1', 's1', 's2']);
+    expect(state.cards.s1).toMatchObject({ rotation: 90, isFlipped: true });
+    expect(state.cards.s2).toMatchObject({ rotation: 180, isFlipped: false });
+    expect(state.rootPileIds).toEqual(['target']);
+  });
+
+  it('merging a pile into itself is a no-op', () => {
+    const state = stateWithPiles(singleCardPile('p1', 'c1'));
+    const before = structuredClone(state);
+
+    mergePiles(state, 'p1', 'p1');
+
+    expect(state).toEqual(before);
+  });
+});
+
+describe('isPileMergeable', () => {
+  const templates = makeTemplates(cardTemplate(), diceTemplate());
+
+  it('card piles are mergeable; dice piles and mixed piles are not', () => {
+    const state = stateWithPiles(
+      singleCardPile('cards', 'c1'),
+      {
+        pile: makePile({ id: 'die', cardIds: ['d1'] }),
+        cards: [makeCard({ id: 'd1', templateId: 'tpl-dice' })]
+      },
+      {
+        pile: makePile({ id: 'mixed', cardIds: ['c2', 'd2'] }),
+        cards: [makeCard({ id: 'c2' }), makeCard({ id: 'd2', templateId: 'tpl-dice' })]
+      }
+    );
+
+    expect(isPileMergeable(state, templates, state.piles.cards)).toBe(true);
+    expect(isPileMergeable(state, templates, state.piles.die)).toBe(false);
+    expect(isPileMergeable(state, templates, state.piles.mixed)).toBe(false);
   });
 });
 

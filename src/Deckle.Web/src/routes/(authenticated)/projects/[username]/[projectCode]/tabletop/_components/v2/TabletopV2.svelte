@@ -5,10 +5,11 @@
   import type { GameComponent } from '$lib/types';
   import type { TabletopState, Templates } from '$lib/tabletop/v2';
   import {
+    applyDropPlan,
     createInteraction,
     createTabletopStore,
-    setTabletopApi,
-    spawnPileFromTemplate
+    resolveDrop,
+    setTabletopApi
   } from '$lib/tabletop/v2';
   import { setContext } from 'svelte';
   import ComponentSidebar from './ComponentSidebar.svelte';
@@ -52,6 +53,21 @@
 
   let sidebarCollapsed = $state(false);
 
+  // ─── Sidebar as a removal target for pile drags ───────────────────────────
+  // Pile drags are pointer-based (no HTML5 drop events), so the shell does a
+  // geometric hit-test against the sidebar and tells the reducer on release.
+  let sidebarEl = $state<HTMLElement | null>(null);
+  let pileOverSidebar = $state(false);
+
+  function pointerOverSidebar(e: PointerEvent): boolean {
+    if (!sidebarEl) return false;
+    const rect = sidebarEl.getBoundingClientRect();
+    return (
+      e.clientX >= rect.left && e.clientX <= rect.right &&
+      e.clientY >= rect.top && e.clientY <= rect.bottom
+    );
+  }
+
   function handleWheel(e: WheelEvent) {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -67,15 +83,19 @@
   function handleWindowPointerMove(e: PointerEvent) {
     if (!interaction.isDragging) return;
     interaction.move(clientToWorld(e.clientX, e.clientY));
+    pileOverSidebar = interaction.draggingPileId !== null && pointerOverSidebar(e);
   }
 
   function handleWindowPointerUp(e: PointerEvent) {
     if (!interaction.isDragging) return;
-    interaction.up(clientToWorld(e.clientX, e.clientY));
+    const overSidebar = interaction.draggingPileId !== null && pointerOverSidebar(e);
+    pileOverSidebar = false;
+    interaction.up(clientToWorld(e.clientX, e.clientY), overSidebar);
   }
 
   function handleWindowPointerCancel() {
     if (!interaction.isDragging) return;
+    pileOverSidebar = false;
     interaction.cancel();
   }
 
@@ -111,6 +131,7 @@
     if (e.key === 'Escape') {
       if (interaction.isDragging) {
         e.preventDefault();
+        pileOverSidebar = false;
         interaction.cancel();
       } else {
         store.setSelection({ kind: 'none' });
@@ -140,16 +161,12 @@
     if (!templateId) return;
     e.preventDefault();
 
-    const template = store.templates[templateId];
-    if (!template) return;
-
-    // Boards/mats spawn as container zones — that arrives with ticket 11.
-    if (template.isContainer) return;
-
+    // Route through the shared drop resolver: it dedups against what is
+    // already placed and refuses containers (boards arrive with ticket 11).
     const world = clientToWorld(e.clientX, e.clientY);
-    store.commit((s) => {
-      spawnPileFromTemplate(s, template, template.instances, world.x, world.y);
-    });
+    const plan = resolveDrop(store.state, store.templates, { kind: 'template', templateId }, world);
+    if (plan.kind === 'none') return;
+    store.commit((s) => applyDropPlan(s, store.templates, plan));
   }
 </script>
 
@@ -164,7 +181,12 @@
   <Toolbar {zoom} onZoomChange={(z) => (zoom = z)} />
 
   <div class="tabletop-body">
-    <ComponentSidebar {components} bind:collapsed={sidebarCollapsed} />
+    <ComponentSidebar
+      {components}
+      bind:collapsed={sidebarCollapsed}
+      bind:el={sidebarEl}
+      removeTarget={pileOverSidebar}
+    />
 
     <div
       class="canvas"

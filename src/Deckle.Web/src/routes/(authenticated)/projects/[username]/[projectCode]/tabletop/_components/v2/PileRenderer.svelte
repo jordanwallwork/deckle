@@ -41,6 +41,10 @@
       <CardFace card={topCard} {template} />
     </div>
   {/if}
+  {#if pile.cardIds.length > 1}
+    <!-- Ticket 03 turns the badge into the whole-pile drag handle. -->
+    <span class="count-badge">{pile.cardIds.length}</span>
+  {/if}
 </div>
 
 <style>
@@ -72,5 +76,26 @@
 
   .top-card {
     flex-shrink: 0;
+  }
+
+  .count-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1e2030;
+    color: #e8e9f0;
+    border: 1px solid #3a3d4e;
+    border-radius: 10px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    z-index: 1;
+    pointer-events: none;
   }
 </style>

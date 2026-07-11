@@ -3,6 +3,7 @@ import { DRAG_THRESHOLD, step, type DragInputEvent, type DragMutation, type Drag
 import { applyDropPlan } from './drop';
 import * as hist from './history';
 import * as ops from './operations';
+import { MIN_ZONE_SIZE, moveZoneTo, removeZone, setZoneRect } from './zones';
 import { normalize } from './normalize';
 import type { TabletopState, Templates } from './types';
 import {
@@ -12,7 +13,8 @@ import {
   makePile,
   makeTemplates,
   singleCardPile,
-  stateWithPiles
+  stateWithPiles,
+  withZone
 } from './fixtures';
 
 const templates: Templates = makeTemplates(cardTemplate(), diceTemplate());
@@ -41,6 +43,9 @@ function run(state: TabletopState, events: DragInputEvent[]) {
         case 'raise-pile':
           ops.raisePile(state, mutation.pileId);
           break;
+        case 'detach-pile':
+          ops.detachPileToRoot(state, mutation.pileId);
+          break;
         case 'split-top':
           ops.splitTopCard(state, mutation.sourcePileId, mutation.newPileId);
           break;
@@ -49,6 +54,15 @@ function run(state: TabletopState, events: DragInputEvent[]) {
           break;
         case 'remove-pile':
           ops.removePile(state, mutation.pileId);
+          break;
+        case 'move-zone':
+          moveZoneTo(state, mutation.zoneId, mutation.x, mutation.y);
+          break;
+        case 'resize-zone':
+          setZoneRect(state, mutation.zoneId, mutation.rect);
+          break;
+        case 'remove-zone':
+          removeZone(state, mutation.zoneId);
           break;
         case 'drop':
           applyDropPlan(state, templates, mutation.plan);
@@ -811,5 +825,304 @@ describe('drag reducer — multi-pile drag', () => {
 
     const undone = hist.undo(result.history, structuredClone(result.state));
     expect(undone!.state).toEqual(before);
+  });
+});
+
+// ─── Ticket 06: zones ────────────────────────────────────────────────────────
+
+describe('drag reducer — zone moves (header tab only)', () => {
+  it('a click on the header selects the zone', () => {
+    const initial = withZone(stateWithPiles(), { id: 'z1', x: 100, y: 100 });
+
+    const { state, history } = run(initial, [
+      { type: 'zone-down', zoneId: 'z1', world: at(110, 105) },
+      { type: 'up', world: at(110, 105) }
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'zone', zoneId: 'z1' });
+    expect(history.past).toHaveLength(0); // selection is ephemeral — no history
+  });
+
+  it('dragging the header moves the zone with its piles visually stable, as one undo step', () => {
+    const initial = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 150, 150)),
+      { id: 'z1', x: 100, y: 100 },
+      ['p1']
+    );
+
+    const { state, history, inTransaction } = run(initial, [
+      { type: 'zone-down', zoneId: 'z1', world: at(110, 105) },
+      { type: 'move', world: at(210, 155) },
+      { type: 'up', world: at(210, 155) }
+    ]);
+
+    expect(state.zones.z1).toMatchObject({ x: 200, y: 150 });
+    // The pile's zone-local position never changed — it travelled with the zone.
+    expect(state.piles.p1).toMatchObject({ zoneId: 'z1', x: 50, y: 50 });
+    expect(history.past).toHaveLength(1);
+    expect(inTransaction).toBe(false);
+  });
+
+  it('a locked zone refuses the move but its header still click-selects', () => {
+    const initial = withZone(stateWithPiles(), { id: 'z1', x: 100, y: 100, locked: true });
+
+    const { state, history, emitted } = run(initial, [
+      { type: 'zone-down', zoneId: 'z1', world: at(110, 105) },
+      { type: 'move', world: at(400, 400) },
+      { type: 'up', world: at(400, 400) }
+    ]);
+
+    expect(state.zones.z1).toMatchObject({ x: 100, y: 100 });
+    expect(emitted.every((m) => m.type !== 'begin' && m.type !== 'move-zone')).toBe(true);
+    expect(state.selection).toEqual({ kind: 'zone', zoneId: 'z1' });
+    expect(history.past).toHaveLength(0);
+  });
+
+  it('releasing a zone drag over the sidebar deletes the zone with its contents', () => {
+    const initial = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 150, 150), singleCardPile('p2', 'c2', 700, 700)),
+      { id: 'z1', x: 100, y: 100 },
+      ['p1']
+    );
+
+    const { state, history } = run(initial, [
+      { type: 'zone-down', zoneId: 'z1', world: at(110, 105) },
+      { type: 'move', world: at(10, 105) },
+      { type: 'up', world: at(10, 105), overSidebar: true }
+    ]);
+
+    expect(state.zones.z1).toBeUndefined();
+    expect(state.piles.p1).toBeUndefined();
+    expect(state.cards.c1).toBeUndefined();
+    expect(state.rootPileIds).toEqual(['p2']);
+    expect(history.past).toHaveLength(1); // the whole gesture is one undo step
+  });
+
+  it('cancel mid-move restores the exact prior state', () => {
+    const initial = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 150, 150)),
+      { id: 'z1', x: 100, y: 100 },
+      ['p1']
+    );
+    const before = structuredClone(initial);
+
+    const { state, history } = run(initial, [
+      { type: 'zone-down', zoneId: 'z1', world: at(110, 105) },
+      { type: 'move', world: at(400, 400) },
+      { type: 'cancel' }
+    ]);
+
+    expect(state).toEqual(before);
+    expect(history.past).toHaveLength(0);
+  });
+});
+
+describe('drag reducer — zone body: click selects, drag marquees', () => {
+  it('a click on the zone body selects the zone; Ctrl/Cmd+click leaves the selection alone', () => {
+    const initial = withZone(stateWithPiles(singleCardPile('p1', 'c1', 700, 700)), {
+      id: 'z1',
+      x: 100,
+      y: 100
+    });
+    initial.selection = { kind: 'piles', pileIds: ['p1'] };
+
+    const clicked = run(structuredClone(initial), [
+      { type: 'background-down', world: at(200, 200), zoneId: 'z1' },
+      { type: 'up', world: at(200, 200) }
+    ]);
+    expect(clicked.state.selection).toEqual({ kind: 'zone', zoneId: 'z1' });
+
+    const ctrlClicked = run(structuredClone(initial), [
+      { type: 'background-down', world: at(200, 200), ctrl: true, zoneId: 'z1' },
+      { type: 'up', world: at(200, 200) }
+    ]);
+    expect(ctrlClicked.state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+  });
+
+  it('a body drag marquees, catching zone piles (in world space) and root piles alike', () => {
+    const initial = withZone(
+      stateWithPiles(singleCardPile('inZone', 'c1', 150, 150), singleCardPile('onTable', 'c2', 600, 150)),
+      { id: 'z1', x: 100, y: 100 },
+      ['inZone']
+    );
+
+    const { state } = run(initial, [
+      { type: 'background-down', world: at(120, 120), zoneId: 'z1' },
+      { type: 'move', world: at(700, 300) },
+      { type: 'up', world: at(700, 300) }
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['inZone', 'onTable'] });
+  });
+});
+
+describe('drag reducer — dragging piles across zones', () => {
+  it('a whole-pile grab inside a zone detaches at its world position and drops onto the open table', () => {
+    const initial = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 150, 150)),
+      { id: 'z1', x: 100, y: 100 },
+      ['p1']
+    );
+
+    const { state, history } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(150, 150), alt: true },
+      { type: 'move', world: at(600, 150) },
+      { type: 'up', world: at(600, 150) }
+    ]);
+
+    expect(state.piles.p1).toMatchObject({ zoneId: null, x: 600, y: 150 });
+    expect(state.zones.z1.pileIds).toEqual([]);
+    expect(state.rootPileIds).toEqual(['p1']);
+    expect(history.past).toHaveLength(1);
+  });
+
+  it('a drag within the zone re-enters it, keeping the visual position at the drop', () => {
+    const initial = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 150, 150)),
+      { id: 'z1', x: 100, y: 100 },
+      ['p1']
+    );
+
+    const { state } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(150, 150), alt: true },
+      { type: 'move', world: at(200, 180) },
+      { type: 'up', world: at(200, 180) }
+    ]);
+
+    expect(state.piles.p1).toMatchObject({ zoneId: 'z1', x: 100, y: 80 }); // world (200, 180)
+    expect(state.zones.z1.pileIds).toEqual(['p1']);
+  });
+
+  it('a plain grab on a deck inside a zone splits the top card off at its world centre', () => {
+    const initial = withZone(
+      stateWithPiles({
+        pile: makePile({ id: 'deck', cardIds: ['c1', 'c2', 'c3'], x: 150, y: 150 }),
+        cards: [makeCard({ id: 'c1' }), makeCard({ id: 'c2' }), makeCard({ id: 'c3' })]
+      }),
+      { id: 'z1', x: 100, y: 100 },
+      ['deck']
+    );
+
+    const { state } = run(initial, [
+      { type: 'pile-down', pileId: 'deck', world: at(150, 150) },
+      { type: 'move', world: at(650, 150) },
+      { type: 'up', world: at(650, 150) }
+    ]);
+
+    // The deck stays in the zone minus its top card; the drawn card sits on
+    // the open table where it was dropped.
+    expect(state.piles.deck).toMatchObject({ zoneId: 'z1', cardIds: ['c1', 'c2'] });
+    const drawnId = state.rootPileIds[0];
+    expect(state.piles[drawnId]).toMatchObject({ zoneId: null, x: 650, y: 150, cardIds: ['c3'] });
+  });
+
+  it('cancel mid-drag restores zone membership exactly', () => {
+    const initial = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 150, 150)),
+      { id: 'z1', x: 100, y: 100 },
+      ['p1']
+    );
+    const before = structuredClone(initial);
+
+    const { state } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(150, 150), alt: true },
+      { type: 'move', world: at(900, 900) },
+      { type: 'cancel' }
+    ]);
+
+    expect(state).toEqual(before);
+  });
+
+  it('a multi-selection dragged over a zone lands every pile in it (story 41)', () => {
+    const initial = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 600, 150), singleCardPile('p2', 'c2', 700, 150)),
+      { id: 'z1', x: 100, y: 100 }
+    );
+    initial.selection = { kind: 'piles', pileIds: ['p1', 'p2'] };
+
+    const { state, history } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(600, 150) },
+      { type: 'move', world: at(250, 150) }, // pointer ends inside z1
+      { type: 'up', world: at(250, 150) }
+    ]);
+
+    expect(state.piles.p1).toMatchObject({ zoneId: 'z1', x: 150, y: 50 }); // world (250, 150)
+    expect(state.piles.p2).toMatchObject({ zoneId: 'z1', x: 250, y: 50 }); // world (350, 150)
+    expect(state.zones.z1.pileIds).toEqual(['p1', 'p2']);
+    expect(state.rootPileIds).toEqual([]);
+    expect(history.past).toHaveLength(1);
+  });
+});
+
+describe('drag reducer — edit-mode corner resize (inside the session transaction)', () => {
+  function editingState() {
+    const state = withZone(stateWithPiles(), { id: 'z1', x: 100, y: 100, width: 400, height: 300 });
+    state.editingZoneId = 'z1';
+    return state;
+  }
+
+  it('resize frames are transient: the rect updates, but no transaction or history entry appears', () => {
+    const { state, history, emitted, inTransaction } = run(editingState(), [
+      { type: 'zone-resize-down', zoneId: 'z1', corner: 'se', world: at(500, 400) },
+      { type: 'move', world: at(560, 450) },
+      { type: 'up', world: at(560, 450) }
+    ]);
+
+    expect(state.zones.z1).toMatchObject({ x: 100, y: 100, width: 460, height: 350 });
+    expect(emitted.every((m) => m.type !== 'begin' && m.type !== 'commit')).toBe(true);
+    expect(history.past).toHaveLength(0);
+    expect(inTransaction).toBe(false);
+  });
+
+  it('shrinking past the opposite corner clamps to the minimum size', () => {
+    const { state } = run(editingState(), [
+      { type: 'zone-resize-down', zoneId: 'z1', corner: 'se', world: at(500, 400) },
+      { type: 'move', world: at(-1000, -1000) },
+      { type: 'up', world: at(-1000, -1000) }
+    ]);
+
+    expect(state.zones.z1).toMatchObject({
+      x: 100,
+      y: 100,
+      width: MIN_ZONE_SIZE,
+      height: MIN_ZONE_SIZE
+    });
+  });
+
+  it('cancel mid-resize restores the starting rect (the session stays open)', () => {
+    const { state, drag } = run(editingState(), [
+      { type: 'zone-resize-down', zoneId: 'z1', corner: 'nw', world: at(100, 100) },
+      { type: 'move', world: at(50, 60) },
+      { type: 'cancel' }
+    ]);
+
+    expect(state.zones.z1).toMatchObject({ x: 100, y: 100, width: 400, height: 300 });
+    expect(state.editingZoneId).toBe('z1');
+    expect(drag).toEqual({ mode: 'idle' });
+  });
+
+  it('while a zone-edit session is open, the rest of the table is inert', () => {
+    const state = withZone(stateWithPiles(singleCardPile('p1', 'c1', 700, 700)), {
+      id: 'z1',
+      x: 100,
+      y: 100
+    });
+    state.editingZoneId = 'z1';
+    const before = structuredClone(state);
+
+    const result = run(state, [
+      { type: 'pile-down', pileId: 'p1', world: at(700, 700) },
+      { type: 'move', world: at(900, 900) },
+      { type: 'up', world: at(900, 900) },
+      { type: 'background-down', world: at(20, 20) },
+      { type: 'move', world: at(800, 800) },
+      { type: 'up', world: at(800, 800) },
+      { type: 'zone-down', zoneId: 'z1', world: at(110, 100) },
+      { type: 'move', world: at(400, 400) },
+      { type: 'up', world: at(400, 400) }
+    ]);
+
+    expect(result.state).toEqual(before);
+    expect(result.emitted).toEqual([]);
   });
 });

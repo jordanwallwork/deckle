@@ -6,6 +6,7 @@
 import type { Selection, TabletopState, Templates } from './types';
 import * as hist from './history';
 import { normalize } from './normalize';
+import { createFreeformZone, NEW_ZONE_HEIGHT, NEW_ZONE_WIDTH } from './zones';
 
 export function createTabletopStore(initialState: TabletopState, templates: Templates) {
   const store = $state<{ state: TabletopState }>({
@@ -84,6 +85,49 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     store.state.selection = selection;
   }
 
+  // ─── Zone edit sessions ───────────────────────────────────────────────────
+  // Editing a zone is one transaction: everything from entering edit mode to
+  // Done lands as a single history entry, and Escape rolls the whole session
+  // back — including the zone's creation when the session started from
+  // "Add Zone".
+
+  /** Create a freeform zone centred on a world point and open it for editing. */
+  function createZoneAndEdit(worldX: number, worldY: number): void {
+    if (transaction) return;
+    beginTransaction();
+    const id = createFreeformZone(
+      store.state,
+      worldX - NEW_ZONE_WIDTH / 2,
+      worldY - NEW_ZONE_HEIGHT / 2
+    );
+    store.state.editingZoneId = id;
+    store.state.selection = { kind: 'zone', zoneId: id };
+  }
+
+  /** Open an existing (unlocked) zone's edit session. */
+  function startZoneEdit(zoneId: string): void {
+    if (transaction) return;
+    const zone = store.state.zones[zoneId];
+    if (!zone || zone.locked) return;
+    beginTransaction();
+    store.state.editingZoneId = zoneId;
+    store.state.selection = { kind: 'zone', zoneId };
+  }
+
+  /**
+   * End the edit session: Done commits it as one history entry; Escape
+   * (commit = false) restores the exact pre-session state.
+   */
+  function endZoneEdit(commitSession: boolean): void {
+    if (store.state.editingZoneId === null || !transaction) return;
+    if (commitSession) {
+      store.state.editingZoneId = null;
+      commitTransaction();
+    } else {
+      rollbackTransaction();
+    }
+  }
+
   return {
     /** The reactive state. Components read it; mutations go through the API. */
     get state() {
@@ -108,7 +152,10 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     rollbackTransaction,
     undo,
     redo,
-    setSelection
+    setSelection,
+    createZoneAndEdit,
+    startZoneEdit,
+    endZoneEdit
   };
 }
 

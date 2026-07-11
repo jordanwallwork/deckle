@@ -7,6 +7,7 @@ import {
   removeAllCardsOfTemplate,
   removePile
 } from './operations';
+import { pileWorldCenter } from './geometry';
 import {
   cardTemplate,
   diceTemplate,
@@ -14,7 +15,8 @@ import {
   makePile,
   makeTemplates,
   singleCardPile,
-  stateWithPiles
+  stateWithPiles,
+  withZone
 } from './fixtures';
 
 const rowA = { Name: 'A' };
@@ -32,6 +34,7 @@ describe('sidebar drop → resolver → spawn (the round-trip in)', () => {
       kind: 'spawn-pile',
       templateId: template.id,
       instances: [rowA, rowB, rowC],
+      zoneId: null,
       x: 250,
       y: 130
     });
@@ -168,7 +171,7 @@ describe('pile drops — merge precedence in the shared resolver', () => {
 
     const plan = resolveDrop(state, templates, { kind: 'pile', pileId: 'p1' }, { x: 310, y: 215 });
 
-    expect(plan).toEqual({ kind: 'place-pile', pileId: 'p1', x: 300, y: 200 });
+    expect(plan).toEqual({ kind: 'place-pile', pileId: 'p1', zoneId: null, x: 300, y: 200 });
   });
 
   it('the dropped pile itself never counts as a merge target', () => {
@@ -200,7 +203,7 @@ describe('pile drops — merge precedence in the shared resolver', () => {
 
     const plan = resolveDrop(state, templates, { kind: 'pile', pileId: 'p1' }, { x: 600, y: 100 });
 
-    expect(plan).toEqual({ kind: 'place-pile', pileId: 'p1', x: 100, y: 100 });
+    expect(plan).toEqual({ kind: 'place-pile', pileId: 'p1', zoneId: null, x: 100, y: 100 });
   });
 
   it('dice merge with nothing: a card dropped on a die, and a die dropped on a card, both place', () => {
@@ -266,8 +269,8 @@ describe('multi-pile drops — a selection through the shared resolver', () => {
     expect(plan).toEqual({
       kind: 'multi',
       plans: [
-        { kind: 'place-pile', pileId: 'p1', x: 100, y: 100 },
-        { kind: 'place-pile', pileId: 'p2', x: 400, y: 100 }
+        { kind: 'place-pile', pileId: 'p1', zoneId: null, x: 100, y: 100 },
+        { kind: 'place-pile', pileId: 'p2', zoneId: null, x: 400, y: 100 }
       ]
     });
   });
@@ -302,8 +305,8 @@ describe('multi-pile drops — a selection through the shared resolver', () => {
     expect(plan).toEqual({
       kind: 'multi',
       plans: [
-        { kind: 'place-pile', pileId: 'p1', x: 100, y: 100 },
-        { kind: 'place-pile', pileId: 'p2', x: 110, y: 100 }
+        { kind: 'place-pile', pileId: 'p1', zoneId: null, x: 100, y: 100 },
+        { kind: 'place-pile', pileId: 'p2', zoneId: null, x: 110, y: 100 }
       ]
     });
   });
@@ -320,8 +323,8 @@ describe('multi-pile drops — a selection through the shared resolver', () => {
     expect(plan).toEqual({
       kind: 'multi',
       plans: [
-        { kind: 'place-pile', pileId: 'p1', x: 550, y: 100 },
-        { kind: 'place-pile', pileId: 'p2', x: 650, y: 150 }
+        { kind: 'place-pile', pileId: 'p1', zoneId: null, x: 550, y: 100 },
+        { kind: 'place-pile', pileId: 'p2', zoneId: null, x: 650, y: 150 }
       ]
     });
   });
@@ -342,7 +345,7 @@ describe('multi-pile drops — a selection through the shared resolver', () => {
       kind: 'multi',
       plans: [
         { kind: 'merge-piles', sourcePileId: 'p1', targetPileId: 'target' },
-        { kind: 'place-pile', pileId: 'die', x: 700, y: 200 }
+        { kind: 'place-pile', pileId: 'die', zoneId: null, x: 700, y: 200 }
       ]
     });
   });
@@ -353,7 +356,7 @@ describe('multi-pile drops — a selection through the shared resolver', () => {
     expect(resolveDrop(state, templates, { kind: 'piles', pileIds: ['ghost'] }, { x: 0, y: 0 })).toEqual({ kind: 'none' });
     expect(resolveDrop(state, templates, { kind: 'piles', pileIds: ['p1', 'ghost'] }, { x: 900, y: 900 })).toEqual({
       kind: 'multi',
-      plans: [{ kind: 'place-pile', pileId: 'p1', x: 100, y: 100 }]
+      plans: [{ kind: 'place-pile', pileId: 'p1', zoneId: null, x: 100, y: 100 }]
     });
   });
 
@@ -457,5 +460,122 @@ describe('removeAllCardsOfTemplate (the sidebar remove-all)', () => {
     removeAllCardsOfTemplate(state, 'tpl-x');
 
     expect(state).toEqual(before);
+  });
+});
+
+describe('drops into and out of zones (freeform + root regions)', () => {
+  const templates = makeTemplates(cardTemplate());
+
+  it('a pile released over a zone joins it, keeping its visual position at the drop', () => {
+    // The dragged pile visually sits at (250, 200); the zone spans (100,100)–(500,400).
+    const state = withZone(stateWithPiles(singleCardPile('p1', 'c1', 250, 200)), {
+      id: 'z1',
+      x: 100,
+      y: 100
+    });
+
+    const plan = resolveDrop(state, templates, { kind: 'pile', pileId: 'p1' }, { x: 250, y: 200 });
+    expect(plan).toEqual({ kind: 'place-pile', pileId: 'p1', zoneId: 'z1', x: 250, y: 200 });
+
+    applyDropPlan(state, templates, plan);
+    normalize(state, templates, { dev: true });
+
+    expect(state.piles.p1).toMatchObject({ zoneId: 'z1', x: 150, y: 100 }); // zone-local
+    expect(pileWorldCenter(state, state.piles.p1)).toEqual({ x: 250, y: 200 }); // world unchanged
+    expect(state.zones.z1.pileIds).toEqual(['p1']);
+    expect(state.rootPileIds).toEqual([]);
+  });
+
+  it('a zone pile released over the open table leaves the zone, keeping its visual position', () => {
+    const state = withZone(stateWithPiles(singleCardPile('p1', 'c1', 150, 150)), {
+      id: 'z1',
+      x: 100,
+      y: 100
+    }, ['p1']);
+
+    const plan = resolveDrop(state, templates, { kind: 'pile', pileId: 'p1' }, { x: 900, y: 900 });
+    expect(plan).toEqual({ kind: 'place-pile', pileId: 'p1', zoneId: null, x: 150, y: 150 });
+
+    applyDropPlan(state, templates, plan);
+    normalize(state, templates, { dev: true });
+
+    expect(state.piles.p1).toMatchObject({ zoneId: null, x: 150, y: 150 });
+    expect(state.zones.z1.pileIds).toEqual([]);
+    expect(state.rootPileIds).toEqual(['p1']);
+  });
+
+  it('a locked zone refuses the drop: the pile falls onto the root at its visual position', () => {
+    const state = withZone(stateWithPiles(singleCardPile('p1', 'c1', 250, 200)), {
+      id: 'z1',
+      x: 100,
+      y: 100,
+      locked: true
+    });
+
+    const plan = resolveDrop(state, templates, { kind: 'pile', pileId: 'p1' }, { x: 250, y: 200 });
+
+    expect(plan).toEqual({ kind: 'place-pile', pileId: 'p1', zoneId: null, x: 250, y: 200 });
+  });
+
+  it('merging onto a pile inside a zone works; a locked zone refuses even that merge', () => {
+    const state = withZone(
+      stateWithPiles(singleCardPile('src', 'c1', 900, 900), singleCardPile('tgt', 'c2', 250, 200)),
+      { id: 'z1', x: 100, y: 100 },
+      ['tgt']
+    );
+
+    const plan = resolveDrop(state, templates, { kind: 'pile', pileId: 'src' }, { x: 250, y: 200 });
+    expect(plan).toEqual({ kind: 'merge-piles', sourcePileId: 'src', targetPileId: 'tgt' });
+
+    state.zones.z1.locked = true;
+    const refused = resolveDrop(state, templates, { kind: 'pile', pileId: 'src' }, { x: 250, y: 200 });
+    expect(refused).toEqual({ kind: 'place-pile', pileId: 'src', zoneId: null, x: 900, y: 900 });
+  });
+
+  it('a sidebar template dropped over a zone spawns its pile inside the zone', () => {
+    const template = cardTemplate({ instances: [rowA, rowB] });
+    const zoneTemplates = makeTemplates(template);
+    const state = withZone(emptyTabletopState(), { id: 'z1', x: 100, y: 100 });
+
+    const plan = resolveDrop(state, zoneTemplates, { kind: 'template', templateId: template.id }, { x: 300, y: 250 });
+    expect(plan).toMatchObject({ kind: 'spawn-pile', zoneId: 'z1', x: 300, y: 250 });
+
+    applyDropPlan(state, zoneTemplates, plan);
+    normalize(state, zoneTemplates, { dev: true });
+
+    const pile = state.piles[state.zones.z1.pileIds[0]];
+    expect(pile).toMatchObject({ zoneId: 'z1', x: 200, y: 150 }); // zone-local
+    expect(pile.cardIds).toHaveLength(2);
+    expect(state.rootPileIds).toEqual([]);
+  });
+
+  it('a multi-selection released over a zone lands every non-merging pile in that zone at its own centre', () => {
+    const state = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 200, 150), singleCardPile('p2', 'c2', 350, 300)),
+      { id: 'z1', x: 100, y: 100 }
+    );
+
+    const plan = resolveDrop(state, templates, { kind: 'piles', pileIds: ['p1', 'p2'] }, { x: 300, y: 200 });
+
+    expect(plan).toEqual({
+      kind: 'multi',
+      plans: [
+        { kind: 'place-pile', pileId: 'p1', zoneId: 'z1', x: 200, y: 150 },
+        { kind: 'place-pile', pileId: 'p2', zoneId: 'z1', x: 350, y: 300 }
+      ]
+    });
+  });
+
+  it('findPileAt sees zone piles under root piles: root render order wins overlaps', () => {
+    const state = withZone(
+      stateWithPiles(singleCardPile('inZone', 'c1', 250, 200), singleCardPile('onTop', 'c2', 250, 200)),
+      { id: 'z1', x: 100, y: 100 },
+      ['inZone']
+    );
+
+    // The root pile renders above the zone, so it wins the hit.
+    expect(findPileAt(state, templates, { x: 250, y: 200 })?.id).toBe('onTop');
+    // Excluding it (as its own drag would) reveals the zone pile beneath.
+    expect(findPileAt(state, templates, { x: 250, y: 200 }, 'onTop')?.id).toBe('inZone');
   });
 });

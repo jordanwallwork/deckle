@@ -1,6 +1,7 @@
 export * from './types';
 export * from './geometry';
 export * from './operations';
+export * from './zones';
 export * from './actions';
 export * from './normalize';
 export * from './drop';

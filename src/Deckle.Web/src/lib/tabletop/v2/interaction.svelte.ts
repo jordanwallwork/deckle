@@ -8,6 +8,7 @@ import { rectFromPoints } from './geometry';
 import type { DragMutation, DragState } from './reducer';
 import { step, type DragInputEvent } from './reducer';
 import * as ops from './operations';
+import { moveZoneTo, removeZone, setZoneRect, type ResizeCorner } from './zones';
 import type { TabletopStore } from './store.svelte';
 
 export function createInteraction(store: TabletopStore) {
@@ -20,6 +21,8 @@ export function createInteraction(store: TabletopStore) {
     if (drag.mode === 'multi' && drag.active) return drag.pileIds;
     return [];
   });
+  /** The zone currently being moved by its header, or null. */
+  const draggingZoneId = $derived(drag.mode === 'zone-move' && drag.active ? drag.zoneId : null);
   /** The live marquee rectangle in world coordinates, or null. */
   const marqueeRect = $derived.by((): Rect | null =>
     drag.mode === 'marquee' && drag.active ? rectFromPoints(drag.start, drag.current) : null
@@ -33,6 +36,9 @@ export function createInteraction(store: TabletopStore) {
       case 'raise-pile':
         store.updateTransient((s) => ops.raisePile(s, mutation.pileId));
         break;
+      case 'detach-pile':
+        store.updateTransient((s) => ops.detachPileToRoot(s, mutation.pileId));
+        break;
       case 'split-top':
         store.updateTransient((s) => ops.splitTopCard(s, mutation.sourcePileId, mutation.newPileId));
         break;
@@ -41,6 +47,15 @@ export function createInteraction(store: TabletopStore) {
         break;
       case 'remove-pile':
         store.updateTransient((s) => ops.removePile(s, mutation.pileId));
+        break;
+      case 'move-zone':
+        store.updateTransient((s) => moveZoneTo(s, mutation.zoneId, mutation.x, mutation.y));
+        break;
+      case 'resize-zone':
+        store.updateTransient((s) => setZoneRect(s, mutation.zoneId, mutation.rect));
+        break;
+      case 'remove-zone':
+        store.updateTransient((s) => removeZone(s, mutation.zoneId));
         break;
       case 'drop':
         store.updateTransient((s) => applyDropPlan(s, store.templates, mutation.plan));
@@ -73,6 +88,9 @@ export function createInteraction(store: TabletopStore) {
     get draggingPileIds() {
       return draggingPileIds;
     },
+    get draggingZoneId() {
+      return draggingZoneId;
+    },
     get marqueeRect() {
       return marqueeRect;
     },
@@ -91,8 +109,14 @@ export function createInteraction(store: TabletopStore) {
         ctrl: opts.ctrl
       });
     },
-    backgroundDown(world: Point, opts: { ctrl?: boolean } = {}): void {
-      dispatch({ type: 'background-down', world, ctrl: opts.ctrl });
+    backgroundDown(world: Point, opts: { ctrl?: boolean; zoneId?: string } = {}): void {
+      dispatch({ type: 'background-down', world, ctrl: opts.ctrl, zoneId: opts.zoneId });
+    },
+    zoneDown(zoneId: string, world: Point): void {
+      dispatch({ type: 'zone-down', zoneId, world });
+    },
+    zoneResizeDown(zoneId: string, corner: ResizeCorner, world: Point): void {
+      dispatch({ type: 'zone-resize-down', zoneId, corner, world });
     },
     move(world: Point): void {
       dispatch({ type: 'move', world });

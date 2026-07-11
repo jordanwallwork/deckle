@@ -2,6 +2,7 @@
 // state in place — callers wrap them in the store's transaction/commit API.
 // Operations stay minimal: the normalize pass owns cross-cutting bookkeeping.
 
+import { pileWorldCenter, worldToZoneLocal } from './geometry';
 import type { Card, Pile, Selection, TabletopState, Template, Templates } from './types';
 
 export function makeId(prefix = 'id'): string {
@@ -165,21 +166,23 @@ export function isPileFlippable(state: TabletopState, templates: Templates, pile
 
 /**
  * Split the top card off a multi-card pile into a new zoneless single-card
- * pile at the source's centre, appended to the root render order (above its
- * neighbours). The caller supplies the new pile's id so the reducer can keep
- * addressing the split pile in later drag frames. No-op on piles of one —
- * those move whole; there is nothing to split.
+ * pile at the source's *world* centre (the source may live inside a zone),
+ * appended to the root render order (above its neighbours) so it follows the
+ * pointer in world space. The caller supplies the new pile's id so the
+ * reducer can keep addressing the split pile in later drag frames. No-op on
+ * piles of one — those move whole; there is nothing to split.
  */
 export function splitTopCard(state: TabletopState, sourcePileId: string, newPileId: string): void {
   const source = getPile(state, sourcePileId);
   if (source.cardIds.length < 2) return;
+  const world = pileWorldCenter(state, source);
   const topCardId = source.cardIds[source.cardIds.length - 1];
   source.cardIds = source.cardIds.slice(0, -1);
   const pile: Pile = {
     id: newPileId,
     zoneId: null,
-    x: source.x,
-    y: source.y,
+    x: world.x,
+    y: world.y,
     locked: false,
     cardIds: [topCardId]
   };
@@ -279,6 +282,59 @@ export function movePileTo(state: TabletopState, pileId: string, x: number, y: n
   const pile = getPile(state, pileId);
   pile.x = x;
   pile.y = y;
+}
+
+/**
+ * Lift a pile out of its zone onto the root table at its current world
+ * position (visually stationary), on top of the root render order — what
+ * picking a pile up does, so drag frames can work in world coordinates
+ * regardless of where the pile came from. For a root pile this is just a
+ * raise.
+ */
+export function detachPileToRoot(state: TabletopState, pileId: string): void {
+  const pile = getPile(state, pileId);
+  if (pile.zoneId === null) {
+    raisePile(state, pileId);
+    return;
+  }
+  const world = pileWorldCenter(state, pile);
+  const ids = containerPileIds(state, pile);
+  const index = ids.indexOf(pileId);
+  if (index !== -1) ids.splice(index, 1);
+  pile.zoneId = null;
+  pile.x = world.x;
+  pile.y = world.y;
+  state.rootPileIds.push(pileId);
+}
+
+/**
+ * Place a pile into a region — a zone or the root table (null) — with its
+ * centre at a world point, converting to zone-local storage at this boundary
+ * (the SPEC's coordinate discipline). The pile joins the top of the region's
+ * render order. Placing into its current region just repositions it.
+ */
+export function placePile(
+  state: TabletopState,
+  pileId: string,
+  zoneId: string | null,
+  worldX: number,
+  worldY: number
+): void {
+  const pile = getPile(state, pileId);
+  const zone = zoneId === null ? null : state.zones[zoneId];
+  if (zoneId !== null && !zone) throw new Error(`Zone not found: ${zoneId}`);
+
+  if (pile.zoneId !== zoneId) {
+    const ids = containerPileIds(state, pile);
+    const index = ids.indexOf(pileId);
+    if (index !== -1) ids.splice(index, 1);
+    pile.zoneId = zoneId;
+    (zone === null ? state.rootPileIds : zone.pileIds).push(pileId);
+  }
+
+  const local = zone === null ? { x: worldX, y: worldY } : worldToZoneLocal(state, zone, { x: worldX, y: worldY });
+  pile.x = local.x;
+  pile.y = local.y;
 }
 
 /**

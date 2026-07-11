@@ -2,7 +2,7 @@
 // initialization.ts produces, without needing GameComponent inputs.
 
 import { emptyTabletopState } from './initialization';
-import type { Card, Pile, TabletopState, Template, Templates } from './types';
+import type { Card, Pile, TabletopState, Template, Templates, Zone } from './types';
 
 /** A standard 63.5×88.9mm card template (127×177.8px at 2px/mm). */
 export function cardTemplate(overrides: Partial<Template> = {}): Template {
@@ -78,6 +78,43 @@ export function stateWithPiles(...piles: { pile: Pile; cards: Card[] }[]): Table
     for (const card of cards) {
       state.cards[card.id] = card;
     }
+  }
+  return state;
+}
+
+/**
+ * Register a freeform zone (default 400×300 at the given world top-left) and
+ * adopt the named piles into it, converting their current world positions to
+ * zone-local so they stay visually in place. Piles must already be in the
+ * state (via stateWithPiles).
+ */
+export function withZone(
+  state: TabletopState,
+  overrides: Partial<Zone> & { id: string },
+  pileIds: string[] = []
+): TabletopState {
+  const zone: Zone = {
+    name: 'Test Zone',
+    type: 'freeform',
+    x: 0,
+    y: 0,
+    width: 400,
+    height: 300,
+    pileIds: [],
+    locked: false,
+    ...overrides
+  } as Zone;
+  state.zones[zone.id] = zone;
+  if (zone.parentZoneId === undefined) state.zoneOrder.push(zone.id);
+  for (const pileId of pileIds) {
+    const pile = state.piles[pileId];
+    if (!pile) continue;
+    const rootIndex = state.rootPileIds.indexOf(pileId);
+    if (rootIndex !== -1) state.rootPileIds.splice(rootIndex, 1);
+    pile.zoneId = zone.id;
+    pile.x -= zone.x;
+    pile.y -= zone.y;
+    zone.pileIds.push(pileId);
   }
   return state;
 }

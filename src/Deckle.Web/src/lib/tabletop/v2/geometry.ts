@@ -2,7 +2,7 @@
 // Nothing here caches sizes — footprints are always derived on demand from
 // cards' templates and rotations (see SPEC "No cached sizes anywhere").
 
-import type { Card, Pile, TabletopState, Template, Templates } from './types';
+import type { Card, Pile, TabletopState, Template, Templates, Zone } from './types';
 
 /**
  * How many on-screen pixels represent one millimetre of physical component.
@@ -104,6 +104,58 @@ export function rotatedRectIntersectsRect(
   return true;
 }
 
+// ─── World-position helpers ────────────────────────────────────────────────
+// The SPEC's coordinate discipline: operation inputs/outputs are world-space;
+// zone-local storage is converted at the operation boundary through these
+// helpers — nowhere else — so nested contents can never jump.
+
+/**
+ * World-space top-left of a zone. Top-level zones store world coordinates
+ * directly; nested zones store parent-local, so walk the ancestry chain.
+ */
+export function zoneWorldOrigin(state: TabletopState, zone: Zone): Point {
+  let x = zone.x;
+  let y = zone.y;
+  let parentId = zone.parentZoneId;
+  while (parentId !== undefined) {
+    const parent = state.zones[parentId];
+    if (!parent) break;
+    x += parent.x;
+    y += parent.y;
+    parentId = parent.parentZoneId;
+  }
+  return { x, y };
+}
+
+/** The zone's rectangle in world space. */
+export function zoneWorldRect(state: TabletopState, zone: Zone): Rect {
+  const origin = zoneWorldOrigin(state, zone);
+  return { x: origin.x, y: origin.y, width: zone.width, height: zone.height };
+}
+
+/** Convert a world point to a zone's local frame. */
+export function worldToZoneLocal(state: TabletopState, zone: Zone, world: Point): Point {
+  const origin = zoneWorldOrigin(state, zone);
+  return { x: world.x - origin.x, y: world.y - origin.y };
+}
+
+/** Convert a zone-local point to world space. */
+export function zoneLocalToWorld(state: TabletopState, zone: Zone, local: Point): Point {
+  const origin = zoneWorldOrigin(state, zone);
+  return { x: local.x + origin.x, y: local.y + origin.y };
+}
+
+/**
+ * A pile's centre in world space — pile.x/y is already world for root piles,
+ * zone-local otherwise.
+ */
+export function pileWorldCenter(state: TabletopState, pile: Pile): Point {
+  if (pile.zoneId === null) return { x: pile.x, y: pile.y };
+  const zone = state.zones[pile.zoneId];
+  if (!zone) return { x: pile.x, y: pile.y };
+  return zoneLocalToWorld(state, zone, { x: pile.x, y: pile.y });
+}
+
 /** Display size (px) for a template rendered at physical scale. */
 export function templateDisplaySize(template: Template): Size {
   return {
@@ -143,18 +195,19 @@ export function pileFootprint(state: TabletopState, templates: Templates, pile: 
 }
 
 /**
- * The pile's footprint rectangle in its own coordinate frame (world for root
- * piles, zone-local otherwise), centred on the pile position.
+ * The pile's footprint rectangle in world space, centred on the pile's world
+ * centre — hit-testing and drop resolution always work in world coordinates.
  */
-export function pileRect(state: TabletopState, templates: Templates, pile: Pile): Rect {
+export function pileWorldRect(state: TabletopState, templates: Templates, pile: Pile): Rect {
   const { width, height } = pileFootprint(state, templates, pile);
-  return { x: pile.x - width / 2, y: pile.y - height / 2, width, height };
+  const center = pileWorldCenter(state, pile);
+  return { x: center.x - width / 2, y: center.y - height / 2, width, height };
 }
 
 /**
- * Whether any of the pile's cards intersects the rect — each card tested as
- * its true rotated rectangle centred on the pile centre, not the quarter-turn
- * AABB. The marquee's rotation-aware hit test.
+ * Whether any of the pile's cards intersects the world-space rect — each card
+ * tested as its true rotated rectangle centred on the pile's world centre,
+ * not the quarter-turn AABB. The marquee's rotation-aware hit test.
  */
 export function pileIntersectsRect(
   state: TabletopState,
@@ -162,7 +215,7 @@ export function pileIntersectsRect(
   pile: Pile,
   rect: Rect
 ): boolean {
-  const center = { x: pile.x, y: pile.y };
+  const center = pileWorldCenter(state, pile);
   for (const cardId of pile.cardIds) {
     const card = state.cards[cardId];
     const template = card ? templates[card.templateId] : undefined;

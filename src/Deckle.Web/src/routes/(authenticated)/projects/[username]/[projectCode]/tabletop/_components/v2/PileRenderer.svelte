@@ -69,6 +69,14 @@
     e.stopPropagation();
     api.openPileContextMenu(pile.id, e.clientX, e.clientY);
   }
+
+  // Double-clicking a pile selects its containing zone, so zone actions stay
+  // reachable inside packed layouts.
+  function handleDblClick(e: MouseEvent) {
+    if (pile.zoneId === null || !store.state.zones[pile.zoneId]) return;
+    e.stopPropagation();
+    store.setSelection({ kind: 'zone', zoneId: pile.zoneId });
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -80,6 +88,7 @@
   style="left: {pile.x}px; top: {pile.y}px; width: {footprint.width}px; height: {footprint.height}px;"
   onpointerdown={handlePointerDown}
   oncontextmenu={handleContextMenu}
+  ondblclick={handleDblClick}
 >
   {#each underlays as underlay (underlay.card.id)}
     {@const size = templateDisplaySize(underlay.template)}

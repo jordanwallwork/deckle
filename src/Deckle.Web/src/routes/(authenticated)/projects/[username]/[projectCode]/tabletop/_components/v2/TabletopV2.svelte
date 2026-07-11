@@ -19,11 +19,14 @@
     shufflablePiles,
     shufflePiles
   } from '$lib/tabletop/v2';
+  import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
   import { setContext } from 'svelte';
   import ComponentSidebar from './ComponentSidebar.svelte';
   import PileContextMenu from './PileContextMenu.svelte';
   import PileRenderer from './PileRenderer.svelte';
   import Toolbar from './Toolbar.svelte';
+  import ZoneContextMenu from './ZoneContextMenu.svelte';
+  import ZoneRenderer from './ZoneRenderer.svelte';
 
   let {
     initialState,
@@ -58,10 +61,19 @@
     };
   }
 
-  // ─── Pile context menu ────────────────────────────────────────────────────
+  // ─── Context menus (pile / zone / canvas) ─────────────────────────────────
   let pileMenu = $state<{ pileId: string; x: number; y: number } | null>(null);
+  let zoneMenu = $state<{ zoneId: string; x: number; y: number } | null>(null);
+  let canvasMenu = $state<{ x: number; y: number; worldX: number; worldY: number } | null>(null);
+
+  function closeMenus() {
+    pileMenu = null;
+    zoneMenu = null;
+    canvasMenu = null;
+  }
 
   function openPileContextMenu(pileId: string, clientX: number, clientY: number) {
+    closeMenus();
     // Right-click selects the pile too, unless it's already in the selection.
     if (!isPileSelected(store.state, pileId)) {
       store.setSelection({ kind: 'piles', pileIds: [pileId] });
@@ -69,15 +81,43 @@
     pileMenu = { pileId, x: clientX, y: clientY };
   }
 
-  setTabletopApi({ store, interaction, clientToWorld, openPileContextMenu });
+  function openZoneContextMenu(zoneId: string, clientX: number, clientY: number) {
+    closeMenus();
+    store.setSelection({ kind: 'zone', zoneId });
+    zoneMenu = { zoneId, x: clientX, y: clientY };
+  }
+
+  // Right-click on the open table: the canvas menu (zone creation lives here).
+  function handleCanvasContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    closeMenus();
+    if (store.state.editingZoneId !== null) return;
+    const world = clientToWorld(e.clientX, e.clientY);
+    canvasMenu = { x: e.clientX, y: e.clientY, worldX: world.x, worldY: world.y };
+  }
+
+  const canvasMenuItems = $derived.by((): ContextMenuItem[] => {
+    if (!canvasMenu) return [];
+    const { worldX, worldY } = canvasMenu;
+    return [
+      // Spread/grid/group creation joins this menu with tickets 07/09/10.
+      { label: 'Add Zone', action: () => store.createZoneAndEdit(worldX, worldY) }
+    ];
+  });
+
+  setTabletopApi({ store, interaction, clientToWorld, openPileContextMenu, openZoneContextMenu });
 
   let sidebarCollapsed = $state(false);
 
-  // ─── Sidebar as a removal target for pile drags ───────────────────────────
-  // Pile drags are pointer-based (no HTML5 drop events), so the shell does a
+  // ─── Sidebar as a removal target for pile and zone drags ─────────────────
+  // These drags are pointer-based (no HTML5 drop events), so the shell does a
   // geometric hit-test against the sidebar and tells the reducer on release.
   let sidebarEl = $state<HTMLElement | null>(null);
   let pileOverSidebar = $state(false);
+
+  const draggingRemovable = $derived(
+    interaction.draggingPileIds.length > 0 || interaction.draggingZoneId !== null
+  );
 
   function pointerOverSidebar(e: PointerEvent): boolean {
     if (!sidebarEl) return false;
@@ -103,12 +143,12 @@
   function handleWindowPointerMove(e: PointerEvent) {
     if (!interaction.isDragging) return;
     interaction.move(clientToWorld(e.clientX, e.clientY));
-    pileOverSidebar = interaction.draggingPileIds.length > 0 && pointerOverSidebar(e);
+    pileOverSidebar = draggingRemovable && pointerOverSidebar(e);
   }
 
   function handleWindowPointerUp(e: PointerEvent) {
     if (!interaction.isDragging) return;
-    const overSidebar = interaction.draggingPileIds.length > 0 && pointerOverSidebar(e);
+    const overSidebar = draggingRemovable && pointerOverSidebar(e);
     pileOverSidebar = false;
     interaction.up(clientToWorld(e.clientX, e.clientY), overSidebar);
   }
@@ -135,6 +175,19 @@
 
     const modKey = e.ctrlKey || e.metaKey;
 
+    // A zone-edit session swallows everything except Escape (cancel the whole
+    // session): undo/redo would fight the open transaction, and F/R/S have no
+    // business inside an edit.
+    if (store.state.editingZoneId !== null) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        pileOverSidebar = false;
+        interaction.cancel(); // abort a mid-flight resize drag first
+        store.endZoneEdit(false);
+      }
+      return;
+    }
+
     if (modKey && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();
       store.undo();
@@ -151,8 +204,8 @@
         e.preventDefault();
         pileOverSidebar = false;
         interaction.cancel();
-      } else if (pileMenu) {
-        pileMenu = null;
+      } else if (pileMenu || zoneMenu || canvasMenu) {
+        closeMenus();
       } else {
         store.setSelection({ kind: 'none' });
       }
@@ -237,6 +290,7 @@
       class="canvas"
       class:drop-target={isDropTarget}
       onpointerdown={handleCanvasPointerDown}
+      oncontextmenu={handleCanvasContextMenu}
       onwheel={handleWheel}
       ondragover={handleCanvasDragOver}
       ondragleave={handleCanvasDragLeave}
@@ -249,6 +303,13 @@
         class="canvas-surface"
         style="transform: translate({panX}px, {panY}px) scale({zoom}); transform-origin: 0 0;"
       >
+        <!-- Zones render beneath root piles; each renders its own piles. -->
+        {#each store.state.zoneOrder as zoneId (zoneId)}
+          {@const zone = store.state.zones[zoneId]}
+          {#if zone}
+            <ZoneRenderer {zone} />
+          {/if}
+        {/each}
         {#each store.state.rootPileIds as pileId (pileId)}
           {@const pile = store.state.piles[pileId]}
           {#if pile}
@@ -272,6 +333,22 @@
       x={pileMenu.x}
       y={pileMenu.y}
       onClose={() => (pileMenu = null)}
+    />
+  {/if}
+  {#if zoneMenu}
+    <ZoneContextMenu
+      zoneId={zoneMenu.zoneId}
+      x={zoneMenu.x}
+      y={zoneMenu.y}
+      onClose={() => (zoneMenu = null)}
+    />
+  {/if}
+  {#if canvasMenu}
+    <ContextMenu
+      x={canvasMenu.x}
+      y={canvasMenu.y}
+      items={canvasMenuItems}
+      onClose={() => (canvasMenu = null)}
     />
   {/if}
 </div>

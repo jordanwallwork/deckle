@@ -13,6 +13,8 @@ export interface TabletopApi {
   clientToWorld(clientX: number, clientY: number): Point;
   /** Open the pile context menu at a client (viewport) position. */
   openPileContextMenu(pileId: string, clientX: number, clientY: number): void;
+  /** Open the zone context menu at a client (viewport) position. */
+  openZoneContextMenu(zoneId: string, clientX: number, clientY: number): void;
 }
 
 const TABLETOP_V2_CONTEXT_KEY = Symbol('deckle.tabletop.v2');

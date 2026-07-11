@@ -1,0 +1,334 @@
+<script lang="ts">
+  // Thin shell for a v2 zone: renders the region chrome (dashed border, name
+  // tab, lock indicator), its piles, and the edit-mode controls. All
+  // behaviour goes through the interaction reducer and store — the header
+  // tab is the ONLY move handle; body presses forward to the reducer as
+  // background events (marquee or click-select-zone).
+  import type { Zone } from '$lib/tabletop/v2';
+  import { getTabletopApi, renameZone, removeZone, type ResizeCorner } from '$lib/tabletop/v2';
+  import PileRenderer from './PileRenderer.svelte';
+
+  let { zone }: { zone: Zone } = $props();
+
+  const api = getTabletopApi();
+  const { store, interaction } = api;
+
+  const selected = $derived(
+    store.state.selection.kind === 'zone' && store.state.selection.zoneId === zone.id
+  );
+  const editing = $derived(store.state.editingZoneId === zone.id);
+  const dragging = $derived(interaction.draggingZoneId === zone.id);
+
+  const CORNERS: ResizeCorner[] = ['nw', 'ne', 'sw', 'se'];
+
+  // The header tab is the zone's move handle (and its click-select surface).
+  function handleHeaderPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || editing) return;
+    e.stopPropagation();
+    e.preventDefault();
+    interaction.zoneDown(zone.id, api.clientToWorld(e.clientX, e.clientY));
+  }
+
+  // Body presses are background presses: marquee on drag, select-zone on click.
+  function handleBodyPointerDown(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    interaction.backgroundDown(api.clientToWorld(e.clientX, e.clientY), {
+      ctrl: e.ctrlKey || e.metaKey,
+      zoneId: zone.id
+    });
+  }
+
+  function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (editing) return;
+    api.openZoneContextMenu(zone.id, e.clientX, e.clientY);
+  }
+
+  function handleResizePointerDown(e: PointerEvent, corner: ResizeCorner) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    interaction.zoneResizeDown(zone.id, corner, api.clientToWorld(e.clientX, e.clientY));
+  }
+
+  function handleRenameInput(e: Event) {
+    const name = (e.target as HTMLInputElement).value;
+    store.updateTransient((s) => renameZone(s, zone.id, name));
+  }
+
+  function handleRenameKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') store.endZoneEdit(true);
+    else if (e.key === 'Escape') {
+      e.stopPropagation();
+      store.endZoneEdit(false);
+    }
+  }
+
+  // Deleting from inside the session folds into its single undo step.
+  function handleDelete() {
+    store.updateTransient((s) => removeZone(s, zone.id));
+    store.endZoneEdit(true);
+  }
+</script>
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="zone"
+  class:selected
+  class:editing
+  class:dragging
+  class:locked={zone.locked}
+  style="left: {zone.x}px; top: {zone.y}px; width: {zone.width}px; height: {zone.height}px;"
+  oncontextmenu={handleContextMenu}
+>
+  {#if editing}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="edit-toolbar" onpointerdown={(e) => e.stopPropagation()}>
+      <!-- svelte-ignore a11y_autofocus -->
+      <input
+        class="rename-input"
+        type="text"
+        value={zone.name}
+        oninput={handleRenameInput}
+        onkeydown={handleRenameKeydown}
+        placeholder="Zone name"
+        aria-label="Zone name"
+        autofocus
+      />
+      <button class="edit-btn delete" onclick={handleDelete} title="Delete zone">✕</button>
+      <button class="edit-btn done" onclick={() => store.endZoneEdit(true)} title="Done">✓</button>
+    </div>
+  {:else}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="header-tab"
+      title="Drag to move the zone"
+      onpointerdown={handleHeaderPointerDown}
+    >
+      <span class="zone-name">{zone.name}</span>
+      {#if zone.pileIds.length > 0}
+        <span class="zone-count">{zone.pileIds.length}</span>
+      {/if}
+      {#if zone.locked}
+        <span class="lock-badge" title="Locked">🔒</span>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- The frame carries the border so it never offsets zone-local pile
+       coordinates (absolute children position from the padding box). -->
+  <div class="zone-frame"></div>
+  <div class="zone-body" onpointerdown={handleBodyPointerDown}></div>
+
+  {#each zone.pileIds as pileId (pileId)}
+    {@const pile = store.state.piles[pileId]}
+    {#if pile}
+      <PileRenderer {pile} />
+    {/if}
+  {/each}
+
+  {#if editing}
+    {#each CORNERS as corner (corner)}
+      <div
+        class="resize-handle handle-{corner}"
+        onpointerdown={(e) => handleResizePointerDown(e, corner)}
+      ></div>
+    {/each}
+  {/if}
+</div>
+
+<style>
+  .zone {
+    position: absolute;
+  }
+
+  .zone-frame {
+    position: absolute;
+    inset: -2px;
+    border-radius: 8px;
+    border: 2px dashed rgba(255, 255, 255, 0.12);
+    transition: border-color 0.15s;
+    pointer-events: none;
+  }
+
+  .zone.selected .zone-frame {
+    border-color: rgba(100, 160, 255, 0.6);
+  }
+
+  .zone.editing .zone-frame {
+    border-color: #3b82f6;
+    border-style: solid;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+  }
+
+  .zone.dragging .zone-frame {
+    border-color: rgba(100, 160, 255, 0.6);
+  }
+
+  .zone.dragging {
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35));
+  }
+
+  .zone.locked .zone-frame {
+    border-color: rgba(255, 255, 255, 0.07);
+  }
+
+  .zone-body {
+    position: absolute;
+    inset: 0;
+  }
+
+  .header-tab {
+    position: absolute;
+    top: -24px;
+    left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 22px;
+    padding: 0 8px;
+    background: rgba(30, 32, 48, 0.9);
+    border: 1px solid #3a3d4e;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    cursor: grab;
+    user-select: none;
+    z-index: 1;
+  }
+
+  .zone.selected .header-tab {
+    border-color: rgba(100, 160, 255, 0.6);
+  }
+
+  .zone-name {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .zone-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: #3b82f6;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+  }
+
+  .lock-badge {
+    font-size: 0.625rem;
+    line-height: 1;
+  }
+
+  .edit-toolbar {
+    position: absolute;
+    top: -36px;
+    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    background: #1e2030;
+    border: 1px solid #3a3d4e;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    z-index: 20;
+  }
+
+  .rename-input {
+    background: #2a2d3e;
+    border: 1px solid #3a3d4e;
+    border-radius: 4px;
+    color: #e8e9f0;
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.5rem;
+    min-width: 140px;
+    outline: none;
+  }
+
+  .rename-input:focus {
+    border-color: #3b82f6;
+  }
+
+  .edit-btn {
+    background: #2a2d3e;
+    border: 1px solid #3a3d4e;
+    color: #c8cad8;
+    border-radius: 4px;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background 0.1s;
+  }
+
+  .edit-btn:hover {
+    background: #3a3d4e;
+  }
+
+  .edit-btn.done {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+  }
+
+  .edit-btn.done:hover {
+    background: #1d4ed8;
+  }
+
+  .edit-btn.delete:hover {
+    background: #7f1d1d;
+    border-color: #991b1b;
+    color: #fecaca;
+  }
+
+  .resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: #3b82f6;
+    border: 2px solid #1e2030;
+    border-radius: 3px;
+    z-index: 21;
+  }
+
+  .handle-nw {
+    top: -6px;
+    left: -6px;
+    cursor: nwse-resize;
+  }
+
+  .handle-ne {
+    top: -6px;
+    right: -6px;
+    cursor: nesw-resize;
+  }
+
+  .handle-sw {
+    bottom: -6px;
+    left: -6px;
+    cursor: nesw-resize;
+  }
+
+  .handle-se {
+    bottom: -6px;
+    right: -6px;
+    cursor: nwse-resize;
+  }
+</style>

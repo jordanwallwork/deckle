@@ -3,7 +3,13 @@
   // shows, applyPileAction executes the choice inside a single store commit.
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
   import type { PileAction } from '$lib/tabletop/v2';
-  import { applyPileAction, getTabletopApi, pileActions } from '$lib/tabletop/v2';
+  import {
+    applyPileAction,
+    getTabletopApi,
+    movePileToZone,
+    moveTargetZones,
+    pileActions
+  } from '$lib/tabletop/v2';
 
   let {
     pileId,
@@ -48,6 +54,22 @@
         result.push({
           label: LABELS[action],
           action: () => store.commit((s) => applyPileAction(s, store.templates, pileId, action))
+        });
+      }
+    }
+    // "Move to <zone>": a menu move that goes through the drop resolver, so
+    // it behaves exactly like dragging the pile to the zone's centre. Locked
+    // piles (only Unlock applicable) don't move; locked zones aren't offered.
+    if (!applicable.includes('unlock')) {
+      const targets = moveTargetZones(store.state, pileId);
+      if (targets.length > 0) {
+        if (result.length > 0) result.push({ divider: true });
+        result.push({
+          label: 'Move to',
+          submenu: targets.map((zone) => ({
+            label: zone.name,
+            action: () => store.commit((s) => movePileToZone(s, store.templates, pileId, zone.id))
+          }))
         });
       }
     }

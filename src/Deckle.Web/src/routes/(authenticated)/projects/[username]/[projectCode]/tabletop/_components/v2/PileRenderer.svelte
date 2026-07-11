@@ -44,12 +44,16 @@
     return peeking;
   });
 
-  // Plain drag pulls the top card; Alt+drag moves the whole pile.
+  // Plain drag pulls the top card; Alt+drag moves the whole pile;
+  // Ctrl/Cmd+click toggles the pile in a multi-selection.
   function handlePointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
-    interaction.pileDown(pile.id, api.clientToWorld(e.clientX, e.clientY), { alt: e.altKey });
+    interaction.pileDown(pile.id, api.clientToWorld(e.clientX, e.clientY), {
+      alt: e.altKey,
+      ctrl: e.ctrlKey || e.metaKey
+    });
   }
 
   // The count badge is the whole-pile drag handle.
@@ -58,6 +62,12 @@
     e.stopPropagation();
     e.preventDefault();
     interaction.pileDown(pile.id, api.clientToWorld(e.clientX, e.clientY), { viaBadge: true });
+  }
+
+  function handleContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    api.openPileContextMenu(pile.id, e.clientX, e.clientY);
   }
 </script>
 
@@ -69,6 +79,7 @@
   class:locked={pile.locked}
   style="left: {pile.x}px; top: {pile.y}px; width: {footprint.width}px; height: {footprint.height}px;"
   onpointerdown={handlePointerDown}
+  oncontextmenu={handleContextMenu}
 >
   {#each underlays as underlay (underlay.card.id)}
     {@const size = templateDisplaySize(underlay.template)}
@@ -85,7 +96,19 @@
       class="top-card"
       style="width: {cardSize.width}px; height: {cardSize.height}px; transform: rotate({topCard.rotation}deg);"
     >
-      <CardFace card={topCard} {template} />
+      {#if template.flippable}
+        <!-- 3D flip: both faces rendered, the container turns on isFlipped. -->
+        <div class="flip-container" class:flipped={topCard.isFlipped}>
+          <div class="flip-face">
+            <CardFace card={topCard} {template} side="front" />
+          </div>
+          <div class="flip-face flip-back">
+            <CardFace card={topCard} {template} side="back" />
+          </div>
+        </div>
+      {:else}
+        <CardFace card={topCard} {template} />
+      {/if}
     </div>
   {/if}
   {#if pile.cardIds.length > 1}
@@ -95,6 +118,9 @@
       title="Drag to move the whole pile"
       onpointerdown={handleBadgePointerDown}>{pile.cardIds.length}</span
     >
+  {/if}
+  {#if pile.locked}
+    <span class="lock-indicator" title="Locked">🔒</span>
   {/if}
 </div>
 
@@ -137,6 +163,43 @@
   .top-card {
     position: relative;
     flex-shrink: 0;
+    /* Perspective for the 3D flip on the card inside. */
+    perspective: 800px;
+  }
+
+  .flip-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.35s ease;
+  }
+
+  .flip-container.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .flip-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+  }
+
+  .flip-back {
+    transform: rotateY(180deg);
+  }
+
+  .lock-indicator {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    font-size: 0.6875rem;
+    line-height: 1;
+    background: rgba(30, 32, 48, 0.85);
+    padding: 3px 4px;
+    border-radius: 3px;
+    pointer-events: none;
+    z-index: 1;
   }
 
   .count-badge {

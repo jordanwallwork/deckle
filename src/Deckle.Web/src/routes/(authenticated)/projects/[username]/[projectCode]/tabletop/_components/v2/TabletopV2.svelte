@@ -8,11 +8,20 @@
     applyDropPlan,
     createInteraction,
     createTabletopStore,
+    flipPiles,
+    flippablePiles,
+    isPileSelected,
     resolveDrop,
-    setTabletopApi
+    rotatablePiles,
+    rotatePiles,
+    selectedPileIds,
+    setTabletopApi,
+    shufflablePiles,
+    shufflePiles
   } from '$lib/tabletop/v2';
   import { setContext } from 'svelte';
   import ComponentSidebar from './ComponentSidebar.svelte';
+  import PileContextMenu from './PileContextMenu.svelte';
   import PileRenderer from './PileRenderer.svelte';
   import Toolbar from './Toolbar.svelte';
 
@@ -49,7 +58,18 @@
     };
   }
 
-  setTabletopApi({ store, interaction, clientToWorld });
+  // ─── Pile context menu ────────────────────────────────────────────────────
+  let pileMenu = $state<{ pileId: string; x: number; y: number } | null>(null);
+
+  function openPileContextMenu(pileId: string, clientX: number, clientY: number) {
+    // Right-click selects the pile too, unless it's already in the selection.
+    if (!isPileSelected(store.state, pileId)) {
+      store.setSelection({ kind: 'piles', pileIds: [pileId] });
+    }
+    pileMenu = { pileId, x: clientX, y: clientY };
+  }
+
+  setTabletopApi({ store, interaction, clientToWorld, openPileContextMenu });
 
   let sidebarCollapsed = $state(false);
 
@@ -133,8 +153,35 @@
         e.preventDefault();
         pileOverSidebar = false;
         interaction.cancel();
+      } else if (pileMenu) {
+        pileMenu = null;
       } else {
         store.setSelection({ kind: 'none' });
+      }
+      return;
+    }
+
+    // F/R/S act on the whole selection as one undo step each. The
+    // applicability check runs first so an inert selection (all dice for F,
+    // all single cards for S…) records nothing in history.
+    if (modKey || e.altKey) return;
+    const selected = selectedPileIds(store.state);
+    if (selected.length === 0) return;
+
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      if (flippablePiles(store.state, store.templates, selected).length > 0) {
+        store.commit((s) => flipPiles(s, store.templates, selected));
+      }
+    } else if (e.key === 'r' || e.key === 'R') {
+      e.preventDefault();
+      if (rotatablePiles(store.state, selected).length > 0) {
+        store.commit((s) => rotatePiles(s, selected, 90));
+      }
+    } else if (e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      if (shufflablePiles(store.state, selected).length > 0) {
+        store.commit((s) => shufflePiles(s, selected));
       }
     }
   }
@@ -213,6 +260,15 @@
       </div>
     </div>
   </div>
+
+  {#if pileMenu}
+    <PileContextMenu
+      pileId={pileMenu.pileId}
+      x={pileMenu.x}
+      y={pileMenu.y}
+      onClose={() => (pileMenu = null)}
+    />
+  {/if}
 </div>
 
 <style>

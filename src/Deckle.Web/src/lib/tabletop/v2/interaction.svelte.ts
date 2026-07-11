@@ -65,8 +65,19 @@ export function createInteraction(store: TabletopStore) {
       return draggingPileId;
     },
 
-    pileDown(pileId: string, world: Point, opts: { viaBadge?: boolean; alt?: boolean } = {}): void {
-      dispatch({ type: 'pile-down', pileId, world, viaBadge: opts.viaBadge, alt: opts.alt });
+    pileDown(
+      pileId: string,
+      world: Point,
+      opts: { viaBadge?: boolean; alt?: boolean; ctrl?: boolean } = {}
+    ): void {
+      dispatch({
+        type: 'pile-down',
+        pileId,
+        world,
+        viaBadge: opts.viaBadge,
+        alt: opts.alt,
+        ctrl: opts.ctrl
+      });
     },
     move(world: Point): void {
       dispatch({ type: 'move', world });

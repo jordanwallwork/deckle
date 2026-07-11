@@ -8,7 +8,19 @@
   import StaticComponentRenderer from '../../../export/_components/StaticComponentRenderer.svelte';
   import DiceView from '../DiceView.svelte';
 
-  let { card, template }: { card: Card; template: Template } = $props();
+  let {
+    card,
+    template,
+    side
+  }: {
+    card: Card;
+    template: Template;
+    /**
+     * Force which face to render (for the 3D flip transition, which shows
+     * both). Defaults to whichever face card.isFlipped says is up.
+     */
+    side?: 'front' | 'back';
+  } = $props();
 
   const components = getContext<GameComponent[]>('tabletopComponents');
   const projectId = getContext<string>('projectId');
@@ -18,9 +30,11 @@
   const displaySize = $derived(templateDisplaySize(template));
   const renderScale = $derived(displaySize.width / template.widthPx);
 
+  const showBack = $derived(side ? side === 'back' : card.isFlipped);
+
   const design = $derived.by((): ContainerElement | null => {
     if (!component || !isEditableComponent(component)) return null;
-    const json = card.isFlipped ? component.backDesign : component.frontDesign;
+    const json = showBack ? component.backDesign : component.frontDesign;
     if (!json) return null;
     try {
       return JSON.parse(json) as ContainerElement;

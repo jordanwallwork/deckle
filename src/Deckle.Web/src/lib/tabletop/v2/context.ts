@@ -11,6 +11,8 @@ export interface TabletopApi {
   interaction: TabletopInteraction;
   /** Convert a client (viewport) point to world coordinates. */
   clientToWorld(clientX: number, clientY: number): Point;
+  /** Open the pile context menu at a client (viewport) position. */
+  openPileContextMenu(pileId: string, clientX: number, clientY: number): void;
 }
 
 const TABLETOP_V2_CONTEXT_KEY = Symbol('deckle.tabletop.v2');

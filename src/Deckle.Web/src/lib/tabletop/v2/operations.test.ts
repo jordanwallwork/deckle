@@ -3,13 +3,20 @@ import { emptyTabletopState } from './initialization';
 import { normalize } from './normalize';
 import {
   clearSelection,
+  flipPile,
+  flipTopCard,
+  isPileFlippable,
   isPileMergeable,
   isPileSelected,
+  lowerPile,
   mergePiles,
   movePileTo,
   normalizeDegrees,
   raisePile,
+  rotatePile,
+  setPileLocked,
   setSelection,
+  shufflePile,
   spawnPileFromTemplate,
   splitTopCard
 } from './operations';
@@ -162,6 +169,155 @@ describe('isPileMergeable', () => {
     expect(isPileMergeable(state, templates, state.piles.cards)).toBe(true);
     expect(isPileMergeable(state, templates, state.piles.die)).toBe(false);
     expect(isPileMergeable(state, templates, state.piles.mixed)).toBe(false);
+  });
+});
+
+describe('flipPile', () => {
+  const templates = makeTemplates(cardTemplate(), diceTemplate());
+
+  it('reverses the card order and toggles every face — like physically turning the deck over', () => {
+    const state = stateWithPiles({
+      pile: makePile({ id: 'p1', cardIds: ['c1', 'c2', 'c3'] }),
+      cards: [
+        makeCard({ id: 'c1', isFlipped: true }),
+        makeCard({ id: 'c2', isFlipped: true }),
+        makeCard({ id: 'c3', isFlipped: false })
+      ]
+    });
+
+    flipPile(state, templates, 'p1');
+    normalize(state, templates, { dev: true });
+
+    expect(state.piles.p1.cardIds).toEqual(['c3', 'c2', 'c1']);
+    expect(state.cards.c1.isFlipped).toBe(false);
+    expect(state.cards.c2.isFlipped).toBe(false);
+    expect(state.cards.c3.isFlipped).toBe(true);
+  });
+
+  it('degenerates to a plain flip for a pile of one', () => {
+    const state = stateWithPiles(singleCardPile('p1', 'c1'));
+
+    flipPile(state, templates, 'p1');
+
+    expect(state.piles.p1.cardIds).toEqual(['c1']);
+    expect(state.cards.c1.isFlipped).toBe(true);
+  });
+
+  it('skips a pile with nothing flippable in it (a die)', () => {
+    const state = stateWithPiles({
+      pile: makePile({ id: 'die', cardIds: ['d1'] }),
+      cards: [makeCard({ id: 'd1', templateId: 'tpl-dice' })]
+    });
+
+    expect(isPileFlippable(state, templates, state.piles.die)).toBe(false);
+    flipPile(state, templates, 'die');
+    expect(state.cards.d1.isFlipped).toBe(false);
+  });
+});
+
+describe('flipTopCard', () => {
+  const templates = makeTemplates(cardTemplate(), diceTemplate());
+
+  it('toggles only the top card, preserving order and the rest of the deck', () => {
+    const state = stateWithPiles({
+      pile: makePile({ id: 'p1', cardIds: ['c1', 'c2'] }),
+      cards: [makeCard({ id: 'c1', isFlipped: true }), makeCard({ id: 'c2', isFlipped: true })]
+    });
+
+    flipTopCard(state, templates, 'p1');
+
+    expect(state.piles.p1.cardIds).toEqual(['c1', 'c2']);
+    expect(state.cards.c1.isFlipped).toBe(true);
+    expect(state.cards.c2.isFlipped).toBe(false);
+  });
+
+  it('skips a non-flippable top card (a die)', () => {
+    const state = stateWithPiles({
+      pile: makePile({ id: 'die', cardIds: ['d1'] }),
+      cards: [makeCard({ id: 'd1', templateId: 'tpl-dice' })]
+    });
+
+    flipTopCard(state, templates, 'die');
+
+    expect(state.cards.d1.isFlipped).toBe(false);
+  });
+});
+
+describe('rotatePile', () => {
+  it('rotates every card by the same delta, preserving relative orientations', () => {
+    const state = stateWithPiles({
+      pile: makePile({ id: 'p1', cardIds: ['c1', 'c2'] }),
+      cards: [makeCard({ id: 'c1', rotation: 0 }), makeCard({ id: 'c2', rotation: 180 })]
+    });
+
+    rotatePile(state, 'p1', 90);
+
+    expect(state.cards.c1.rotation).toBe(90);
+    expect(state.cards.c2.rotation).toBe(270);
+  });
+
+  it('wraps rotations into [0, 360)', () => {
+    const state = stateWithPiles(singleCardPile('p1', 'c1'));
+    state.cards.c1.rotation = 270;
+
+    rotatePile(state, 'p1', 90);
+
+    expect(state.cards.c1.rotation).toBe(0);
+  });
+});
+
+describe('shufflePile', () => {
+  it('permutes the card order deterministically under an injected rng', () => {
+    const state = stateWithPiles({
+      pile: makePile({ id: 'p1', cardIds: ['c1', 'c2', 'c3'] }),
+      cards: [makeCard({ id: 'c1' }), makeCard({ id: 'c2' }), makeCard({ id: 'c3' })]
+    });
+
+    shufflePile(state, 'p1', () => 0);
+
+    expect(state.piles.p1.cardIds).toEqual(['c2', 'c3', 'c1']);
+    expect([...state.piles.p1.cardIds].sort()).toEqual(['c1', 'c2', 'c3']); // same cards
+  });
+
+  it('is a no-op on a pile of one', () => {
+    const state = stateWithPiles(singleCardPile('p1', 'c1'));
+    const before = structuredClone(state);
+
+    shufflePile(state, 'p1', () => 0);
+
+    expect(state).toEqual(before);
+  });
+});
+
+describe('setPileLocked', () => {
+  it('locks and unlocks a pile', () => {
+    const state = stateWithPiles(singleCardPile('p1', 'c1'));
+
+    setPileLocked(state, 'p1', true);
+    expect(state.piles.p1.locked).toBe(true);
+
+    setPileLocked(state, 'p1', false);
+    expect(state.piles.p1.locked).toBe(false);
+  });
+});
+
+describe('lowerPile', () => {
+  it('moves the pile to the bottom of the root render order', () => {
+    const state = stateWithPiles(
+      singleCardPile('p1', 'c1'),
+      singleCardPile('p2', 'c2'),
+      singleCardPile('p3', 'c3')
+    );
+
+    lowerPile(state, 'p3');
+
+    expect(state.rootPileIds).toEqual(['p3', 'p1', 'p2']);
+  });
+
+  it('leaves an already-bottom pile untouched', () => {
+    const state = stateWithPiles(singleCardPile('p1', 'c1'), singleCardPile('p2', 'c2'));
+    lowerPile(state, 'p1');
+    expect(state.rootPileIds).toEqual(['p1', 'p2']);
   });
 });
 

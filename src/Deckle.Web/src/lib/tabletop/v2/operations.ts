@@ -152,6 +152,18 @@ export function isPileMergeable(state: TabletopState, templates: Templates, pile
 }
 
 /**
+ * Whether flipping the pile means anything: at least one card is flippable.
+ * Dice are flippable: false, so F skips pure dice piles.
+ */
+export function isPileFlippable(state: TabletopState, templates: Templates, pile: Pile): boolean {
+  return pile.cardIds.some((cardId) => {
+    const card = state.cards[cardId];
+    const template = card ? templates[card.templateId] : undefined;
+    return template?.flippable === true;
+  });
+}
+
+/**
  * Split the top card off a multi-card pile into a new zoneless single-card
  * pile at the source's centre, appended to the root render order (above its
  * neighbours). The caller supplies the new pile's id so the reducer can keep
@@ -193,6 +205,70 @@ export function mergePiles(state: TabletopState, sourcePileId: string, targetPil
   delete state.piles[sourcePileId];
 }
 
+// ─── Pile actions ──────────────────────────────────────────────────────────
+
+/**
+ * Flip a pile like physically turning it over: reverse the card order and
+ * toggle every card's face. Degenerates to a plain card flip for a pile of
+ * one. No-op when nothing in the pile is flippable (a lone die).
+ */
+export function flipPile(state: TabletopState, templates: Templates, pileId: string): void {
+  const pile = getPile(state, pileId);
+  if (!isPileFlippable(state, templates, pile)) return;
+  pile.cardIds = [...pile.cardIds].reverse();
+  for (const cardId of pile.cardIds) {
+    const card = state.cards[cardId];
+    if (card) card.isFlipped = !card.isFlipped;
+  }
+}
+
+/** Reveal a deck's top without disturbing the rest: toggle only the top card. */
+export function flipTopCard(state: TabletopState, templates: Templates, pileId: string): void {
+  const pile = getPile(state, pileId);
+  const topCard = state.cards[pile.cardIds[pile.cardIds.length - 1]];
+  if (!topCard) return;
+  if (templates[topCard.templateId]?.flippable !== true) return;
+  topCard.isFlipped = !topCard.isFlipped;
+}
+
+/**
+ * Rotate a pile as one physical object: every card turns by the same delta,
+ * preserving relative orientations (the Scout case). The derived footprint
+ * follows automatically — nothing else to update.
+ */
+export function rotatePile(state: TabletopState, pileId: string, delta = 90): void {
+  const pile = getPile(state, pileId);
+  for (const cardId of pile.cardIds) {
+    const card = state.cards[cardId];
+    if (card) card.rotation = normalizeDegrees(card.rotation + delta);
+  }
+}
+
+/**
+ * Shuffle a multi-card pile's order in place (Fisher–Yates). `random` is
+ * injectable so tests are deterministic. No-op for piles of one.
+ */
+export function shufflePile(
+  state: TabletopState,
+  pileId: string,
+  random: () => number = Math.random
+): void {
+  const pile = getPile(state, pileId);
+  if (pile.cardIds.length < 2) return;
+  const ids = [...pile.cardIds];
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  pile.cardIds = ids;
+}
+
+/** Lock or unlock a pile. Gating on what "locked" refuses lives in the
+ *  reducer (drag/split) and drop resolver (incoming merge). */
+export function setPileLocked(state: TabletopState, pileId: string, locked: boolean): void {
+  getPile(state, pileId).locked = locked;
+}
+
 // ─── Movement / ordering ───────────────────────────────────────────────────
 
 /**
@@ -216,6 +292,16 @@ export function raisePile(state: TabletopState, pileId: string): void {
   if (index === -1 || index === ids.length - 1) return;
   ids.splice(index, 1);
   ids.push(pileId);
+}
+
+/** Send a pile to the bottom of its container's render order. */
+export function lowerPile(state: TabletopState, pileId: string): void {
+  const pile = getPile(state, pileId);
+  const ids = containerPileIds(state, pile);
+  const index = ids.indexOf(pileId);
+  if (index <= 0) return;
+  ids.splice(index, 1);
+  ids.unshift(pileId);
 }
 
 // ─── Selection ─────────────────────────────────────────────────────────────

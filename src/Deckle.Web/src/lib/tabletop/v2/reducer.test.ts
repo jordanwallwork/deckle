@@ -201,18 +201,77 @@ describe('drag reducer — moving a pile', () => {
     expect(history.past).toHaveLength(0);
   });
 
-  it('a locked pile refuses the grab entirely', () => {
+  it('a locked pile refuses the drag but the release still click-selects it', () => {
     const initial = stateWithPiles(singleCardPile('p1', 'c1', 100, 100, { locked: true }));
 
-    const { state, drag, emitted } = run(initial, [
+    const { state, drag, history } = run(initial, [
       { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
       { type: 'move', world: at(200, 200) },
       { type: 'up', world: at(200, 200) }
     ]);
 
     expect(drag).toEqual({ mode: 'idle' });
-    expect(emitted).toHaveLength(0);
-    expect(state.piles.p1.x).toBe(100);
+    expect(state.piles.p1.x).toBe(100); // never moved
+    expect(history.past).toHaveLength(0); // no transaction ever began
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+  });
+
+  it('a locked deck refuses the split — no card is pulled off it', () => {
+    const initial = stateWithPiles({
+      pile: makePile({ id: 'p1', cardIds: ['c1', 'c2'], x: 100, y: 100, locked: true }),
+      cards: [makeCard({ id: 'c1' }), makeCard({ id: 'c2' })]
+    });
+
+    const { state } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(400, 300) },
+      { type: 'up', world: at(400, 300) }
+    ]);
+
+    expect(state.piles.p1.cardIds).toEqual(['c1', 'c2']);
+    expect(state.rootPileIds).toEqual(['p1']); // no split pile appeared
+  });
+
+  it('Ctrl/Cmd+click builds a multi-selection one pile at a time', () => {
+    const initial = stateWithPiles(singleCardPile('p1', 'c1'), singleCardPile('p2', 'c2', 300, 0));
+
+    const { state } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(0, 0) },
+      { type: 'up', world: at(0, 0) },
+      { type: 'pile-down', pileId: 'p2', world: at(300, 0), ctrl: true },
+      { type: 'up', world: at(300, 0) }
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p1', 'p2'] });
+  });
+
+  it('Ctrl/Cmd+click on a selected pile removes it; removing the last leaves no selection', () => {
+    const initial = stateWithPiles(singleCardPile('p1', 'c1'), singleCardPile('p2', 'c2', 300, 0));
+    initial.selection = { kind: 'piles', pileIds: ['p1', 'p2'] };
+
+    const first = run(initial, [
+      { type: 'pile-down', pileId: 'p2', world: at(300, 0), ctrl: true },
+      { type: 'up', world: at(300, 0) }
+    ]);
+    expect(first.state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
+
+    const second = run(first.state, [
+      { type: 'pile-down', pileId: 'p1', world: at(0, 0), ctrl: true },
+      { type: 'up', world: at(0, 0) }
+    ]);
+    expect(second.state.selection).toEqual({ kind: 'none' });
+  });
+
+  it('a plain click collapses a multi-selection to just the clicked pile', () => {
+    const initial = stateWithPiles(singleCardPile('p1', 'c1'), singleCardPile('p2', 'c2', 300, 0));
+    initial.selection = { kind: 'piles', pileIds: ['p1', 'p2'] };
+
+    const { state } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(0, 0) },
+      { type: 'up', world: at(0, 0) }
+    ]);
+
+    expect(state.selection).toEqual({ kind: 'piles', pileIds: ['p1'] });
   });
 
   it('ignores stray move/up/cancel events while idle', () => {

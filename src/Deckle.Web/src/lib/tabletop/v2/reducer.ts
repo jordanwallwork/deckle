@@ -16,6 +16,7 @@
 import type { Point } from './geometry';
 import { resolveDrop, type DropPlan } from './drop';
 import { makeId } from './operations';
+import { selectedPileIds } from './actions';
 import type { Selection, TabletopState, Templates } from './types';
 
 /**
@@ -46,6 +47,8 @@ export type DragState =
       pileStart: Point;
       /** True once movement passed the threshold and the transaction began. */
       active: boolean;
+      /** Ctrl/Cmd held at grab: a click toggles the pile in the selection. */
+      ctrl: boolean;
     };
 
 export type DragInputEvent =
@@ -57,6 +60,8 @@ export type DragInputEvent =
       viaBadge?: boolean;
       /** True when Alt was held — same meaning as a badge grab. */
       alt?: boolean;
+      /** True when Ctrl/Cmd was held — a click toggles multi-selection. */
+      ctrl?: boolean;
     }
   | { type: 'move'; world: Point }
   | {
@@ -112,7 +117,9 @@ export function step(drag: DragState, event: DragInputEvent, ctx: ReducerContext
 function stepIdle(event: DragInputEvent, ctx: ReducerContext): StepResult {
   if (event.type !== 'pile-down') return idle();
   const pile = ctx.state.piles[event.pileId];
-  if (!pile || pile.locked) return idle();
+  if (!pile) return idle();
+  // Locked piles enter the press state too — they must stay clickable to
+  // select/unlock — but the move handler never lets them activate a drag.
   return {
     drag: {
       mode: 'pile',
@@ -120,7 +127,8 @@ function stepIdle(event: DragInputEvent, ctx: ReducerContext): StepResult {
       grabKind: event.viaBadge || event.alt ? 'whole' : 'top-card',
       grab: event.world,
       pileStart: { x: pile.x, y: pile.y },
-      active: false
+      active: false,
+      ctrl: event.ctrl === true
     },
     mutations: []
   };
@@ -139,6 +147,9 @@ function stepPile(
         return { drag, mutations: [] };
       }
       if (!drag.active) {
+        // A locked pile refuses the drag (and the split) but stays pressed,
+        // so releasing still counts as a click-select.
+        if (ctx.state.piles[drag.pileId]?.locked) return { drag, mutations: [] };
         return activate(drag, dx, dy, ctx);
       }
       return {
@@ -150,8 +161,9 @@ function stepPile(
     }
     case 'up': {
       if (!drag.active) {
-        // Press-and-release without movement: a click. Select the pile.
-        return idle([{ type: 'select', selection: { kind: 'piles', pileIds: [drag.pileId] } }]);
+        // Press-and-release without movement: a click. Plain click selects
+        // just this pile; Ctrl/Cmd+click toggles it in the multi-selection.
+        return idle([{ type: 'select', selection: clickSelection(drag, ctx) }]);
       }
       if (event.overSidebar) {
         // Dropping onto the sidebar removes the pile — inside the still-open
@@ -175,6 +187,22 @@ function stepPile(
       // of the current gesture to stay consistent.
       return idle(drag.active ? [{ type: 'rollback' }] : []);
   }
+}
+
+/**
+ * The selection a click resolves to: Ctrl/Cmd toggles the pile in the
+ * current multi-selection; a plain click collapses the selection to it.
+ */
+function clickSelection(
+  drag: Extract<DragState, { mode: 'pile' }>,
+  ctx: ReducerContext
+): Selection {
+  if (!drag.ctrl) return { kind: 'piles', pileIds: [drag.pileId] };
+  const current = selectedPileIds(ctx.state);
+  const next = current.includes(drag.pileId)
+    ? current.filter((id) => id !== drag.pileId)
+    : [...current, drag.pileId];
+  return next.length === 0 ? { kind: 'none' } : { kind: 'piles', pileIds: next };
 }
 
 /**

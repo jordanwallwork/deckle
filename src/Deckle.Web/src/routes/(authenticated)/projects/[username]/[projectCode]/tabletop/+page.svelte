@@ -9,9 +9,14 @@
   let { data }: { data: PageData } = $props();
 
   // Dev toggle for the v2 engine (pile-based rework, staged expand–contract).
-  // v1 stays the default until the switch-over ticket.
+  // v1 stays the default until the switch-over ticket. Read on mount rather
+  // than at init so server-rendered markup (always v1) hydrates cleanly.
   const V2_STORAGE_KEY = 'deckle.tabletop.useV2';
-  let useV2 = $state(browser && localStorage.getItem(V2_STORAGE_KEY) === 'true');
+  let useV2 = $state(false);
+
+  $effect(() => {
+    if (browser && localStorage.getItem(V2_STORAGE_KEY) === 'true') useV2 = true;
+  });
 
   function toggleEngine() {
     useV2 = !useV2;

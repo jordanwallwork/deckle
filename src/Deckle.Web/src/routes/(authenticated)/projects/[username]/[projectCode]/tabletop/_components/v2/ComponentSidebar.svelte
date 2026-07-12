@@ -17,7 +17,8 @@
     removeTarget?: boolean;
   } = $props();
 
-  const { store } = getTabletopApi();
+  const api = getTabletopApi();
+  const { store } = api;
 
   // How many cards of each template are currently on the table.
   const placedCountByTemplate = $derived(
@@ -54,6 +55,9 @@
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-deckle-template', componentId);
     e.dataTransfer.setData('text/plain', componentId);
+    // dataTransfer is sealed during dragover, so the canvas learns what is
+    // being dragged (for the insertion indicator) through the api instead.
+    api.setTemplateDrag(componentId);
   }
 </script>
 
@@ -86,6 +90,7 @@
         class:depleted={remainingCount === 0}
         draggable="true"
         ondragstart={(e) => handleDragStart(e, component.id)}
+        ondragend={() => api.setTemplateDrag(null)}
         title={`${component.name} — drag onto tabletop${placedCount > 0 ? ` (${remainingCount} of ${totalCount} remaining)` : totalCount > 1 ? ` (${totalCount} cards)` : ''}`}
       >
         <span class="component-icon" aria-hidden="true">{typeIcon(component.type)}</span>

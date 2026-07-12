@@ -3,11 +3,12 @@
   // DOM events and renders root piles. All behaviour lives in
   // $lib/tabletop/v2 below the pure-function seam.
   import type { GameComponent } from '$lib/types';
-  import type { TabletopState, Templates } from '$lib/tabletop/v2';
+  import type { SpreadInsertHint, TabletopState, Templates } from '$lib/tabletop/v2';
   import {
     applyDropPlan,
     createInteraction,
     createTabletopStore,
+    dropTargetZoneAt,
     flipAllInZone,
     flipPiles,
     flippablePiles,
@@ -21,6 +22,7 @@
     shufflablePiles,
     shufflePiles,
     shuffleZoneContents,
+    spreadInsertHint,
     zoneActions
   } from '$lib/tabletop/v2';
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
@@ -111,7 +113,40 @@
     ];
   });
 
-  setTabletopApi({ store, interaction, clientToWorld, openPileContextMenu, openZoneContextMenu });
+  // ─── Drop feedback (ticket 08) ────────────────────────────────────────────
+  // Pointer drags derive their hint/hover in the interaction shell; HTML5
+  // sidebar drags derive them here on dragover (getData is sealed until the
+  // drop, so the sidebar reports the dragged template through the api). The
+  // renderers read the composed values off the api.
+  let templateDragId = $state<string | null>(null);
+  let templateHint = $state.raw<SpreadInsertHint | null>(null);
+  let templateHoverZoneId = $state<string | null>(null);
+
+  function setTemplateDrag(templateId: string | null) {
+    templateDragId = templateId;
+    if (templateId === null) {
+      templateHint = null;
+      templateHoverZoneId = null;
+    }
+  }
+
+  const dropHint = $derived(interaction.insertHint ?? templateHint);
+  const dropTargetZoneId = $derived(interaction.dropZoneId ?? templateHoverZoneId);
+
+  setTabletopApi({
+    store,
+    interaction,
+    clientToWorld,
+    openPileContextMenu,
+    openZoneContextMenu,
+    get dropHint() {
+      return dropHint;
+    },
+    get dropTargetZoneId() {
+      return dropTargetZoneId;
+    },
+    setTemplateDrag
+  });
 
   let sidebarCollapsed = $state(false);
 
@@ -276,16 +311,26 @@
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     isDropTarget = true;
+    if (templateDragId !== null) {
+      const world = clientToWorld(e.clientX, e.clientY);
+      const payload = { kind: 'template', templateId: templateDragId } as const;
+      templateHint = spreadInsertHint(store.state, store.templates, payload, world);
+      templateHoverZoneId = dropTargetZoneAt(store.state, world);
+    }
   }
 
   function handleCanvasDragLeave(e: DragEvent) {
     if (e.target === e.currentTarget) {
       isDropTarget = false;
+      templateHint = null;
+      templateHoverZoneId = null;
     }
   }
 
   function handleCanvasDrop(e: DragEvent) {
     isDropTarget = false;
+    templateHint = null;
+    templateHoverZoneId = null;
     const templateId = e.dataTransfer?.getData('application/x-deckle-template');
     if (!templateId) return;
     e.preventDefault();

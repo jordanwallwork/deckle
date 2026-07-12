@@ -15,6 +15,7 @@
     setGridColumns,
     setSpreadDirection,
     setSpreadOverlap,
+    spreadSlots,
     type ResizeCorner
   } from '$lib/tabletop/v2';
   import PileRenderer from './PileRenderer.svelte';
@@ -33,6 +34,14 @@
   );
   const editing = $derived(store.state.editingZoneId === zone.id);
   const dragging = $derived(interaction.draggingZoneId === zone.id);
+  /** A drag hovers this zone as its drop region. */
+  const dropHover = $derived(api.dropTargetZoneId === zone.id);
+  /** Zone-local primary-axis position of the insertion indicator, or null. */
+  const insertSlot = $derived.by((): number | null => {
+    if (!spread || api.dropHint?.zoneId !== zone.id) return null;
+    const slots = spreadSlots(store.state, store.templates, spread);
+    return slots[Math.min(api.dropHint.index, slots.length - 1)];
+  });
 
   const CORNERS: ResizeCorner[] = ['nw', 'ne', 'sw', 'se'];
 
@@ -127,6 +136,7 @@
   class:editing
   class:dragging
   class:locked={zone.locked}
+  class:drop-hover={dropHover}
   style="left: {zone.x}px; top: {zone.y}px; width: {zone.width}px; height: {zone.height}px;"
   oncontextmenu={handleContextMenu}
 >
@@ -249,6 +259,17 @@
     {/if}
   {/each}
 
+  {#if spread && insertSlot !== null}
+    <!-- Insertion indicator: a transient hint at the exact slot the drop
+         would insert at (derived from the resolver, never from geometry the
+         resolver doesn't share). -->
+    <div
+      class="insert-indicator"
+      class:vertical={spread.direction === 'row'}
+      style={spread.direction === 'row' ? `left: ${insertSlot}px;` : `top: ${insertSlot}px;`}
+    ></div>
+  {/if}
+
   {#if editing}
     {#each CORNERS as corner (corner)}
       <div
@@ -293,6 +314,34 @@
 
   .zone.locked .zone-frame {
     border-color: rgba(255, 255, 255, 0.07);
+  }
+
+  .zone.drop-hover .zone-frame {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+  }
+
+  .insert-indicator {
+    position: absolute;
+    background: #3b82f6;
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.8);
+    pointer-events: none;
+    z-index: 30;
+  }
+
+  .insert-indicator.vertical {
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    margin-left: -1.5px;
+  }
+
+  .insert-indicator:not(.vertical) {
+    left: 6px;
+    right: 6px;
+    height: 3px;
+    margin-top: -1.5px;
   }
 
   .zone-body {

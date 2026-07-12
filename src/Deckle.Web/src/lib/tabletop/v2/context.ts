@@ -2,6 +2,7 @@
 // helpers across the v2 tabletop component tree.
 
 import { getContext, setContext } from 'svelte';
+import type { SpreadInsertHint } from './drop';
 import type { Point } from './geometry';
 import type { TabletopInteraction } from './interaction.svelte';
 import type { TabletopStore } from './store.svelte';
@@ -15,6 +16,12 @@ export interface TabletopApi {
   openPileContextMenu(pileId: string, clientX: number, clientY: number): void;
   /** Open the zone context menu at a client (viewport) position. */
   openZoneContextMenu(zoneId: string, clientX: number, clientY: number): void;
+  /** The spread slot the active drag (pointer or sidebar) would insert at. */
+  readonly dropHint: SpreadInsertHint | null;
+  /** The zone the active drag currently hovers as its drop region. */
+  readonly dropTargetZoneId: string | null;
+  /** Report the template being HTML5-dragged from the sidebar (null at end). */
+  setTemplateDrag(templateId: string | null): void;
 }
 
 const TABLETOP_V2_CONTEXT_KEY = Symbol('deckle.tabletop.v2');

@@ -2,7 +2,13 @@
 // forward pointer events (already converted to world coordinates); this
 // module dispatches them through `step` and applies the emitted mutations.
 
-import { applyDropPlan } from './drop';
+import {
+  applyDropPlan,
+  dropTargetZoneAt,
+  spreadInsertHint,
+  type DropPayload,
+  type SpreadInsertHint
+} from './drop';
 import type { Point, Rect } from './geometry';
 import { rectFromPoints } from './geometry';
 import type { DragMutation, DragState } from './reducer';
@@ -13,6 +19,8 @@ import type { TabletopStore } from './store.svelte';
 
 export function createInteraction(store: TabletopStore) {
   let drag = $state.raw<DragState>({ mode: 'idle' });
+  /** Latest pointer world position while a gesture is in flight. */
+  let pointer = $state.raw<Point | null>(null);
 
   const isDragging = $derived(drag.mode !== 'idle');
   /** The piles currently being dragged (for overlay/elevated rendering). */
@@ -26,6 +34,22 @@ export function createInteraction(store: TabletopStore) {
   /** The live marquee rectangle in world coordinates, or null. */
   const marqueeRect = $derived.by((): Rect | null =>
     drag.mode === 'marquee' && drag.active ? rectFromPoints(drag.start, drag.current) : null
+  );
+  /** The active drag as a drop payload, once it would actually drop. */
+  const dropPayload = $derived.by((): DropPayload | null => {
+    if (drag.mode === 'pile' && drag.active) return { kind: 'pile', pileId: drag.pileId };
+    if (drag.mode === 'multi' && drag.active) return { kind: 'piles', pileIds: drag.pileIds };
+    return null;
+  });
+  /** Transient render hint: the spread slot the drag would insert at. */
+  const insertHint = $derived.by((): SpreadInsertHint | null =>
+    dropPayload && pointer
+      ? spreadInsertHint(store.state, store.templates, dropPayload, pointer)
+      : null
+  );
+  /** The zone the drag currently hovers as its drop region, or null. */
+  const dropZoneId = $derived.by((): string | null =>
+    dropPayload && pointer ? dropTargetZoneAt(store.state, pointer) : null
   );
 
   function applyMutation(mutation: DragMutation): void {
@@ -73,6 +97,7 @@ export function createInteraction(store: TabletopStore) {
   }
 
   function dispatch(event: DragInputEvent): void {
+    pointer = 'world' in event ? event.world : null;
     const result = step(drag, event, { state: store.state, templates: store.templates });
     drag = result.drag;
     for (const mutation of result.mutations) applyMutation(mutation);
@@ -93,6 +118,12 @@ export function createInteraction(store: TabletopStore) {
     },
     get marqueeRect() {
       return marqueeRect;
+    },
+    get insertHint() {
+      return insertHint;
+    },
+    get dropZoneId() {
+      return dropZoneId;
     },
 
     pileDown(

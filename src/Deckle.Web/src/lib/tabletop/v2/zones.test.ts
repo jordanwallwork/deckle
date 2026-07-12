@@ -2,10 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   MIN_ZONE_SIZE,
   createFreeformZone,
+  createGridZone,
   findZoneAt,
+  freeformChildren,
   moveZoneTo,
   removeZone,
   renameZone,
+  reparentZone,
   resizeRectFromCorner,
   setZoneLocked,
   setZoneRect,
@@ -27,6 +30,35 @@ import type { TabletopState } from './types';
 import { cardTemplate, makeTemplates, singleCardPile, stateWithPiles, withZone } from './fixtures';
 
 const templates = makeTemplates(cardTemplate());
+
+describe('freeformChildren', () => {
+  it('returns the live child list for a freeform zone with nested zones', () => {
+    const state = emptyTabletopState();
+    const parent = createFreeformZone(state, 0, 0);
+    const child = createFreeformZone(state, 10, 10);
+    reparentZone(state, child, parent);
+
+    const children = freeformChildren(state.zones[parent]);
+    expect(children).toEqual([child]);
+
+    // Splicing the returned array detaches the child from the live zone.
+    children.splice(0, 1);
+    expect((state.zones[parent] as { childZoneIds?: string[] }).childZoneIds).toEqual([]);
+  });
+
+  it('returns an empty array for a freeform zone with no children', () => {
+    const state = emptyTabletopState();
+    const parent = createFreeformZone(state, 0, 0);
+    expect(freeformChildren(state.zones[parent])).toEqual([]);
+  });
+
+  it('returns an empty array for non-freeform and missing zones', () => {
+    const state = emptyTabletopState();
+    const grid = createGridZone(state, 0, 0);
+    expect(freeformChildren(state.zones[grid])).toEqual([]);
+    expect(freeformChildren(state.zones['nope'])).toEqual([]);
+  });
+});
 
 describe('zone lifecycle', () => {
   it('a created freeform zone is registered, rendered last, and persists when empty', () => {

@@ -9,28 +9,19 @@
     setGridCellWidth,
     setGridColumns
   } from '$lib/tabletop/v2';
+  import { transientNumberInput } from './zoneSettingsInput';
 
   let { zone }: { zone: GridZone } = $props();
 
   const { store } = getTabletopApi();
 
-  function handleCellWidthInput(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value);
-    if (Number.isNaN(value)) return;
-    store.updateTransient((s) => setGridCellWidth(s, zone.id, value));
-  }
-
-  function handleCellHeightInput(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value);
-    if (Number.isNaN(value)) return;
-    store.updateTransient((s) => setGridCellHeight(s, zone.id, value));
-  }
-
-  function handleColumnsInput(e: Event) {
-    const value = Number((e.target as HTMLInputElement).value);
-    if (Number.isNaN(value)) return;
-    store.updateTransient((s) => setGridColumns(s, zone.id, value));
-  }
+  const handleCellWidthInput = transientNumberInput(store, (s, v) =>
+    setGridCellWidth(s, zone.id, v)
+  );
+  const handleCellHeightInput = transientNumberInput(store, (s, v) =>
+    setGridCellHeight(s, zone.id, v)
+  );
+  const handleColumnsInput = transientNumberInput(store, (s, v) => setGridColumns(s, zone.id, v));
 </script>
 
 <label class="grid-field" title="Cell width (px)">

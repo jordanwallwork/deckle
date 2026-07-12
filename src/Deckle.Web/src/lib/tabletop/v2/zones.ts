@@ -80,6 +80,15 @@ export function getZone(state: TabletopState, zoneId: string): Zone {
   return zone;
 }
 
+/**
+ * The nested child zone ids of `zone`, or an empty array when it is not a
+ * freeform zone (the only zone kind that nests) or has no children. Returns the
+ * live array for freeform zones, so callers may splice it to detach a child.
+ */
+export function freeformChildren(zone: Zone | undefined): string[] {
+  return zone?.type === 'freeform' ? (zone.childZoneIds ?? []) : [];
+}
+
 // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
 /**
@@ -341,9 +350,7 @@ export function convertZone(
   // Only freeform zones can host nested children; un-nest them to the root
   // (preserving world position) before dropping the freeform shape, so they
   // are never orphaned by the conversion.
-  if (zone.type === 'freeform' && zone.childZoneIds) {
-    for (const childId of [...zone.childZoneIds]) reparentZone(state, childId, null);
-  }
+  for (const childId of [...freeformChildren(zone)]) reparentZone(state, childId, null);
 
   const typeSettings = cacheZoneTypeSettings(zone);
   const base = {
@@ -406,16 +413,12 @@ export function removeZone(state: TabletopState, zoneId: string): void {
   }
   zone.pileIds = [];
 
-  if (zone.type === 'freeform' && zone.childZoneIds) {
-    for (const childId of [...zone.childZoneIds]) removeZone(state, childId);
-  }
+  for (const childId of [...freeformChildren(zone)]) removeZone(state, childId);
 
   if (zone.parentZoneId !== undefined) {
-    const parent = state.zones[zone.parentZoneId];
-    if (parent?.type === 'freeform' && parent.childZoneIds) {
-      const index = parent.childZoneIds.indexOf(zoneId);
-      if (index !== -1) parent.childZoneIds.splice(index, 1);
-    }
+    const siblings = freeformChildren(state.zones[zone.parentZoneId]);
+    const index = siblings.indexOf(zoneId);
+    if (index !== -1) siblings.splice(index, 1);
   } else {
     const index = state.zoneOrder.indexOf(zoneId);
     if (index !== -1) state.zoneOrder.splice(index, 1);
@@ -512,9 +515,7 @@ export function renderOrderedZoneIds(state: TabletopState): string[] {
     const zone = state.zones[id];
     if (!zone) return;
     out.push(id);
-    if (zone.type === 'freeform' && zone.childZoneIds) {
-      for (const childId of zone.childZoneIds) visit(childId);
-    }
+    for (const childId of freeformChildren(zone)) visit(childId);
   };
   for (const id of state.zoneOrder) visit(id);
   return out;
@@ -528,9 +529,7 @@ export function renderOrderedZoneIds(state: TabletopState): string[] {
 export function descendantZoneIds(state: TabletopState, zoneId: string): Set<string> {
   const out = new Set<string>();
   const visit = (id: string): void => {
-    const zone = state.zones[id];
-    if (zone?.type !== 'freeform' || !zone.childZoneIds) return;
-    for (const childId of zone.childZoneIds) {
+    for (const childId of freeformChildren(state.zones[id])) {
       if (out.has(childId)) continue;
       out.add(childId);
       visit(childId);
@@ -602,11 +601,9 @@ export function reparentZone(
 
   // Detach from the current container (old parent's child list, or zoneOrder).
   if (currentParentId !== null) {
-    const oldParent = state.zones[currentParentId];
-    if (oldParent?.type === 'freeform' && oldParent.childZoneIds) {
-      const index = oldParent.childZoneIds.indexOf(zoneId);
-      if (index !== -1) oldParent.childZoneIds.splice(index, 1);
-    }
+    const siblings = freeformChildren(state.zones[currentParentId]);
+    const index = siblings.indexOf(zoneId);
+    if (index !== -1) siblings.splice(index, 1);
   } else {
     const index = state.zoneOrder.indexOf(zoneId);
     if (index !== -1) state.zoneOrder.splice(index, 1);

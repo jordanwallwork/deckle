@@ -4,6 +4,7 @@
   // Escape reverts them with the rest of the session.
   import type { SpreadZone } from '$lib/tabletop/v2';
   import { getTabletopApi, setSpreadDirection, setSpreadOverlap } from '$lib/tabletop/v2';
+  import { transientNumberInput } from './zoneSettingsInput';
 
   let { zone }: { zone: SpreadZone } = $props();
 
@@ -13,11 +14,9 @@
     store.updateTransient((s) => setSpreadDirection(s, store.templates, zone.id, direction));
   }
 
-  function handleOverlapInput(e: Event) {
-    const overlap = Number((e.target as HTMLInputElement).value);
-    if (Number.isNaN(overlap)) return;
-    store.updateTransient((s) => setSpreadOverlap(s, store.templates, zone.id, overlap));
-  }
+  const handleOverlapInput = transientNumberInput(store, (s, v) =>
+    setSpreadOverlap(s, store.templates, zone.id, v)
+  );
 </script>
 
 <button

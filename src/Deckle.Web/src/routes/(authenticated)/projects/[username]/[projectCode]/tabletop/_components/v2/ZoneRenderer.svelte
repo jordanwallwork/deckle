@@ -19,6 +19,10 @@
     type ResizeCorner
   } from '$lib/tabletop/v2';
   import PileRenderer from './PileRenderer.svelte';
+  import ZoneBackground from './ZoneBackground.svelte';
+  // Self-import for nested (child) zones — Svelte 5's replacement for
+  // <svelte:self>. Freeform containers render their children recursively.
+  import ZoneRenderer from './ZoneRenderer.svelte';
 
   let { zone }: { zone: Zone } = $props();
 
@@ -29,6 +33,14 @@
   const grid = $derived(zone.type === 'grid' ? zone : null);
   const isGroup = $derived(zone.type === 'group');
   const gridRowCount = $derived(grid ? gridRows(grid) : 0);
+
+  // Boards/mats are freeform container zones: they render their template's
+  // artwork as the background and may hold nested child zones.
+  const freeform = $derived(zone.type === 'freeform' ? zone : null);
+  const backgroundTemplate = $derived(
+    freeform?.backgroundTemplateId ? store.templates[freeform.backgroundTemplateId] : undefined
+  );
+  const childZoneIds = $derived(freeform?.childZoneIds ?? []);
 
   const selected = $derived(
     store.state.selection.kind === 'zone' && store.state.selection.zoneId === zone.id
@@ -137,6 +149,7 @@
   class:editing
   class:dragging
   class:locked={zone.locked}
+  class:board={backgroundTemplate}
   class:drop-hover={dropHover}
   class:group={isGroup}
   style="left: {zone.x}px; top: {zone.y}px; width: {zone.width}px; height: {zone.height}px;"
@@ -238,6 +251,10 @@
     </div>
   {/if}
 
+  <!-- Board/mat artwork sits beneath the piles and nested zones. -->
+  {#if backgroundTemplate}
+    <ZoneBackground template={backgroundTemplate} />
+  {/if}
   <!-- The frame carries the border so it never offsets zone-local pile
        coordinates (absolute children position from the padding box). -->
   <div class="zone-frame"></div>
@@ -258,6 +275,16 @@
     {@const pile = store.state.piles[pileId]}
     {#if pile}
       <PileRenderer {pile} />
+    {/if}
+  {/each}
+
+  <!-- Nested zones (freeform containers only): child coordinates are
+       parent-local, so rendering them inside this positioned element places
+       them correctly with no world-space maths in the view. -->
+  {#each childZoneIds as childId (childId)}
+    {@const child = store.state.zones[childId]}
+    {#if child}
+      <ZoneRenderer zone={child} />
     {/if}
   {/each}
 
@@ -322,6 +349,13 @@
 
   .zone.locked .zone-frame {
     border-color: rgba(255, 255, 255, 0.07);
+  }
+
+  /* Boards/mats read as solid regions: their artwork carries the edge, so the
+     dashed placeholder border recedes to a faint outline. */
+  .zone.board .zone-frame {
+    border-style: solid;
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   .zone.drop-hover .zone-frame {

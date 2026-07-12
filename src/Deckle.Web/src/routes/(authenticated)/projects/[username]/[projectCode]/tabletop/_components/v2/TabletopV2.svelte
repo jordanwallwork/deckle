@@ -337,8 +337,8 @@
     if (!templateId) return;
     e.preventDefault();
 
-    // Route through the shared drop resolver: it dedups against what is
-    // already placed and refuses containers (boards arrive with ticket 11).
+    // Route through the shared drop resolver: it dedups cards against what is
+    // already placed, and turns board/mat containers into freeform regions.
     const world = clientToWorld(e.clientX, e.clientY);
     const plan = resolveDrop(store.state, store.templates, { kind: 'template', templateId }, world);
     if (plan.kind === 'none') return;

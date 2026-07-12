@@ -29,7 +29,9 @@ import type {
   SpreadZone,
   TabletopState,
   Templates,
-  Zone
+  Zone,
+  ZoneType,
+  ZoneTypeSettingsCache
 } from './types';
 
 /** Default footprint for zones created from the canvas context menu. */
@@ -283,6 +285,108 @@ export function setGridColumns(state: TabletopState, zoneId: string, columns: nu
   if (zone?.type !== 'grid') return;
   zone.columns = Math.max(1, Math.floor(columns));
   snapGridToCells(state, zone);
+}
+
+// ─── Type conversion ────────────────────────────────────────────────────────
+// Ticket 12: convert a populated zone between all four types in place, keeping
+// its id, name, position, and contents. Per-type settings survive round-trips
+// via the settings cache (spread direction/overlap, grid cell dims/columns);
+// defaults apply the first time a type is seen. There is no per-type
+// special-casing beyond the behaviour table + the settings cache: re-placing
+// the contents (splaying a deck across a spread, seating piles on grid cells)
+// is left entirely to the normalize invariants the caller runs at commit, and
+// leaving a group snaps rotations to the nearest 90° via the shared onLeave
+// hook — the same rule as dragging a pile out.
+
+/**
+ * The outgoing type's settings, merged over any previously cached ones, so a
+ * later round-trip back to this type restores exactly what was configured.
+ * Freeform and group carry no type-specific settings.
+ */
+function cacheZoneTypeSettings(zone: Zone): ZoneTypeSettingsCache {
+  const cache: ZoneTypeSettingsCache = { ...zone.typeSettings };
+  if (zone.type === 'spread') {
+    cache.spread = { direction: zone.direction, overlap: zone.overlap };
+  } else if (zone.type === 'grid') {
+    cache.grid = { cellWidth: zone.cellWidth, cellHeight: zone.cellHeight, columns: zone.columns };
+  }
+  return cache;
+}
+
+/**
+ * Convert a zone to `targetType` in place: id, name, position/size, lock
+ * state, contents, and any parent nesting are preserved; the outgoing type's
+ * settings are cached and the incoming type's restored (or defaulted). A no-op
+ * when the zone is already that type or does not exist. The caller must run
+ * normalize afterwards — that is what splays a multi-card pile across a new
+ * spread and seats piles on a new grid's cells.
+ */
+export function convertZone(
+  state: TabletopState,
+  templates: Templates,
+  zoneId: string,
+  targetType: ZoneType
+): void {
+  const zone = state.zones[zoneId];
+  if (!zone || zone.type === targetType) return;
+
+  // Leaving the zone fires its onLeave hook for every pile (a group snaps each
+  // card's cosmetic tilt to the nearest 90°; a no-op for the other types, so
+  // this needs no type check).
+  const behavior = zoneBehavior(zone);
+  for (const pileId of [...zone.pileIds]) {
+    behavior.onLeave({ state, templates }, zone, pileId);
+  }
+
+  // Only freeform zones can host nested children; un-nest them to the root
+  // (preserving world position) before dropping the freeform shape, so they
+  // are never orphaned by the conversion.
+  if (zone.type === 'freeform' && zone.childZoneIds) {
+    for (const childId of [...zone.childZoneIds]) reparentZone(state, childId, null);
+  }
+
+  const typeSettings = cacheZoneTypeSettings(zone);
+  const base = {
+    id: zone.id,
+    name: zone.name,
+    x: zone.x,
+    y: zone.y,
+    width: zone.width,
+    height: zone.height,
+    pileIds: zone.pileIds,
+    locked: zone.locked,
+    typeSettings,
+    ...(zone.parentZoneId !== undefined ? { parentZoneId: zone.parentZoneId } : {})
+  };
+
+  let converted: Zone;
+  switch (targetType) {
+    case 'freeform':
+      converted = { ...base, type: 'freeform' };
+      break;
+    case 'spread':
+      converted = {
+        ...base,
+        type: 'spread',
+        direction: typeSettings.spread?.direction ?? 'row',
+        overlap: typeSettings.spread?.overlap ?? DEFAULT_SPREAD_OVERLAP
+      };
+      break;
+    case 'grid':
+      converted = {
+        ...base,
+        type: 'grid',
+        cellWidth: typeSettings.grid?.cellWidth ?? DEFAULT_GRID_CELL_WIDTH,
+        cellHeight: typeSettings.grid?.cellHeight ?? DEFAULT_GRID_CELL_HEIGHT,
+        columns: typeSettings.grid?.columns ?? DEFAULT_GRID_COLUMNS
+      };
+      break;
+    case 'group':
+      converted = { ...base, type: 'group' };
+      break;
+  }
+
+  state.zones[zoneId] = converted;
 }
 
 /**

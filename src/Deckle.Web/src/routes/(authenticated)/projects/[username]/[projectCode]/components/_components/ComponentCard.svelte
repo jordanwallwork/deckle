@@ -117,7 +117,7 @@
   }
 
   :global(.delete-button) {
-    color: #d32f2f !important;
+    color: var(--color-danger) !important;
   }
 
   :global(.delete-button:hover) {

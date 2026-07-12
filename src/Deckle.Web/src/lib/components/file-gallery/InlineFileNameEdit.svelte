@@ -180,7 +180,7 @@
   }
 
   .inline-edit-container.has-error {
-    border-color: #e74c3c;
+    border-color: var(--color-danger);
   }
 
   .inline-edit-input {
@@ -196,7 +196,7 @@
   }
 
   .inline-edit-input.invalid {
-    color: #e74c3c;
+    color: var(--color-danger);
   }
 
   .inline-edit-input:disabled {
@@ -212,7 +212,7 @@
 
   .inline-edit-error {
     font-size: 0.75rem;
-    color: #e74c3c;
+    color: var(--color-danger);
     margin-top: 0.25rem;
   }
 </style>

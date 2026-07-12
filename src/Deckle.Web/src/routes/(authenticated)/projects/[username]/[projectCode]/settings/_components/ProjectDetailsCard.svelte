@@ -312,8 +312,8 @@
   }
 
   .visibility-dot.private { background-color: var(--color-text-secondary); }
-  .visibility-dot.teaser { background-color: #ffb142; }
-  .visibility-dot.public { background-color: #2ed573; }
+  .visibility-dot.teaser { background-color: var(--color-warning); }
+  .visibility-dot.public { background-color: var(--color-success); }
 
   .desc-rendered :global(p) { margin: 0 0 0.5em 0; font-size: 0.9375rem; }
   .desc-rendered :global(p:last-child) { margin-bottom: 0; }
@@ -335,7 +335,7 @@
   }
 
   .error-message {
-    color: #d32f2f;
+    color: var(--color-danger);
     font-size: 0.875rem;
     margin: 0 0 1rem 0;
     padding: 0.75rem;

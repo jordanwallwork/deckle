@@ -47,7 +47,7 @@
   }
 
   .required {
-    color: #d32f2f;
+    color: var(--color-danger);
     margin-left: 0.25rem;
   }
 
@@ -59,7 +59,7 @@
 
   .field-error {
     font-size: 0.8125rem;
-    color: #d32f2f;
+    color: var(--color-danger);
     margin-top: -0.25rem;
   }
 </style>

@@ -338,7 +338,7 @@
   }
 
   .input-status.error {
-    color: #dc2626;
+    color: var(--color-danger);
   }
 
   .field-hint {
@@ -349,7 +349,7 @@
 
   .field-error {
     font-size: 0.8125rem;
-    color: #dc2626;
+    color: var(--color-danger);
     margin: 0;
   }
 
@@ -361,10 +361,10 @@
 
   .submit-error {
     padding: 0.875rem 1rem;
-    background-color: #fef2f2;
-    border: 1px solid #fecaca;
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-md);
-    color: #dc2626;
+    color: var(--color-danger);
     font-size: 0.875rem;
   }
 

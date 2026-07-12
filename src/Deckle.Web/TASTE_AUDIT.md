@@ -88,7 +88,25 @@ Sage is the app's most-used "brand" foreground, and it fails at every size. Affe
 
 **Fix (small, high-impact):** treat sage as a **fill/decoration color only** (TopBar background, badge tints, focus-ring glow) and switch every *text/icon* use to `--color-muted-teal` (5.21:1) or `--color-teal-grey` (darker). For the white-on-sage TopBar, either darken the bar to `muted-teal`/`teal-grey` or keep sage but verify the specific white pairing — a `teal-grey` bar with white text passes comfortably. Fix `body` default color to `--color-text-primary`.
 
-### P1 — Token discipline: one accent, used identically (and defined once)
+### P1 — Token discipline: one accent, used identically (and defined once)  ✅ (b) + (c) FIXED
+
+> **Update:** parts **(b) hard-coded status colors** and **(c) undefined variables** are
+> now fixed app-wide. A semantic token layer was added to `app.css`
+> (`--color-danger`/`-hover`/`-bg`/`-border`, `--color-success/-warning/-info`) plus
+> aliases for every previously-undefined name (`--color-text`, `--color-text-muted`,
+> `--color-surface`, `--color-background`, `--color-background-secondary`, `--color-bg`,
+> `--color-bg-subtle`, `--color-primary`, `--color-deep-forest`). The audit undercounted:
+> there were **three** distinct danger reds (`#e74c3c`/`#d32f2f`/`#dc2626`) plus
+> `#c0392b`, spread across **~29 files** (not four), and **10** undefined `--color-*`
+> tokens referenced app-wide — including `--color-danger` itself, already used with
+> fallbacks in FolderRow/FileRow/image-library but never declared. All are consolidated:
+> danger → `--color-danger` (`#d32f2f`, 4.98:1 on white — passes AA as both button-fill
+> and error text), and every undefined token now resolves. Part **(a) accent oscillation**
+> was already resolved by the P0 fix (primary CTAs now darken-on-hover); the only residue
+> is the secondary button (muted-teal) vs primary (green). Success/warning/info were
+> tokenized at their **existing** values (no visual change) and still fail AA as small
+> chips — darkening them (`#1e7d47` / `#a15c00` / `#2c74ad` all pass) is an optional
+> follow-up.
 
 > Skill: *"One accent color per page… use it identically across the whole page. No mid-page shifts (Color Consistency Lock)."*
 
@@ -158,7 +176,7 @@ Ordered by the skill's **Modernization Levers** (color/contrast first here becau
 | # | Priority | Change | Effort |
 |---|---|---|---|
 | 1 | **P0** ✅ | ~~Recolor foreground uses of sage; reserve sage for fills; fix `body` default text color.~~ **Done** — introduced `--color-sage-dark`/`--color-sage-darker`; kept the green identity per user choice. All pairs now ≥ 4.5:1. Darken-on-hover also resolved the primary/submit accent oscillation. | S |
-| 2 | **P1** | Define semantic color tokens (`--color-danger*`, `--color-success/-warning/-info`); consolidate the four reds; fix undefined `--color-text`/`--color-surface`/`--color-bg-subtle`. | S–M |
+| 2 | **P1** ✅ | ~~Define semantic color tokens; consolidate the reds; fix undefined vars.~~ **Done** — added the danger/status token layer + 10 alias tokens; consolidated 3 reds across ~29 files; every `--color-*` reference now resolves. | S–M |
 | 3 | **P1** | Lock one accent-at-rest + one hover treatment across Button and auth CTA. | S |
 | 4 | **P1** | Add dark mode via a token-remap block (do **after** #1–#2). | M–L |
 | 5 | **P2** | Global `prefers-reduced-motion` guard. | XS |

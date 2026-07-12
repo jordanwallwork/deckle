@@ -116,12 +116,12 @@
 
   /* Danger variant */
   .btn.danger {
-    background-color: #e74c3c;
+    background-color: var(--color-danger);
     color: white;
   }
 
   .btn.danger:hover:not(:disabled) {
-    background-color: #c0392b;
+    background-color: var(--color-danger-hover);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }

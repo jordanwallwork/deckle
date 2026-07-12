@@ -337,10 +337,10 @@
 
   .error-message {
     padding: 0.75rem 1rem;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-md);
-    color: #dc2626;
+    color: var(--color-danger);
     font-size: 0.875rem;
     margin-bottom: 1rem;
   }

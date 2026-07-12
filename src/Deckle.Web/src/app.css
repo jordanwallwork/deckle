@@ -11,6 +11,24 @@
   --color-border: rgba(52, 73, 86, 0.12);
   --color-text-primary: #2c3e50;
   --color-text-secondary: #5a6c7d;
+  /* Semantic status colors */
+  --color-danger: #d32f2f;
+  --color-danger-hover: #b71c1c;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-success: #2ed573;
+  --color-warning: #ffb142;
+  --color-info: #3498db;
+  /* Semantic aliases: map assumed names onto the palette above */
+  --color-text: var(--color-text-primary);
+  --color-text-muted: var(--color-text-secondary);
+  --color-surface: var(--color-bg-secondary);
+  --color-background: var(--color-bg-primary);
+  --color-background-secondary: var(--color-bg-secondary);
+  --color-bg: var(--color-bg-primary);
+  --color-bg-subtle: #f3f4f6;
+  --color-primary: var(--color-muted-teal);
+  --color-deep-forest: var(--color-sage-dark);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);

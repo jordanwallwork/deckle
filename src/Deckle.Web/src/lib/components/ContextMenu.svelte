@@ -191,11 +191,11 @@
   }
 
   .menu-item.danger {
-    color: var(--color-danger, #dc2626);
+    color: var(--color-danger);
   }
 
   .menu-item.danger:hover:not(.disabled) {
-    background-color: #fef2f2;
+    background-color: var(--color-danger-bg);
   }
 
   .menu-item.has-submenu {

@@ -234,7 +234,7 @@
     background-color: rgba(211, 47, 47, 0.1);
     border: 1px solid rgba(211, 47, 47, 0.3);
     border-radius: 6px;
-    color: #d32f2f;
+    color: var(--color-danger);
     font-size: 0.875rem;
     margin-top: 0.5rem;
   }

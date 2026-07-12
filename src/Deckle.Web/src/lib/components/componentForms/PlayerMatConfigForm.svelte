@@ -180,7 +180,7 @@
   }
 
   .field-error {
-    color: #d32f2f;
+    color: var(--color-danger);
     font-size: 0.75rem;
     margin: 0.25rem 0 0 0;
   }

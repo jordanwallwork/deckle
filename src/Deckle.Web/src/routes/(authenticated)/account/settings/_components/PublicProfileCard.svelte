@@ -204,7 +204,7 @@
   }
 
   .char-count.error {
-    color: #dc2626;
+    color: var(--color-danger);
     font-weight: 600;
   }
 
@@ -320,7 +320,7 @@
     background: none;
     border: 1px solid rgba(220, 38, 38, 0.3);
     border-radius: 6px;
-    color: #dc2626;
+    color: var(--color-danger);
     font-size: 1.125rem;
     cursor: pointer;
     line-height: 1;
@@ -342,7 +342,7 @@
 
   .save-error {
     font-size: 0.875rem;
-    color: #dc2626;
+    color: var(--color-danger);
     margin: 0;
   }
 

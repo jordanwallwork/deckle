@@ -20,9 +20,9 @@
 }
 
 .base-input.error {
-  border-color: #d32f2f;
+  border-color: var(--color-danger);
 }
 
 .base-input.error:focus {
-  border-color: #d32f2f;
+  border-color: var(--color-danger);
 }

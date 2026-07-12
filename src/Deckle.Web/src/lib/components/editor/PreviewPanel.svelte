@@ -356,8 +356,8 @@
   }
 
   .export-button.error:hover {
-    background: #dc2626;
-    border-color: #dc2626;
+    background: var(--color-danger);
+    border-color: var(--color-danger);
   }
 
   .grid-size-label {

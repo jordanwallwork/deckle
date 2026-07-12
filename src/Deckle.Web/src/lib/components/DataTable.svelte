@@ -187,7 +187,7 @@
 
   .sort-indicator {
     font-size: 1rem;
-    color: var(--color-primary, #0066cc);
+    color: var(--color-primary);
     font-weight: bold;
   }
 

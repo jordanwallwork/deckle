@@ -89,24 +89,24 @@
   /* Success (Green) */
   .badge.success {
     background-color: rgba(46, 213, 115, 0.1);
-    color: #2ed573;
+    color: var(--color-success);
   }
 
   /* Warning (Orange) */
   .badge.warning {
     background-color: rgba(255, 177, 66, 0.1);
-    color: #ffb142;
+    color: var(--color-warning);
   }
 
   /* Danger (Red) */
   .badge.danger {
     background-color: rgba(255, 71, 87, 0.1);
-    color: #ff4757;
+    color: var(--color-danger);
   }
 
   /* Info (Blue) */
   .badge.info {
     background-color: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    color: var(--color-info);
   }
 </style>

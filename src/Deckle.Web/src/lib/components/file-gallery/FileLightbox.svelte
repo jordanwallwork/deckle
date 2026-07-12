@@ -267,7 +267,7 @@
   }
 
   .filename-input-group.has-error {
-    border-color: #e74c3c;
+    border-color: var(--color-danger);
   }
 
   .filename-input {
@@ -280,7 +280,7 @@
   }
 
   .filename-input.invalid {
-    color: #e74c3c;
+    color: var(--color-danger);
   }
 
   .filename-extension {
@@ -292,7 +292,7 @@
   .field-error {
     margin-top: 0.5rem;
     font-size: 0.8125rem;
-    color: #e74c3c;
+    color: var(--color-danger);
   }
 
   .section-actions {
@@ -308,9 +308,9 @@
     margin-top: 1rem;
     padding: 0.75rem 1rem;
     background-color: rgba(231, 76, 60, 0.1);
-    border: 1px solid #e74c3c;
+    border: 1px solid var(--color-danger);
     border-radius: var(--radius-md);
-    color: #e74c3c;
+    color: var(--color-danger);
     font-size: 0.875rem;
   }
 

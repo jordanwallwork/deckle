@@ -144,7 +144,7 @@
 
 <style>
 	.error-message {
-		color: #d32f2f;
+		color: var(--color-danger);
 		font-size: 0.875rem;
 		margin: 1rem 0 0 0;
 		padding: 0.75rem;

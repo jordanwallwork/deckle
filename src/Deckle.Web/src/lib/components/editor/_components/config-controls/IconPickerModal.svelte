@@ -351,7 +351,7 @@
     gap: 0.75rem;
     height: 100%;
     min-height: 150px;
-    color: #dc2626;
+    color: var(--color-danger);
     font-size: 0.875rem;
   }
 

@@ -15,6 +15,10 @@ export {
   type TabletopInitInput,
   type TabletopInitResult
 } from './initialization';
-export { createTabletopStore, type TabletopStore } from './store.svelte';
+export {
+  createTabletopStore,
+  type CreatableZoneType,
+  type TabletopStore
+} from './store.svelte';
 export { createInteraction, type TabletopInteraction } from './interaction.svelte';
 export { setTabletopApi, getTabletopApi, type TabletopApi } from './context';

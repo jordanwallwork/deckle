@@ -311,25 +311,30 @@ export function detachPileToRoot(state: TabletopState, pileId: string): void {
  * Place a pile into a region — a zone or the root table (null) — with its
  * centre at a world point, converting to zone-local storage at this boundary
  * (the SPEC's coordinate discipline). The pile joins the top of the region's
- * render order. Placing into its current region just repositions it.
+ * render order, or the given `index` in it — ordered zones (spreads) pass the
+ * pointer-derived insert slot. Placing into its current region without an
+ * index just repositions it.
  */
 export function placePile(
   state: TabletopState,
   pileId: string,
   zoneId: string | null,
   worldX: number,
-  worldY: number
+  worldY: number,
+  index?: number
 ): void {
   const pile = getPile(state, pileId);
   const zone = zoneId === null ? null : state.zones[zoneId];
   if (zoneId !== null && !zone) throw new Error(`Zone not found: ${zoneId}`);
 
-  if (pile.zoneId !== zoneId) {
+  if (pile.zoneId !== zoneId || index !== undefined) {
     const ids = containerPileIds(state, pile);
-    const index = ids.indexOf(pileId);
-    if (index !== -1) ids.splice(index, 1);
+    const currentIndex = ids.indexOf(pileId);
+    if (currentIndex !== -1) ids.splice(currentIndex, 1);
     pile.zoneId = zoneId;
-    (zone === null ? state.rootPileIds : zone.pileIds).push(pileId);
+    const target = zone === null ? state.rootPileIds : zone.pileIds;
+    if (index === undefined) target.push(pileId);
+    else target.splice(Math.max(0, Math.min(index, target.length)), 0, pileId);
   }
 
   const local = zone === null ? { x: worldX, y: worldY } : worldToZoneLocal(state, zone, { x: worldX, y: worldY });

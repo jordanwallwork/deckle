@@ -3,11 +3,13 @@
 // SPEC's invariants. Violations throw in dev and repair silently in prod, so
 // every operation test doubles as an invariant test.
 //
-// Wired so far: referential integrity (ticket 01) and no-empty-piles
-// (ticket 03). Later tickets add the splay, spread-layout and grid-snap
-// invariants here.
+// Wired so far: referential integrity (ticket 01), no-empty-piles
+// (ticket 03), and the spread splay + layout invariants (ticket 07). The
+// grid-snap invariant arrives with ticket 09.
 
-import type { TabletopState, Templates } from './types';
+import { makeId } from './operations';
+import type { Pile, TabletopState, Templates } from './types';
+import { zoneBehavior } from './zones';
 
 export interface NormalizeOptions {
   /** True in dev builds: throw on violation instead of repairing. */
@@ -31,7 +33,50 @@ export function normalize(state: TabletopState, templates: Templates, opts: Norm
   };
 
   noEmptyPiles(state, fail);
+  spreadInvariants(state, templates);
   referentialIntegrity(state, fail);
+}
+
+/**
+ * Invariants: a spread only ever contains single-card piles, positioned by
+ * its layout. Unlike the other invariants these are re-establishing steps,
+ * never dev-mode failures: legitimate commits rely on them — a deck dropped
+ * into a spread arrives as one multi-card pile and fans out here, and every
+ * drop lands at its drop point until layout assigns the real slot — so
+ * finding work to do is the designed path, not a bug. (This is also what
+ * will handle conversion *into* a spread in ticket 12.)
+ */
+function spreadInvariants(state: TabletopState, templates: Templates): void {
+  for (const zone of Object.values(state.zones)) {
+    if (zone.type !== 'spread') continue;
+    // Splay: fan each multi-card pile into single-card piles in array order —
+    // pile-bottom at the pile's own index, pile-top last — preserving
+    // physical layering under the overlap render (later index renders on
+    // top). Cards keep their rotation and face state untouched.
+    for (let i = 0; i < zone.pileIds.length; i++) {
+      const pile = state.piles[zone.pileIds[i]];
+      if (!pile || pile.cardIds.length < 2) continue;
+      const splayed: string[] = [];
+      for (const cardId of pile.cardIds) {
+        const single: Pile = {
+          id: makeId('pile'),
+          zoneId: zone.id,
+          x: pile.x,
+          y: pile.y,
+          locked: pile.locked,
+          cardIds: [cardId]
+        };
+        state.piles[single.id] = single;
+        splayed.push(single.id);
+      }
+      delete state.piles[pile.id];
+      zone.pileIds.splice(i, 1, ...splayed);
+      i += splayed.length - 1;
+    }
+    // Layout: write the spread's positions into state (renderers never
+    // compute layout).
+    zoneBehavior(zone).layout({ state, templates }, zone);
+  }
 }
 
 /**

@@ -35,6 +35,8 @@ export type DropPlan =
       /** World-space pile centre. */
       x: number;
       y: number;
+      /** Insert slot in the zone's pile order — ordered zones only. */
+      index?: number;
     }
   | { kind: 'merge-piles'; sourcePileId: string; targetPileId: string }
   | {
@@ -45,6 +47,8 @@ export type DropPlan =
       /** World-space pile centre. */
       x: number;
       y: number;
+      /** Insert slot in the zone's pile order — ordered zones only. */
+      index?: number;
     }
   | {
       kind: 'multi';
@@ -157,7 +161,8 @@ export function resolveDrop(
         instances,
         zoneId: placement.zoneId,
         x: placement.x,
-        y: placement.y
+        y: placement.y,
+        index: placement.index
       };
     }
     case 'pile': {
@@ -174,7 +179,14 @@ export function resolveDrop(
       }
       const region = dropRegionAt(state, world);
       const placement = zoneBehavior(region).planDrop(ctx, region, pileWorldCenter(state, pile));
-      return { kind: 'place-pile', pileId: pile.id, zoneId: placement.zoneId, x: placement.x, y: placement.y };
+      return {
+        kind: 'place-pile',
+        pileId: pile.id,
+        zoneId: placement.zoneId,
+        x: placement.x,
+        y: placement.y,
+        index: placement.index
+      };
     }
     case 'piles': {
       const piles = payload.pileIds
@@ -191,7 +203,14 @@ export function resolveDrop(
           return { kind: 'merge-piles', sourcePileId: pile.id, targetPileId: target.id };
         }
         const placement = behavior.planDrop(ctx, region, pileWorldCenter(state, pile));
-        return { kind: 'place-pile', pileId: pile.id, zoneId: placement.zoneId, x: placement.x, y: placement.y };
+        return {
+          kind: 'place-pile',
+          pileId: pile.id,
+          zoneId: placement.zoneId,
+          x: placement.x,
+          y: placement.y,
+          index: placement.index
+        };
       });
       return { kind: 'multi', plans };
     }
@@ -206,7 +225,7 @@ export function applyDropPlan(state: TabletopState, templates: Templates, plan: 
       if (!template) return;
       const pileId = spawnPileFromTemplate(state, template, plan.instances, plan.x, plan.y);
       if (pileId !== null && plan.zoneId !== null) {
-        placePile(state, pileId, plan.zoneId, plan.x, plan.y);
+        placePile(state, pileId, plan.zoneId, plan.x, plan.y, plan.index);
       }
       return;
     }
@@ -216,7 +235,7 @@ export function applyDropPlan(state: TabletopState, templates: Templates, plan: 
     }
     case 'place-pile': {
       if (!state.piles[plan.pileId]) return;
-      placePile(state, plan.pileId, plan.zoneId, plan.x, plan.y);
+      placePile(state, plan.pileId, plan.zoneId, plan.x, plan.y, plan.index);
       return;
     }
     case 'multi': {

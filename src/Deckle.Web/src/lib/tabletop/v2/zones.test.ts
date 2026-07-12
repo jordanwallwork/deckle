@@ -263,10 +263,28 @@ describe('zoneActions — context-menu applicability', () => {
     const state = emptyTabletopState();
     const id = createFreeformZone(state, 0, 0);
 
-    expect(zoneActions(state, id)).toEqual(['edit', 'lock', 'delete']);
+    expect(zoneActions(state, templates, id)).toEqual(['edit', 'lock', 'delete']);
     setZoneLocked(state, id, true);
-    expect(zoneActions(state, id)).toEqual(['unlock']);
-    expect(zoneActions(state, 'ghost')).toEqual([]);
+    expect(zoneActions(state, templates, id)).toEqual(['unlock']);
+    expect(zoneActions(state, templates, 'ghost')).toEqual([]);
+  });
+
+  it('offers the zone-wide actions once the zone has applicable contents', () => {
+    const state = withZone(
+      stateWithPiles(singleCardPile('p1', 'c1', 50, 50), singleCardPile('p2', 'c2', 150, 50)),
+      { id: 'z1', x: 0, y: 0 },
+      ['p1', 'p2']
+    );
+
+    // Freeform: everything except shuffle (its behaviour shuffle is a no-op).
+    expect(zoneActions(state, templates, 'z1')).toEqual([
+      'edit',
+      'select-all',
+      'flip-all',
+      'rotate-all',
+      'lock',
+      'delete'
+    ]);
   });
 });
 

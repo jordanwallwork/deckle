@@ -6,7 +6,15 @@
 import type { Selection, TabletopState, Templates } from './types';
 import * as hist from './history';
 import { normalize } from './normalize';
-import { createFreeformZone, NEW_ZONE_HEIGHT, NEW_ZONE_WIDTH } from './zones';
+import { createFreeformZone, createSpreadZone, NEW_ZONE_HEIGHT, NEW_ZONE_WIDTH } from './zones';
+
+/** Zone types creatable from the canvas menu; grid/group join with 09/10. */
+const zoneCreators = {
+  freeform: createFreeformZone,
+  spread: createSpreadZone
+} as const;
+
+export type CreatableZoneType = keyof typeof zoneCreators;
 
 export function createTabletopStore(initialState: TabletopState, templates: Templates) {
   const store = $state<{ state: TabletopState }>({
@@ -91,11 +99,16 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
   // back — including the zone's creation when the session started from
   // "Add Zone".
 
-  /** Create a freeform zone centred on a world point and open it for editing. */
-  function createZoneAndEdit(worldX: number, worldY: number): void {
+  /** Create a zone of the given type centred on a world point and open it
+   *  for editing. */
+  function createZoneAndEdit(
+    worldX: number,
+    worldY: number,
+    type: CreatableZoneType = 'freeform'
+  ): void {
     if (transaction) return;
     beginTransaction();
-    const id = createFreeformZone(
+    const id = zoneCreators[type](
       store.state,
       worldX - NEW_ZONE_WIDTH / 2,
       worldY - NEW_ZONE_HEIGHT / 2

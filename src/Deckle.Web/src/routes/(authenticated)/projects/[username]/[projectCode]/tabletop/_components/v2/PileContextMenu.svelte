@@ -27,6 +27,7 @@
 
   const LABELS: Record<PileAction, string> = {
     flip: 'Flip (F)',
+    roll: 'Roll (S)',
     rotate: 'Rotate 90° (R)',
     shuffle: 'Shuffle (S)',
     'flip-top': 'Flip Top Card',
@@ -38,7 +39,7 @@
 
   /** Menu groups; a divider separates consecutive non-empty groups. */
   const GROUPS: PileAction[][] = [
-    ['flip', 'rotate', 'shuffle', 'flip-top'],
+    ['flip', 'roll', 'rotate', 'shuffle', 'flip-top'],
     ['lock', 'unlock'],
     ['send-front', 'send-back']
   ];

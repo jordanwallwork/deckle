@@ -6,13 +6,14 @@
 import type { Selection, TabletopState, Templates } from './types';
 import * as hist from './history';
 import { normalize } from './normalize';
-import { createFreeformZone, createGridZone, createSpreadZone } from './zones';
+import { createFreeformZone, createGridZone, createGroupZone, createSpreadZone } from './zones';
 
-/** Zone types creatable from the canvas menu; group joins with ticket 10. */
+/** Zone types creatable from the canvas menu. */
 const zoneCreators = {
   freeform: createFreeformZone,
   spread: createSpreadZone,
-  grid: createGridZone
+  grid: createGridZone,
+  group: createGroupZone
 } as const;
 
 export type CreatableZoneType = keyof typeof zoneCreators;

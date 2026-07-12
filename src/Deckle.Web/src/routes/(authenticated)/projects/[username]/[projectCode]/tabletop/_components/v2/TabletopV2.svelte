@@ -19,8 +19,8 @@
     rotatePiles,
     selectedPileIds,
     setTabletopApi,
-    shufflablePiles,
-    shufflePiles,
+    shuffleOrRollablePiles,
+    shuffleOrRollPiles,
     shuffleZoneContents,
     spreadInsertHint,
     zoneActions
@@ -106,10 +106,10 @@
     if (!canvasMenu) return [];
     const { worldX, worldY } = canvasMenu;
     return [
-      // Group creation joins this menu with ticket 10.
       { label: 'Add Zone', action: () => store.createZoneAndEdit(worldX, worldY) },
       { label: 'Add Spread', action: () => store.createZoneAndEdit(worldX, worldY, 'spread') },
-      { label: 'Add Grid', action: () => store.createZoneAndEdit(worldX, worldY, 'grid') }
+      { label: 'Add Grid', action: () => store.createZoneAndEdit(worldX, worldY, 'grid') },
+      { label: 'Add Group', action: () => store.createZoneAndEdit(worldX, worldY, 'group') }
     ];
   });
 
@@ -297,8 +297,10 @@
       }
     } else if (e.key === 's' || e.key === 'S') {
       e.preventDefault();
-      if (shufflablePiles(store.state, selected).length > 0) {
-        store.commit((s) => shufflePiles(s, selected));
+      // S is shuffle-or-roll: dice roll, multi-card piles shuffle, dispatched
+      // per pile across a mixed selection as one undo step.
+      if (shuffleOrRollablePiles(store.state, store.templates, selected).length > 0) {
+        store.commit((s) => shuffleOrRollPiles(s, store.templates, selected));
       }
     }
   }

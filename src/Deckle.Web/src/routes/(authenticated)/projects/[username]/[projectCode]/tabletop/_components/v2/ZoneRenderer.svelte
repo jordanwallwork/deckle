@@ -27,6 +27,7 @@
 
   const spread = $derived(zone.type === 'spread' ? zone : null);
   const grid = $derived(zone.type === 'grid' ? zone : null);
+  const isGroup = $derived(zone.type === 'group');
   const gridRowCount = $derived(grid ? gridRows(grid) : 0);
 
   const selected = $derived(
@@ -137,6 +138,7 @@
   class:dragging
   class:locked={zone.locked}
   class:drop-hover={dropHover}
+  class:group={isGroup}
   style="left: {zone.x}px; top: {zone.y}px; width: {zone.width}px; height: {zone.height}px;"
   oncontextmenu={handleContextMenu}
 >
@@ -292,6 +294,12 @@
     border: 2px dashed rgba(255, 255, 255, 0.12);
     transition: border-color 0.15s;
     pointer-events: none;
+  }
+
+  /* Group (scatter tray): a soft tint marks it as the organic-scatter region. */
+  .zone.group .zone-frame {
+    background: rgba(120, 90, 200, 0.08);
+    border-color: rgba(150, 120, 220, 0.28);
   }
 
   .zone.selected .zone-frame {

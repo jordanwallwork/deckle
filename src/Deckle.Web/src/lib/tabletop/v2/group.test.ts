@@ -189,6 +189,29 @@ describe('shuffle re-scatters the contents', () => {
     }
   });
 
+  it('preserves a multi-card pile\'s relative rotations when re-scattering', () => {
+    // A pile of two cards deliberately turned relative to each other (an
+    // orientation game like Scout — stories 7 & 9). Re-scatter must re-tilt
+    // the pile as a whole, not flatten both cards to one absolute angle.
+    const state = stateWithPiles({
+      pile: makePile({ id: 'p', cardIds: ['top', 'bottom'], x: 1100, y: 1050 }),
+      cards: [
+        makeCard({ id: 'top', rotation: 0 }),
+        makeCard({ id: 'bottom', rotation: 90 })
+      ]
+    });
+    addTray(state, ['p']);
+    normalize(state, templates, { dev: true });
+
+    // Sequence [x, y, rot] = [0, 0, 1] → anchor (top card) gets +12° tilt.
+    shuffleZoneContents(state, templates, 'tray', sequence([0, 0, 1]));
+
+    // The anchor card carries the fresh tilt; the second card keeps its +90°
+    // offset from it rather than being clobbered to the same value.
+    expect(state.cards.top.rotation).toBe(12);
+    expect(state.cards.bottom.rotation).toBe(102);
+  });
+
   it('a populated group offers shuffle among its zone actions', () => {
     const state = addTray(
       stateWithPiles(

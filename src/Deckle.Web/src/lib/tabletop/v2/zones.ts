@@ -1057,11 +1057,14 @@ const groupBehavior: ZoneBehavior = {
       if (!pile) continue;
       pile.x = GROUP_SCATTER_MARGIN + random() * spanX;
       pile.y = GROUP_SCATTER_MARGIN + random() * spanY;
-      const rotation = normalizeDegrees((random() * 2 - 1) * GROUP_ROTATION_JITTER);
-      for (const cardId of pile.cardIds) {
-        const card = ctx.state.cards[cardId];
-        if (card) card.rotation = rotation;
-      }
+      // Re-tilt the pile as a whole: anchor on its first card and apply the
+      // same delta to every card, so a multi-card pile keeps each card's
+      // relative orientation (stories 7/9 — Scout, rotated piles) instead of
+      // being flattened to one absolute angle. Delta-based, matching how
+      // planDrop and onLeave already treat group rotation.
+      const tilt = normalizeDegrees((random() * 2 - 1) * GROUP_ROTATION_JITTER);
+      const anchor = ctx.state.cards[pile.cardIds[0]];
+      if (anchor) rotatePile(ctx.state, pileId, tilt - anchor.rotation);
     }
   }
 };

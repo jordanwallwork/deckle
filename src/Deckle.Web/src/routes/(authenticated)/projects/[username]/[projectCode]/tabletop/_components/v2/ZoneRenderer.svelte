@@ -5,13 +5,22 @@
   // tab is the ONLY move handle; body presses forward to the reducer as
   // background events (marquee or click-select-zone).
   import type { Zone } from '$lib/tabletop/v2';
-  import { getTabletopApi, renameZone, removeZone, type ResizeCorner } from '$lib/tabletop/v2';
+  import {
+    getTabletopApi,
+    renameZone,
+    removeZone,
+    setSpreadDirection,
+    setSpreadOverlap,
+    type ResizeCorner
+  } from '$lib/tabletop/v2';
   import PileRenderer from './PileRenderer.svelte';
 
   let { zone }: { zone: Zone } = $props();
 
   const api = getTabletopApi();
   const { store, interaction } = api;
+
+  const spread = $derived(zone.type === 'spread' ? zone : null);
 
   const selected = $derived(
     store.state.selection.kind === 'zone' && store.state.selection.zoneId === zone.id
@@ -71,6 +80,18 @@
     store.updateTransient((s) => removeZone(s, zone.id));
     store.endZoneEdit(true);
   }
+
+  // Spread settings relayout immediately; inside the edit session they are
+  // transient frames, so Escape reverts them with the rest of the session.
+  function handleDirection(direction: 'row' | 'column') {
+    store.updateTransient((s) => setSpreadDirection(s, store.templates, zone.id, direction));
+  }
+
+  function handleOverlapInput(e: Event) {
+    const overlap = Number((e.target as HTMLInputElement).value);
+    if (Number.isNaN(overlap)) return;
+    store.updateTransient((s) => setSpreadOverlap(s, store.templates, zone.id, overlap));
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -97,6 +118,30 @@
         aria-label="Zone name"
         autofocus
       />
+      {#if spread}
+        <button
+          class="edit-btn"
+          class:active={spread.direction === 'row'}
+          onclick={() => handleDirection('row')}
+          title="Row layout">↔</button
+        >
+        <button
+          class="edit-btn"
+          class:active={spread.direction === 'column'}
+          onclick={() => handleDirection('column')}
+          title="Column layout">↕</button
+        >
+        <input
+          class="overlap-input"
+          type="number"
+          min="0"
+          step="5"
+          value={spread.overlap}
+          oninput={handleOverlapInput}
+          title="Overlap (px)"
+          aria-label="Overlap (px)"
+        />
+      {/if}
       <button class="edit-btn delete" onclick={handleDelete} title="Delete zone">✕</button>
       <button class="edit-btn done" onclick={() => store.endZoneEdit(true)} title="Done">✓</button>
     </div>
@@ -280,6 +325,27 @@
 
   .edit-btn:hover {
     background: #3a3d4e;
+  }
+
+  .edit-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+  }
+
+  .overlap-input {
+    background: #2a2d3e;
+    border: 1px solid #3a3d4e;
+    border-radius: 4px;
+    color: #e8e9f0;
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.35rem;
+    width: 4rem;
+    outline: none;
+  }
+
+  .overlap-input:focus {
+    border-color: #3b82f6;
   }
 
   .edit-btn.done {

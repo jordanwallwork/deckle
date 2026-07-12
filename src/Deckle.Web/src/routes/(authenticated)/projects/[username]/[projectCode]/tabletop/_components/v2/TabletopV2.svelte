@@ -8,16 +8,20 @@
     applyDropPlan,
     createInteraction,
     createTabletopStore,
+    flipAllInZone,
     flipPiles,
     flippablePiles,
     isPileSelected,
     resolveDrop,
     rotatablePiles,
+    rotateAllInZone,
     rotatePiles,
     selectedPileIds,
     setTabletopApi,
     shufflablePiles,
-    shufflePiles
+    shufflePiles,
+    shuffleZoneContents,
+    zoneActions
   } from '$lib/tabletop/v2';
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
   import { setContext } from 'svelte';
@@ -100,8 +104,9 @@
     if (!canvasMenu) return [];
     const { worldX, worldY } = canvasMenu;
     return [
-      // Spread/grid/group creation joins this menu with tickets 07/09/10.
-      { label: 'Add Zone', action: () => store.createZoneAndEdit(worldX, worldY) }
+      // Grid/group creation joins this menu with tickets 09/10.
+      { label: 'Add Zone', action: () => store.createZoneAndEdit(worldX, worldY) },
+      { label: 'Add Spread', action: () => store.createZoneAndEdit(worldX, worldY, 'spread') }
     ];
   });
 
@@ -216,6 +221,31 @@
     // applicability check runs first so an inert selection (all dice for F,
     // all single cards for S…) records nothing in history.
     if (modKey || e.altKey) return;
+
+    // A selected zone maps F/R/S to its zone-wide actions (story 44):
+    // flip-all, rotate-all, and the behaviour-table shuffle.
+    if (store.state.selection.kind === 'zone') {
+      const zoneId = store.state.selection.zoneId;
+      const applicable = zoneActions(store.state, store.templates, zoneId);
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        if (applicable.includes('flip-all')) {
+          store.commit((s) => flipAllInZone(s, store.templates, zoneId));
+        }
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        if (applicable.includes('rotate-all')) {
+          store.commit((s) => rotateAllInZone(s, zoneId, 90));
+        }
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        if (applicable.includes('shuffle')) {
+          store.commit((s) => shuffleZoneContents(s, store.templates, zoneId));
+        }
+      }
+      return;
+    }
+
     const selected = selectedPileIds(store.state);
     if (selected.length === 0) return;
 

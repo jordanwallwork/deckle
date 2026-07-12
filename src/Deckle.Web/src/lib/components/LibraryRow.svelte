@@ -358,8 +358,8 @@
   }
 
   .checkbox.checked {
-    background-color: var(--color-sage);
-    border-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
+    border-color: var(--color-sage-dark);
     color: white;
   }
 
@@ -378,7 +378,7 @@
 
   .drag-handle:hover {
     opacity: 1;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .drag-handle:active {
@@ -455,7 +455,7 @@
   }
 
   .row-name-button:not(:disabled):hover .row-name {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .row-name-input {

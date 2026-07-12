@@ -139,7 +139,7 @@
   .display-name {
     font-size: 1.75rem;
     font-weight: 700;
-    color: var(--color-deep-forest, var(--color-sage));
+    color: var(--color-deep-forest, var(--color-sage-dark));
     margin: 0;
     line-height: 1.2;
   }
@@ -160,7 +160,7 @@
   .profile-section h2 {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin: 0;
     padding-bottom: 0.625rem;
     border-bottom: 1px solid var(--color-border);
@@ -181,7 +181,7 @@
   }
   .bio-content :global(strong) {
     font-weight: 700;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
   .bio-content :global(em) {
     font-style: italic;
@@ -191,7 +191,7 @@
     text-decoration: underline;
   }
   .bio-content :global(a:hover) {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
   .bio-content :global(ul),
   .bio-content :global(ol) {
@@ -219,7 +219,7 @@
     border-radius: 999px;
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     text-decoration: none;
     transition:
       background-color 0.15s,
@@ -272,7 +272,7 @@
   .project-name {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     text-decoration: none;
   }
 

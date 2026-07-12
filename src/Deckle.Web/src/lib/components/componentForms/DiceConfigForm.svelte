@@ -94,7 +94,7 @@
   .color-field-label {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin-bottom: 0.5rem;
     display: block;
   }
@@ -165,7 +165,7 @@
   }
 
   .colorblind-text {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     font-weight: 600;
   }
 </style>

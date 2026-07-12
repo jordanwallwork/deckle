@@ -60,7 +60,7 @@
   .type-card h4 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin: 0 0 0.5rem 0;
   }
 

@@ -211,7 +211,7 @@
   }
 
   .preview-toggle:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .desc-preview {

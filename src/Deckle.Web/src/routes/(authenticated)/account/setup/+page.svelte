@@ -373,7 +373,7 @@
     font-size: 1rem;
     font-weight: 600;
     color: white;
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;

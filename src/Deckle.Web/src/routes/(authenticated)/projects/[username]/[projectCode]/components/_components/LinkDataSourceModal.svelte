@@ -132,7 +132,7 @@
   .data-source-name {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .data-source-meta {

@@ -289,7 +289,7 @@
     font-size: 0.875rem;
     font-weight: 500;
     color: white;
-    background: var(--color-sage);
+    background: var(--color-sage-dark);
     border: none;
     border-radius: 4px;
     cursor: pointer;

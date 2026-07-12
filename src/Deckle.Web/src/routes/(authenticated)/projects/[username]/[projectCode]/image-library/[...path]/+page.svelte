@@ -706,7 +706,7 @@
   }
 
   .icon-button:hover {
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(120, 160, 131, 0.3);
   }
@@ -732,7 +732,7 @@
   .drag-overlay p {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     background: white;
     padding: 1rem 2rem;
     border-radius: 8px;
@@ -807,7 +807,7 @@
   .empty-message {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin-bottom: 0.5rem;
   }
 
@@ -898,7 +898,7 @@
   }
 
   .submit-button:hover:not(:disabled) {
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
   }
 
   .submit-button:disabled {

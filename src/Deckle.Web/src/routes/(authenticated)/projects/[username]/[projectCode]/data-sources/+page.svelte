@@ -429,7 +429,7 @@
   .source-info h3 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin: 0 0 0.5rem 0;
   }
 
@@ -454,12 +454,12 @@
   }
 
   .source-link:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .source-metadata {
     font-size: 0.875rem;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin: 0.5rem 0 0 0;
     font-weight: 500;
   }
@@ -499,7 +499,7 @@
   .form-group label {
     display: block;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin-bottom: 0.5rem;
     font-size: 0.875rem;
   }
@@ -561,7 +561,7 @@
 
   .type-option-title {
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     font-size: 1rem;
   }
 

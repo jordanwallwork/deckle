@@ -156,7 +156,7 @@
 
   .radio-option span {
     font-size: 0.875rem;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .horizontal-toggle {

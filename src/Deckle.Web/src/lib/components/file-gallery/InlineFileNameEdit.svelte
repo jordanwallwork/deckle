@@ -156,7 +156,7 @@
   }
 
   .file-name-button:hover .file-name {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .file-name {

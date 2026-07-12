@@ -48,7 +48,7 @@
 
   .design-link > a:hover,
   a.design-link:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     text-decoration: underline;
   }
 </style>

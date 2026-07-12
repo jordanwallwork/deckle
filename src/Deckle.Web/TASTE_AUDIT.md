@@ -10,9 +10,16 @@
 > was used as *text* or as a *solid surface behind white text* now uses the darker sage;
 > text on the dark teal gradient (auth hero, page headers) is now white. Sage is
 > retained for tints/fills/focus-glow only. All measured pairs now pass WCAG AA
-> (≥ 4.5:1). Remaining P1/P2 items below are unchanged. Affected files: `app.css`,
-> `TopBar`, `Button`, `+page.svelte`, `Dialog`, `Badge`, `PageHeader`, plus shared
-> primitives `Tabs`, `EmptyState`, `ConfirmDialog`, `FormField`, and `ProjectCard`.
+> (≥ 4.5:1). Remaining P1/P2 items below are unchanged.
+>
+> The fix landed in two passes: first the public + app chrome (`app.css`, `TopBar`,
+> `Button`, `+page.svelte`, `Dialog`, `Badge`, `PageHeader`, plus shared primitives
+> `Tabs`, `EmptyState`, `ConfirmDialog`, `FormField`, `ProjectCard`), then a **whole-app
+> sweep** of the remaining sage-as-text uses across the feature and editor pages
+> (data sources, image library, account, component forms, file gallery, public profile,
+> etc. — ~24 more files). Every `--color-sage` foreground/solid-behind-white use is now
+> `--color-sage-dark`; the only surviving `--color-sage` uses are decorative (borders,
+> focus outlines, selection rings, the logo, and gradients).
 
 ---
 

@@ -220,7 +220,7 @@
   }
 
   .toggle-preview:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .bio-textarea {
@@ -361,6 +361,6 @@
   }
 
   .view-profile-link:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 </style>

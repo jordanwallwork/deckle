@@ -96,7 +96,7 @@
   h3 {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin: 0;
     flex: 1;
   }
@@ -113,7 +113,7 @@
 
   :global(.edit-button:hover) {
     background-color: var(--color-teal-grey) !important;
-    color: var(--color-sage) !important;
+    color: white !important;
   }
 
   :global(.delete-button) {

@@ -200,7 +200,7 @@
   .copy-btn {
     flex-shrink: 0;
     padding: 0.25rem 0.625rem;
-    background: var(--color-sage);
+    background: var(--color-sage-dark);
     color: white;
     border: none;
     border-radius: var(--radius-sm, 4px);

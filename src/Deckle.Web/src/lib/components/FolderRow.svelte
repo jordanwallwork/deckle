@@ -151,7 +151,7 @@
 
   .action-button:hover {
     border-color: var(--color-sage);
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .action-button.delete:hover {

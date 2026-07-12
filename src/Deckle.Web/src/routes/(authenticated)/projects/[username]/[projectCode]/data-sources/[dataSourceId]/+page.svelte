@@ -283,7 +283,7 @@
   .title-area h1 {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin: 0;
   }
 
@@ -301,7 +301,7 @@
   }
 
   .edit-icon-button:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     background-color: var(--color-teal-grey);
   }
 
@@ -314,7 +314,7 @@
   .name-input {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     padding: 0.5rem;
     border: 2px solid var(--color-teal-grey);
     border-radius: 6px;
@@ -354,7 +354,7 @@
   }
 
   .save-button:hover:not(:disabled) {
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
   }
 
   .save-button:disabled {
@@ -408,7 +408,7 @@
   .empty-state p {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin-bottom: 0.5rem;
   }
 
@@ -423,7 +423,7 @@
   }
 
   .empty-subtitle a:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 </style>
 

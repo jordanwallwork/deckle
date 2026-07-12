@@ -7,8 +7,12 @@
   import type { Zone } from '$lib/tabletop/v2';
   import {
     getTabletopApi,
+    gridRows,
     renameZone,
     removeZone,
+    setGridCellHeight,
+    setGridCellWidth,
+    setGridColumns,
     setSpreadDirection,
     setSpreadOverlap,
     type ResizeCorner
@@ -21,6 +25,8 @@
   const { store, interaction } = api;
 
   const spread = $derived(zone.type === 'spread' ? zone : null);
+  const grid = $derived(zone.type === 'grid' ? zone : null);
+  const gridRowCount = $derived(grid ? gridRows(grid) : 0);
 
   const selected = $derived(
     store.state.selection.kind === 'zone' && store.state.selection.zoneId === zone.id
@@ -92,6 +98,26 @@
     if (Number.isNaN(overlap)) return;
     store.updateTransient((s) => setSpreadOverlap(s, store.templates, zone.id, overlap));
   }
+
+  // Grid settings re-snap contents immediately; inside the edit session they
+  // are transient frames, so Escape reverts them with the rest of the session.
+  function handleCellWidthInput(e: Event) {
+    const value = Number((e.target as HTMLInputElement).value);
+    if (Number.isNaN(value)) return;
+    store.updateTransient((s) => setGridCellWidth(s, zone.id, value));
+  }
+
+  function handleCellHeightInput(e: Event) {
+    const value = Number((e.target as HTMLInputElement).value);
+    if (Number.isNaN(value)) return;
+    store.updateTransient((s) => setGridCellHeight(s, zone.id, value));
+  }
+
+  function handleColumnsInput(e: Event) {
+    const value = Number((e.target as HTMLInputElement).value);
+    if (Number.isNaN(value)) return;
+    store.updateTransient((s) => setGridColumns(s, zone.id, value));
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -142,6 +168,44 @@
           aria-label="Overlap (px)"
         />
       {/if}
+      {#if grid}
+        <label class="grid-field" title="Cell width (px)">
+          <span aria-hidden="true">W</span>
+          <input
+            class="grid-input"
+            type="number"
+            min="20"
+            step="10"
+            value={grid.cellWidth}
+            oninput={handleCellWidthInput}
+            aria-label="Cell width (px)"
+          />
+        </label>
+        <label class="grid-field" title="Cell height (px)">
+          <span aria-hidden="true">H</span>
+          <input
+            class="grid-input"
+            type="number"
+            min="20"
+            step="10"
+            value={grid.cellHeight}
+            oninput={handleCellHeightInput}
+            aria-label="Cell height (px)"
+          />
+        </label>
+        <label class="grid-field" title="Columns">
+          <span aria-hidden="true">⌗</span>
+          <input
+            class="grid-input"
+            type="number"
+            min="1"
+            step="1"
+            value={grid.columns}
+            oninput={handleColumnsInput}
+            aria-label="Columns"
+          />
+        </label>
+      {/if}
       <button class="edit-btn delete" onclick={handleDelete} title="Delete zone">✕</button>
       <button class="edit-btn done" onclick={() => store.endZoneEdit(true)} title="Done">✓</button>
     </div>
@@ -165,6 +229,17 @@
   <!-- The frame carries the border so it never offsets zone-local pile
        coordinates (absolute children position from the padding box). -->
   <div class="zone-frame"></div>
+  {#if grid}
+    <!-- Cell lattice: lines at each cell boundary from the zone's top-left. -->
+    <div
+      class="grid-lines"
+      style="
+        width: {grid.columns * grid.cellWidth}px;
+        height: {gridRowCount * grid.cellHeight}px;
+        background-size: {grid.cellWidth}px {grid.cellHeight}px;
+      "
+    ></div>
+  {/if}
   <div class="zone-body" onpointerdown={handleBodyPointerDown}></div>
 
   {#each zone.pileIds as pileId (pileId)}
@@ -223,6 +298,20 @@
   .zone-body {
     position: absolute;
     inset: 0;
+  }
+
+  /* Cell lattice drawn beneath the piles; the top/left zone edges come from
+     the frame, so the gradients only need the interior + right/bottom lines. */
+  .grid-lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .header-tab {
@@ -345,6 +434,29 @@
   }
 
   .overlap-input:focus {
+    border-color: #3b82f6;
+  }
+
+  .grid-field {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: #8b8ea0;
+    font-size: 0.75rem;
+  }
+
+  .grid-input {
+    background: #2a2d3e;
+    border: 1px solid #3a3d4e;
+    border-radius: 4px;
+    color: #e8e9f0;
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.35rem;
+    width: 3.25rem;
+    outline: none;
+  }
+
+  .grid-input:focus {
     border-color: #3b82f6;
   }
 

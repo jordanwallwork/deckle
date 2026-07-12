@@ -104,9 +104,10 @@
     if (!canvasMenu) return [];
     const { worldX, worldY } = canvasMenu;
     return [
-      // Grid/group creation joins this menu with tickets 09/10.
+      // Group creation joins this menu with ticket 10.
       { label: 'Add Zone', action: () => store.createZoneAndEdit(worldX, worldY) },
-      { label: 'Add Spread', action: () => store.createZoneAndEdit(worldX, worldY, 'spread') }
+      { label: 'Add Spread', action: () => store.createZoneAndEdit(worldX, worldY, 'spread') },
+      { label: 'Add Grid', action: () => store.createZoneAndEdit(worldX, worldY, 'grid') }
     ];
   });
 

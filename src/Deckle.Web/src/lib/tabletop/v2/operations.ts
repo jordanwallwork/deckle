@@ -301,6 +301,39 @@ export function rotatePile(state: TabletopState, pileId: string, delta = 90): vo
 }
 
 /**
+ * A Fisher–Yates permutation of the given ids. `random` is injectable so tests
+ * are deterministic. Pure — the shuffle animation computes the new order with
+ * this up front (so the renderer knows the eventual top card) and commits it
+ * later via {@link setPileOrder}.
+ */
+export function computeShuffledOrder<T>(ids: readonly T[], random: () => number = Math.random): T[] {
+  const result = [...ids];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
+ * Replace a pile's card order with a precomputed permutation — the order a
+ * shuffle animation commits when it lands. The permutation must contain
+ * exactly the pile's current cards; a mismatch (a stale animation, cards moved
+ * meanwhile) leaves the order untouched so it can never scramble or drop cards.
+ */
+export function setPileOrder(
+  state: TabletopState,
+  pileId: string,
+  order: readonly string[]
+): void {
+  const pile = getPile(state, pileId);
+  if (order.length !== pile.cardIds.length) return;
+  const current = new Set(pile.cardIds);
+  if (!order.every((id) => current.has(id))) return;
+  pile.cardIds = [...order];
+}
+
+/**
  * Shuffle a multi-card pile's order in place (Fisher–Yates). `random` is
  * injectable so tests are deterministic. No-op for piles of one.
  */
@@ -311,12 +344,7 @@ export function shufflePile(
 ): void {
   const pile = getPile(state, pileId);
   if (pile.cardIds.length < 2) return;
-  const ids = [...pile.cardIds];
-  for (let i = ids.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-  }
-  pile.cardIds = ids;
+  pile.cardIds = computeShuffledOrder(pile.cardIds, random);
 }
 
 /**

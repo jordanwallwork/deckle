@@ -5,13 +5,24 @@
 
 import type { Selection, TabletopState, Templates, ZoneType } from './types';
 import * as hist from './history';
+import {
+  applyPendingShuffle,
+  pendingShuffleDuration,
+  planShuffle,
+  planZoneFlip,
+  requestShuffle,
+  zoneFlipDuration,
+  type PendingShuffle,
+  type ZoneFlipHint
+} from './animations';
 import { normalize } from './normalize';
 import {
   convertZone,
   createFreeformZone,
   createGridZone,
   createGroupZone,
-  createSpreadZone
+  createSpreadZone,
+  flipAllInZone
 } from './zones';
 
 /** Zone types creatable from the canvas menu. */
@@ -35,6 +46,28 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
   const canUndo = $derived(hist.canUndo(history));
   const canRedo = $derived(hist.canRedo(history));
 
+  // ─── Transient animation hints ────────────────────────────────────────────
+  // Neither hint is history: the shuffle riffle defers its (already computed)
+  // order until the fan lands, the wave flip commits at once and only staggers
+  // the render. Both are owned here so any commit can finalise a pending
+  // shuffle first — its order is never lost and undo sees exactly one step.
+  let shuffleAnimation = $state.raw<PendingShuffle | null>(null);
+  let shuffleTimer: ReturnType<typeof setTimeout> | null = null;
+  let zoneFlipAnimation = $state.raw<ZoneFlipHint | null>(null);
+  let zoneFlipTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Commit a pending shuffle's precomputed order as its own undo step. */
+  function finalizePendingShuffle(): void {
+    const pending = shuffleAnimation;
+    if (!pending) return;
+    shuffleAnimation = null;
+    if (shuffleTimer) {
+      clearTimeout(shuffleTimer);
+      shuffleTimer = null;
+    }
+    commit((state) => applyPendingShuffle(state, pending));
+  }
+
   function snapshotState(): TabletopState {
     return structuredClone($state.snapshot(store.state)) as TabletopState;
   }
@@ -48,6 +81,7 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
    * normalize → record.
    */
   function commit(mutator: (state: TabletopState) => void): void {
+    finalizePendingShuffle();
     const before = snapshotState();
     mutator(store.state);
     runNormalize();
@@ -57,6 +91,7 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
   /** Open a transaction (e.g. at drag start). One at a time. */
   function beginTransaction(): void {
     if (transaction) return;
+    finalizePendingShuffle();
     transaction = hist.begin(snapshotState());
   }
 
@@ -84,6 +119,7 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
   }
 
   function undo(): void {
+    finalizePendingShuffle();
     const result = hist.undo(history, snapshotState());
     if (!result) return;
     history = result.history;
@@ -91,10 +127,64 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
   }
 
   function redo(): void {
+    finalizePendingShuffle();
     const result = hist.redo(history, snapshotState());
     if (!result) return;
     history = result.history;
     store.state = result.state;
+  }
+
+  // ─── Animated pile shuffle (deferred commit) ──────────────────────────────
+
+  /**
+   * Shuffle the given piles with the riffle animation: the new order is
+   * precomputed now (so the fan can land on the eventual top card) and
+   * committed when the fan finishes — or sooner if any other commit, or a
+   * shuffle of a different pile, interrupts it. A shuffle of a pile already
+   * animating is ignored. Commits the whole batch as one undo step.
+   */
+  function shufflePilesAnimated(pileIds: string[]): void {
+    const requested = planShuffle(store.state, pileIds);
+    if (!requested) return;
+    const decision = requestShuffle(shuffleAnimation, requested);
+    // Request ignored (a requested pile is already animating): nothing changes.
+    if (decision.finalize === null && decision.next === shuffleAnimation) return;
+    if (decision.finalize) finalizePendingShuffle();
+    shuffleAnimation = decision.next;
+    if (shuffleTimer) clearTimeout(shuffleTimer);
+    shuffleTimer = null;
+    if (shuffleAnimation) {
+      const ms = pendingShuffleDuration(shuffleAnimation);
+      shuffleTimer = setTimeout(() => {
+        shuffleTimer = null;
+        finalizePendingShuffle();
+      }, ms);
+    }
+  }
+
+  // ─── Animated zone-wide flip (wave) ───────────────────────────────────────
+
+  /**
+   * Flip every pile in a zone as one commit, rippling the flip across the zone
+   * as a wave on spreads and grids. The state change is atomic (single undo
+   * step); the wave is a transient render hint the renderers turn into a
+   * per-pile CSS transition delay, cleared when the ripple finishes.
+   */
+  function flipAllInZoneAnimated(zoneId: string): void {
+    const hint = planZoneFlip(store.state, templates, zoneId);
+    if (hint) {
+      const zone = store.state.zones[zoneId];
+      zoneFlipAnimation = hint;
+      if (zoneFlipTimer) clearTimeout(zoneFlipTimer);
+      zoneFlipTimer = setTimeout(
+        () => {
+          zoneFlipAnimation = null;
+          zoneFlipTimer = null;
+        },
+        zoneFlipDuration(zone ? zone.pileIds.length : 0, hint.staggerMs)
+      );
+    }
+    commit((s) => flipAllInZone(s, templates, zoneId));
   }
 
   function setSelection(selection: Selection): void {
@@ -183,6 +273,14 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     get inTransaction() {
       return transaction !== null;
     },
+    /** The pending shuffle animation (transient; not history), or null. */
+    get shuffleAnimation() {
+      return shuffleAnimation;
+    },
+    /** The active zone wave-flip hint (transient; not history), or null. */
+    get zoneFlipAnimation() {
+      return zoneFlipAnimation;
+    },
 
     commit,
     beginTransaction,
@@ -195,7 +293,9 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     createZoneAndEdit,
     startZoneEdit,
     convertEditingZone,
-    endZoneEdit
+    endZoneEdit,
+    shufflePilesAnimated,
+    flipAllInZoneAnimated
   };
 }
 

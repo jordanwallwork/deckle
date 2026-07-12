@@ -3,6 +3,7 @@ export * from './geometry';
 export * from './operations';
 export * from './zones';
 export * from './actions';
+export * from './animations';
 export * from './normalize';
 export * from './drop';
 export * from './history';

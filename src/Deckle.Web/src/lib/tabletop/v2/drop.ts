@@ -9,15 +9,23 @@ import type { Point } from './geometry';
 import { pileWorldCenter, pileWorldRect, pointInRect, zoneWorldRect } from './geometry';
 import type { Pile, SpreadZone, TabletopState, Templates, Zone } from './types';
 import {
-  detachPileToRoot,
   getUnplacedInstances,
+  isDiceTemplate,
   isPileMergeable,
   mergePiles,
   movePileTo,
   placePile,
+  rotatePile,
+  scatterAround,
   spawnPileFromTemplate
 } from './operations';
-import { findZoneAt, spreadInsertIndex, spreadInsertIntent, zoneBehavior } from './zones';
+import {
+  detachPileFromZone,
+  findZoneAt,
+  spreadInsertIndex,
+  spreadInsertIntent,
+  zoneBehavior
+} from './zones';
 
 /** What is being dropped. */
 export type DropPayload =
@@ -38,6 +46,8 @@ export type DropPlan =
       y: number;
       /** Insert slot in the zone's pile order — ordered zones only. */
       index?: number;
+      /** Rotation delta applied to the spawned cards — group scatter tilt. */
+      rotationJitter?: number;
     }
   | { kind: 'merge-piles'; sourcePileId: string; targetPileId: string }
   | {
@@ -50,6 +60,8 @@ export type DropPlan =
       y: number;
       /** Insert slot in the zone's pile order — ordered zones only. */
       index?: number;
+      /** Rotation delta applied to the pile's cards — group scatter tilt. */
+      rotationJitter?: number;
     }
   | {
       kind: 'multi';
@@ -168,9 +180,10 @@ export function resolveDrop(
   state: TabletopState,
   templates: Templates,
   payload: DropPayload,
-  world: Point
+  world: Point,
+  random: () => number = Math.random
 ): DropPlan {
-  const ctx = { state, templates };
+  const ctx = { state, templates, random };
   switch (payload.kind) {
     case 'template': {
       const template = templates[payload.templateId];
@@ -180,7 +193,29 @@ export function resolveDrop(
       const instances = getUnplacedInstances(state, template);
       if (instances.length === 0) return NONE;
       const region = dropRegionAt(state, world);
-      const placement = zoneBehavior(region).planDrop(ctx, region, world);
+      const behavior = zoneBehavior(region);
+      if (isDiceTemplate(template)) {
+        // Multi-dice spawn: scatter one loose single-die pile per instance
+        // around the drop point in whatever region was hit — spawning never
+        // creates a zone. Each die still passes through the region's own drop
+        // rules (a group re-jitters it; a grid seats it on a cell).
+        const points = scatterAround(world, instances.length, random);
+        const plans = instances.map((inst, i): DropPlan => {
+          const placement = behavior.planDrop(ctx, region, points[i]);
+          return {
+            kind: 'spawn-pile',
+            templateId: template.id,
+            instances: [inst],
+            zoneId: placement.zoneId,
+            x: placement.x,
+            y: placement.y,
+            index: placement.index,
+            rotationJitter: placement.rotationJitter
+          };
+        });
+        return { kind: 'multi', plans };
+      }
+      const placement = behavior.planDrop(ctx, region, world);
       return {
         kind: 'spawn-pile',
         templateId: template.id,
@@ -188,7 +223,8 @@ export function resolveDrop(
         zoneId: placement.zoneId,
         x: placement.x,
         y: placement.y,
-        index: placement.index
+        index: placement.index,
+        rotationJitter: placement.rotationJitter
       };
     }
     case 'pile': {
@@ -243,7 +279,8 @@ export function resolveDrop(
         zoneId: placement.zoneId,
         x: placement.x,
         y: placement.y,
-        index: placement.index
+        index: placement.index,
+        rotationJitter: placement.rotationJitter
       };
     }
     case 'piles': {
@@ -277,7 +314,8 @@ export function resolveDrop(
           zoneId: placement.zoneId,
           x: placement.x,
           y: placement.y,
-          index: placement.index
+          index: placement.index,
+          rotationJitter: placement.rotationJitter
         };
       });
       return { kind: 'multi', plans };
@@ -292,9 +330,11 @@ export function applyDropPlan(state: TabletopState, templates: Templates, plan: 
       const template = templates[plan.templateId];
       if (!template) return;
       const pileId = spawnPileFromTemplate(state, template, plan.instances, plan.x, plan.y);
-      if (pileId !== null && plan.zoneId !== null) {
+      if (pileId === null) return;
+      if (plan.zoneId !== null) {
         placePile(state, pileId, plan.zoneId, plan.x, plan.y, plan.index);
       }
+      if (plan.rotationJitter) rotatePile(state, pileId, plan.rotationJitter);
       return;
     }
     case 'merge-piles': {
@@ -304,6 +344,7 @@ export function applyDropPlan(state: TabletopState, templates: Templates, plan: 
     case 'place-pile': {
       if (!state.piles[plan.pileId]) return;
       placePile(state, plan.pileId, plan.zoneId, plan.x, plan.y, plan.index);
+      if (plan.rotationJitter) rotatePile(state, plan.pileId, plan.rotationJitter);
       return;
     }
     case 'multi': {
@@ -362,7 +403,7 @@ export function movePileToZone(
   if (!zone || zone.locked || !state.piles[pileId]) return;
   const rect = zoneWorldRect(state, zone);
   const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-  detachPileToRoot(state, pileId);
+  detachPileFromZone(state, templates, pileId);
   movePileTo(state, pileId, center.x, center.y);
   applyDropPlan(state, templates, resolveDrop(state, templates, { kind: 'pile', pileId }, center));
 }

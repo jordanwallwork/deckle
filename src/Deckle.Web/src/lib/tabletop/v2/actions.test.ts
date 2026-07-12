@@ -163,9 +163,9 @@ describe('pileActions — the context menu shows exactly the applicable actions'
     expect(pileActions(state, templates, 'p1')).toEqual(['unlock']);
   });
 
-  it('a die pile skips flip and flip-top (not flippable)', () => {
+  it('a die pile offers roll and skips flip/flip-top (not flippable)', () => {
     const state = stateWithPiles(diePile('die', 'd1'));
-    expect(pileActions(state, templates, 'die')).toEqual(['rotate', 'lock']);
+    expect(pileActions(state, templates, 'die')).toEqual(['roll', 'rotate', 'lock']);
   });
 });
 

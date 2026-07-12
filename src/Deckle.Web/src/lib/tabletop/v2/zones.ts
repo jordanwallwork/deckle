@@ -13,8 +13,23 @@ import {
   zoneLocalToWorld,
   zoneWorldRect
 } from './geometry';
-import { flipPile, makeId, rotatePile } from './operations';
-import type { GridZone, FreeformZone, SpreadZone, TabletopState, Templates, Zone } from './types';
+import {
+  detachPileToRoot,
+  flipPile,
+  makeId,
+  normalizeDegrees,
+  rotatePile,
+  snapToRightAngle
+} from './operations';
+import type {
+  GridZone,
+  FreeformZone,
+  GroupZone,
+  SpreadZone,
+  TabletopState,
+  Templates,
+  Zone
+} from './types';
 
 /** Default footprint for zones created from the canvas context menu. */
 export const NEW_ZONE_WIDTH = 300;
@@ -40,6 +55,15 @@ export const DEFAULT_GRID_COLUMNS = 4;
 export const DEFAULT_GRID_ROWS = 3;
 /** Smallest a cell edge or (for columns) the count may shrink to. */
 export const MIN_GRID_CELL = 20;
+
+/** How far (px, ± each axis) a group nudges an incoming pile from the drop point. */
+export const GROUP_POSITION_JITTER = 24;
+
+/** The cosmetic tilt (degrees, ±) a group applies to incoming/scattered piles. */
+export const GROUP_ROTATION_JITTER = 12;
+
+/** Inset (px) keeping a group re-scatter clear of the zone edges. */
+export const GROUP_SCATTER_MARGIN = 24;
 
 /** Widest an insertion band flanking a spread seam gets (px each side). */
 export const SPREAD_INSERT_BAND_MAX = 16;
@@ -167,6 +191,36 @@ export function createGridZone(
     cellWidth: DEFAULT_GRID_CELL_WIDTH,
     cellHeight: DEFAULT_GRID_CELL_HEIGHT,
     columns: DEFAULT_GRID_COLUMNS
+  };
+  state.zones[zone.id] = zone;
+  state.zoneOrder.push(zone.id);
+  return zone.id;
+}
+
+/**
+ * Create an empty top-level group zone — the scatter tray (a natural home
+ * for dice) — with its top-left at (x, y) in world space. Incoming piles land
+ * with a jittered position and tilt; leaving snaps rotation to the nearest
+ * quarter turn.
+ */
+export function createGroupZone(
+  state: TabletopState,
+  x: number,
+  y: number,
+  width = NEW_ZONE_WIDTH,
+  height = NEW_ZONE_HEIGHT,
+  name = 'New Group'
+): string {
+  const zone: GroupZone = {
+    id: makeId('zone'),
+    name,
+    type: 'group',
+    x,
+    y,
+    width,
+    height,
+    pileIds: [],
+    locked: false
   };
   state.zones[zone.id] = zone;
   state.zoneOrder.push(zone.id);
@@ -345,6 +399,12 @@ export interface DropPlacement {
   y: number;
   /** Insert position in the zone's pile order — ordered zones (spreads) only. */
   index?: number;
+  /**
+   * A rotation delta (degrees) to apply to the placed pile's cards — group
+   * zones only, for the cosmetic scatter tilt. Undefined leaves rotation
+   * untouched.
+   */
+  rotationJitter?: number;
 }
 
 export interface ZoneBehavior {
@@ -667,12 +727,75 @@ const gridBehavior: ZoneBehavior = {
   }
 };
 
+// ─── Group scatter ───────────────────────────────────────────────────────────
+// A group is a freeform region with organic scatter: incoming piles get a
+// jittered position and a small tilt (a dice tray, a token pool), leaving
+// snaps rotation to the nearest quarter turn (cosmetic jitter removed,
+// deliberate orientation preserved), and shuffle re-scatters the contents.
+
+/** Clamp `n` to [min, max] (max wins if the range inverts). */
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(Math.max(n, min), max);
+}
+
+const groupBehavior: ZoneBehavior = {
+  ordered: false,
+  shuffleable: true,
+  // Jitter the drop point within the zone and hand back a small rotation
+  // delta (applied to the pile's cards at commit) — the organic scatter.
+  planDrop: (ctx, zone, world) => {
+    if (zone?.type !== 'group') return freeformBehavior.planDrop(ctx, zone, world);
+    const random = ctx.random ?? Math.random;
+    const local = worldToZoneLocal(ctx.state, zone, world);
+    const jittered = {
+      x: clamp(local.x + (random() * 2 - 1) * GROUP_POSITION_JITTER, 0, zone.width),
+      y: clamp(local.y + (random() * 2 - 1) * GROUP_POSITION_JITTER, 0, zone.height)
+    };
+    const worldPt = zoneLocalToWorld(ctx.state, zone, jittered);
+    return {
+      zoneId: zone.id,
+      x: worldPt.x,
+      y: worldPt.y,
+      rotationJitter: (random() * 2 - 1) * GROUP_ROTATION_JITTER
+    };
+  },
+  layout: () => {},
+  // Leaving the tray straightens the cosmetic tilt to the nearest 90°.
+  onLeave: (ctx, zone, pileId) => {
+    if (zone.type !== 'group') return;
+    const pile = ctx.state.piles[pileId];
+    if (!pile) return;
+    for (const cardId of pile.cardIds) {
+      const card = ctx.state.cards[cardId];
+      if (card) card.rotation = snapToRightAngle(card.rotation);
+    }
+  },
+  // Re-scatter: fresh jittered positions (inset from the edges) and a fresh
+  // tilt for every pile — tumbling the tray.
+  shuffleZone: (ctx, zone) => {
+    if (zone.type !== 'group') return;
+    const random = ctx.random ?? Math.random;
+    const spanX = Math.max(0, zone.width - 2 * GROUP_SCATTER_MARGIN);
+    const spanY = Math.max(0, zone.height - 2 * GROUP_SCATTER_MARGIN);
+    for (const pileId of zone.pileIds) {
+      const pile = ctx.state.piles[pileId];
+      if (!pile) continue;
+      pile.x = GROUP_SCATTER_MARGIN + random() * spanX;
+      pile.y = GROUP_SCATTER_MARGIN + random() * spanY;
+      const rotation = normalizeDegrees((random() * 2 - 1) * GROUP_ROTATION_JITTER);
+      for (const cardId of pile.cardIds) {
+        const card = ctx.state.cards[cardId];
+        if (card) card.rotation = rotation;
+      }
+    }
+  }
+};
+
 const behaviors: Record<Zone['type'], ZoneBehavior> = {
   freeform: freeformBehavior,
   grid: gridBehavior,
   spread: spreadBehavior,
-  // Placeholder until ticket 10 lands — it places like freeform.
-  group: freeformBehavior
+  group: groupBehavior
 };
 
 /** The behaviour for a zone, or the root region's (freeform) for null. */
@@ -719,6 +842,26 @@ export function rotateAllInZone(state: TabletopState, zoneId: string, delta = 90
   for (const pileId of rotatablePiles(state, zone.pileIds)) {
     rotatePile(state, pileId, delta);
   }
+}
+
+/**
+ * Pick a pile up onto the root, firing its source zone's `onLeave` hook
+ * first (a group snaps each card's rotation to the nearest 90°). This is the
+ * single "a pile leaves its zone" path — the reducer's detach-pile mutation
+ * and "Move to <zone>" both route through here, so leaving a group always
+ * straightens the scatter tilt regardless of gesture.
+ */
+export function detachPileFromZone(
+  state: TabletopState,
+  templates: Templates,
+  pileId: string
+): void {
+  const pile = state.piles[pileId];
+  if (pile && pile.zoneId !== null) {
+    const zone = state.zones[pile.zoneId];
+    if (zone) zoneBehavior(zone).onLeave({ state, templates }, zone, pileId);
+  }
+  detachPileToRoot(state, pileId);
 }
 
 /** Zone shuffle, dispatched through the behaviour table. */

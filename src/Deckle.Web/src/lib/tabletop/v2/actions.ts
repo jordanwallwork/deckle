@@ -10,9 +10,11 @@ import {
   containerPileIds,
   flipPile,
   flipTopCard,
+  isPileDie,
   isPileFlippable,
   lowerPile,
   raisePile,
+  rollPile,
   rotatePile,
   setPileLocked,
   shufflePile
@@ -52,6 +54,33 @@ export function shufflablePiles(state: TabletopState, pileIds: string[]): string
   });
 }
 
+/** The subset of piles S rolls: unlocked dice. */
+export function rollablePiles(
+  state: TabletopState,
+  templates: Templates,
+  pileIds: string[]
+): string[] {
+  return pileIds.filter((id) => {
+    const pile = state.piles[id];
+    return pile !== undefined && !pile.locked && isPileDie(state, templates, pile);
+  });
+}
+
+/**
+ * The subset of piles S acts on: dice (roll) or multi-card piles (shuffle),
+ * in the given order. The applicability gate for the S shortcut, so a
+ * selection of single cards and lone dice-free piles records no history.
+ */
+export function shuffleOrRollablePiles(
+  state: TabletopState,
+  templates: Templates,
+  pileIds: string[]
+): string[] {
+  const rollable = new Set(rollablePiles(state, templates, pileIds));
+  const shufflable = new Set(shufflablePiles(state, pileIds));
+  return pileIds.filter((id) => rollable.has(id) || shufflable.has(id));
+}
+
 /** F: flip each applicable pile in the selection. */
 export function flipPiles(state: TabletopState, templates: Templates, pileIds: string[]): void {
   for (const id of flippablePiles(state, templates, pileIds)) {
@@ -77,10 +106,30 @@ export function shufflePiles(
   }
 }
 
+/**
+ * S: dispatched per pile across a (possibly mixed) selection — dice roll,
+ * multi-card piles shuffle. A die takes precedence, so it always rolls even
+ * were it somehow multi-card; other piles shuffle. One commit, one undo step.
+ */
+export function shuffleOrRollPiles(
+  state: TabletopState,
+  templates: Templates,
+  pileIds: string[],
+  random: () => number = Math.random
+): void {
+  for (const id of shuffleOrRollablePiles(state, templates, pileIds)) {
+    const pile = state.piles[id];
+    if (!pile) continue;
+    if (isPileDie(state, templates, pile)) rollPile(state, templates, id, random);
+    else shufflePile(state, id, random);
+  }
+}
+
 // ─── Context menu ──────────────────────────────────────────────────────────
 
 export type PileAction =
   | 'flip'
+  | 'roll'
   | 'rotate'
   | 'shuffle'
   | 'flip-top'
@@ -91,9 +140,9 @@ export type PileAction =
 
 /**
  * Exactly the actions applicable to this pile, in menu order. A locked pile
- * is inert: it offers only Unlock. Shuffle and Flip Top Card need a
- * multi-card pile; Flip needs a flippable card; Send to Front/Back need a
- * neighbour to reorder against.
+ * is inert: it offers only Unlock. Roll needs a die; Shuffle and Flip Top
+ * Card need a multi-card pile; Flip needs a flippable card; Send to
+ * Front/Back need a neighbour to reorder against.
  */
 export function pileActions(
   state: TabletopState,
@@ -106,6 +155,7 @@ export function pileActions(
 
   const actions: PileAction[] = [];
   if (isPileFlippable(state, templates, pile)) actions.push('flip');
+  if (isPileDie(state, templates, pile)) actions.push('roll');
   actions.push('rotate');
   if (pile.cardIds.length > 1) {
     actions.push('shuffle');
@@ -130,6 +180,9 @@ export function applyPileAction(
   switch (action) {
     case 'flip':
       flipPile(state, templates, pileId);
+      return;
+    case 'roll':
+      rollPile(state, templates, pileId, random);
       return;
     case 'rotate':
       rotatePile(state, pileId, 90);

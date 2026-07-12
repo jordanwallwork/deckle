@@ -2,6 +2,7 @@
 // state in place — callers wrap them in the store's transaction/commit API.
 // Operations stay minimal: the normalize pass owns cross-cutting bookkeeping.
 
+import type { Point } from './geometry';
 import { pileWorldCenter, worldToZoneLocal } from './geometry';
 import type { Card, Pile, Selection, TabletopState, Template, Templates } from './types';
 
@@ -19,6 +20,15 @@ export function normalizeDegrees(n: number): number {
   return r < 0 ? r + 360 : r;
 }
 
+/**
+ * Snap an angle to the nearest quarter turn (0/90/180/270). This is how a
+ * pile leaves a group zone: cosmetic scatter jitter (92° → 90°) is discarded
+ * while a deliberate orientation (180° → 180°) survives.
+ */
+export function snapToRightAngle(deg: number): number {
+  return normalizeDegrees(Math.round(normalizeDegrees(deg) / 90) * 90);
+}
+
 export function getPile(state: TabletopState, pileId: string): Pile {
   const pile = state.piles[pileId];
   if (!pile) throw new Error(`Pile not found: ${pileId}`);
@@ -31,6 +41,32 @@ export function containerPileIds(state: TabletopState, pile: Pile): string[] {
   const zone = state.zones[pile.zoneId];
   if (!zone) throw new Error(`Zone not found: ${pile.zoneId}`);
   return zone.pileIds;
+}
+
+/** Radius (px) a multi-dice spawn scatters its loose dice over. */
+export const DICE_SCATTER_RADIUS = 48;
+
+/**
+ * `count` points scattered around a centre, each jittered independently on
+ * both axes within ±`radius`. Drives the multi-dice spawn: dropping a
+ * dice-set lands N loose single-die piles around the drop point (no zone is
+ * created). `random` is injectable so tests are deterministic; two calls per
+ * point (x then y).
+ */
+export function scatterAround(
+  center: Point,
+  count: number,
+  random: () => number = Math.random,
+  radius = DICE_SCATTER_RADIUS
+): Point[] {
+  const points: Point[] = [];
+  for (let i = 0; i < count; i++) {
+    points.push({
+      x: center.x + (random() * 2 - 1) * radius,
+      y: center.y + (random() * 2 - 1) * radius
+    });
+  }
+  return points;
 }
 
 // ─── Spawning ──────────────────────────────────────────────────────────────
@@ -164,6 +200,23 @@ export function isPileFlippable(state: TabletopState, templates: Templates, pile
   });
 }
 
+/** Whether a template is a die: the `faces` capability drives rolling. */
+export function isDiceTemplate(template: Template | undefined): boolean {
+  return template?.faces !== undefined;
+}
+
+/**
+ * Whether the pile is a die — it holds a rollable item. Dice are
+ * non-mergeable so a die pile is a pile of one, but this stays permissive:
+ * any die card makes the pile rollable (S rolls, the menu offers Roll).
+ */
+export function isPileDie(state: TabletopState, templates: Templates, pile: Pile): boolean {
+  return pile.cardIds.some((cardId) => {
+    const card = state.cards[cardId];
+    return isDiceTemplate(card ? templates[card.templateId] : undefined);
+  });
+}
+
 /**
  * Split the top card off a multi-card pile into a new zoneless single-card
  * pile at the source's *world* centre (the source may live inside a zone),
@@ -264,6 +317,27 @@ export function shufflePile(
     [ids[i], ids[j]] = [ids[j], ids[i]];
   }
   pile.cardIds = ids;
+}
+
+/**
+ * Roll every die in the pile: each die card gets a fresh result in
+ * [1, faces], shown on the die. `random` is injectable so tests are
+ * deterministic. No-op on cards without a `faces` capability.
+ */
+export function rollPile(
+  state: TabletopState,
+  templates: Templates,
+  pileId: string,
+  random: () => number = Math.random
+): void {
+  const pile = getPile(state, pileId);
+  for (const cardId of pile.cardIds) {
+    const card = state.cards[cardId];
+    const faces = card ? templates[card.templateId]?.faces : undefined;
+    if (card && faces !== undefined && faces > 0) {
+      card.diceValue = 1 + Math.floor(random() * faces);
+    }
+  }
 }
 
 /** Lock or unlock a pile. Gating on what "locked" refuses lives in the

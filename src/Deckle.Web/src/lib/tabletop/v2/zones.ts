@@ -41,6 +41,12 @@ export const DEFAULT_GRID_ROWS = 3;
 /** Smallest a cell edge or (for columns) the count may shrink to. */
 export const MIN_GRID_CELL = 20;
 
+/** Widest an insertion band flanking a spread seam gets (px each side). */
+export const SPREAD_INSERT_BAND_MAX = 16;
+
+/** Fraction of a card's visible sliver each flanking insertion band claims. */
+export const SPREAD_INSERT_BAND_FRACTION = 0.25;
+
 export function getZone(state: TabletopState, zoneId: string): Zone {
   const zone = state.zones[zoneId];
   if (!zone) throw new Error(`Zone not found: ${zoneId}`);
@@ -392,26 +398,88 @@ function layoutSpread(ctx: ZoneBehaviorContext, zone: SpreadZone): void {
 }
 
 /**
- * The slot a drop at this world point inserts at: the number of piles whose
- * laid-out centre sits before the point along the spread's primary axis —
- * 0 before the first card, pileIds.length past the last. Layout keeps
- * centres monotonic in zone order, so a single forward scan suffices.
+ * The primary-axis positions of a spread's insertion slots, zone-local:
+ * slot k (k < pileIds.length) sits at pile k's leading edge — the visible
+ * seam where it overlaps its predecessor — and the final slot at the last
+ * pile's trailing edge. Always pileIds.length + 1 entries (a lone
+ * SPREAD_PADDING entry when empty). Derived from current pile positions,
+ * not the canonical layout, so a mid-drag gap keeps its slots where the
+ * user actually sees them.
+ */
+export function spreadSlots(
+  state: TabletopState,
+  templates: Templates,
+  zone: SpreadZone
+): number[] {
+  const row = zone.direction === 'row';
+  const slots: number[] = [];
+  let trailing = SPREAD_PADDING;
+  for (const pileId of zone.pileIds) {
+    const pile = state.piles[pileId];
+    if (!pile) continue;
+    const footprint = pileFootprint(state, templates, pile);
+    const extent = row ? footprint.width : footprint.height;
+    const centre = row ? pile.x : pile.y;
+    slots.push(centre - extent / 2);
+    trailing = centre + extent / 2;
+  }
+  slots.push(trailing);
+  return slots;
+}
+
+/**
+ * The slot a drop at this world point inserts at: the nearest insertion slot
+ * along the spread's primary axis — 0 before the first card,
+ * pileIds.length past the last. Nearest-seam (not a running count), so the
+ * index transitions midway between two seams and always matches an
+ * indicator rendered at the slot position.
  */
 export function spreadInsertIndex(
   state: TabletopState,
+  templates: Templates,
   zone: SpreadZone,
   world: Point
 ): number {
   const local = worldToZoneLocal(state, zone, world);
   const coord = zone.direction === 'row' ? local.x : local.y;
+  const slots = spreadSlots(state, templates, zone);
   let index = 0;
-  for (const pileId of zone.pileIds) {
-    const pile = state.piles[pileId];
-    if (!pile) continue;
-    if (coord <= (zone.direction === 'row' ? pile.x : pile.y)) break;
-    index++;
+  for (let k = 1; k < slots.length; k++) {
+    if (Math.abs(coord - slots[k]) < Math.abs(coord - slots[index])) index = k;
   }
   return index;
+}
+
+/**
+ * Merge-vs-insert disambiguation over a spread card (stories 24/25),
+ * decided purely by pointer position: within the insertion band flanking
+ * either seam of the target pile's visible sliver → insert at that seam's
+ * slot; over the middle of the sliver → merge (null). Bands scale with the
+ * sliver (capped at SPREAD_INSERT_BAND_MAX) so both gestures stay reachable
+ * however tight the overlap, while a fully-visible card is mostly merge
+ * surface.
+ */
+export function spreadInsertIntent(
+  state: TabletopState,
+  templates: Templates,
+  zone: SpreadZone,
+  targetPileId: string,
+  world: Point
+): number | null {
+  const index = zone.pileIds.indexOf(targetPileId);
+  if (index === -1) return null;
+  const slots = spreadSlots(state, templates, zone);
+  const local = worldToZoneLocal(state, zone, world);
+  const coord = zone.direction === 'row' ? local.x : local.y;
+  const start = slots[index];
+  const end = slots[index + 1];
+  const band = Math.max(
+    0,
+    Math.min(SPREAD_INSERT_BAND_MAX, (end - start) * SPREAD_INSERT_BAND_FRACTION)
+  );
+  if (coord <= start + band) return index;
+  if (coord >= end - band) return index + 1;
+  return null;
 }
 
 const spreadBehavior: ZoneBehavior = {
@@ -425,7 +493,7 @@ const spreadBehavior: ZoneBehavior = {
       zoneId: zone.id,
       x: world.x,
       y: world.y,
-      index: spreadInsertIndex(ctx.state, zone, world)
+      index: spreadInsertIndex(ctx.state, ctx.templates, zone, world)
     };
   },
   layout: (ctx, zone) => {

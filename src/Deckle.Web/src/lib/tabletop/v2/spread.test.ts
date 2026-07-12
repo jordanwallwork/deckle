@@ -16,8 +16,11 @@ import {
   setSpreadDirection,
   setSpreadOverlap,
   shuffleZoneContents,
+  SPREAD_INSERT_BAND_MAX,
   SPREAD_PADDING,
   spreadInsertIndex,
+  spreadInsertIntent,
+  spreadSlots,
   zoneActions,
   zoneBehavior
 } from './zones';
@@ -291,15 +294,25 @@ describe('splay invariant — a spread only ever contains single-card piles', ()
 });
 
 describe('insert-index derivation and gap closing', () => {
-  it('derives the slot from the point along the primary axis', () => {
+  it('derives the nearest slot from the point along the primary axis', () => {
     const state = threeCardSpread();
     const zone = spread(state);
-    // Laid-out centres: 75.5, 162.5, 249.5 (zone-local, +1000 world).
+    // Laid-out seams (leading edges + last trailing edge), zone-local:
+    // 12, 99, 186, 313 — +1000 in world space.
 
-    expect(spreadInsertIndex(state, zone, { x: 1050, y: 1010 })).toBe(0);
-    expect(spreadInsertIndex(state, zone, { x: 1100, y: 1010 })).toBe(1);
-    expect(spreadInsertIndex(state, zone, { x: 1200, y: 1010 })).toBe(2);
-    expect(spreadInsertIndex(state, zone, { x: 1900, y: 1010 })).toBe(3);
+    expect(spreadSlots(state, templates, zone)).toEqual([12, 99, 186, 313]);
+    expect(spreadInsertIndex(state, templates, zone, { x: 1050, y: 1010 })).toBe(0);
+    expect(spreadInsertIndex(state, templates, zone, { x: 1100, y: 1010 })).toBe(1);
+    expect(spreadInsertIndex(state, templates, zone, { x: 1200, y: 1010 })).toBe(2);
+    expect(spreadInsertIndex(state, templates, zone, { x: 1900, y: 1010 })).toBe(3);
+  });
+
+  it('an empty spread has a single slot at the padding inset', () => {
+    const state = addSpread(emptyTabletopState());
+    const zone = spread(state);
+
+    expect(spreadSlots(state, templates, zone)).toEqual([SPREAD_PADDING]);
+    expect(spreadInsertIndex(state, templates, zone, { x: 1400, y: 1100 })).toBe(0);
   });
 
   it('a die drops between two cards at the indicated slot — no content restrictions', () => {

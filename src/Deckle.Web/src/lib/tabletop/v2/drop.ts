@@ -2,11 +2,12 @@
 // drags, multi-pile drags, "Move to <zone>" menu moves — resolves its
 // payload + world point to a DropPlan here, and the plan is applied inside a
 // store commit. Renderers and shells never decide placement, and merge
-// precedence over other placement is decided here, nowhere else.
+// precedence over other placement — including the spread merge-vs-insert
+// disambiguation (stories 24/25) — is decided here, nowhere else.
 
 import type { Point } from './geometry';
 import { pileWorldCenter, pileWorldRect, pointInRect, zoneWorldRect } from './geometry';
-import type { Pile, TabletopState, Templates, Zone } from './types';
+import type { Pile, SpreadZone, TabletopState, Templates, Zone } from './types';
 import {
   detachPileToRoot,
   getUnplacedInstances,
@@ -16,7 +17,7 @@ import {
   placePile,
   spawnPileFromTemplate
 } from './operations';
-import { findZoneAt, zoneBehavior } from './zones';
+import { findZoneAt, spreadInsertIndex, spreadInsertIntent, zoneBehavior } from './zones';
 
 /** What is being dropped. */
 export type DropPayload =
@@ -117,6 +118,26 @@ function dropRegionAt(state: TabletopState, world: Point): Zone | null {
 }
 
 /**
+ * The zone the drop at this world point would place into, as an id — the
+ * shells' hover highlight while a drag is over the table (null over the open
+ * root region).
+ */
+export function dropTargetZoneAt(state: TabletopState, world: Point): string | null {
+  return dropRegionAt(state, world)?.id ?? null;
+}
+
+/**
+ * The unlocked spread containing this pile, or null. A drop landing on a
+ * card that lives in a spread always resolves against that spread — merging
+ * onto its face or inserting beside it — even where the card overhangs the
+ * zone's rectangle, so pointer precision doesn't decay at zone edges.
+ */
+function spreadContaining(state: TabletopState, pile: Pile): SpreadZone | null {
+  const zone = pile.zoneId === null ? undefined : state.zones[pile.zoneId];
+  return zone !== undefined && zone.type === 'spread' && !zone.locked ? zone : null;
+}
+
+/**
  * Resolve a drop against the current state.
  *
  * Template payloads spawn only the instances not already on the table (dedup
@@ -129,7 +150,12 @@ function dropRegionAt(state: TabletopState, world: Point): Zone | null {
  * zone) and both sides are mergeable; otherwise the pointer's region places
  * the pile via its behaviour — for freeform and the root that keeps the pile
  * where it visually sits (its current world centre — transient drag frames
- * already track the pointer).
+ * already track the pointer), while ordered zones derive the insert slot
+ * from the pointer itself. One refinement inside spreads: the pointer
+ * position alone disambiguates stacking on a card from slotting beside it —
+ * the insertion band flanking a seam inserts even though it sits on a
+ * card's footprint, and a refused merge over a spread card still lands in
+ * that spread at the nearest slot.
  *
  * Multi-pile payloads resolve each pile independently against the same
  * precedence: mergeable piles merge into the target under the pointer (in
@@ -169,16 +195,48 @@ export function resolveDrop(
       const pile = state.piles[payload.pileId];
       if (!pile) return NONE;
       const target = findPileAt(state, templates, world, pile.id);
+      const targetSpread = target === null ? null : spreadContaining(state, target);
+      if (target && targetSpread) {
+        // Insert wins over merge inside the seam bands (story 24) …
+        const bandIndex = spreadInsertIntent(state, templates, targetSpread, target.id, world);
+        if (bandIndex !== null) {
+          return {
+            kind: 'place-pile',
+            pileId: pile.id,
+            zoneId: targetSpread.id,
+            x: world.x,
+            y: world.y,
+            index: bandIndex
+          };
+        }
+      }
       if (
         target &&
         !refusesMerge(state, target) &&
         isPileMergeable(state, templates, pile) &&
         isPileMergeable(state, templates, target)
       ) {
+        // … and the card's face merges (story 25).
         return { kind: 'merge-piles', sourcePileId: pile.id, targetPileId: target.id };
       }
+      if (targetSpread) {
+        // A refused merge over a spread card (locked target, unmergeable
+        // payload) still lands in the spread — nearest slot to the pointer.
+        return {
+          kind: 'place-pile',
+          pileId: pile.id,
+          zoneId: targetSpread.id,
+          x: world.x,
+          y: world.y,
+          index: spreadInsertIndex(state, templates, targetSpread, world)
+        };
+      }
       const region = dropRegionAt(state, world);
-      const placement = zoneBehavior(region).planDrop(ctx, region, pileWorldCenter(state, pile));
+      const behavior = zoneBehavior(region);
+      // Ordered zones slot by the pointer; everything else keeps the pile
+      // where it visually sits.
+      const at = behavior.ordered ? world : pileWorldCenter(state, pile);
+      const placement = behavior.planDrop(ctx, region, at);
       return {
         kind: 'place-pile',
         pileId: pile.id,
@@ -194,9 +252,19 @@ export function resolveDrop(
         .filter((p): p is Pile => p !== undefined);
       if (piles.length === 0) return NONE;
       const target = findPileAt(state, templates, world, payload.pileIds);
+      const targetSpread = target === null ? null : spreadContaining(state, target);
+      // The seam bands disable merging for the whole group, exactly as for a
+      // single pile; each pile then slots at its own centre-derived index.
+      const bandInsert =
+        target !== null && targetSpread !== null
+          ? spreadInsertIntent(state, templates, targetSpread, target.id, world)
+          : null;
       const merging =
-        target !== null && !refusesMerge(state, target) && isPileMergeable(state, templates, target);
-      const region = dropRegionAt(state, world);
+        bandInsert === null &&
+        target !== null &&
+        !refusesMerge(state, target) &&
+        isPileMergeable(state, templates, target);
+      const region = targetSpread ?? dropRegionAt(state, world);
       const behavior = zoneBehavior(region);
       const plans = piles.map((pile): DropPlan => {
         if (merging && isPileMergeable(state, templates, pile)) {
@@ -245,6 +313,34 @@ export function applyDropPlan(state: TabletopState, templates: Templates, plan: 
     case 'none':
       return;
   }
+}
+
+/**
+ * The insertion indicator's data (story 24): the spread slot the drop at
+ * this point would insert at, or null when the drop wouldn't insert into a
+ * spread — a merge onto a card's face, a non-spread region, a no-op, or a
+ * multi-pile payload (whose piles each derive their own slot, so a single
+ * indicator would lie). Derived from the resolver's own plan, so the
+ * indicator can never disagree with where the card actually lands. A
+ * transient render hint — never touches state or history.
+ */
+export interface SpreadInsertHint {
+  zoneId: string;
+  index: number;
+}
+
+export function spreadInsertHint(
+  state: TabletopState,
+  templates: Templates,
+  payload: DropPayload,
+  world: Point
+): SpreadInsertHint | null {
+  const plan = resolveDrop(state, templates, payload, world);
+  if (plan.kind !== 'place-pile' && plan.kind !== 'spawn-pile') return null;
+  if (plan.zoneId === null || plan.index === undefined) return null;
+  return state.zones[plan.zoneId]?.type === 'spread'
+    ? { zoneId: plan.zoneId, index: plan.index }
+    : null;
 }
 
 /**

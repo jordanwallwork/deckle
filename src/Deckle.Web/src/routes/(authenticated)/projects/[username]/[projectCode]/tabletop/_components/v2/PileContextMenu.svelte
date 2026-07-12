@@ -54,7 +54,12 @@
       for (const action of actions) {
         result.push({
           label: LABELS[action],
-          action: () => store.commit((s) => applyPileAction(s, store.templates, pileId, action))
+          // Shuffle plays the riffle animation (deferred commit); everything
+          // else is a plain single commit.
+          action:
+            action === 'shuffle'
+              ? () => store.shufflePilesAnimated([pileId])
+              : () => store.commit((s) => applyPileAction(s, store.templates, pileId, action))
         });
       }
     }

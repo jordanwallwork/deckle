@@ -56,6 +56,14 @@
     return slots[Math.min(api.dropHint.index, slots.length - 1)];
   });
 
+  // Wave flip: while this zone's flip ripples, each pile's flip transition is
+  // delayed by its position in the zone so the flip sweeps across (0 otherwise).
+  function flipDelayFor(index: number): number {
+    const anim = store.zoneFlipAnimation;
+    if (!anim || anim.zoneId !== zone.id) return 0;
+    return index * anim.staggerMs;
+  }
+
   const CORNERS: ResizeCorner[] = ['nw', 'ne', 'sw', 'se'];
 
   // The header tab is the zone's move handle (and its click-select surface).
@@ -297,10 +305,10 @@
   {/if}
   <div class="zone-body" onpointerdown={handleBodyPointerDown}></div>
 
-  {#each zone.pileIds as pileId (pileId)}
+  {#each zone.pileIds as pileId, i (pileId)}
     {@const pile = store.state.piles[pileId]}
     {#if pile}
-      <PileRenderer {pile} />
+      <PileRenderer {pile} flipDelay={flipDelayFor(i)} />
     {/if}
   {/each}
 

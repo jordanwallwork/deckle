@@ -5,7 +5,6 @@
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
   import type { ZoneAction } from '$lib/tabletop/v2';
   import {
-    flipAllInZone,
     getTabletopApi,
     removeZone,
     rotateAllInZone,
@@ -44,7 +43,8 @@
     });
     push('flip-all', {
       label: 'Flip All',
-      action: () => store.commit((s) => flipAllInZone(s, store.templates, zoneId))
+      // Spreads and grids ripple the flip as a wave; the commit stays atomic.
+      action: () => store.flipAllInZoneAnimated(zoneId)
     });
     push('rotate-all', {
       label: 'Rotate All',

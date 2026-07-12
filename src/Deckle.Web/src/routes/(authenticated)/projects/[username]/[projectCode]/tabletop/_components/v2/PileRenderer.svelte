@@ -4,15 +4,30 @@
     cardAabbSize,
     getTabletopApi,
     isPileSelected,
+    pendingShuffleFor,
     pileFootprint,
     templateDisplaySize
   } from '$lib/tabletop/v2';
   import CardFace from './CardFace.svelte';
+  import ShuffleAnimation from './ShuffleAnimation.svelte';
 
-  let { pile }: { pile: Pile } = $props();
+  let {
+    pile,
+    /**
+     * CSS `transition-delay` (ms) for this pile's flip transition. Zone wave
+     * flips stagger it by pile index so the flip ripples across the zone; 0
+     * everywhere else.
+     */
+    flipDelay = 0
+  }: { pile: Pile; flipDelay?: number } = $props();
 
   const api = getTabletopApi();
   const { store, interaction } = api;
+
+  // While this pile is shuffling, ShuffleAnimation owns its visuals end-to-end
+  // so the swap to the new top happens behind the fanned cards, not as a snap.
+  const pendingShuffle = $derived(pendingShuffleFor(store.shuffleAnimation, pile.id));
+  const isShuffling = $derived(pendingShuffle !== null);
 
   const topCard = $derived(store.state.cards[pile.cardIds[pile.cardIds.length - 1]]);
   const template = $derived(topCard ? store.templates[topCard.templateId] : undefined);
@@ -90,35 +105,44 @@
   oncontextmenu={handleContextMenu}
   ondblclick={handleDblClick}
 >
-  {#each underlays as underlay (underlay.card.id)}
-    {@const size = templateDisplaySize(underlay.template)}
-    <div
-      class="under-card"
-      style="width: {size.width}px; height: {size.height}px; transform: rotate({underlay.card
-        .rotation}deg);"
-    >
-      <CardFace card={underlay.card} template={underlay.template} />
-    </div>
-  {/each}
-  {#if topCard && template}
-    <div
-      class="top-card"
-      style="width: {cardSize.width}px; height: {cardSize.height}px; transform: rotate({topCard.rotation}deg);"
-    >
-      {#if template.flippable}
-        <!-- 3D flip: both faces rendered, the container turns on isFlipped. -->
-        <div class="flip-container" class:flipped={topCard.isFlipped}>
-          <div class="flip-face">
-            <CardFace card={topCard} {template} side="front" />
+  {#if isShuffling && pendingShuffle}
+    <!-- The fan overlay owns the visuals until the shuffle lands. -->
+    <ShuffleAnimation animatedCardIds={pendingShuffle.animatedCardIds} />
+  {:else}
+    {#each underlays as underlay (underlay.card.id)}
+      {@const size = templateDisplaySize(underlay.template)}
+      <div
+        class="under-card"
+        style="width: {size.width}px; height: {size.height}px; transform: rotate({underlay.card
+          .rotation}deg);"
+      >
+        <CardFace card={underlay.card} template={underlay.template} />
+      </div>
+    {/each}
+    {#if topCard && template}
+      <div
+        class="top-card"
+        style="width: {cardSize.width}px; height: {cardSize.height}px; transform: rotate({topCard.rotation}deg);"
+      >
+        {#if template.flippable}
+          <!-- 3D flip: both faces rendered, the container turns on isFlipped. -->
+          <div
+            class="flip-container"
+            class:flipped={topCard.isFlipped}
+            style="transition-delay: {flipDelay}ms;"
+          >
+            <div class="flip-face">
+              <CardFace card={topCard} {template} side="front" />
+            </div>
+            <div class="flip-face flip-back">
+              <CardFace card={topCard} {template} side="back" />
+            </div>
           </div>
-          <div class="flip-face flip-back">
-            <CardFace card={topCard} {template} side="back" />
-          </div>
-        </div>
-      {:else}
-        <CardFace card={topCard} {template} />
-      {/if}
-    </div>
+        {:else}
+          <CardFace card={topCard} {template} />
+        {/if}
+      </div>
+    {/if}
   {/if}
   {#if pile.cardIds.length > 1}
     <!-- svelte-ignore a11y_no_static_element_interactions -->

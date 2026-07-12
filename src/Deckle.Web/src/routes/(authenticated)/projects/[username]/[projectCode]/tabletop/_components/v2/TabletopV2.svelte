@@ -9,16 +9,17 @@
     createInteraction,
     createTabletopStore,
     dropTargetZoneAt,
-    flipAllInZone,
     flipPiles,
     flippablePiles,
     isPileSelected,
     resolveDrop,
+    rollablePiles,
     rotatablePiles,
     rotateAllInZone,
     rotatePiles,
     selectedPileIds,
     setTabletopApi,
+    shufflablePiles,
     shuffleOrRollablePiles,
     shuffleOrRollPiles,
     shuffleZoneContents,
@@ -266,7 +267,7 @@
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         if (applicable.includes('flip-all')) {
-          store.commit((s) => flipAllInZone(s, store.templates, zoneId));
+          store.flipAllInZoneAnimated(zoneId);
         }
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -297,10 +298,15 @@
       }
     } else if (e.key === 's' || e.key === 'S') {
       e.preventDefault();
-      // S is shuffle-or-roll: dice roll, multi-card piles shuffle, dispatched
-      // per pile across a mixed selection as one undo step.
-      if (shuffleOrRollablePiles(store.state, store.templates, selected).length > 0) {
+      // S is shuffle-or-roll: dice roll, multi-card piles shuffle. A pure
+      // shuffle plays the riffle animation (deferred batch commit, one undo
+      // step); a selection that also rolls dice commits instantly as one step
+      // (the roll has nothing to animate), so the whole action stays atomic.
+      if (shuffleOrRollablePiles(store.state, store.templates, selected).length === 0) return;
+      if (rollablePiles(store.state, store.templates, selected).length > 0) {
         store.commit((s) => shuffleOrRollPiles(s, store.templates, selected));
+      } else {
+        store.shufflePilesAnimated(shufflablePiles(store.state, selected));
       }
     }
   }

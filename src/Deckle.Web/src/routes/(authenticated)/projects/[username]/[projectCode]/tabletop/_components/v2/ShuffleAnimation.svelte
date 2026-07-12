@@ -13,7 +13,7 @@
     templateDisplaySize
   } from '$lib/tabletop/v2';
   import { onMount } from 'svelte';
-  import CardFace from './CardFace.svelte';
+  import FlipCard from './FlipCard.svelte';
 
   let { animatedCardIds }: { animatedCardIds: readonly string[] } = $props();
 
@@ -102,14 +102,7 @@
         style="width: {size.width}px; height: {size.height}px; z-index: {zIndices[i]};"
       >
         <div class="rotate-wrap" style="transform: rotate({card.rotation}deg);">
-          {#if template.flippable}
-            <div class="flip-container" class:flipped={card.isFlipped}>
-              <div class="flip-face"><CardFace {card} {template} side="front" /></div>
-              <div class="flip-face flip-back"><CardFace {card} {template} side="back" /></div>
-            </div>
-          {:else}
-            <CardFace {card} {template} />
-          {/if}
+          <FlipCard {card} {template} />
         </div>
       </div>
     {/if}
@@ -137,26 +130,5 @@
     position: relative;
     width: 100%;
     height: 100%;
-  }
-
-  .flip-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    transform-style: preserve-3d;
-  }
-
-  .flip-container.flipped {
-    transform: rotateY(180deg);
-  }
-
-  .flip-face {
-    position: absolute;
-    inset: 0;
-    backface-visibility: hidden;
-  }
-
-  .flip-back {
-    transform: rotateY(180deg);
   }
 </style>

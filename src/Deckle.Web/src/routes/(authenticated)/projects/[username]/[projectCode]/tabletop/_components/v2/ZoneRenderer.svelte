@@ -4,7 +4,7 @@
   // behaviour goes through the interaction reducer and store — the header
   // tab is the ONLY move handle; body presses forward to the reducer as
   // background events (marquee or click-select-zone).
-  import type { Zone } from '$lib/tabletop/v2';
+  import type { Zone, ZoneType } from '$lib/tabletop/v2';
   import {
     getTabletopApi,
     gridRows,
@@ -140,6 +140,20 @@
     if (Number.isNaN(value)) return;
     store.updateTransient((s) => setGridColumns(s, zone.id, value));
   }
+
+  // Converting the zone's type is a transient frame of the edit session, so
+  // Escape reverts it too. Settings for each type are remembered per type, so
+  // cycling back restores what was configured.
+  const ZONE_TYPES: { type: ZoneType; label: string; title: string }[] = [
+    { type: 'freeform', label: '▢', title: 'Freeform' },
+    { type: 'grid', label: '▦', title: 'Grid' },
+    { type: 'spread', label: '▤', title: 'Spread' },
+    { type: 'group', label: '⁙', title: 'Group' }
+  ];
+
+  function handleConvert(type: ZoneType) {
+    store.convertEditingZone(type);
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -169,6 +183,18 @@
         aria-label="Zone name"
         autofocus
       />
+      <div class="type-switch" role="group" aria-label="Zone type">
+        {#each ZONE_TYPES as option (option.type)}
+          <button
+            class="edit-btn"
+            class:active={zone.type === option.type}
+            onclick={() => handleConvert(option.type)}
+            title={option.title}
+            aria-label={option.title}
+            aria-pressed={zone.type === option.type}>{option.label}</button
+          >
+        {/each}
+      </div>
       {#if spread}
         <button
           class="edit-btn"
@@ -486,6 +512,15 @@
 
   .rename-input:focus {
     border-color: #3b82f6;
+  }
+
+  .type-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding-right: 0.25rem;
+    margin-right: 0.1rem;
+    border-right: 1px solid #3a3d4e;
   }
 
   .edit-btn {

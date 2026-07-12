@@ -3,10 +3,16 @@
 // All behaviour lives in operations/normalize/history — this file only wires
 // them to Svelte reactivity.
 
-import type { Selection, TabletopState, Templates } from './types';
+import type { Selection, TabletopState, Templates, ZoneType } from './types';
 import * as hist from './history';
 import { normalize } from './normalize';
-import { createFreeformZone, createGridZone, createGroupZone, createSpreadZone } from './zones';
+import {
+  convertZone,
+  createFreeformZone,
+  createGridZone,
+  createGroupZone,
+  createSpreadZone
+} from './zones';
 
 /** Zone types creatable from the canvas menu. */
 const zoneCreators = {
@@ -122,6 +128,21 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     store.state.selection = { kind: 'zone', zoneId: id };
   }
 
+  /**
+   * Convert the zone currently being edited to another type, as a transient
+   * frame of the edit session (Escape reverts it with the rest of the
+   * session). Runs normalize immediately for feedback — the conversion splays
+   * a deck into a fresh spread and seats piles on a fresh grid's cells — while
+   * the single history entry is still deferred to Done. A no-op outside an
+   * edit session.
+   */
+  function convertEditingZone(type: ZoneType): void {
+    const id = store.state.editingZoneId;
+    if (id === null || !transaction) return;
+    convertZone(store.state, templates, id, type);
+    runNormalize();
+  }
+
   /** Open an existing (unlocked) zone's edit session. */
   function startZoneEdit(zoneId: string): void {
     if (transaction) return;
@@ -173,6 +194,7 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     setSelection,
     createZoneAndEdit,
     startZoneEdit,
+    convertEditingZone,
     endZoneEdit
   };
 }

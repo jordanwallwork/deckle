@@ -3,7 +3,15 @@ import { DRAG_THRESHOLD, step, type DragInputEvent, type DragMutation, type Drag
 import { applyDropPlan } from './drop';
 import * as hist from './history';
 import * as ops from './operations';
-import { MIN_ZONE_SIZE, moveZoneTo, removeZone, setZoneRect } from './zones';
+import {
+  MIN_ZONE_SIZE,
+  createFreeformZone,
+  moveZoneTo,
+  removeZone,
+  reparentZone,
+  setZoneRect
+} from './zones';
+import { zoneWorldOrigin } from './geometry';
 import { normalize } from './normalize';
 import type { TabletopState, Templates } from './types';
 import {
@@ -57,6 +65,9 @@ function run(state: TabletopState, events: DragInputEvent[]) {
           break;
         case 'move-zone':
           moveZoneTo(state, mutation.zoneId, mutation.x, mutation.y);
+          break;
+        case 'nest-zone':
+          reparentZone(state, mutation.zoneId, mutation.parentZoneId);
           break;
         case 'resize-zone':
           setZoneRect(state, mutation.zoneId, mutation.rect);
@@ -913,6 +924,91 @@ describe('drag reducer — zone moves (header tab only)', () => {
     ]);
 
     expect(state).toEqual(before);
+    expect(history.past).toHaveLength(0);
+  });
+});
+
+// ─── Ticket 11: boards & nesting ─────────────────────────────────────────────
+
+describe('drag reducer — zone nesting via the header drag', () => {
+  /** A big freeform board plus a small free zone beside it, both top-level. */
+  function boardAndPanel() {
+    const state = stateWithPiles();
+    const board = createFreeformZone(state, 0, 0, 600, 400, 'Board');
+    const panel = createFreeformZone(state, 700, 0, 100, 100, 'Panel');
+    return { state, board, panel };
+  }
+
+  it('dropping a zone with its centre inside a freeform zone nests it, visually stationary', () => {
+    const { state, board, panel } = boardAndPanel();
+
+    // Header grab at (750,10); drag so the panel's top-left lands at (250,150)
+    // → centre (300,200), inside the board.
+    const { state: out, history, inTransaction } = run(state, [
+      { type: 'zone-down', zoneId: panel, world: at(750, 10) },
+      { type: 'move', world: at(300, 160) },
+      { type: 'up', world: at(300, 160) }
+    ]);
+
+    expect(out.zones[panel].parentZoneId).toBe(board);
+    // Parent-local coordinates, but the world origin is where it was dropped.
+    expect(out.zones[panel]).toMatchObject({ x: 250, y: 150 });
+    expect(zoneWorldOrigin(out, out.zones[panel])).toEqual({ x: 250, y: 150 });
+    expect(out.zoneOrder).toEqual([board]);
+    expect((out.zones[board] as { childZoneIds?: string[] }).childZoneIds).toEqual([panel]);
+    expect(history.past).toHaveLength(1); // move + nest = one undo step
+    expect(inTransaction).toBe(false);
+  });
+
+  it('dragging a nested zone off its parent un-nests it back onto the table', () => {
+    const { state, board, panel } = boardAndPanel();
+    reparentZone(state, panel, board);
+    moveZoneTo(state, panel, 200, 150); // world origin inside the board
+
+    // Drag it far outside the board's rectangle.
+    const { state: out, history } = run(state, [
+      { type: 'zone-down', zoneId: panel, world: at(210, 160) },
+      { type: 'move', world: at(1010, 660) },
+      { type: 'up', world: at(1010, 660) }
+    ]);
+
+    expect(out.zones[panel].parentZoneId).toBeUndefined();
+    expect(out.zoneOrder).toContain(panel);
+    expect((out.zones[board] as { childZoneIds?: string[] }).childZoneIds).toEqual([]);
+    expect(zoneWorldOrigin(out, out.zones[panel])).toEqual({ x: 1000, y: 650 });
+    expect(history.past).toHaveLength(1);
+  });
+
+  it('dragging a parent so its centre is over its own child does not nest (no corruption)', () => {
+    const { state, board, panel } = boardAndPanel();
+    reparentZone(state, panel, board); // panel now nested in board
+    moveZoneTo(state, panel, 100, 100); // panel world (100,100)..(200,200)
+
+    // Drag the board a little; its centre passes over the nested panel.
+    const { state: out } = run(state, [
+      { type: 'zone-down', zoneId: board, world: at(10, 10) },
+      { type: 'move', world: at(60, 60) },
+      { type: 'up', world: at(60, 60) }
+    ]);
+
+    // The board stays top-level; the panel stays its child (never inverted).
+    expect(out.zones[board].parentZoneId).toBeUndefined();
+    expect(out.zones[panel].parentZoneId).toBe(board);
+    expect(out.zoneOrder).toEqual([board]);
+  });
+
+  it('cancel mid-nest-drag restores the exact prior state (no reparent)', () => {
+    const { state, panel } = boardAndPanel();
+    const before = structuredClone(state);
+
+    const { state: out, history } = run(state, [
+      { type: 'zone-down', zoneId: panel, world: at(750, 10) },
+      { type: 'move', world: at(300, 160) }, // hovering over the board
+      { type: 'cancel' }
+    ]);
+
+    expect(out).toEqual(before);
+    expect(out.zones[panel].parentZoneId).toBeUndefined();
     expect(history.past).toHaveLength(0);
   });
 });

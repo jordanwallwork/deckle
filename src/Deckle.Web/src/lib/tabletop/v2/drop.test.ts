@@ -86,13 +86,45 @@ describe('sidebar drop → resolver → spawn (the round-trip in)', () => {
     expect(state).toEqual(before);
   });
 
-  it('container templates (boards/mats) do not spawn piles — they become zones in a later ticket', () => {
-    const template = cardTemplate({ id: 'tpl-board', isContainer: true });
+  it('container templates (boards/mats) spawn a freeform region rendering their artwork, centred at the drop, at physical scale', () => {
+    // 100×80mm board → 200×160px at 2px/mm.
+    const template = cardTemplate({
+      id: 'tpl-board',
+      name: 'Main Board',
+      isContainer: true,
+      mergeable: false,
+      widthMm: 100,
+      heightMm: 80
+    });
     const templates = makeTemplates(template);
     const state = emptyTabletopState();
 
-    const plan = resolveDrop(state, templates, { kind: 'template', templateId: 'tpl-board' }, { x: 0, y: 0 });
-    expect(plan).toEqual({ kind: 'none' });
+    const plan = resolveDrop(state, templates, { kind: 'template', templateId: 'tpl-board' }, { x: 500, y: 300 });
+    expect(plan).toEqual({
+      kind: 'spawn-zone',
+      templateId: 'tpl-board',
+      name: 'Main Board',
+      x: 400, // 500 − 200/2
+      y: 220, // 300 − 160/2
+      width: 200,
+      height: 160
+    });
+
+    applyDropPlan(state, templates, plan);
+    normalize(state, templates, { dev: true });
+
+    // Exactly one freeform container zone; no piles, no cards.
+    expect(state.zoneOrder).toHaveLength(1);
+    const zone = state.zones[state.zoneOrder[0]];
+    expect(zone).toMatchObject({
+      type: 'freeform',
+      backgroundTemplateId: 'tpl-board',
+      x: 400,
+      y: 220,
+      width: 200,
+      height: 160
+    });
+    expect(Object.keys(state.piles)).toHaveLength(0);
   });
 
   it('an unknown template resolves to a no-op', () => {

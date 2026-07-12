@@ -14,7 +14,14 @@ import { rectFromPoints } from './geometry';
 import type { DragMutation, DragState } from './reducer';
 import { step, type DragInputEvent } from './reducer';
 import * as ops from './operations';
-import { detachPileFromZone, moveZoneTo, removeZone, setZoneRect, type ResizeCorner } from './zones';
+import {
+  detachPileFromZone,
+  moveZoneTo,
+  removeZone,
+  reparentZone,
+  setZoneRect,
+  type ResizeCorner
+} from './zones';
 import type { TabletopStore } from './store.svelte';
 
 export function createInteraction(store: TabletopStore) {
@@ -74,6 +81,9 @@ export function createInteraction(store: TabletopStore) {
         break;
       case 'move-zone':
         store.updateTransient((s) => moveZoneTo(s, mutation.zoneId, mutation.x, mutation.y));
+        break;
+      case 'nest-zone':
+        store.updateTransient((s) => reparentZone(s, mutation.zoneId, mutation.parentZoneId));
         break;
       case 'resize-zone':
         store.updateTransient((s) => setZoneRect(s, mutation.zoneId, mutation.rect));

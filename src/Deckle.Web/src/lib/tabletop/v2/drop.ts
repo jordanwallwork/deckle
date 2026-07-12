@@ -6,7 +6,13 @@
 // disambiguation (stories 24/25) — is decided here, nowhere else.
 
 import type { Point } from './geometry';
-import { pileWorldCenter, pileWorldRect, pointInRect, zoneWorldRect } from './geometry';
+import {
+  pileWorldCenter,
+  pileWorldRect,
+  pointInRect,
+  templateDisplaySize,
+  zoneWorldRect
+} from './geometry';
 import type { Pile, SpreadZone, TabletopState, Templates, Zone } from './types';
 import {
   getUnplacedInstances,
@@ -20,8 +26,10 @@ import {
   spawnPileFromTemplate
 } from './operations';
 import {
+  createContainerZone,
   detachPileFromZone,
   findZoneAt,
+  renderOrderedZoneIds,
   spreadInsertIndex,
   spreadInsertIntent,
   zoneBehavior
@@ -48,6 +56,20 @@ export type DropPlan =
       index?: number;
       /** Rotation delta applied to the spawned cards — group scatter tilt. */
       rotationJitter?: number;
+    }
+  | {
+      /**
+       * Boards/mats — the one spawn that creates a zone rather than piles: a
+       * freeform container region rendering the template's artwork.
+       */
+      kind: 'spawn-zone';
+      templateId: string;
+      name: string;
+      /** World-space top-left of the region. */
+      x: number;
+      y: number;
+      width: number;
+      height: number;
     }
   | { kind: 'merge-piles'; sourcePileId: string; targetPileId: string }
   | {
@@ -76,7 +98,8 @@ const NONE: DropPlan = { kind: 'none' };
  * The topmost pile (render order, excluding the dragged pile(s)) whose
  * world-space footprint contains the world point — the candidate merge
  * target. Root piles render above zones, so they are searched first; then
- * zones top-down, each zone's piles top-down. Locked and non-mergeable piles
+ * zones top-down (nesting included, innermost first), each zone's piles
+ * top-down. Locked and non-mergeable piles
  * are still returned: they refuse the merge in the resolver, and resolution
  * falls through to placement rather than merging into whatever sits
  * underneath them.
@@ -101,8 +124,9 @@ export function findPileAt(
 
   const rootHit = hit(state.rootPileIds);
   if (rootHit) return rootHit;
-  for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
-    const zone = state.zones[state.zoneOrder[i]];
+  const ordered = renderOrderedZoneIds(state);
+  for (let i = ordered.length - 1; i >= 0; i--) {
+    const zone = state.zones[ordered[i]];
     if (!zone) continue;
     const zoneHit = hit(zone.pileIds);
     if (zoneHit) return zoneHit;
@@ -188,8 +212,21 @@ export function resolveDrop(
     case 'template': {
       const template = templates[payload.templateId];
       if (!template) return NONE;
-      // Boards/mats spawn as container zones — that arrives with ticket 11.
-      if (template.isContainer) return NONE;
+      // Boards/mats are the one spawn that creates a zone: a freeform
+      // container region rendering the artwork, centred on the drop point at
+      // physical scale.
+      if (template.isContainer) {
+        const { width, height } = templateDisplaySize(template);
+        return {
+          kind: 'spawn-zone',
+          templateId: template.id,
+          name: template.name,
+          x: world.x - width / 2,
+          y: world.y - height / 2,
+          width,
+          height
+        };
+      }
       const instances = getUnplacedInstances(state, template);
       if (instances.length === 0) return NONE;
       const region = dropRegionAt(state, world);
@@ -337,6 +374,11 @@ export function applyDropPlan(state: TabletopState, templates: Templates, plan: 
       if (plan.rotationJitter) rotatePile(state, pileId, plan.rotationJitter);
       return;
     }
+    case 'spawn-zone': {
+      if (!templates[plan.templateId]) return;
+      createContainerZone(state, plan.templateId, plan.x, plan.y, plan.width, plan.height, plan.name);
+      return;
+    }
     case 'merge-piles': {
       mergePiles(state, plan.sourcePileId, plan.targetPileId);
       return;
@@ -415,7 +457,7 @@ export function movePileToZone(
 export function moveTargetZones(state: TabletopState, pileId: string): Zone[] {
   const pile = state.piles[pileId];
   if (!pile) return [];
-  return state.zoneOrder
+  return renderOrderedZoneIds(state)
     .map((id) => state.zones[id])
     .filter((z): z is Zone => z !== undefined && !z.locked && z.id !== pile.zoneId);
 }

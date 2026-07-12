@@ -25,7 +25,7 @@ import { pileIntersectsRect, pileWorldCenter, rectFromPoints, zoneWorldOrigin } 
 import { resolveDrop, type DropPlan } from './drop';
 import { makeId } from './operations';
 import { selectedPileIds } from './actions';
-import { resizeRectFromCorner, type ResizeCorner } from './zones';
+import { renderOrderedZoneIds, resizeRectFromCorner, zoneNestTarget, type ResizeCorner } from './zones';
 import type { Selection, TabletopState, Templates } from './types';
 
 /**
@@ -197,6 +197,7 @@ export type DragMutation =
   | { type: 'move-pile'; pileId: string; x: number; y: number }
   | { type: 'remove-pile'; pileId: string }
   | { type: 'move-zone'; zoneId: string; x: number; y: number }
+  | { type: 'nest-zone'; zoneId: string; parentZoneId: string | null }
   | { type: 'resize-zone'; zoneId: string; rect: Rect }
   | { type: 'remove-zone'; zoneId: string }
   | { type: 'drop'; plan: DropPlan }
@@ -569,9 +570,14 @@ function stepZoneMove(
         // inside the still-open transaction, so it stays one undo step.
         return idle([{ type: 'remove-zone', zoneId: drag.zoneId }, { type: 'commit' }]);
       }
-      // The move frames already placed the zone; nesting resolution arrives
-      // with ticket 11.
-      return idle([{ type: 'commit' }]);
+      // The move frames already placed the zone; resolve nesting from its
+      // final position — the freeform zone under its centre (or the table).
+      // reparentZone is a no-op when the parent is unchanged.
+      const parentZoneId = zoneNestTarget(ctx.state, drag.zoneId);
+      return idle([
+        { type: 'nest-zone', zoneId: drag.zoneId, parentZoneId },
+        { type: 'commit' }
+      ]);
     }
     case 'cancel':
     case 'pile-down':
@@ -627,7 +633,7 @@ function marqueeSelection(
 ): Selection {
   const rect = rectFromPoints(drag.start, drag.current);
   const candidates = [
-    ...ctx.state.zoneOrder.flatMap((zoneId) => ctx.state.zones[zoneId]?.pileIds ?? []),
+    ...renderOrderedZoneIds(ctx.state).flatMap((zoneId) => ctx.state.zones[zoneId]?.pileIds ?? []),
     ...ctx.state.rootPileIds
   ];
   const pileIds = candidates.filter((id) => {

@@ -11,6 +11,7 @@ import {
   pointInRect,
   worldToZoneLocal,
   zoneLocalToWorld,
+  zoneWorldOrigin,
   zoneWorldRect
 } from './geometry';
 import {
@@ -103,6 +104,39 @@ export function createFreeformZone(
     height,
     pileIds: [],
     locked: false
+  };
+  state.zones[zone.id] = zone;
+  state.zoneOrder.push(zone.id);
+  return zone.id;
+}
+
+/**
+ * Create a board/mat as a top-level freeform *container* zone: a region whose
+ * background renders the named template's designed artwork (the `isContainer`
+ * capability). Sized to physical scale so cards placed on it keep correct
+ * relative sizes. This is the one case where spawning a component creates a
+ * zone — every other spawn lands piles. Top-left at (x, y) in world space.
+ */
+export function createContainerZone(
+  state: TabletopState,
+  templateId: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  name: string
+): string {
+  const zone: FreeformZone = {
+    id: makeId('zone'),
+    name,
+    type: 'freeform',
+    x,
+    y,
+    width,
+    height,
+    pileIds: [],
+    locked: false,
+    backgroundTemplateId: templateId
   };
   state.zones[zone.id] = zone;
   state.zoneOrder.push(zone.id);
@@ -357,12 +391,148 @@ export function resizeRectFromCorner(
   return { x, y, width, height };
 }
 
+// ─── Nesting ───────────────────────────────────────────────────────────────
+// Freeform zones (boards/mats included) may contain child zones. Children
+// store parent-local coordinates; the world-position helpers in geometry.ts
+// walk the ancestry chain, so nothing jumps. Every nest/un-nest goes through
+// reparentZone, which preserves the dragged zone's world origin.
+
+/**
+ * Every zone in render order, top-level first and each zone immediately
+ * followed by its descendants (depth-first). Later in this list = rendered
+ * on top, so a reverse scan finds the topmost/innermost zone first.
+ */
+export function renderOrderedZoneIds(state: TabletopState): string[] {
+  const out: string[] = [];
+  const visit = (id: string): void => {
+    const zone = state.zones[id];
+    if (!zone) return;
+    out.push(id);
+    if (zone.type === 'freeform' && zone.childZoneIds) {
+      for (const childId of zone.childZoneIds) visit(childId);
+    }
+  };
+  for (const id of state.zoneOrder) visit(id);
+  return out;
+}
+
+/**
+ * All descendants of a zone (its children, their children, …) — the subtree
+ * excluded from a zone drag's own hit-testing so a parent can never nest into
+ * one of its own descendants.
+ */
+export function descendantZoneIds(state: TabletopState, zoneId: string): Set<string> {
+  const out = new Set<string>();
+  const visit = (id: string): void => {
+    const zone = state.zones[id];
+    if (zone?.type !== 'freeform' || !zone.childZoneIds) return;
+    for (const childId of zone.childZoneIds) {
+      if (out.has(childId)) continue;
+      out.add(childId);
+      visit(childId);
+    }
+  };
+  visit(zoneId);
+  return out;
+}
+
+/**
+ * The freeform zone a dragged zone would nest into if released here: the
+ * topmost (innermost) freeform zone whose world rectangle contains `world`,
+ * excluding the dragged zone and all its descendants (so a parent never nests
+ * into its own child). Null means the open table — an un-nest. Freeform zones
+ * are the only valid parents.
+ */
+export function findNestTarget(
+  state: TabletopState,
+  draggedZoneId: string,
+  world: Point
+): string | null {
+  const excluded = descendantZoneIds(state, draggedZoneId);
+  excluded.add(draggedZoneId);
+  const ordered = renderOrderedZoneIds(state);
+  for (let i = ordered.length - 1; i >= 0; i--) {
+    const id = ordered[i];
+    if (excluded.has(id)) continue;
+    const zone = state.zones[id];
+    if (zone?.type !== 'freeform') continue;
+    if (pointInRect(world, zoneWorldRect(state, zone))) return id;
+  }
+  return null;
+}
+
+/**
+ * The parent a zone should nest into given its current position: the nest
+ * target under its own world centre. Null = un-nest to the table. This is what
+ * the reducer resolves at the end of a zone-header drag.
+ */
+export function zoneNestTarget(state: TabletopState, zoneId: string): string | null {
+  const zone = state.zones[zoneId];
+  if (!zone) return null;
+  const rect = zoneWorldRect(state, zone);
+  return findNestTarget(state, zoneId, { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 });
+}
+
+/**
+ * Re-parent a zone under a new freeform parent (or the root table when null),
+ * keeping it visually stationary: its world origin is captured first, then its
+ * stored coordinates are rewritten into the new frame (parent-local under a
+ * parent, world at the root). Contained piles and further-nested zones are
+ * stored relative to this zone, so they travel with it untouched. A no-op when
+ * the parent is unchanged.
+ */
+export function reparentZone(
+  state: TabletopState,
+  zoneId: string,
+  newParentId: string | null
+): void {
+  const zone = getZone(state, zoneId);
+  const currentParentId = zone.parentZoneId ?? null;
+  if (currentParentId === newParentId) return;
+  if (newParentId !== null) {
+    const parent = state.zones[newParentId];
+    if (!parent || parent.type !== 'freeform') return; // only freeform parents
+  }
+
+  const worldOrigin = zoneWorldOrigin(state, zone);
+
+  // Detach from the current container (old parent's child list, or zoneOrder).
+  if (currentParentId !== null) {
+    const oldParent = state.zones[currentParentId];
+    if (oldParent?.type === 'freeform' && oldParent.childZoneIds) {
+      const index = oldParent.childZoneIds.indexOf(zoneId);
+      if (index !== -1) oldParent.childZoneIds.splice(index, 1);
+    }
+  } else {
+    const index = state.zoneOrder.indexOf(zoneId);
+    if (index !== -1) state.zoneOrder.splice(index, 1);
+  }
+
+  // Attach to the new container and rewrite the stored coordinates so the
+  // world origin is preserved.
+  if (newParentId !== null) {
+    const parent = state.zones[newParentId] as FreeformZone;
+    zone.parentZoneId = newParentId;
+    if (!parent.childZoneIds) parent.childZoneIds = [];
+    parent.childZoneIds.push(zoneId);
+    const parentOrigin = zoneWorldOrigin(state, parent);
+    zone.x = worldOrigin.x - parentOrigin.x;
+    zone.y = worldOrigin.y - parentOrigin.y;
+  } else {
+    delete zone.parentZoneId;
+    state.zoneOrder.push(zoneId);
+    zone.x = worldOrigin.x;
+    zone.y = worldOrigin.y;
+  }
+}
+
 // ─── Hit-testing ───────────────────────────────────────────────────────────
 
 /**
- * The topmost zone (render order) whose world rectangle contains the point,
- * or null when the point is over the open table (the root region). Top-level
- * zones only for now — nested zone targeting arrives with ticket 11.
+ * The topmost zone (render order, nesting included) whose world rectangle
+ * contains the point, or null when the point is over the open table (the root
+ * region). Nested zones render on top of their parents, so an innermost child
+ * wins over the board it sits on.
  */
 export function findZoneAt(
   state: TabletopState,
@@ -370,8 +540,9 @@ export function findZoneAt(
   exclude?: string | readonly string[]
 ): Zone | null {
   const excluded = new Set(typeof exclude === 'string' ? [exclude] : (exclude ?? []));
-  for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
-    const id = state.zoneOrder[i];
+  const ordered = renderOrderedZoneIds(state);
+  for (let i = ordered.length - 1; i >= 0; i--) {
+    const id = ordered[i];
     if (excluded.has(id)) continue;
     const zone = state.zones[id];
     if (!zone) continue;

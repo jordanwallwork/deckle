@@ -267,6 +267,26 @@ describe('splay invariant — a spread only ever contains single-card piles', ()
     expect(centres(state)[0]).toBeCloseTo(SPREAD_PADDING + CARD_W / 2);
   });
 
+  it('a pile listed in the spread whose zoneId points elsewhere: throws in dev, is adopted in prod', () => {
+    const build = (): TabletopState => {
+      const state = addSpread(
+        stateWithPiles(singleCardPile('h1', 'c1')),
+        ['h1']
+      );
+      // A structural bug placePile never produces: the pile is listed in the
+      // spread but still claims the root table.
+      state.piles.h1.zoneId = null;
+      return state;
+    };
+
+    expect(() => normalize(build(), templates, { dev: true })).toThrow(/invariant violation/);
+
+    const state = build();
+    normalize(state, templates, { dev: false });
+    expect(state.piles.h1.zoneId).toBe('hand');
+    expect(() => normalize(state, templates, { dev: true })).not.toThrow();
+  });
+
   it('merging onto a card inside the spread splays back to singles beside it', () => {
     const state = threeCardSpread();
     const dropped = singleCardPile('loose', 'c4', 0, 0);

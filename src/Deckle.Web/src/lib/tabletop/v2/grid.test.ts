@@ -219,6 +219,23 @@ describe('grid invariant — piles sit on distinct cells', () => {
     expect(state.piles.p2).toMatchObject({ x: 150, y: 50 }); // nearest free (1,0)
   });
 
+  it('a pile listed in the grid whose zoneId points elsewhere: throws in dev, is adopted in prod', () => {
+    const build = (): TabletopState => {
+      const state = addGrid(stateWithPiles(singleCardPile('p1', 'c1', 1050, 1050)), ['p1']);
+      // A structural bug placePile never produces: the pile is listed in the
+      // grid but still claims the root table.
+      state.piles.p1.zoneId = null;
+      return state;
+    };
+
+    expect(() => normalize(build(), templates, { dev: true })).toThrow(/invariant violation/);
+
+    const state = build();
+    normalize(state, templates, { dev: false });
+    expect(state.piles.p1.zoneId).toBe('board');
+    expect(() => normalize(state, templates, { dev: true })).not.toThrow();
+  });
+
   it('a deck, a die, and a token all sit on cells at once', () => {
     const deck = makePile({ id: 'deck', cardIds: ['k1', 'k2', 'k3'], x: 1050, y: 1050 });
     const state = stateWithPiles({

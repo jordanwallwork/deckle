@@ -33,39 +33,72 @@ export function normalize(state: TabletopState, templates: Templates, opts: Norm
   };
 
   noEmptyPiles(state, fail);
-  spreadInvariants(state, templates);
-  gridInvariants(state);
+  spreadInvariants(state, templates, fail);
+  gridInvariants(state, fail);
   referentialIntegrity(state, fail);
 }
 
 /**
- * Invariant: every pile in a grid sits on a cell. Like the spread invariants
- * this is a re-establishing step, never a dev-mode failure — a drop lands the
- * pile at its planned cell, but a multi-drop plans each pile against the same
- * occupancy snapshot, so two piles can arrive on one cell and need spreading
- * to distinct cells here (nearest free on collision; overlap only when the
- * grid is full). This also snaps piles a conversion into grid (ticket 12)
- * seats from arbitrary positions.
+ * Invariant: every pile in a grid sits on a cell, and every pile listed in a
+ * grid claims that grid as its zone.
+ *
+ * The snap itself is a re-establishing step, never a dev-mode failure — a
+ * drop lands the pile at its planned cell, but a multi-drop plans each pile
+ * against the same occupancy snapshot, so two piles can arrive on one cell
+ * and need spreading to distinct cells here (nearest free on collision;
+ * overlap only when the grid is full). This also snaps piles a conversion
+ * into grid (ticket 12) seats from arbitrary positions.
+ *
+ * Membership, though, throws in dev like the other invariants: `placePile`
+ * keeps a pile's `zoneId` and its container list in lockstep, so a pile
+ * listed in a grid whose `zoneId` points elsewhere is a structural bug no
+ * legitimate operation produces (prod repairs it by adopting the pile).
  */
-function gridInvariants(state: TabletopState): void {
+function gridInvariants(state: TabletopState, fail: (message: string) => void): void {
   for (const zone of Object.values(state.zones)) {
     if (zone.type !== 'grid') continue;
+    for (const pileId of zone.pileIds) {
+      const pile = state.piles[pileId];
+      if (pile && pile.zoneId !== zone.id) {
+        fail(`grid ${zone.id} lists pile ${pileId} whose zoneId is ${pile.zoneId}`);
+        pile.zoneId = zone.id;
+      }
+    }
     snapGridToCells(state, zone);
   }
 }
 
 /**
  * Invariants: a spread only ever contains single-card piles, positioned by
- * its layout. Unlike the other invariants these are re-establishing steps,
- * never dev-mode failures: legitimate commits rely on them — a deck dropped
- * into a spread arrives as one multi-card pile and fans out here, and every
- * drop lands at its drop point until layout assigns the real slot — so
- * finding work to do is the designed path, not a bug. (This is also what
- * will handle conversion *into* a spread in ticket 12.)
+ * its layout, and every pile it lists claims the spread as its zone.
+ *
+ * The splay and layout are re-establishing steps, never dev-mode failures:
+ * legitimate commits rely on them — a deck dropped into a spread arrives as
+ * one multi-card pile and fans out here, and every drop lands at its drop
+ * point until layout assigns the real slot — so finding work to do is the
+ * designed path, not a bug. (This is also what will handle conversion *into*
+ * a spread in ticket 12.)
+ *
+ * Membership, though, throws in dev like the other invariants: `placePile`
+ * keeps a pile's `zoneId` and its container list in lockstep, so a pile
+ * listed in a spread whose `zoneId` points elsewhere is a structural bug no
+ * legitimate operation produces (prod repairs it by adopting the pile).
  */
-function spreadInvariants(state: TabletopState, templates: Templates): void {
+function spreadInvariants(
+  state: TabletopState,
+  templates: Templates,
+  fail: (message: string) => void
+): void {
   for (const zone of Object.values(state.zones)) {
     if (zone.type !== 'spread') continue;
+    // Membership: a pile listed here must claim this spread as its zone.
+    for (const pileId of zone.pileIds) {
+      const pile = state.piles[pileId];
+      if (pile && pile.zoneId !== zone.id) {
+        fail(`spread ${zone.id} lists pile ${pileId} whose zoneId is ${pile.zoneId}`);
+        pile.zoneId = zone.id;
+      }
+    }
     // Splay: fan each multi-card pile into single-card piles in array order —
     // pile-bottom at the pile's own index, pile-top last — preserving
     // physical layering under the overlap render (later index renders on

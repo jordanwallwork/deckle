@@ -94,7 +94,7 @@
   .empty-state-title {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin-bottom: 0.5rem;
   }
 

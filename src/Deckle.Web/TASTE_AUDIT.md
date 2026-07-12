@@ -2,8 +2,17 @@
 
 **Ruleset:** [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) (`skills/taste-skill/SKILL.md`), the open-source "anti-slop" frontend design rubric. The skill is not installed in this repo; its ruleset was fetched and applied manually.
 **Scope:** Public surfaces + app chrome — auth/landing page, TopBar, layout shell/footer, shared primitives (Button, Card, Dialog, Badge, PageHeader, base-input), global tokens in `app.css`, and the projects dashboard. The deep WYSIWYG editor internals are out of scope.
-**Deliverable:** This report only. No code was changed.
 **Date:** 2026-07-12
+
+> **Update (2026-07-12):** the **P0 contrast finding has been fixed** (commit on
+> `claude/leonxlsx-taste-skill-test-knsv3r`). Two tokens were added — `--color-sage-dark
+> #537258` and `--color-sage-darker #456049` — and every place `--color-sage #78a083`
+> was used as *text* or as a *solid surface behind white text* now uses the darker sage;
+> text on the dark teal gradient (auth hero, page headers) is now white. Sage is
+> retained for tints/fills/focus-glow only. All measured pairs now pass WCAG AA
+> (≥ 4.5:1). Remaining P1/P2 items below are unchanged. Affected files: `app.css`,
+> `TopBar`, `Button`, `+page.svelte`, `Dialog`, `Badge`, `PageHeader`, plus shared
+> primitives `Tabs`, `EmptyState`, `ConfirmDialog`, `FormField`, and `ProjectCard`.
 
 ---
 
@@ -46,7 +55,7 @@ This `2 / 2 / 5` reading is **appropriate for an app tool** and should be preser
 
 Each finding cites the skill rule, `file:line` evidence, and a concrete fix. Severity: **P0** = ship-blocker / accessibility defect · **P1** = clear quality gap · **P2** = polish.
 
-### P0 — Contrast: sage used as a foreground color fails WCAG AA
+### P0 — Contrast: sage used as a foreground color fails WCAG AA  ✅ FIXED
 
 > Skill: *"Button Contrast Check — WCAG AA minimum (4.5:1)"* · *"Form Contrast Check — labels, inputs, placeholders, focus rings, helper text, error text all pass WCAG AA."*
 
@@ -141,7 +150,7 @@ Ordered by the skill's **Modernization Levers** (color/contrast first here becau
 
 | # | Priority | Change | Effort |
 |---|---|---|---|
-| 1 | **P0** | Recolor foreground uses of sage → `muted-teal`/`teal-grey`; reserve sage for fills; fix `body` default text color. Resolves the AA failures **and** most of the accent-consistency issue. | S |
+| 1 | **P0** ✅ | ~~Recolor foreground uses of sage; reserve sage for fills; fix `body` default text color.~~ **Done** — introduced `--color-sage-dark`/`--color-sage-darker`; kept the green identity per user choice. All pairs now ≥ 4.5:1. Darken-on-hover also resolved the primary/submit accent oscillation. | S |
 | 2 | **P1** | Define semantic color tokens (`--color-danger*`, `--color-success/-warning/-info`); consolidate the four reds; fix undefined `--color-text`/`--color-surface`/`--color-bg-subtle`. | S–M |
 | 3 | **P1** | Lock one accent-at-rest + one hover treatment across Button and auth CTA. | S |
 | 4 | **P1** | Add dark mode via a token-remap block (do **after** #1–#2). | M–L |
@@ -172,10 +181,10 @@ These skill rules target landing/marketing pages and do **not** apply to an appl
 | Design system chosen or aesthetic labeled honestly | ✅ | SvelteKit + owned CSS, labeled |
 | **Zero em-dashes** in page copy | ⚠️ | Auth page clean; dashboard/MCP microcopy uses them (§3, cosmetic) |
 | One page theme (no mid-scroll inversions) | ✅ | Light-only (but see dark-mode gap) |
-| One accent used identically | ❌ | sage↔muted-teal oscillation (§3 P1a) |
+| One accent used identically | ⚠️ | Primary/submit oscillation fixed; secondary still muted-teal at rest vs primary green (§3 P1a) |
 | One corner-radius system | ⚠️ | Tokens exist but bypassed by 16px/4px (§3 P2) |
-| Button contrast WCAG AA (4.5:1) | ❌ | sage foregrounds 2.4–2.9:1 (§3 P0) |
-| Form inputs/labels/focus rings pass AA | ⚠️ | Inputs/labels use muted-teal/teal-grey (pass); sage links/headings fail |
+| Button contrast WCAG AA (4.5:1) | ✅ | Fixed — sage-dark solids/text now 5.1–5.4:1 |
+| Form inputs/labels/focus rings pass AA | ✅ | Fixed — labels/focus rings now sage-dark; inputs already passed |
 | No wrapped CTA labels | ✅ | — |
 | Serif discipline (not Fraunces/Instrument_Serif) | ✅ | No serif used |
 | Premium-consumer palette check (not beige+brass+oxblood) | ✅ | Teal/sage, not the banned palette |
@@ -192,4 +201,25 @@ These skill rules target landing/marketing pages and do **not** apply to an appl
 | Mobile collapse explicit | ✅ | Media queries in TopBar/auth |
 | AI Tells (Inter default, AI-purple, 3-equal cards, "Jane Doe", "Acme") | ✅ | None found |
 
-**Overall:** the app **passes the anti-slop spirit of the skill** but **fails three hard Pre-Flight boxes** — accent consistency, button contrast, and dark mode — plus reduced-motion. The contrast fix (recommendation #1) is the one that matters and is cheap.
+**Overall:** the app **passes the anti-slop spirit of the skill**. The **P0 button/form contrast defect is now fixed** (recommendation #1). Remaining open Pre-Flight gaps: dark mode (P1), reduced-motion (P2), full accent consistency (secondary button, P1), and radius tokenization (P2).
+
+---
+
+## Appendix — P0 fix verification (2026-07-12)
+
+Final contrast pairs, computed (sRGB, WCAG 2.x):
+
+| Pair | Ratio | AA (4.5) |
+|---|---|---|
+| white text on sage-dark `#537258` (TopBar, CTAs, active tab) | 5.36 | ✅ |
+| sage-dark text on white (titles, labels, links) | 5.36 | ✅ |
+| sage-dark text on `#f8f9fa` | 5.09 | ✅ |
+| sage-dark on 10% sage tint (default badge) | 4.92 | ✅ |
+| white text on sage-darker `#456049` (button hover) | 6.95 | ✅ |
+| white H1 on teal gradient (hero, page header) | 6.92 | ✅ |
+| 85% white subtitle on teal gradient | 5.56 | ✅ |
+| breadcrumb owner (opacity 1) on sage-dark bar | 4.71 | ✅ |
+| sage-dark focus-ring border on white (≥ 3:1 needed) | 5.36 | ✅ |
+
+`npm run check`: 0 errors (pre-existing warnings only). Landing page verified visually
+via headless Chromium screenshot.

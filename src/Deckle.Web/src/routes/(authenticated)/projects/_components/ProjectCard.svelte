@@ -59,7 +59,7 @@
   h2 {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin: 0;
     flex: 1;
     min-width: 0;

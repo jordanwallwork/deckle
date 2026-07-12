@@ -77,7 +77,7 @@
   /* Color variants - Default (Sage) */
   .badge.default {
     background-color: rgba(120, 160, 131, 0.1);
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   /* Primary (Muted Teal) */

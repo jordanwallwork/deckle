@@ -90,13 +90,13 @@
 
   /* Primary variant */
   .btn.primary {
-    background-color: var(--color-muted-teal);
+    background-color: var(--color-sage-dark);
     color: white;
     border: 2px solid transparent;
   }
 
   .btn.primary:hover:not(:disabled) {
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-darker);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
@@ -110,8 +110,8 @@
 
   .btn.secondary:hover:not(:disabled) {
     background-color: rgba(120, 160, 131, 0.2);
-    border-color: var(--color-sage);
-    color: var(--color-sage);
+    border-color: var(--color-sage-dark);
+    color: var(--color-sage-dark);
   }
 
   /* Danger variant */
@@ -135,7 +135,7 @@
   }
 
   .btn.text:hover:not(:disabled) {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   /* Icon variant */

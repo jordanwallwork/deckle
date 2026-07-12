@@ -207,14 +207,14 @@
   h1 {
     font-size: 3rem;
     font-weight: 700;
-    color: var(--color-sage);
+    color: white;
     margin-bottom: 0.5rem;
     letter-spacing: -0.02em;
   }
 
   .subtitle {
     font-size: 1rem;
-    color: var(--color-muted-teal);
+    color: rgba(255, 255, 255, 0.85);
     margin-bottom: 2rem;
     line-height: 1.6;
   }
@@ -293,7 +293,7 @@
   }
 
   .tab-button.active {
-    background: var(--color-sage);
+    background: var(--color-sage-dark);
     color: white;
   }
 
@@ -326,7 +326,7 @@
 
   .form-field input:focus {
     outline: none;
-    border-color: var(--color-sage);
+    border-color: var(--color-sage-dark);
     box-shadow: 0 0 0 3px rgba(120, 160, 131, 0.15);
   }
 
@@ -351,7 +351,7 @@
     font-size: 1rem;
     font-weight: 600;
     color: white;
-    background: var(--color-sage);
+    background: var(--color-sage-dark);
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -363,7 +363,7 @@
   }
 
   .submit-button:hover:not(:disabled) {
-    background: var(--color-muted-teal);
+    background: var(--color-sage-darker);
   }
 
   .submit-button:disabled {
@@ -396,7 +396,7 @@
     background: none;
     border: none;
     padding: 0;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     font-size: inherit;
     font-weight: 600;
     cursor: pointer;
@@ -404,7 +404,7 @@
   }
 
   .link-button:hover {
-    color: var(--color-muted-teal);
+    color: var(--color-sage-darker);
   }
 
   @media (max-width: 480px) {

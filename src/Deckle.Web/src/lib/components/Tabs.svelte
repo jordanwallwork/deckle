@@ -53,14 +53,14 @@
   }
 
   .tab-link:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     background-color: rgba(120, 160, 131, 0.05);
   }
 
   .tab-link.active {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     font-weight: 600;
-    border-bottom-color: var(--color-sage);
+    border-bottom-color: var(--color-sage-dark);
   }
 
   @media (max-width: 768px) {

@@ -101,7 +101,7 @@
   .dialog h2 {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     margin: 0;
   }
 
@@ -111,7 +111,7 @@
     font-size: 1.5rem;
     line-height: 1;
     cursor: pointer;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     padding: 0.25rem;
     border-radius: 4px;
     opacity: 0.6;

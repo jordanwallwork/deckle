@@ -43,7 +43,7 @@
   label {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .required {

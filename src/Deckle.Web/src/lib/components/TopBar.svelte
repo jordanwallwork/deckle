@@ -154,7 +154,7 @@
 <style>
   .topbar {
     height: 60px;
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     z-index: 100;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -191,7 +191,7 @@
   }
 
   .project-owner {
-    opacity: 0.8;
+    opacity: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -286,7 +286,7 @@
     left: 50%;
     transform: translateX(-50%);
     background-color: white;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     font-size: 0.875rem;
     font-weight: 500;
     padding: 0.5rem 0.75rem;
@@ -330,7 +330,7 @@
   .dropdown-user-name {
     font-weight: 600;
     font-size: 0.875rem;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .dropdown-user-email {
@@ -355,7 +355,7 @@
     border: none;
     cursor: pointer;
     font-size: 0.875rem;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     text-decoration: none;
     transition: background-color 0.2s ease;
     font-family: inherit;
@@ -416,7 +416,7 @@
   .hamburger-item {
     display: block;
     padding: 0.75rem 1rem;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
     text-decoration: none;
     font-size: 0.9rem;
     font-weight: 500;

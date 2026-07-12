@@ -4,12 +4,12 @@
 // every operation test doubles as an invariant test.
 //
 // Wired so far: referential integrity (ticket 01), no-empty-piles
-// (ticket 03), and the spread splay + layout invariants (ticket 07). The
-// grid-snap invariant arrives with ticket 09.
+// (ticket 03), the spread splay + layout invariants (ticket 07), and the
+// grid-snap invariant (ticket 09).
 
 import { makeId } from './operations';
 import type { Pile, TabletopState, Templates } from './types';
-import { zoneBehavior } from './zones';
+import { snapGridToCells, zoneBehavior } from './zones';
 
 export interface NormalizeOptions {
   /** True in dev builds: throw on violation instead of repairing. */
@@ -34,7 +34,24 @@ export function normalize(state: TabletopState, templates: Templates, opts: Norm
 
   noEmptyPiles(state, fail);
   spreadInvariants(state, templates);
+  gridInvariants(state);
   referentialIntegrity(state, fail);
+}
+
+/**
+ * Invariant: every pile in a grid sits on a cell. Like the spread invariants
+ * this is a re-establishing step, never a dev-mode failure — a drop lands the
+ * pile at its planned cell, but a multi-drop plans each pile against the same
+ * occupancy snapshot, so two piles can arrive on one cell and need spreading
+ * to distinct cells here (nearest free on collision; overlap only when the
+ * grid is full). This also snaps piles a conversion into grid (ticket 12)
+ * seats from arbitrary positions.
+ */
+function gridInvariants(state: TabletopState): void {
+  for (const zone of Object.values(state.zones)) {
+    if (zone.type !== 'grid') continue;
+    snapGridToCells(state, zone);
+  }
 }
 
 /**

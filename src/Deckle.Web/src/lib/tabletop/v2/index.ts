@@ -8,6 +8,7 @@ export * from './normalize';
 export * from './drop';
 export * from './history';
 export * from './reducer';
+export * from './viewport';
 export {
   buildInitialTabletop,
   emptyTabletopState,
@@ -22,4 +23,5 @@ export {
   type TabletopStore
 } from './store.svelte';
 export { createInteraction, type TabletopInteraction } from './interaction.svelte';
+export { createViewport, type TabletopViewport } from './viewport.svelte';
 export { setTabletopApi, getTabletopApi, type TabletopApi } from './context';

@@ -3,8 +3,9 @@
 
   let {
     zoom,
-    onZoomChange
-  }: { zoom: number; onZoomChange: (z: number) => void } = $props();
+    onZoomChange,
+    onFitView
+  }: { zoom: number; onZoomChange: (z: number) => void; onFitView: () => void } = $props();
 
   const { store } = getTabletopApi();
 
@@ -55,6 +56,7 @@
     <button class="tool-btn" onclick={zoomOut} disabled={zoom <= 0.25} title="Zoom out">−</button>
     <button class="zoom-reset" onclick={resetZoom} title="Reset zoom">{zoomPercentage}%</button>
     <button class="tool-btn" onclick={zoomIn} disabled={zoom >= 3} title="Zoom in">+</button>
+    <button class="tool-btn" onclick={onFitView} title="Fit to view">⤢</button>
   </div>
 </div>
 

@@ -13,7 +13,9 @@
 // adds the marquee (rubber-band selection on empty background) and the
 // multi-pile drag (grabbing any pile of a multi-selection moves the whole
 // selection). Ticket 06 adds zone moves (header tab only) and edit-mode
-// corner resizes. Ticket 14 adds pan as a further mode of this same machine.
+// corner resizes. Ticket 14 adds pan (middle-button) as a further mode of
+// this same machine — a navigation gesture that emits no store mutations, so
+// it never opens a transaction and can run even during a zone-edit session.
 //
 // Dragged piles always live on the root in world coordinates: activation
 // detaches (or splits) them out of their zone at their world position, drag
@@ -134,6 +136,18 @@ export type DragState =
       grab: Point;
       /** Zone rect (stored, parent-local frame) at grab — restored on cancel. */
       startRect: Rect;
+    }
+  | {
+      /**
+       * Middle-button pan: a navigation gesture that moves the viewport, not
+       * the table. It emits `pan` mutations (screen-space deltas) the shell
+       * routes to the viewport, never the store — so there is no transaction,
+       * nothing to commit, and nothing to roll back.
+       */
+      mode: 'pan';
+      /** Latest pointer *screen* position; deltas accumulate incrementally so
+       *  panning stays stable even though the world↔screen mapping shifts. */
+      lastScreen: Point;
     };
 
 export type DragInputEvent =
@@ -174,13 +188,26 @@ export type DragInputEvent =
       corner: ResizeCorner;
       world: Point;
     }
-  | { type: 'move'; world: Point }
+  | {
+      /** Middle-button pointer-down anywhere on the canvas: starts a pan. */
+      type: 'pan-down';
+      /** Pointer position in screen (canvas-relative) coordinates. */
+      screen: Point;
+    }
+  | {
+      type: 'move';
+      world: Point;
+      /** Screen (canvas-relative) position — only the pan mode reads it. */
+      screen?: Point;
+    }
   | {
       type: 'up';
       world: Point;
       /** True when the pointer was released over the component sidebar (the
        *  shell does the DOM hit-test): the dragged pile(s) are removed. */
       overSidebar?: boolean;
+      /** Screen (canvas-relative) position — only the pan mode reads it. */
+      screen?: Point;
     }
   | { type: 'cancel' };
 
@@ -203,7 +230,10 @@ export type DragMutation =
   | { type: 'drop'; plan: DropPlan }
   | { type: 'commit' }
   | { type: 'rollback' }
-  | { type: 'select'; selection: Selection };
+  | { type: 'select'; selection: Selection }
+  /** Screen-space pan delta — the shell applies it to the viewport, not the
+   *  store. Carries no history. */
+  | { type: 'pan'; dx: number; dy: number };
 
 export interface ReducerContext {
   state: TabletopState;
@@ -235,10 +265,19 @@ export function step(drag: DragState, event: DragInputEvent, ctx: ReducerContext
       return stepZoneMove(drag, event, ctx);
     case 'zone-resize':
       return stepZoneResize(drag, event);
+    case 'pan':
+      return stepPan(drag, event);
   }
 }
 
 function stepIdle(event: DragInputEvent, ctx: ReducerContext): StepResult {
+  // Middle-button pan is pure navigation — it touches neither the store nor
+  // history — so it starts from anywhere, including inside a zone-edit
+  // session, ahead of the inert-table guard below.
+  if (event.type === 'pan-down') {
+    return { drag: { mode: 'pan', lastScreen: event.screen }, mutations: [] };
+  }
+
   // During a zone-edit session the table is inert: only the session's own
   // resize handles start gestures. Everything else waits for Done/Escape —
   // a stray drag must not open a second transaction inside the session's.
@@ -384,6 +423,7 @@ function stepPile(
     case 'background-down':
     case 'zone-down':
     case 'zone-resize-down':
+    case 'pan-down':
       // A second pointer-down mid-drag shouldn't happen; treat it as a cancel
       // of the current gesture to stay consistent.
       return idle(drag.active ? [{ type: 'rollback' }] : []);
@@ -450,6 +490,7 @@ function stepMulti(
     case 'background-down':
     case 'zone-down':
     case 'zone-resize-down':
+    case 'pan-down':
       return idle(drag.active ? [{ type: 'rollback' }] : []);
   }
 }
@@ -524,6 +565,7 @@ function stepMarquee(
     case 'background-down':
     case 'zone-down':
     case 'zone-resize-down':
+    case 'pan-down':
       // Aborting mid-marquee restores whatever was selected before it began.
       return idle(drag.active ? [{ type: 'select', selection: drag.prevSelection }] : []);
   }
@@ -584,6 +626,7 @@ function stepZoneMove(
     case 'background-down':
     case 'zone-down':
     case 'zone-resize-down':
+    case 'pan-down':
       return idle(drag.active ? [{ type: 'rollback' }] : []);
   }
 }
@@ -615,8 +658,38 @@ function stepZoneResize(
     case 'background-down':
     case 'zone-down':
     case 'zone-resize-down':
+    case 'pan-down':
       // Abort just this handle drag: restore the rect, keep the session.
       return idle([{ type: 'resize-zone', zoneId: drag.zoneId, rect: drag.startRect }]);
+  }
+}
+
+/**
+ * Middle-button pan. Emits the screen-space delta since the previous frame —
+ * incremental deltas keep panning stable while the world↔screen mapping moves
+ * underneath. Any pointer-up (or second down, or cancel) ends the pan with no
+ * mutation to finalise. A move without a screen position (a caller that only
+ * supplied world) is a no-op rather than a jump.
+ */
+function stepPan(
+  drag: Extract<DragState, { mode: 'pan' }>,
+  event: DragInputEvent
+): StepResult {
+  switch (event.type) {
+    case 'move': {
+      if (!event.screen) return { drag, mutations: [] };
+      const dx = event.screen.x - drag.lastScreen.x;
+      const dy = event.screen.y - drag.lastScreen.y;
+      return { drag: { mode: 'pan', lastScreen: event.screen }, mutations: [{ type: 'pan', dx, dy }] };
+    }
+    case 'up':
+    case 'cancel':
+    case 'pan-down':
+    case 'pile-down':
+    case 'background-down':
+    case 'zone-down':
+    case 'zone-resize-down':
+      return idle();
   }
 }
 

@@ -8,6 +8,7 @@
     applyDropPlan,
     createInteraction,
     createTabletopStore,
+    createViewport,
     dropTargetZoneAt,
     flipPiles,
     flippablePiles,
@@ -24,6 +25,7 @@
     shuffleOrRollPiles,
     shuffleZoneContents,
     spreadInsertHint,
+    tableBoundingBox,
     zoneActions
   } from '$lib/tabletop/v2';
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
@@ -48,24 +50,51 @@
   } = $props();
 
   const store = createTabletopStore(initialState, templates);
-  const interaction = createInteraction(store);
+  const viewport = createViewport();
+  const interaction = createInteraction(store, viewport);
 
   setContext('projectId', projectId);
   setContext('tabletopComponents', components);
 
-  // ─── Viewport (naive pan/zoom carried over from v1; ticket 14 replaces it) ─
-  let surfaceEl: HTMLDivElement | null = $state(null);
-  let panX = $state(0);
-  let panY = $state(0);
-  let zoom = $state(1);
+  // ─── Viewport (pointer-anchored zoom, middle-drag pan, fit-view) ──────────
+  // The transform lives in the pure viewport module (viewport.svelte.ts); this
+  // shell only converts client coordinates and wires the gestures. Screen
+  // coordinates are canvas-relative — the anchor the world↔screen maths use.
+  let canvasEl: HTMLDivElement | null = $state(null);
+
+  function clientToScreen(clientX: number, clientY: number): { x: number; y: number } {
+    if (!canvasEl) return { x: clientX, y: clientY };
+    const rect = canvasEl.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
 
   function clientToWorld(clientX: number, clientY: number): { x: number; y: number } {
-    if (!surfaceEl) return { x: clientX, y: clientY };
-    const rect = surfaceEl.getBoundingClientRect();
-    return {
-      x: (clientX - rect.left) / zoom,
-      y: (clientY - rect.top) / zoom
-    };
+    return viewport.screenToWorld(clientToScreen(clientX, clientY));
+  }
+
+  /** Frame everything on the table — zones and loose piles — in the canvas. */
+  function fitView() {
+    if (!canvasEl) return;
+    const rect = canvasEl.getBoundingClientRect();
+    viewport.fit(tableBoundingBox(store.state, store.templates), {
+      width: rect.width,
+      height: rect.height
+    });
+  }
+
+  /** A sensible default view once the canvas is measurable (story 52). */
+  let didInitialFit = false;
+  $effect(() => {
+    if (didInitialFit || !canvasEl) return;
+    didInitialFit = true;
+    fitView();
+  });
+
+  /** Toolbar zoom buttons anchor on the canvas centre. */
+  function zoomToLevel(level: number) {
+    if (!canvasEl) return;
+    const rect = canvasEl.getBoundingClientRect();
+    viewport.zoomTo({ x: rect.width / 2, y: rect.height / 2 }, level);
   }
 
   // ─── Context menus (pile / zone / canvas) ─────────────────────────────────
@@ -172,19 +201,20 @@
 
   function handleWheel(e: WheelEvent) {
     if (e.ctrlKey || e.metaKey) {
+      // Pointer-anchored zoom: the world point under the cursor stays put.
       e.preventDefault();
       const factor = Math.exp(-e.deltaY * 0.01);
-      zoom = Math.max(0.25, Math.min(3, zoom * factor));
+      viewport.zoomBy(clientToScreen(e.clientX, e.clientY), factor);
     } else {
-      panX -= e.deltaX;
-      panY -= e.deltaY;
+      // Trackpad two-finger scroll keeps panning.
+      viewport.panBy(-e.deltaX, -e.deltaY);
     }
   }
 
   // ─── Pointer plumbing: forward world-space events to the drag reducer ────
   function handleWindowPointerMove(e: PointerEvent) {
     if (!interaction.isDragging) return;
-    interaction.move(clientToWorld(e.clientX, e.clientY));
+    interaction.move(clientToWorld(e.clientX, e.clientY), clientToScreen(e.clientX, e.clientY));
     pileOverSidebar = draggingRemovable && pointerOverSidebar(e);
   }
 
@@ -192,7 +222,7 @@
     if (!interaction.isDragging) return;
     const overSidebar = draggingRemovable && pointerOverSidebar(e);
     pileOverSidebar = false;
-    interaction.up(clientToWorld(e.clientX, e.clientY), overSidebar);
+    interaction.up(clientToWorld(e.clientX, e.clientY), overSidebar, clientToScreen(e.clientX, e.clientY));
   }
 
   function handleWindowPointerCancel() {
@@ -202,8 +232,14 @@
   }
 
   // Pointer-down reaching the canvas is a background press (piles stop
-  // propagation): the reducer turns it into a marquee, or a deselect click.
+  // propagation): left starts a marquee/deselect; middle starts a viewport
+  // pan (piles/zones ignore non-left buttons, so it reaches here over them too).
   function handleCanvasPointerDown(e: PointerEvent) {
+    if (e.button === 1) {
+      e.preventDefault();
+      interaction.panDown(clientToScreen(e.clientX, e.clientY));
+      return;
+    }
     if (e.button !== 0) return;
     interaction.backgroundDown(clientToWorld(e.clientX, e.clientY), {
       ctrl: e.ctrlKey || e.metaKey
@@ -360,7 +396,7 @@
 />
 
 <div class="tabletop-container">
-  <Toolbar {zoom} onZoomChange={(z) => (zoom = z)} />
+  <Toolbar zoom={viewport.zoom} onZoomChange={zoomToLevel} onFitView={fitView} />
 
   <div class="tabletop-body">
     <ComponentSidebar
@@ -371,6 +407,7 @@
     />
 
     <div
+      bind:this={canvasEl}
       class="canvas"
       class:drop-target={isDropTarget}
       onpointerdown={handleCanvasPointerDown}
@@ -383,9 +420,8 @@
       aria-label="Tabletop sandbox (v2)"
     >
       <div
-        bind:this={surfaceEl}
         class="canvas-surface"
-        style="transform: translate({panX}px, {panY}px) scale({zoom}); transform-origin: 0 0;"
+        style="transform: translate({viewport.panX}px, {viewport.panY}px) scale({viewport.zoom}); transform-origin: 0 0;"
       >
         <!-- Zones render beneath root piles; each renders its own piles. -->
         {#each store.state.zoneOrder as zoneId (zoneId)}

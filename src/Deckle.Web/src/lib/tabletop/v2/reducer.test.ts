@@ -1222,3 +1222,64 @@ describe('drag reducer — edit-mode corner resize (inside the session transacti
     expect(result.emitted).toEqual([]);
   });
 });
+
+describe('drag reducer — middle-button pan', () => {
+  it('emits incremental screen-space deltas for each move and ends idle on up', () => {
+    const initial = stateWithPiles(singleCardPile('p1', 'c1', 100, 100));
+
+    const { state, drag, emitted, history, inTransaction } = run(initial, [
+      { type: 'pan-down', screen: at(200, 150) },
+      { type: 'move', world: at(0, 0), screen: at(230, 150) },
+      { type: 'move', world: at(0, 0), screen: at(230, 200) },
+      { type: 'up', world: at(0, 0), screen: at(230, 200) }
+    ]);
+
+    // Pan is pure navigation: the table is untouched and nothing enters history.
+    expect(state.piles.p1).toMatchObject({ x: 100, y: 100 });
+    expect(history.past).toHaveLength(0);
+    expect(inTransaction).toBe(false);
+    expect(drag).toEqual({ mode: 'idle' });
+    // Deltas accumulate frame-to-frame: (+30,0) then (0,+50).
+    expect(emitted).toEqual([
+      { type: 'pan', dx: 30, dy: 0 },
+      { type: 'pan', dx: 0, dy: 50 }
+    ]);
+  });
+
+  it('never opens a transaction — no begin/commit/select among its mutations', () => {
+    const initial = stateWithPiles(singleCardPile('p1', 'c1', 0, 0));
+    const { emitted } = run(initial, [
+      { type: 'pan-down', screen: at(0, 0) },
+      { type: 'move', world: at(0, 0), screen: at(50, 40) },
+      { type: 'up', world: at(0, 0), screen: at(50, 40) }
+    ]);
+    expect(emitted.every((m) => m.type === 'pan')).toBe(true);
+  });
+
+  it('pans even while a zone-edit session holds the rest of the table inert', () => {
+    const state = withZone(stateWithPiles(), { id: 'z1', x: 100, y: 100 });
+    state.editingZoneId = 'z1';
+
+    const { drag, emitted } = run(state, [
+      { type: 'pan-down', screen: at(10, 10) },
+      { type: 'move', world: at(0, 0), screen: at(40, 10) },
+      { type: 'up', world: at(0, 0), screen: at(40, 10) }
+    ]);
+
+    expect(emitted).toEqual([{ type: 'pan', dx: 30, dy: 0 }]);
+    expect(drag).toEqual({ mode: 'idle' });
+  });
+
+  it('a left-button gesture is unaffected — a pile still moves as its own step', () => {
+    // Middle-drag pan and left-drag move are distinct entry events, so they
+    // never contend: the pile drag opens its own transaction as usual.
+    const initial = stateWithPiles(singleCardPile('p1', 'c1', 100, 100));
+    const { state, history } = run(initial, [
+      { type: 'pile-down', pileId: 'p1', world: at(100, 100) },
+      { type: 'move', world: at(160, 100) },
+      { type: 'up', world: at(160, 100) }
+    ]);
+    expect(state.piles.p1.x).toBe(160);
+    expect(history.past).toHaveLength(1);
+  });
+});

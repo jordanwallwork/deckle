@@ -23,8 +23,9 @@ import {
   type ResizeCorner
 } from './zones';
 import type { TabletopStore } from './store.svelte';
+import type { TabletopViewport } from './viewport.svelte';
 
-export function createInteraction(store: TabletopStore) {
+export function createInteraction(store: TabletopStore, viewport?: TabletopViewport) {
   let drag = $state.raw<DragState>({ mode: 'idle' });
   /** Latest pointer world position while a gesture is in flight. */
   let pointer = $state.raw<Point | null>(null);
@@ -103,6 +104,10 @@ export function createInteraction(store: TabletopStore) {
       case 'select':
         store.setSelection(mutation.selection);
         break;
+      case 'pan':
+        // Pan moves the viewport, not the table — no store mutation, no history.
+        viewport?.panBy(mutation.dx, mutation.dy);
+        break;
     }
   }
 
@@ -159,11 +164,15 @@ export function createInteraction(store: TabletopStore) {
     zoneResizeDown(zoneId: string, corner: ResizeCorner, world: Point): void {
       dispatch({ type: 'zone-resize-down', zoneId, corner, world });
     },
-    move(world: Point): void {
-      dispatch({ type: 'move', world });
+    /** Middle-button press: start a viewport pan (screen = canvas-relative). */
+    panDown(screen: Point): void {
+      dispatch({ type: 'pan-down', screen });
     },
-    up(world: Point, overSidebar = false): void {
-      dispatch({ type: 'up', world, overSidebar });
+    move(world: Point, screen?: Point): void {
+      dispatch({ type: 'move', world, screen });
+    },
+    up(world: Point, overSidebar = false, screen?: Point): void {
+      dispatch({ type: 'up', world, overSidebar, screen });
     },
     cancel(): void {
       dispatch({ type: 'cancel' });

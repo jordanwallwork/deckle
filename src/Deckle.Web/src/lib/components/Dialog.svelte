@@ -84,7 +84,7 @@
 
   .dialog {
     background-color: var(--color-surface);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     padding: var(--pad-content);
     width: 90%;
     max-height: 90vh;
@@ -113,7 +113,7 @@
     cursor: pointer;
     color: var(--color-accent-fg);
     padding: 0.25rem;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     opacity: 0.6;
     transition: opacity 0.15s;
   }

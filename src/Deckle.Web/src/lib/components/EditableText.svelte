@@ -86,7 +86,7 @@
   .editable-text-input {
     padding: 0.125rem 0.25rem;
     border: 1px solid #0066cc;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     background: white;
     outline: none;
     font-family: inherit;
@@ -106,6 +106,6 @@
 
   .editable-text-display:hover {
     background-color: rgba(0, 0, 0, 0.05);
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
   }
 </style>

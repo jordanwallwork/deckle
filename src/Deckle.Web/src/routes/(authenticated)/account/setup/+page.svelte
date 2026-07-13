@@ -233,7 +233,7 @@
 
   .setup-card {
     background: white;
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     padding: 3rem;
     max-width: 480px;
     width: 100%;

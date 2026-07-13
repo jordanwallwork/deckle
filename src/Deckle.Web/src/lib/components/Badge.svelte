@@ -62,7 +62,7 @@
 
   /* Shape variants */
   .badge.pill {
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
   }
 
   .badge.circle {

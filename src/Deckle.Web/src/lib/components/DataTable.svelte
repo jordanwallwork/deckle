@@ -140,7 +140,7 @@
   .data-table-container {
     overflow-x: auto;
     background-color: var(--color-surface);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
   }
 

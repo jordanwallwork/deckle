@@ -221,7 +221,7 @@
 
   .auth-card {
     background: var(--color-surface);
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     padding: 2rem;
     box-shadow: var(--shadow-lg);
     text-align: left;

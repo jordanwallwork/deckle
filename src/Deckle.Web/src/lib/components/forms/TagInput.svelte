@@ -151,7 +151,7 @@
 		gap: 0.375rem;
 		padding: 0.375rem 0.5rem;
 		border: 1px solid var(--color-border);
-		border-radius: 0.25rem;
+		border-radius: var(--radius-xs);
 		min-height: 2.125rem;
 		background-color: var(--color-surface);
 	}
@@ -196,7 +196,7 @@
 		margin-top: 0.25rem;
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
-		border-radius: 0.25rem;
+		border-radius: var(--radius-xs);
 		max-height: 200px;
 		overflow-y: auto;
 		z-index: 1000;

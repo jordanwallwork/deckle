@@ -345,7 +345,7 @@
     width: 1.125rem;
     height: 1.125rem;
     border: 2px solid var(--color-disabled-border);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     display: flex;
     align-items: center;
     justify-content: center;

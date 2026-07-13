@@ -114,7 +114,7 @@
     width: 100%;
     aspect-ratio: 1;
     border: 3px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;

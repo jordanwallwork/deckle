@@ -176,7 +176,7 @@
     cursor: pointer;
     color: var(--color-text-secondary);
     padding: 0.25rem;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     display: inline-flex;
     align-items: center;
     justify-content: center;

@@ -233,7 +233,7 @@
     padding: 0.75rem 1rem;
     background-color: var(--color-danger-bg);
     border: 1px solid var(--color-danger-border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--color-danger-fg);
     font-size: 0.875rem;
     margin-top: 0.5rem;
@@ -247,7 +247,7 @@
     color: var(--color-text);
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     cursor: pointer;
   }
 

@@ -265,15 +265,16 @@
   .toolbar-divider {
     width: 1px;
     height: 20px;
-    background-color: #e5e7eb;
+    background-color: var(--color-border);
     margin: 0 0.05rem;
   }
 
   .bleed-safe-area-toggle {
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -281,15 +282,16 @@
   }
 
   .bleed-safe-area-toggle:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .save-button {
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -298,9 +300,9 @@
   }
 
   .save-button:hover:not(:disabled) {
-    background: #3b82f6;
+    background: var(--color-accent-solid);
     color: white;
-    border-color: #3b82f6;
+    border-color: var(--color-accent-solid);
   }
 
   .save-button:disabled {
@@ -309,32 +311,34 @@
   }
 
   .save-button.unsaved {
-    background: #f59e0b;
+    background: var(--color-warning);
     color: white;
-    border-color: #f59e0b;
+    border-color: var(--color-warning);
   }
 
   .save-button.unsaved:hover:not(:disabled) {
-    background: #d97706;
-    border-color: #d97706;
+    background: var(--color-warning);
+    border-color: var(--color-warning);
+    opacity: 0.85;
   }
 
   .save-button.saving {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .save-button.success {
-    background: #10b981;
+    background: var(--color-success);
     color: white;
-    border-color: #10b981;
+    border-color: var(--color-success);
   }
 
   .export-button {
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -343,15 +347,15 @@
   }
 
   .export-button:hover {
-    background: #3b82f6;
+    background: var(--color-accent-solid);
     color: white;
-    border-color: #3b82f6;
+    border-color: var(--color-accent-solid);
   }
 
   .export-button.error {
-    background: #ef4444;
+    background: var(--color-danger);
     color: white;
-    border-color: #ef4444;
+    border-color: var(--color-danger);
     cursor: not-allowed;
   }
 
@@ -365,7 +369,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.75rem;
-    color: #374151;
+    color: var(--color-text-primary);
     white-space: nowrap;
   }
 
@@ -373,18 +377,20 @@
     width: 60px;
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     text-align: center;
   }
 
   .grid-size-input:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: var(--color-accent-fg);
   }
 
   .grid-size-unit {
-    color: #6b7280;
+    color: var(--color-text-secondary);
   }
 
   /* Desktop controls - visible by default */
@@ -403,21 +409,21 @@
     align-items: center;
     justify-content: center;
     padding: 0.25rem 0.5rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
-    color: #374151;
+    color: var(--color-text-primary);
   }
 
   .mobile-menu-button:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .mobile-menu-button.open {
-    background: #f3f4f6;
+    background: var(--color-bg-subtle);
   }
 
   .mobile-menu-dropdown {
@@ -426,12 +432,10 @@
     right: 0;
     margin-top: 4px;
     padding: 0.75rem;
-    background: white;
-    border: 1px solid #d1d5db;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
-    box-shadow:
-      0 4px 6px -1px rgb(0 0 0 / 0.1),
-      0 2px 4px -2px rgb(0 0 0 / 0.1);
+    box-shadow: var(--shadow-md);
     z-index: 50;
     min-width: 200px;
   }
@@ -456,15 +460,16 @@
 
   .mobile-menu-label {
     font-size: 0.75rem;
-    color: #374151;
+    color: var(--color-text-primary);
     white-space: nowrap;
   }
 
   .mobile-menu-toggle {
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -472,19 +477,19 @@
   }
 
   .mobile-menu-toggle:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .mobile-menu-toggle.active {
-    background: #3b82f6;
+    background: var(--color-accent-solid);
     color: white;
-    border-color: #3b82f6;
+    border-color: var(--color-accent-solid);
   }
 
   .mobile-menu-divider {
     height: 1px;
-    background-color: #e5e7eb;
+    background-color: var(--color-border);
     margin: 0.5rem 0;
   }
 
@@ -498,19 +503,21 @@
     width: 50px;
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     border-radius: 4px;
     text-align: center;
   }
 
   .mobile-grid-input:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: var(--color-accent-fg);
   }
 
   .mobile-grid-unit {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
   }
 
   /* Responsive: Show mobile menu, hide desktop controls on small screens */

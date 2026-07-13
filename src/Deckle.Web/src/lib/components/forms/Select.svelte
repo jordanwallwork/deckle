@@ -28,7 +28,7 @@
   @import './base-input.css';
 
   select {
-    background-color: white;
+    background-color: var(--color-surface);
     cursor: pointer;
   }
 </style>

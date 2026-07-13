@@ -214,10 +214,10 @@
 <style>
   .add-popover {
     position: fixed;
-    background: white;
-    border: 1px solid #e5e5e7;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
     min-width: 180px;
     z-index: 1000;
     overflow: hidden;
@@ -227,14 +227,14 @@
     padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #666;
-    border-bottom: 1px solid #e5e5e7;
-    background: #fafafa;
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-subtle);
   }
 
   .parent-note {
     font-weight: 400;
-    color: #999;
+    color: var(--color-text-secondary);
     font-size: 0.7rem;
   }
 
@@ -245,8 +245,8 @@
     width: 100%;
     padding: 0.5rem 0.75rem;
     font-size: 0.813rem;
-    color: #1a1a1a;
-    background: white;
+    color: var(--color-text-primary);
+    background: var(--color-surface);
     border: none;
     cursor: pointer;
     transition: background 0.15s ease;
@@ -254,6 +254,6 @@
   }
 
   .popover-item:hover {
-    background: #f5f5f5;
+    background: var(--color-bg-subtle);
   }
 </style>

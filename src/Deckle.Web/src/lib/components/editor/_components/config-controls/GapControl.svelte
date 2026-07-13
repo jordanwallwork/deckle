@@ -37,7 +37,7 @@
   .gap-control input[type='range'] {
     flex: 1;
     height: 4px;
-    background: #d1d5db;
+    background: var(--color-border);
     border-radius: 2px;
     outline: none;
     -webkit-appearance: none;
@@ -49,7 +49,7 @@
     appearance: none;
     width: 16px;
     height: 16px;
-    background: #0066cc;
+    background: var(--color-accent-fg);
     border-radius: 50%;
     cursor: pointer;
   }
@@ -57,7 +57,7 @@
   .gap-control input[type='range']::-moz-range-thumb {
     width: 16px;
     height: 16px;
-    background: #0066cc;
+    background: var(--color-accent-fg);
     border-radius: 50%;
     cursor: pointer;
     border: none;
@@ -69,15 +69,16 @@
     font-size: 0.813rem;
     line-height: 1.25rem;
     height: 2.125rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     text-align: center;
     box-sizing: border-box;
   }
 
   .gap-control .unit {
     font-size: 0.75rem;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 </style>

@@ -79,7 +79,7 @@
     display: block;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-bottom: 0.25rem;
   }
 
@@ -94,12 +94,13 @@
     font-size: 0.813rem;
     line-height: 1.25rem;
     height: 2.125rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-left: 0;
     border-radius: 4px;
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     box-sizing: border-box;
     margin-left: -3px;
     z-index: 1;
@@ -107,7 +108,7 @@
 
   .color-input input[type='text']:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
   }
 
   .color-input button {

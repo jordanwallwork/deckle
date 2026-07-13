@@ -22,9 +22,9 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background-color: #fff3cd;
-    border-bottom: 1px solid #ffc107;
-    color: #856404;
+    background-color: var(--color-warning-bg);
+    border-bottom: 1px solid var(--color-warning-border);
+    color: var(--color-warning-fg);
     font-size: 0.875rem;
     font-weight: 500;
     flex: 0 0 auto;

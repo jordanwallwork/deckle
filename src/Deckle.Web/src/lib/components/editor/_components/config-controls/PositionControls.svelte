@@ -47,7 +47,7 @@
     display: block;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-bottom: 0.5rem;
   }
 

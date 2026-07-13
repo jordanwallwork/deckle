@@ -156,7 +156,7 @@
   }
 
   .file-name-button:hover .file-name {
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
 
   .file-name {
@@ -172,7 +172,7 @@
     display: flex;
     align-items: center;
     gap: 0.125rem;
-    background: white;
+    background: var(--color-surface);
     border: 1px solid var(--color-sage);
     border-radius: var(--radius-sm);
     padding: 0.125rem 0.375rem;
@@ -196,7 +196,7 @@
   }
 
   .inline-edit-input.invalid {
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
   }
 
   .inline-edit-input:disabled {
@@ -212,7 +212,7 @@
 
   .inline-edit-error {
     font-size: 0.75rem;
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
     margin-top: 0.25rem;
   }
 </style>

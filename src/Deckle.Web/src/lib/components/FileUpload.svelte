@@ -299,13 +299,13 @@
   }
 
   .drop-zone.dragging {
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
     background-color: rgba(120, 160, 131, 0.05);
   }
 
   .drop-zone.has-file {
     border-style: solid;
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
     background-color: rgba(120, 160, 131, 0.05);
   }
 
@@ -319,7 +319,7 @@
   .upload-icon {
     width: 3rem;
     height: 3rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 
   .drop-zone-text {
@@ -350,7 +350,7 @@
   .file-icon {
     width: 2.5rem;
     height: 2.5rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     flex-shrink: 0;
   }
 
@@ -422,10 +422,10 @@
     gap: 0.5rem;
     margin-top: 1rem;
     padding: 0.75rem 1rem;
-    background-color: rgba(231, 76, 60, 0.1);
-    border: 1px solid var(--color-danger);
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-md);
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
     font-size: 0.875rem;
   }
 

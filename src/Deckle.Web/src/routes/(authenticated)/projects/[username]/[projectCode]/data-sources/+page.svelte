@@ -429,37 +429,37 @@
   .source-info h3 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     margin: 0 0 0.5rem 0;
   }
 
   .source-type {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0 0 0.25rem 0;
   }
 
   .source-updated {
     font-size: 0.75rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0 0 0.5rem 0;
     opacity: 0.8;
   }
 
   .source-link {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     text-decoration: none;
     transition: color 0.2s ease;
   }
 
   .source-link:hover {
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
 
   .source-metadata {
     font-size: 0.875rem;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     margin: 0.5rem 0 0 0;
     font-weight: 500;
   }
@@ -470,11 +470,11 @@
   }
 
   .sync-status.syncing {
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 
   .sync-status.error {
-    color: #c00;
+    color: var(--color-danger-fg);
   }
 
   .source-actions {
@@ -483,9 +483,9 @@
   }
 
   .error-message {
-    background-color: #fee;
-    border: 1px solid #fcc;
-    color: #c00;
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+    color: var(--color-danger-fg);
     padding: 0.75rem;
     border-radius: 6px;
     margin-bottom: 1rem;
@@ -499,7 +499,7 @@
   .form-group label {
     display: block;
     font-weight: 600;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     margin-bottom: 0.5rem;
     font-size: 0.875rem;
   }
@@ -507,7 +507,7 @@
   .form-group input {
     width: 100%;
     padding: 0.75rem;
-    border: 2px solid var(--color-teal-grey);
+    border: 2px solid var(--color-teal-grey-light);
     border-radius: 6px;
     font-size: 1rem;
     transition: border-color 0.2s ease;
@@ -515,22 +515,22 @@
 
   .form-group input:focus {
     outline: none;
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
   }
 
   .form-group input:disabled {
-    background-color: #f5f5f5;
+    background-color: var(--color-disabled-bg);
     cursor: not-allowed;
   }
 
   .help-text {
     font-size: 0.75rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0.5rem 0 0 0;
   }
 
   .type-chooser-description {
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0 0 1rem 0;
     font-size: 0.875rem;
   }
@@ -546,28 +546,28 @@
     flex-direction: column;
     gap: 0.25rem;
     padding: 1rem;
-    border: 2px solid var(--color-teal-grey);
+    border: 2px solid var(--color-teal-grey-light);
     border-radius: 8px;
-    background: white;
+    background: var(--color-surface);
     cursor: pointer;
     text-align: left;
     transition: all 0.2s ease;
   }
 
   .type-option:hover {
-    border-color: var(--color-muted-teal);
-    background-color: var(--color-background, #f9fafb);
+    border-color: var(--color-secondary-fg);
+    background-color: var(--color-bg-subtle);
   }
 
   .type-option-title {
     font-weight: 600;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     font-size: 1rem;
   }
 
   .type-option-desc {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 </style>
 

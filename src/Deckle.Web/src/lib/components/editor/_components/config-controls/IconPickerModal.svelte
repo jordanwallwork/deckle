@@ -180,11 +180,9 @@
   }
 
   .modal {
-    background: white;
+    background: var(--color-surface);
     border-radius: 8px;
-    box-shadow:
-      0 20px 25px -5px rgba(0, 0, 0, 0.1),
-      0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-lg);
     width: 90%;
     max-width: 540px;
     max-height: 85vh;
@@ -197,14 +195,14 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.25rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .modal-header h2 {
     margin: 0;
     font-size: 1.125rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--color-text-primary);
   }
 
   .close-button {
@@ -212,7 +210,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     border-radius: 4px;
     display: flex;
     align-items: center;
@@ -220,8 +218,8 @@
   }
 
   .close-button:hover {
-    background: #f3f4f6;
-    color: #111827;
+    background: var(--color-bg-subtle);
+    color: var(--color-text-primary);
   }
 
   .modal-body {
@@ -241,15 +239,17 @@
     width: 100%;
     padding: 0.625rem 0.75rem;
     font-size: 0.875rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     box-sizing: border-box;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
   }
 
   .search-input:focus {
     outline: none;
-    border-color: #0066cc;
-    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    border-color: var(--color-accent-fg);
+    box-shadow: 0 0 0 3px rgba(143, 191, 155, 0.15);
   }
 
   .search-input:disabled {
@@ -262,7 +262,7 @@
     min-height: 200px;
     max-height: 400px;
     overflow-y: auto;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--color-border);
     border-radius: 6px;
   }
 
@@ -281,24 +281,24 @@
     padding: 0.625rem 0;
     border: 1px solid transparent;
     border-radius: 6px;
-    background: white;
+    background: var(--color-surface);
     cursor: pointer;
     transition: all 0.15s;
   }
 
   .icon-card:hover {
-    border-color: #0066cc;
-    background: #f8faff;
+    border-color: var(--color-accent-fg);
+    background: var(--color-bg-subtle);
   }
 
   .icon-card :global(.icon-preview) {
     font-size: 1.25rem;
-    color: #374151;
+    color: var(--color-text-secondary);
   }
 
   .icon-name {
     font-size: 0.625rem;
-    color: #9ca3af;
+    color: var(--color-text-secondary);
     text-align: center;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -312,7 +312,7 @@
     justify-content: center;
     height: 100%;
     min-height: 150px;
-    color: #9ca3af;
+    color: var(--color-text-secondary);
     font-size: 0.875rem;
   }
 
@@ -324,15 +324,15 @@
     gap: 0.75rem;
     height: 100%;
     min-height: 150px;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     font-size: 0.875rem;
   }
 
   .spinner {
     width: 28px;
     height: 28px;
-    border: 3px solid #e5e7eb;
-    border-top-color: #0066cc;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-accent-fg);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
@@ -351,21 +351,21 @@
     gap: 0.75rem;
     height: 100%;
     min-height: 150px;
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
     font-size: 0.875rem;
   }
 
   .retry-button {
     padding: 0.375rem 0.75rem;
     font-size: 0.8125rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 6px;
-    background: white;
-    color: #374151;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     cursor: pointer;
   }
 
   .retry-button:hover {
-    background: #f3f4f6;
+    background: var(--color-bg-subtle);
   }
 </style>

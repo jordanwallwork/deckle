@@ -139,9 +139,9 @@
 <style>
   .data-table-container {
     overflow-x: auto;
-    background-color: white;
+    background-color: var(--color-surface);
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
   }
 
   .data-table {
@@ -175,7 +175,7 @@
   }
 
   th.sortable:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--color-bg-subtle);
   }
 
   .header-content {
@@ -193,12 +193,12 @@
 
   td {
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--color-border);
     color: var(--color-text, #333);
   }
 
   tbody tr:hover {
-    background-color: #fafafa;
+    background-color: var(--color-bg-subtle);
   }
 
   tbody tr:last-child td {
@@ -207,7 +207,7 @@
 
   .showing-preview {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     text-align: center;
     margin: 0.5rem 0 0 0;
     padding: 0.5rem;

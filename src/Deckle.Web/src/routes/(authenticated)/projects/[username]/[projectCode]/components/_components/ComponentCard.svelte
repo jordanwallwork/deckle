@@ -96,7 +96,7 @@
   h3 {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     margin: 0;
     flex: 1;
   }
@@ -108,7 +108,7 @@
   }
 
   :global(.edit-button) {
-    color: var(--color-muted-teal) !important;
+    color: var(--color-secondary-fg) !important;
   }
 
   :global(.edit-button:hover) {
@@ -117,11 +117,11 @@
   }
 
   :global(.delete-button) {
-    color: var(--color-danger) !important;
+    color: var(--color-danger-fg) !important;
   }
 
   :global(.delete-button:hover) {
-    background-color: #ffebee !important;
-    color: #b71c1c !important;
+    background-color: var(--color-danger-bg) !important;
+    color: var(--color-danger-hover) !important;
   }
 </style>

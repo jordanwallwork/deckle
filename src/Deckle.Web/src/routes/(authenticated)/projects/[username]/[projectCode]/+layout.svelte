@@ -57,10 +57,10 @@
   });
 </script>
 
-<!-- theme-light: the project workspace (editor, tabletop, data sources, image
-     library, export) is not yet dark-converted. Lock the whole subtree —
-     including the tab strip — light to avoid a mid-page inversion. -->
-<div class="project-workspace theme-light">
+<!-- Components, data sources, image library, settings, and the design editor
+     are dark-converted. The spreadsheet editor, tabletop, and export are not yet
+     converted and lock themselves light individually (Page Theme Lock). -->
+<div class="project-workspace">
   {#if !$maxScreen}
     <Tabs {tabs} />
   {/if}

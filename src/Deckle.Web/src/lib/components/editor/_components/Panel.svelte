@@ -56,8 +56,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.5rem 1rem;
-    border-bottom: 1px solid #e5e5e7;
-    background: #fafafa;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-subtle);
     min-height: 2.5rem;
   }
 
@@ -71,7 +71,7 @@
     margin: 0;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--color-text-primary);
   }
 
   .panel-subtitle {

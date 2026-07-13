@@ -344,13 +344,13 @@
   .checkbox {
     width: 1.125rem;
     height: 1.125rem;
-    border: 2px solid #bbb;
+    border: 2px solid var(--color-disabled-border);
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.15s ease;
-    background: white;
+    background: var(--color-surface);
   }
 
   .checkbox:hover {
@@ -371,14 +371,14 @@
     width: 1.25rem;
     height: 2.5rem;
     cursor: grab;
-    color: #999;
+    color: var(--color-text-muted);
     opacity: 0.5;
     transition: opacity 0.15s ease, color 0.15s ease;
   }
 
   .drag-handle:hover {
     opacity: 1;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
 
   .drag-handle:active {
@@ -455,7 +455,7 @@
   }
 
   .row-name-button:not(:disabled):hover .row-name {
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
 
   .row-name-input {

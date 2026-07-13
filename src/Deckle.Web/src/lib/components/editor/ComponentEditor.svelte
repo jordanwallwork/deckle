@@ -266,7 +266,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: #f5f5f5;
+    background: var(--color-bg-primary);
   }
 
   /* Main editor area (between readonly banner and data source) */
@@ -283,8 +283,8 @@
     display: none;
     padding: 0.5rem;
     gap: 0.5rem;
-    background: white;
-    border-bottom: 1px solid #e5e5e7;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
     flex: 0 0 auto;
   }
 
@@ -293,25 +293,25 @@
     align-items: center;
     gap: 0.375rem;
     padding: 0.5rem 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     border-radius: 6px;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--color-text-primary);
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .panel-toggle:hover {
-    background: #f9fafb;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .panel-toggle.active {
-    background: #3b82f6;
+    background: var(--color-accent-solid);
     color: white;
-    border-color: #3b82f6;
+    border-color: var(--color-accent-solid);
   }
 
   /* Panels container - holds side panels and main panel */
@@ -330,8 +330,8 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: white;
-    border: 1px solid #e5e5e7;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     overflow: hidden;
   }
 
@@ -359,8 +359,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: white;
-    border: 1px solid #e5e5e7;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
   }
 
   /* Overlay for mobile - hidden by default */
@@ -377,8 +377,8 @@
   /* Data source panel container */
   .data-source-container {
     flex: 0 0 auto;
-    border-top: 1px solid #e5e5e7;
-    background: white;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
   }
 
   /* Mobile styles */
@@ -397,13 +397,13 @@
       z-index: 20;
       transform: translateX(-100%);
       transition: transform 0.25s ease;
-      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+      box-shadow: var(--shadow-lg);
     }
 
     .structure-panel {
       width: 300px;
       left: 0;
-      border-right: 1px solid #e5e5e7;
+      border-right: 1px solid var(--color-border);
     }
 
     .structure-panel.open {
@@ -414,8 +414,8 @@
       right: 0;
       left: auto;
       transform: translateX(100%);
-      border-left: 1px solid #e5e5e7;
-      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+      border-left: 1px solid var(--color-border);
+      box-shadow: var(--shadow-lg);
     }
 
     .config-panel.open {

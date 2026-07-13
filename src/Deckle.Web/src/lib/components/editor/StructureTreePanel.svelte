@@ -105,8 +105,8 @@
   }
 
   .tree-container.drag-over {
-    background: #d4edda;
-    outline: 2px dashed #28a745;
+    background: rgba(74, 222, 128, 0.12);
+    outline: 2px dashed var(--color-success);
     outline-offset: -4px;
   }
 </style>

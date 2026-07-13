@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { DiceComponent } from '$lib/types';
+  import { prefersReducedMotion } from '$lib/utils/reducedMotion';
   import { untrack } from 'svelte';
 
   let { component, currentValue }: { component: DiceComponent; currentValue?: number } = $props();
@@ -58,6 +59,14 @@
     }
 
     if (target === undefined) return;
+
+    // Reduced motion: settle on the result immediately — no tumble, no
+    // random intermediate frames.
+    if (prefersReducedMotion()) {
+      animatedValue = target;
+      isRolling = false;
+      return;
+    }
 
     isRolling = true;
 

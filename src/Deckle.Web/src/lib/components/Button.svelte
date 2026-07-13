@@ -73,19 +73,19 @@
   .btn.sm {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
   }
 
   .btn.md {
     padding: 0.625rem 1.25rem;
     font-size: 0.9375rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
   }
 
   .btn.lg {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
   }
 
   /* Primary variant */
@@ -142,7 +142,7 @@
   .btn.icon {
     background: none;
     padding: 0.25rem;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     color: inherit;
   }
 

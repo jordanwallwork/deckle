@@ -232,7 +232,7 @@
     color: var(--color-text);
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     resize: vertical;
     line-height: 1.6;
   }
@@ -247,7 +247,7 @@
     padding: 0.625rem 0.875rem;
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     font-size: 0.9375rem;
     color: var(--color-text);
     line-height: 1.6;
@@ -292,7 +292,7 @@
     color: var(--color-text);
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     min-width: 0;
   }
 
@@ -319,7 +319,7 @@
     justify-content: center;
     background: none;
     border: 1px solid rgba(220, 38, 38, 0.3);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     color: var(--color-danger-fg);
     font-size: 1.125rem;
     cursor: pointer;

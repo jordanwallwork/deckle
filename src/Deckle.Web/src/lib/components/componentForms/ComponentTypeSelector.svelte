@@ -39,7 +39,7 @@
   .type-card {
     background-color: var(--color-surface);
     border: 2px solid var(--color-secondary-fg);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 2rem 1.5rem;
     text-align: center;
     cursor: pointer;

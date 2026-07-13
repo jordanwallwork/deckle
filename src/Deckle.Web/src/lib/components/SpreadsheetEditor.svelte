@@ -166,7 +166,7 @@
     overflow-y: auto;
     max-height: 70vh;
     background-color: white;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
@@ -279,7 +279,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     padding: 0;
   }
 
@@ -333,7 +333,7 @@
     color: #6b7280;
     font-size: 0.8125rem;
     cursor: pointer;
-    border-radius: 0.375rem;
+    border-radius: var(--radius-sm);
     transition: all 0.2s;
   }
 

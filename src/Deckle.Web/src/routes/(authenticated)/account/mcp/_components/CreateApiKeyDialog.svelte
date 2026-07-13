@@ -226,7 +226,7 @@
     font-family: monospace;
     background: var(--color-bg-subtle, #f0f0f0);
     padding: 0.1em 0.3em;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     font-size: 0.85em;
   }
 </style>

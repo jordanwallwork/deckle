@@ -183,7 +183,7 @@
     cursor: pointer;
     padding: 0.5rem;
     margin-right: 0.25rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     transition: background-color 0.2s ease;
   }
 
@@ -276,7 +276,7 @@
     gap: 0.75rem;
     cursor: pointer;
     padding: 0.5rem 0.75rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     transition: background-color 0.2s ease;
     background: none;
     border: none;
@@ -303,7 +303,7 @@
     padding: 0 0.125rem;
     line-height: 1;
     font-family: inherit;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     transition: background-color 0.2s ease;
   }
 
@@ -321,7 +321,7 @@
     font-size: 0.875rem;
     font-weight: 500;
     padding: 0.5rem 0.75rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--color-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     white-space: nowrap;
@@ -347,7 +347,7 @@
     min-width: 220px;
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     z-index: 89;
@@ -423,7 +423,7 @@
     color: white;
     cursor: pointer;
     padding: 0.5rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     transition: background-color 0.2s ease;
   }
 
@@ -438,7 +438,7 @@
     min-width: 180px;
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     z-index: 89;

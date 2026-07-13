@@ -116,16 +116,17 @@
   .zoom-btn {
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .zoom-btn:hover:not(:disabled) {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .zoom-btn:disabled {
@@ -153,9 +154,10 @@
   .zoom-input {
     padding: 0.25rem 1.5rem 0.25rem 0.5rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 0;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     width: 3.5rem;
     text-align: right;
   }
@@ -175,7 +177,7 @@
     position: absolute;
     right: 0.5rem;
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     pointer-events: none;
   }
 </style>

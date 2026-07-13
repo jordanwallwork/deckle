@@ -203,6 +203,6 @@
   }
 
   a:hover {
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 </style>

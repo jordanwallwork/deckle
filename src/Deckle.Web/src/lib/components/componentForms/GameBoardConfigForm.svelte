@@ -276,12 +276,12 @@
 
   .radio-option span {
     font-size: 0.875rem;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
   }
 
   .dimension-hint {
     font-size: 0.8rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0.25rem 0 0.75rem 0;
   }
 
@@ -298,7 +298,7 @@
     padding: 0.75rem 0;
     cursor: pointer;
     font-size: 0.875rem;
-    color: var(--text-secondary, #666);
+    color: var(--color-text-secondary);
   }
 
   .horizontal-toggle input[type='checkbox'] {
@@ -312,7 +312,7 @@
   }
 
   .field-error {
-    color: #d32f2f;
+    color: var(--color-danger);
     font-size: 0.75rem;
     margin: 0.25rem 0 0 0;
   }

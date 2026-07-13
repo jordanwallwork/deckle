@@ -43,11 +43,11 @@
   label {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-sage-dark);
   }
 
   .required {
-    color: #d32f2f;
+    color: var(--color-danger-fg);
     margin-left: 0.25rem;
   }
 
@@ -59,7 +59,7 @@
 
   .field-error {
     font-size: 0.8125rem;
-    color: #d32f2f;
+    color: var(--color-danger-fg);
     margin-top: -0.25rem;
   }
 </style>

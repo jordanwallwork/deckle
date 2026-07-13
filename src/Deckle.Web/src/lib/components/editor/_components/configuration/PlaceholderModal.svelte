@@ -138,7 +138,7 @@
   .form-field label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   .form-field input[type='text'],
@@ -147,9 +147,10 @@
     padding: 0.375rem 0.5rem;
     font-size: 0.813rem;
     line-height: 1.25rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     font-family: inherit;
     box-sizing: border-box;
     height: 2.125rem;
@@ -157,7 +158,7 @@
 
   .form-field input:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
   }
 
   .color-input-group {
@@ -169,7 +170,7 @@
   .hash-prefix {
     position: absolute;
     left: 0.5rem;
-    color: #666;
+    color: var(--color-text-secondary);
     font-size: 0.813rem;
     pointer-events: none;
   }
@@ -185,7 +186,7 @@
     width: 1.5rem;
     height: 1.5rem;
     border-radius: 4px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     pointer-events: none;
   }
 
@@ -199,14 +200,14 @@
   .preview-section label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   .preview-container {
-    border: 2px solid #d1d5db;
+    border: 2px solid var(--color-border);
     border-radius: 8px;
     padding: 1rem;
-    background: #f9fafb;
+    background: var(--color-bg-subtle);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -221,11 +222,11 @@
 
   .preview-url {
     font-size: 0.75rem;
-    color: #666;
+    color: var(--color-text-secondary);
     word-break: break-all;
     margin: 0;
     padding: 0.5rem;
-    background: #f3f4f6;
+    background: var(--color-bg-subtle);
     border-radius: 4px;
   }
 </style>

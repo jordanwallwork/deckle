@@ -67,7 +67,7 @@
     position: absolute;
     right: 0.75rem;
     font-size: 0.813rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     pointer-events: none;
     user-select: none;
   }

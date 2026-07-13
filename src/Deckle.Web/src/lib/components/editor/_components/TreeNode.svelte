@@ -431,36 +431,36 @@
   }
 
   .node-content:hover {
-    background: #f5f5f5;
+    background: var(--color-bg-subtle);
   }
 
   .node-content.hovered {
-    background: #f0f7ff;
+    background: rgba(0, 102, 204, 0.1);
     border: 1px dashed #0066cc;
     margin: 0;
   }
 
   .node-content.selected {
-    background: #e6f2ff;
+    background: rgba(0, 102, 204, 0.16);
     border: 2px solid #0066cc;
     margin: 0;
   }
 
   .node-content.drag-over {
-    background: #d4edda;
-    border: 2px dashed #28a745;
+    background: rgba(74, 222, 128, 0.12);
+    border: 2px dashed var(--color-success);
     margin: 0;
   }
 
   .node-content.root {
     cursor: pointer;
     font-weight: 600;
-    background: #fafafa;
+    background: var(--color-bg-subtle);
   }
 
   .node-content.root.drag-over {
-    background: #d4edda;
-    border: 2px dashed #28a745;
+    background: rgba(74, 222, 128, 0.12);
+    border: 2px dashed var(--color-success);
   }
 
   .node-content.invisible {
@@ -477,7 +477,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: #666;
+    color: var(--color-text-secondary);
     transition: transform 0.2s ease;
   }
 
@@ -496,7 +496,7 @@
 
   :global(.drag-handle) {
     flex-shrink: 0;
-    color: #999;
+    color: var(--color-text-secondary);
     cursor: grab;
     opacity: 0.5;
     transition: opacity 0.15s ease;
@@ -508,19 +508,19 @@
 
   .node-icon {
     flex-shrink: 0;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   :global(.lock-icon) {
     flex-shrink: 0;
-    color: #999;
+    color: var(--color-text-secondary);
     margin-left: 0.25rem;
   }
 
   .node-label {
     flex: 1;
     font-size: 0.813rem;
-    color: #1a1a1a;
+    color: var(--color-text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -530,11 +530,11 @@
   .label-input {
     flex: 1;
     font-size: 0.813rem;
-    color: #1a1a1a;
+    color: var(--color-text-primary);
     padding: 0.125rem 0.25rem;
     border: 1px solid #0066cc;
     border-radius: 3px;
-    background: white;
+    background: var(--color-surface);
     outline: none;
     font-family: inherit;
   }
@@ -545,7 +545,7 @@
   }
 
   .root-label {
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   .node-actions {
@@ -567,23 +567,23 @@
     width: 1.5rem;
     height: 1.5rem;
     padding: 0;
-    background: white;
-    border: 1px solid #d0d0d0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 3px;
     cursor: pointer;
-    color: #666;
+    color: var(--color-text-secondary);
     transition: all 0.15s ease;
   }
 
   .action-button:hover {
-    background: #f0f0f0;
-    color: #1a1a1a;
+    background: var(--color-bg-subtle);
+    color: var(--color-text-primary);
   }
 
   .action-button.delete:hover {
-    background: #fff0f0;
-    color: #cc0000;
-    border-color: #cc0000;
+    background: var(--color-danger-bg);
+    color: var(--color-danger-fg);
+    border-color: var(--color-danger-fg);
   }
 
   .node-children {

@@ -3,7 +3,8 @@
   import type { CurrentUser } from '$lib/types';
   import Avatar from './Avatar.svelte';
   import LogoMark from './LogoMark.svelte';
-  import { SettingsIcon, LogoutIcon, MenuIcon, PlugIcon } from './icons';
+  import { SettingsIcon, LogoutIcon, MenuIcon, PlugIcon, SunIcon, MoonIcon } from './icons';
+  import { theme } from '$lib/stores/theme.svelte';
   import { topbarProject } from '$lib/stores/topbarProject';
   import { topbarTabs } from '$lib/stores/topbarTabs';
   import { page } from '$app/stores';
@@ -87,6 +88,18 @@
     </div>
 
     <div class="topbar-right">
+      <button
+        class="theme-toggle"
+        onclick={() => theme.toggle()}
+        aria-label={theme.current === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        title={theme.current === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+      >
+        {#if theme.current === 'dark'}
+          <SunIcon size={18} />
+        {:else}
+          <MoonIcon size={18} />
+        {/if}
+      </button>
       {#if $topbarTabs.length > 0}
         <div class="hamburger-menu" class:visible={maxScreen}>
           <button class="hamburger-btn" onclick={toggleHamburger} aria-label="Open navigation menu">
@@ -154,10 +167,28 @@
 <style>
   .topbar {
     height: 60px;
-    background-color: var(--color-sage);
+    background-color: var(--color-accent-solid);
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     z-index: 100;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+    margin-right: 0.25rem;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+  }
+
+  .theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
   }
 
   .topbar-content {
@@ -191,7 +222,7 @@
   }
 
   .project-owner {
-    opacity: 0.8;
+    opacity: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -285,13 +316,13 @@
     top: calc(100% + 0.5rem);
     left: 50%;
     transform: translateX(-50%);
-    background-color: white;
-    color: var(--color-sage);
+    background-color: var(--color-surface);
+    color: var(--color-accent-fg);
     font-size: 0.875rem;
     font-weight: 500;
     padding: 0.5rem 0.75rem;
     border-radius: 6px;
-    border: 1px solid rgba(52, 73, 86, 0.15);
+    border: 1px solid var(--color-border);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     white-space: nowrap;
     z-index: 89;
@@ -314,8 +345,8 @@
     top: calc(100% + 0.5rem);
     right: 0;
     min-width: 220px;
-    background-color: white;
-    border: 1px solid rgba(52, 73, 86, 0.15);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     overflow: hidden;
@@ -330,18 +361,18 @@
   .dropdown-user-name {
     font-weight: 600;
     font-size: 0.875rem;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
   }
 
   .dropdown-user-email {
     font-size: 0.75rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin-top: 0.125rem;
   }
 
   .dropdown-divider {
     height: 1px;
-    background-color: rgba(52, 73, 86, 0.1);
+    background-color: var(--color-border);
   }
 
   .dropdown-item {
@@ -355,7 +386,7 @@
     border: none;
     cursor: pointer;
     font-size: 0.875rem;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     text-decoration: none;
     transition: background-color 0.2s ease;
     font-family: inherit;
@@ -405,8 +436,8 @@
     top: calc(100% + 0.5rem);
     right: 0;
     min-width: 180px;
-    background-color: white;
-    border: 1px solid rgba(52, 73, 86, 0.15);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     overflow: hidden;
@@ -416,7 +447,7 @@
   .hamburger-item {
     display: block;
     padding: 0.75rem 1rem;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     text-decoration: none;
     font-size: 0.9rem;
     font-weight: 500;

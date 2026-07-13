@@ -119,4 +119,16 @@
     justify-content: center;
     align-items: center;
   }
+
+  /* Mat/pasteboard behind the canvas, not a transparency indicator for the
+     design itself (the card always renders with a white fallback background) -
+     so it can follow the theme rather than staying fixed. Kept low-contrast
+     between the two checker tones so it doesn't compete with card content. */
+  :global(:root[data-theme='dark']) .component-viewer {
+    background: repeating-conic-gradient(
+        var(--color-bg-primary) 0 25%,
+        var(--color-bg-subtle) 0 50%
+      )
+      50% / 8px 8px;
+  }
 </style>

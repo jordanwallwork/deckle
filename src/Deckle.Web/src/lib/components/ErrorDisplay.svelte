@@ -70,7 +70,7 @@
   }
 
   .error-title {
-    color: #c0392b;
+    color: var(--color-danger-hover);
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0 0 0.5rem 0;

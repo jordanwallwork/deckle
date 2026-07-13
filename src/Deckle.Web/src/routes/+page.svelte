@@ -207,20 +207,20 @@
   h1 {
     font-size: 3rem;
     font-weight: 700;
-    color: var(--color-sage);
+    color: white;
     margin-bottom: 0.5rem;
     letter-spacing: -0.02em;
   }
 
   .subtitle {
     font-size: 1rem;
-    color: var(--color-muted-teal);
+    color: rgba(255, 255, 255, 0.85);
     margin-bottom: 2rem;
     line-height: 1.6;
   }
 
   .auth-card {
-    background: white;
+    background: var(--color-surface);
     border-radius: 16px;
     padding: 2rem;
     box-shadow: var(--shadow-lg);
@@ -236,8 +236,8 @@
     padding: 0.75rem 1rem;
     font-size: 0.9375rem;
     font-weight: 500;
-    color: #374151;
-    background: white;
+    color: var(--color-text-primary);
+    background: var(--color-surface);
     border: 2px solid var(--color-border);
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -245,7 +245,7 @@
   }
 
   .google-button:hover {
-    border-color: #9ca3af;
+    border-color: var(--color-text-secondary);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
@@ -293,7 +293,7 @@
   }
 
   .tab-button.active {
-    background: var(--color-sage);
+    background: var(--color-accent-solid);
     color: white;
   }
 
@@ -311,7 +311,7 @@
   .form-field label {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--color-teal-grey);
+    color: var(--color-text-primary);
   }
 
   .form-field input {
@@ -319,28 +319,28 @@
     font-size: 1rem;
     border: 2px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: white;
+    background: var(--color-surface);
     color: var(--color-text-primary);
     transition: border-color 0.2s, box-shadow 0.2s;
   }
 
   .form-field input:focus {
     outline: none;
-    border-color: var(--color-sage);
+    border-color: var(--color-sage-dark);
     box-shadow: 0 0 0 3px rgba(120, 160, 131, 0.15);
   }
 
   .form-field input:disabled {
-    background: #f9fafb;
+    background: var(--color-disabled-bg);
     cursor: not-allowed;
   }
 
   .error-message {
     padding: 0.75rem 1rem;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-md);
-    color: #dc2626;
+    color: var(--color-danger-fg);
     font-size: 0.875rem;
     margin-bottom: 1rem;
   }
@@ -351,7 +351,7 @@
     font-size: 1rem;
     font-weight: 600;
     color: white;
-    background: var(--color-sage);
+    background: var(--color-accent-solid);
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -363,11 +363,11 @@
   }
 
   .submit-button:hover:not(:disabled) {
-    background: var(--color-muted-teal);
+    background: var(--color-accent-solid-hover);
   }
 
   .submit-button:disabled {
-    background: #d1d5db;
+    background: var(--color-disabled-border);
     cursor: not-allowed;
   }
 
@@ -396,7 +396,7 @@
     background: none;
     border: none;
     padding: 0;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     font-size: inherit;
     font-weight: 600;
     cursor: pointer;
@@ -404,7 +404,7 @@
   }
 
   .link-button:hover {
-    color: var(--color-muted-teal);
+    color: var(--color-accent-fg-hover);
   }
 
   @media (max-width: 480px) {

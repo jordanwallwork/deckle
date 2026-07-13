@@ -255,11 +255,11 @@
   .error {
     text-align: center;
     padding: 3rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 
   .error a {
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     text-decoration: underline;
   }
 
@@ -283,14 +283,14 @@
   .title-area h1 {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     margin: 0;
   }
 
   .edit-icon-button {
     background: none;
     border: none;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     cursor: pointer;
     padding: 0.25rem;
     display: flex;
@@ -301,7 +301,7 @@
   }
 
   .edit-icon-button:hover {
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     background-color: var(--color-teal-grey);
   }
 
@@ -314,21 +314,21 @@
   .name-input {
     font-size: 2rem;
     font-weight: 700;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     padding: 0.5rem;
-    border: 2px solid var(--color-teal-grey);
+    border: 2px solid var(--color-teal-grey-light);
     border-radius: 6px;
-    background-color: white;
+    background-color: var(--color-surface);
     transition: border-color 0.2s ease;
   }
 
   .name-input:focus {
     outline: none;
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
   }
 
   .name-input:disabled {
-    background-color: #f5f5f5;
+    background-color: var(--color-disabled-bg);
     cursor: not-allowed;
   }
 
@@ -354,7 +354,7 @@
   }
 
   .save-button:hover:not(:disabled) {
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
   }
 
   .save-button:disabled {
@@ -363,17 +363,17 @@
   }
 
   .cancel-button {
-    background-color: #e0e0e0;
-    color: #333;
+    background-color: var(--color-disabled-bg);
+    color: var(--color-text);
   }
 
   .cancel-button:hover:not(:disabled) {
-    background-color: #d0d0d0;
+    background-color: var(--color-disabled-border);
   }
 
   .type {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -396,7 +396,7 @@
 
   .data-summary {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0;
   }
 
@@ -408,22 +408,22 @@
   .empty-state p {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     margin-bottom: 0.5rem;
   }
 
   .empty-subtitle {
     font-size: 1rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 
   .empty-subtitle a {
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     text-decoration: underline;
   }
 
   .empty-subtitle a:hover {
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
   }
 </style>
 

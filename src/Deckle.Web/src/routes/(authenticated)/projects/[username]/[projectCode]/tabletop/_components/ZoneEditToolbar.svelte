@@ -270,6 +270,6 @@
   .edit-btn.delete:hover {
     background: #7f1d1d;
     border-color: #991b1b;
-    color: #fecaca;
+    color: var(--color-danger-border);
   }
 </style>

@@ -57,15 +57,27 @@
   });
 </script>
 
-{#if !$maxScreen}
-  <Tabs {tabs} />
-{/if}
+<!-- Components, data sources, image library, settings, and the design editor
+     are dark-converted. The spreadsheet editor, tabletop, and export are not yet
+     converted and lock themselves light individually (Page Theme Lock). -->
+<div class="project-workspace">
+  {#if !$maxScreen}
+    <Tabs {tabs} />
+  {/if}
 
-<div class="project-page-content" class:nopadding={$maxScreen}>
-  {@render children()}
+  <div class="project-page-content" class:nopadding={$maxScreen}>
+    {@render children()}
+  </div>
 </div>
 
 <style>
+  .project-workspace {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .project-page-content {
     flex: 1;
     min-height: 0;

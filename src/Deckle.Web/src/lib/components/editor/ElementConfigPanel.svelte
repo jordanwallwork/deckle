@@ -57,7 +57,7 @@
   .empty-state {
     text-align: center;
     padding: 2rem 1rem;
-    color: #999;
+    color: var(--color-text-secondary);
   }
 
   .empty-state p {

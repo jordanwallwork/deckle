@@ -133,7 +133,7 @@
     padding: 0;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    background: white;
+    background: var(--color-surface);
     color: var(--color-text-muted);
     cursor: pointer;
     display: flex;
@@ -144,12 +144,12 @@
 
   .action-button:hover {
     border-color: var(--color-sage);
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
   }
 
   .action-button.delete:hover {
     border-color: var(--color-danger);
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
   }
 
   .action-button:disabled {

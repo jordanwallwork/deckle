@@ -144,13 +144,13 @@
 
 <style>
 	.error-message {
-		color: #d32f2f;
+		color: var(--color-danger-fg);
 		font-size: 0.875rem;
 		margin: 1rem 0 0 0;
 		padding: 0.75rem;
-		background-color: #ffebee;
+		background-color: var(--color-danger-bg);
 		border-radius: 8px;
-		border: 1px solid #ef9a9a;
+		border: 1px solid var(--color-danger-border);
 	}
 
 	.dialog-body-with-preview {

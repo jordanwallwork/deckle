@@ -159,10 +159,10 @@
 <style>
   .context-menu {
     position: fixed;
-    background: white;
+    background: var(--color-surface);
     border: 1px solid var(--color-border, #d1d5db);
     border-radius: var(--radius-md, 6px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-lg);
     min-width: 140px;
     padding: 4px;
     z-index: 1000;
@@ -182,7 +182,7 @@
   }
 
   .menu-item:hover:not(.disabled) {
-    background-color: #f3f4f6;
+    background-color: var(--color-bg-subtle);
   }
 
   .menu-item.disabled {
@@ -191,11 +191,11 @@
   }
 
   .menu-item.danger {
-    color: var(--color-danger, #dc2626);
+    color: var(--color-danger-fg);
   }
 
   .menu-item.danger:hover:not(.disabled) {
-    background-color: #fef2f2;
+    background-color: var(--color-danger-bg);
   }
 
   .menu-item.has-submenu {
@@ -215,10 +215,10 @@
 
   .submenu {
     position: absolute;
-    background: white;
+    background: var(--color-surface);
     border: 1px solid var(--color-border, #d1d5db);
     border-radius: var(--radius-md, 6px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-lg);
     min-width: 140px;
     padding: 4px;
     z-index: 1001;

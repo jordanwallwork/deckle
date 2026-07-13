@@ -111,7 +111,7 @@
   }
 
   .quota-percentage.critical {
-    color: #e74c3c;
+    color: var(--color-danger);
   }
 
   .quota-bar {
@@ -141,7 +141,7 @@
   }
 
   .quota-fill.critical {
-    background: linear-gradient(90deg, #e74c3c, #c0392b);
+    background: linear-gradient(90deg, var(--color-danger), var(--color-danger-hover));
   }
 
   .quota-details {
@@ -183,7 +183,7 @@
 
   .quota-percentage.critical + .quota-bar .quota-fill.critical ~ .quota-warning {
     background-color: rgba(231, 76, 60, 0.1);
-    border-color: #e74c3c;
+    border-color: var(--color-danger);
   }
 
   .warning-icon {
@@ -204,7 +204,7 @@
   /* Adjust warning color for critical state */
   .quota-percentage.critical ~ .quota-warning .warning-icon,
   .quota-percentage.critical ~ .quota-warning .warning-text {
-    color: #e74c3c;
+    color: var(--color-danger);
   }
 
   /* Responsive adjustments */

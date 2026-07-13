@@ -50,7 +50,7 @@
 <style>
   .confirm-message {
     font-size: 1rem;
-    color: var(--color-sage);
+    color: var(--color-text-primary);
     line-height: 1.6;
     margin: 0;
   }

@@ -113,7 +113,7 @@
   .error {
     margin: 0 0 1rem;
     font-size: 0.875rem;
-    color: var(--color-danger, #c0392b);
+    color: var(--color-danger);
   }
 
   .empty {
@@ -184,7 +184,7 @@
   }
 
   .delete-btn:hover:not(:disabled) {
-    color: var(--color-danger, #c0392b);
+    color: var(--color-danger);
     background-color: rgba(192, 57, 43, 0.08);
   }
 

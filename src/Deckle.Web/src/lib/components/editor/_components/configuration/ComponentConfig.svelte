@@ -116,7 +116,7 @@
     font-size: 0.813rem;
     font-weight: 600;
     margin: 1rem 0 0.5rem 0;
-    color: #555;
+    color: var(--color-text-secondary);
   }
 
   .info-group {
@@ -136,12 +136,12 @@
   .info-label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   .info-value {
     font-size: 0.813rem;
-    color: #1a1a1a;
+    color: var(--color-text-primary);
     font-weight: 500;
   }
 

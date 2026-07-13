@@ -70,43 +70,43 @@
     width: 20px;
     height: 20px;
     padding: 0;
-    background-color: white;
+    background-color: var(--color-surface);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
   /* Color variants - Default (Sage) */
   .badge.default {
     background-color: rgba(120, 160, 131, 0.1);
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
   }
 
   /* Primary (Muted Teal) */
   .badge.primary {
     background-color: rgba(80, 114, 123, 0.1);
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 
   /* Success (Green) */
   .badge.success {
     background-color: rgba(46, 213, 115, 0.1);
-    color: #2ed573;
+    color: var(--color-success);
   }
 
   /* Warning (Orange) */
   .badge.warning {
     background-color: rgba(255, 177, 66, 0.1);
-    color: #ffb142;
+    color: var(--color-warning);
   }
 
   /* Danger (Red) */
   .badge.danger {
     background-color: rgba(255, 71, 87, 0.1);
-    color: #ff4757;
+    color: var(--color-danger-fg);
   }
 
   /* Info (Blue) */
   .badge.info {
     background-color: rgba(52, 152, 219, 0.1);
-    color: #3498db;
+    color: var(--color-info);
   }
 </style>

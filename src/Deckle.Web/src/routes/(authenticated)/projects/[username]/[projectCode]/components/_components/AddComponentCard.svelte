@@ -33,7 +33,7 @@
     background: none;
     border: 1.5px dashed var(--color-border);
     border-radius: var(--radius-lg);
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 0.9375rem;
@@ -42,14 +42,14 @@
   }
 
   .add-card:hover {
-    border-color: var(--color-muted-teal);
-    background-color: color-mix(in srgb, var(--color-muted-teal) 5%, transparent);
+    border-color: var(--color-secondary-fg);
+    background-color: color-mix(in srgb, var(--color-secondary-fg) 5%, transparent);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
 
   .add-card:focus-visible {
-    outline: 2px solid var(--color-muted-teal);
+    outline: 2px solid var(--color-secondary-fg);
     outline-offset: 2px;
   }
 </style>

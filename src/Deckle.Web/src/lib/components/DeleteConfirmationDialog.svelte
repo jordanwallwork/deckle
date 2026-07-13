@@ -110,7 +110,7 @@
 
   .confirmation-input:focus {
     outline: none;
-    border-color: var(--color-danger, #d32f2f);
+    border-color: var(--color-danger);
   }
 
   .confirmation-input:disabled {
@@ -120,7 +120,7 @@
   }
 
   .error-message {
-    color: #d32f2f;
+    color: var(--color-danger);
     font-size: 0.875rem;
     padding: 0.75rem;
     background-color: #ffebee;

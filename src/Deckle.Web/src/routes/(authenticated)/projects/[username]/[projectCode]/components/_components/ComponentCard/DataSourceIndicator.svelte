@@ -42,7 +42,7 @@
   .design-link {
     display: inline-block;
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     text-decoration: none;
     transition: color 0.2s ease;
   }
@@ -54,7 +54,7 @@
 
   .design-link > a:hover,
   a.design-link:hover {
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     text-decoration: underline;
   }
 </style>

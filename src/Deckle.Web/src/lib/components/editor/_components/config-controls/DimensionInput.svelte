@@ -91,7 +91,7 @@
     display: block;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-bottom: 0.25rem;
   }
 
@@ -107,16 +107,17 @@
     font-size: 0.813rem;
     line-height: 1.25rem;
     height: 2.125rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px 0 0 4px;
     border-right: none;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     box-sizing: border-box;
   }
 
   .dimension-input input[type='number']:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
     border-right: none;
     z-index: 1;
   }
@@ -127,39 +128,40 @@
     font-size: 0.813rem;
     line-height: 1.25rem;
     height: 2.125rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-left: none;
     border-radius: 0 4px 4px 0;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     cursor: pointer;
     box-sizing: border-box;
   }
 
   .dimension-input .unit-select.disabled-unit {
     opacity: 0.4;
-    color: #999;
+    color: var(--color-text-secondary);
   }
 
   .dimension-input .unit-select:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
   }
 
   .field.disabled label {
-    color: #999;
+    color: var(--color-text-secondary);
   }
 
   .field.disabled input,
   .field.disabled select {
-    background: #f5f5f5;
-    color: #999;
+    background: var(--color-disabled-bg);
+    color: var(--color-text-secondary);
     cursor: not-allowed;
   }
 
   .disabled-message {
     display: block;
     font-size: 0.688rem;
-    color: #888;
+    color: var(--color-text-secondary);
     margin-top: 0.25rem;
     font-style: italic;
   }

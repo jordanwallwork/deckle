@@ -62,13 +62,13 @@
     display: block;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-bottom: 0.25rem;
   }
 
   .segmented-control {
     display: flex;
-    background: #f3f4f6;
+    background: var(--color-bg-subtle);
     border-radius: 6px;
     padding: 2px;
   }
@@ -78,7 +78,7 @@
     padding: 0.375rem 0.5rem;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
     background: transparent;
     border: none;
     border-radius: 4px;
@@ -87,14 +87,14 @@
   }
 
   .segment:hover:not(.active) {
-    color: #374151;
-    background: rgba(255, 255, 255, 0.5);
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .segment.active {
-    background: white;
-    color: #1a1a1a;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-sm);
   }
 
   .condition-field {
@@ -105,7 +105,7 @@
     display: block;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-bottom: 0.25rem;
   }
 
@@ -114,29 +114,29 @@
     padding: 0.375rem 0.5rem;
     font-size: 0.813rem;
     line-height: 1.25rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: #f8f9fa;
+    background: var(--color-bg-subtle);
     font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
     box-sizing: border-box;
     height: 2.125rem;
-    color: #1a73e8;
+    color: var(--color-accent-fg);
   }
 
   .condition-input:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
   }
 
   .condition-input::placeholder {
-    color: #9ca3af;
+    color: var(--color-text-secondary);
     font-family: monospace;
   }
 
   .condition-hint {
     margin: 0.375rem 0 0;
     font-size: 0.6875rem;
-    color: #9ca3af;
+    color: var(--color-text-secondary);
     line-height: 1.3;
   }
 </style>

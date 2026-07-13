@@ -90,13 +90,13 @@
 
   /* Primary variant */
   .btn.primary {
-    background-color: var(--color-sage-dark);
+    background-color: var(--color-accent-solid);
     color: white;
     border: 2px solid transparent;
   }
 
   .btn.primary:hover:not(:disabled) {
-    background-color: var(--color-sage-darker);
+    background-color: var(--color-accent-solid-hover);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
@@ -104,14 +104,14 @@
   /* Secondary variant */
   .btn.secondary {
     background-color: rgba(120, 160, 131, 0.1);
-    color: var(--color-muted-teal);
-    border: 2px solid var(--color-muted-teal);
+    color: var(--color-secondary-fg);
+    border: 2px solid var(--color-secondary-fg);
   }
 
   .btn.secondary:hover:not(:disabled) {
     background-color: rgba(120, 160, 131, 0.2);
-    border-color: var(--color-sage-dark);
-    color: var(--color-sage-dark);
+    border-color: var(--color-accent-fg);
+    color: var(--color-accent-fg);
   }
 
   /* Danger variant */
@@ -129,13 +129,13 @@
   /* Text variant */
   .btn.text {
     background: none;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     padding: 0.5rem 0;
     font-weight: 500;
   }
 
   .btn.text:hover:not(:disabled) {
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
 
   /* Icon variant */
@@ -157,7 +157,7 @@
   }
 
   .btn.primary:disabled:hover {
-    background-color: var(--color-muted-teal);
+    background-color: var(--color-accent-solid);
     transform: none;
     box-shadow: none;
   }

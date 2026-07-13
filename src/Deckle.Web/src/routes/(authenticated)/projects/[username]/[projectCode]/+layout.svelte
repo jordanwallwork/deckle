@@ -57,15 +57,27 @@
   });
 </script>
 
-{#if !$maxScreen}
-  <Tabs {tabs} />
-{/if}
+<!-- theme-light: the project workspace (editor, tabletop, data sources, image
+     library, export) is not yet dark-converted. Lock the whole subtree —
+     including the tab strip — light to avoid a mid-page inversion. -->
+<div class="project-workspace theme-light">
+  {#if !$maxScreen}
+    <Tabs {tabs} />
+  {/if}
 
-<div class="project-page-content" class:nopadding={$maxScreen}>
-  {@render children()}
+  <div class="project-page-content" class:nopadding={$maxScreen}>
+    {@render children()}
+  </div>
 </div>
 
 <style>
+  .project-workspace {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .project-page-content {
     flex: 1;
     min-height: 0;

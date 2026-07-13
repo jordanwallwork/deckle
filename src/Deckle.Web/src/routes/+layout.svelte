@@ -72,7 +72,7 @@
   }
 
   footer a {
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     font-size: 0.8rem;
     text-decoration: none;
   }

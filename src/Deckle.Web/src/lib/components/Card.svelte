@@ -50,7 +50,7 @@
 
 <style>
   .card {
-    background-color: white;
+    background-color: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     padding: 1.5rem;
@@ -65,13 +65,13 @@
   }
 
   .card.clickable:hover {
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
   }
 
   .card.clickable:focus {
-    outline: 2px solid var(--color-muted-teal);
+    outline: 2px solid var(--color-secondary-fg);
     outline-offset: 2px;
   }
 </style>

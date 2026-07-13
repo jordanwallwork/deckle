@@ -149,7 +149,9 @@
   const statusIcon = $derived(STATUS_ICON_MAP[availabilityStatus]);
 </script>
 
-<div class="setup-container">
+<!-- theme-light: onboarding page is a branded teal-gradient surface with a
+     white card; lock it light rather than partially dark-convert it. -->
+<div class="setup-container theme-light">
   <div class="setup-card">
     <div class="welcome-section">
       <Avatar src={data.user.picture} name={data.user.name} size="lg" class="welcome-avatar" />

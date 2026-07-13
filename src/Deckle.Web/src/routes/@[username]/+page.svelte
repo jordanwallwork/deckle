@@ -160,7 +160,7 @@
   .profile-section h2 {
     font-size: 1.125rem;
     font-weight: 600;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     margin: 0;
     padding-bottom: 0.625rem;
     border-bottom: 1px solid var(--color-border);
@@ -181,17 +181,17 @@
   }
   .bio-content :global(strong) {
     font-weight: 700;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
   .bio-content :global(em) {
     font-style: italic;
   }
   .bio-content :global(a) {
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     text-decoration: underline;
   }
   .bio-content :global(a:hover) {
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
   .bio-content :global(ul),
   .bio-content :global(ol) {
@@ -219,7 +219,7 @@
     border-radius: 999px;
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     text-decoration: none;
     transition:
       background-color 0.15s,
@@ -272,7 +272,7 @@
   .project-name {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     text-decoration: none;
   }
 
@@ -291,7 +291,7 @@
 
   .visibility-pill.teaser {
     background-color: rgba(255, 177, 66, 0.12);
-    color: #b37a00;
+    color: var(--color-warning-fg);
   }
 
   .project-description {
@@ -313,7 +313,7 @@
     font-style: italic;
   }
   .project-description :global(a) {
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     text-decoration: underline;
   }
   .project-description :global(ul),

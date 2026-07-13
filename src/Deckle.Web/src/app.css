@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --color-dark: #35374b;
   --color-teal-grey: #344956;
   --color-teal-grey-light: #34495680;
@@ -8,6 +9,7 @@
   --color-sage-darker: #456049;
   --color-bg-primary: #f8f9fa;
   --color-bg-secondary: #ffffff;
+  --color-bg-subtle: #f3f4f6;
   --color-border: rgba(52, 73, 86, 0.12);
   --color-text-primary: #2c3e50;
   --color-text-secondary: #5a6c7d;
@@ -16,9 +18,23 @@
   --color-danger-hover: #b71c1c;
   --color-danger-bg: #fef2f2;
   --color-danger-border: #fecaca;
+  --color-danger-fg: var(--color-danger);
   --color-success: #2ed573;
   --color-warning: #ffb142;
   --color-info: #3498db;
+  --color-warning-bg: #fff8e1;
+  --color-warning-border: #ffe082;
+  --color-warning-fg: #7a5800;
+  /* Role tokens: split the brand color by usage so dark mode can diverge.
+     -fg    = accent used as text/icon (lightens in dark)
+     -solid = accent used as a fill behind white text (constant across modes) */
+  --color-accent-fg: var(--color-sage-dark);
+  --color-accent-fg-hover: var(--color-sage-darker);
+  --color-accent-solid: var(--color-sage-dark);
+  --color-accent-solid-hover: var(--color-sage-darker);
+  --color-secondary-fg: var(--color-muted-teal);
+  --color-disabled-bg: #f5f5f5;
+  --color-disabled-border: #d1d5db;
   /* Semantic aliases: map assumed names onto the palette above */
   --color-text: var(--color-text-primary);
   --color-text-muted: var(--color-text-secondary);
@@ -26,18 +42,145 @@
   --color-background: var(--color-bg-primary);
   --color-background-secondary: var(--color-bg-secondary);
   --color-bg: var(--color-bg-primary);
-  --color-bg-subtle: #f3f4f6;
   --color-primary: var(--color-muted-teal);
   --color-deep-forest: var(--color-sage-dark);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --scrollbar-track: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: rgba(120, 160, 131, 0.3);
+  --scrollbar-thumb-hover: rgba(120, 160, 131, 0.5);
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --bg-light: var(--color-bg-primary);
   --bg-teal: linear-gradient(135deg, var(--color-teal-grey) 0%, var(--color-muted-teal) 100%);
   --pad-content: 2rem; /*todo: clamp for better responsiveness at smaller sizes*/
+}
+
+/* ---- Dark theme token remap ----------------------------------------------
+   The inline no-flash script in app.html sets data-theme on <html> before
+   first paint, so [data-theme='dark'] is the real path. The prefers-color-scheme
+   fallback below only applies when that script did not run (JS disabled).
+   Keep the two dark blocks in sync. Aliases (--color-surface, --color-text, …)
+   reference the base tokens, so they follow automatically and are not repeated.
+   --color-accent-solid is constant across modes (sage-dark passes white in both). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg-primary: #1a1c22;
+  --color-bg-secondary: #24272f;
+  --color-bg-subtle: #2a2d36;
+  --color-border: rgba(255, 255, 255, 0.14);
+  --color-text-primary: #e6e8ec;
+  --color-text-secondary: #a3aab4;
+  --color-danger: #c62828;
+  --color-danger-hover: #b71c1c;
+  --color-danger-bg: rgba(239, 83, 80, 0.15);
+  --color-danger-border: rgba(239, 83, 80, 0.4);
+  --color-danger-fg: #ff8a80;
+  --color-success: #4ade80;
+  --color-warning: #fbbf5c;
+  --color-info: #5aa9e6;
+  --color-warning-bg: rgba(251, 191, 92, 0.12);
+  --color-warning-border: rgba(251, 191, 92, 0.35);
+  --color-warning-fg: #e8c07a;
+  --color-accent-fg: #8fbf9b;
+  --color-accent-fg-hover: #a6cfb0;
+  --color-secondary-fg: #7ea9b3;
+  --color-disabled-bg: #2a2d36;
+  --color-disabled-border: #3a3f4a;
+  --color-primary: var(--color-secondary-fg);
+  --color-deep-forest: var(--color-accent-fg);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.6);
+  --scrollbar-track: rgba(255, 255, 255, 0.06);
+  --scrollbar-thumb: rgba(143, 191, 155, 0.35);
+  --scrollbar-thumb-hover: rgba(143, 191, 155, 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    color-scheme: dark;
+    --color-bg-primary: #1a1c22;
+    --color-bg-secondary: #24272f;
+    --color-bg-subtle: #2a2d36;
+    --color-border: rgba(255, 255, 255, 0.14);
+    --color-text-primary: #e6e8ec;
+    --color-text-secondary: #a3aab4;
+    --color-danger: #c62828;
+    --color-danger-hover: #b71c1c;
+    --color-danger-bg: rgba(239, 83, 80, 0.15);
+    --color-danger-border: rgba(239, 83, 80, 0.4);
+    --color-danger-fg: #ff8a80;
+    --color-success: #4ade80;
+    --color-warning: #fbbf5c;
+    --color-info: #5aa9e6;
+    --color-warning-bg: rgba(251, 191, 92, 0.12);
+    --color-warning-border: rgba(251, 191, 92, 0.35);
+    --color-warning-fg: #e8c07a;
+    --color-accent-fg: #8fbf9b;
+    --color-accent-fg-hover: #a6cfb0;
+    --color-secondary-fg: #7ea9b3;
+    --color-disabled-bg: #2a2d36;
+    --color-disabled-border: #3a3f4a;
+    --color-primary: var(--color-secondary-fg);
+    --color-deep-forest: var(--color-accent-fg);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.6);
+    --scrollbar-track: rgba(255, 255, 255, 0.06);
+    --scrollbar-thumb: rgba(143, 191, 155, 0.35);
+    --scrollbar-thumb-hover: rgba(143, 191, 155, 0.55);
+  }
+}
+
+/* ---- Page Theme Lock -------------------------------------------------------
+   Surfaces not yet converted to dark (editor, admin, tabletop, spreadsheet)
+   re-assert the light token values on their route wrapper. Because custom
+   properties cascade, this forces a fully light subtree regardless of the
+   ambient dark theme — no mid-page inversion (taste-skill Page Theme Lock). */
+.theme-light {
+  color-scheme: light;
+  --color-bg-primary: #f8f9fa;
+  --color-bg-secondary: #ffffff;
+  --color-bg-subtle: #f3f4f6;
+  --color-border: rgba(52, 73, 86, 0.12);
+  --color-text-primary: #2c3e50;
+  --color-text-secondary: #5a6c7d;
+  /* Aliases must be re-declared here too: they resolve their var() against the
+     element where they are declared, so re-asserting only the base tokens above
+     would leave the inherited (dark) alias values unchanged on this subtree. */
+  --color-text: var(--color-text-primary);
+  --color-text-muted: var(--color-text-secondary);
+  --color-surface: var(--color-bg-secondary);
+  --color-background: var(--color-bg-primary);
+  --color-background-secondary: var(--color-bg-secondary);
+  --color-bg: var(--color-bg-primary);
+  --color-danger: #d32f2f;
+  --color-danger-hover: #b71c1c;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-danger-fg: var(--color-danger);
+  --color-success: #2ed573;
+  --color-warning: #ffb142;
+  --color-info: #3498db;
+  --color-warning-bg: #fff8e1;
+  --color-warning-border: #ffe082;
+  --color-warning-fg: #7a5800;
+  --color-accent-fg: var(--color-sage-dark);
+  --color-accent-fg-hover: var(--color-sage-darker);
+  --color-secondary-fg: var(--color-muted-teal);
+  --color-disabled-bg: #f5f5f5;
+  --color-disabled-border: #d1d5db;
+  --color-primary: var(--color-muted-teal);
+  --color-deep-forest: var(--color-sage-dark);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --scrollbar-track: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: rgba(120, 160, 131, 0.3);
+  --scrollbar-thumb-hover: rgba(120, 160, 131, 0.5);
 }
 
 * {
@@ -72,14 +215,14 @@ p {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(120, 160, 131, 0.3);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(120, 160, 131, 0.5);
+  background: var(--scrollbar-thumb-hover);
 }

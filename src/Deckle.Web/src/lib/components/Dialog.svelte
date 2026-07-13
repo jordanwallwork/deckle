@@ -83,7 +83,7 @@
   }
 
   .dialog {
-    background-color: white;
+    background-color: var(--color-surface);
     border-radius: 12px;
     padding: var(--pad-content);
     width: 90%;
@@ -101,7 +101,7 @@
   .dialog h2 {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     margin: 0;
   }
 
@@ -111,7 +111,7 @@
     font-size: 1.5rem;
     line-height: 1;
     cursor: pointer;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     padding: 0.25rem;
     border-radius: 4px;
     opacity: 0.6;

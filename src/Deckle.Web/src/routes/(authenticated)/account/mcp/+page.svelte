@@ -245,7 +245,7 @@
     background: var(--color-bg-subtle, #f0f0f0);
     padding: 0.1em 0.35em;
     border-radius: 3px;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     font-weight: 500;
   }
 

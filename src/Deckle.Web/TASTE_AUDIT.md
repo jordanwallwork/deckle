@@ -132,9 +132,37 @@ Badge also hard-codes success `#2ed573`, warning `#ffb142`, info `#3498db` (`Bad
 
 **Fix:** either define these tokens or point the references at the existing ones. This is the closest thing to an outright defect among the P1s.
 
-### P1 — Dark mode is absent
+### P1 — Dark mode is absent  ✅ FIXED (chrome-first)
 
 > Skill: *"Design for both modes from the start. Never ship light-only or dark-only without explicit user instruction… Page Theme Lock: one theme for the whole page."*
+
+> **Update (2026-07-13):** dark mode is **implemented** on
+> `claude/leonxlsx-taste-skill-test-knsv3r` via the token-remap path this finding
+> predicted. A `:root[data-theme='dark']` block (plus a `@media (prefers-color-scheme: dark)`
+> fallback for JS-off) re-maps the existing `:root` tokens — no per-component rewrite.
+> Activation is a **persisted manual toggle + system default**: an inline no-flash script
+> in `app.html` resolves `localStorage['deckle-theme']` (else `prefers-color-scheme`) and
+> stamps `data-theme` on `<html>` before first paint; a sun/moon control in the TopBar
+> (`lib/stores/theme.svelte.ts`) flips and persists it.
+>
+> Because the brand color served two roles that must diverge in dark, two role splits were
+> added: `--color-accent-fg` / `--color-secondary-fg` (text, lightens in dark) vs
+> `--color-accent-solid` (fill behind white, constant); and `--color-danger-fg` (error
+> text, lightens) vs `--color-danger` (fill that keeps white readable). The blocklist of
+> hard-coded colors that won't respond to a swap was tokenized where it sits on a
+> dark-enabled surface (auth card greys, disabled greys, scrollbar/shadow rgba, the
+> `rgba(211,47,47,…)` error tint, the `CreateApiKeyDialog` amber box, footer/dropdown teal).
+>
+> **Scope is chrome-first** per the Page Theme Lock rule: public/auth, TopBar, layout shell,
+> shared primitives, the projects dashboard, account settings/MCP, and public profiles are
+> dark. The editor, tabletop, data-sources, image-library, admin, and onboarding surfaces
+> (~1200 hard-coded literals) are **not yet converted**; each is wrapped in a `.theme-light`
+> lock that re-asserts the light tokens so those pages render fully light under the dark
+> theme — never half-inverted. Converting those surfaces is the tracked follow-up.
+>
+> All measured text/UI pairs pass **WCAG AA** in both modes (body text hits AAA); see the
+> dark-mode appendix. `npm run check`: 0 errors. Landing page verified in both themes via
+> headless Chromium; the light-lock cascade verified by computed-style probe.
 
 The app is light-only: no `prefers-color-scheme` handling, no `data-theme` strategy, backgrounds hard-set to white/`#f8f9fa`. This is the largest lift in the report and is flagged, **not** implemented. Because styling already runs through `:root` CSS variables, the low-risk path is a `@media (prefers-color-scheme: dark)` (or `:root[data-theme="dark"]`) block that re-maps the existing token values — no per-component rewrite — *provided* the P1(c) undefined-variable and P0 hard-coded-color issues are fixed first (hard-coded hexes won't respond to a theme swap).
 
@@ -178,7 +206,7 @@ Ordered by the skill's **Modernization Levers** (color/contrast first here becau
 | 1 | **P0** ✅ | ~~Recolor foreground uses of sage; reserve sage for fills; fix `body` default text color.~~ **Done** — introduced `--color-sage-dark`/`--color-sage-darker`; kept the green identity per user choice. All pairs now ≥ 4.5:1. Darken-on-hover also resolved the primary/submit accent oscillation. | S |
 | 2 | **P1** ✅ | ~~Define semantic color tokens; consolidate the reds; fix undefined vars.~~ **Done** — added the danger/status token layer + 10 alias tokens; consolidated 3 reds across ~29 files; every `--color-*` reference now resolves. | S–M |
 | 3 | **P1** | Lock one accent-at-rest + one hover treatment across Button and auth CTA. | S |
-| 4 | **P1** | Add dark mode via a token-remap block (do **after** #1–#2). | M–L |
+| 4 | **P1** ✅ | ~~Add dark mode via a token-remap block (do **after** #1–#2).~~ **Done (chrome-first)** — `data-theme` remap + no-flash script + TopBar toggle; accent/danger split into fg vs solid roles; deep surfaces `.theme-light`-locked pending conversion. All pairs pass AA both modes. | M–L |
 | 5 | **P2** | Global `prefers-reduced-motion` guard. | XS |
 | 6 | **P2** | Route all radii through tokens; add `--radius-xs`. | XS |
 | 7 | **P2** | (Optional) display typeface + type-scale tokens. | M |
@@ -205,7 +233,7 @@ These skill rules target landing/marketing pages and do **not** apply to an appl
 | Dials explicit & reasoned | ✅ | `2/2/5`, §2 |
 | Design system chosen or aesthetic labeled honestly | ✅ | SvelteKit + owned CSS, labeled |
 | **Zero em-dashes** in page copy | ⚠️ | Auth page clean; dashboard/MCP microcopy uses them (§3, cosmetic) |
-| One page theme (no mid-scroll inversions) | ✅ | Light-only (but see dark-mode gap) |
+| One page theme (no mid-scroll inversions) | ✅ | Enforced in both modes; un-converted surfaces `.theme-light`-locked |
 | One accent used identically | ⚠️ | Primary/submit oscillation fixed; secondary still muted-teal at rest vs primary green (§3 P1a) |
 | One corner-radius system | ⚠️ | Tokens exist but bypassed by 16px/4px (§3 P2) |
 | Button contrast WCAG AA (4.5:1) | ✅ | Fixed — sage-dark solids/text now 5.1–5.4:1 |
@@ -222,11 +250,11 @@ These skill rules target landing/marketing pages and do **not** apply to an appl
 | Interactive states (loading/empty/error) | ✅ | Spinner, `EmptyState`, inline errors all present |
 | Tactile `:active` feedback | ✅ | `Button.svelte:68` |
 | Reduced motion wrapped | ❌ | No guard (§3 P2) |
-| Dark mode defined & tested both modes | ❌ | Light-only (§3 P1) |
+| Dark mode defined & tested both modes | ✅ | Chrome-first dark mode; both modes pass AA (§3 P1, appendix) |
 | Mobile collapse explicit | ✅ | Media queries in TopBar/auth |
 | AI Tells (Inter default, AI-purple, 3-equal cards, "Jane Doe", "Acme") | ✅ | None found |
 
-**Overall:** the app **passes the anti-slop spirit of the skill**. The **P0 button/form contrast defect is now fixed** (recommendation #1). Remaining open Pre-Flight gaps: dark mode (P1), reduced-motion (P2), full accent consistency (secondary button, P1), and radius tokenization (P2).
+**Overall:** the app **passes the anti-slop spirit of the skill**. The **P0 button/form contrast defect** and the **P1 dark-mode gap** are now fixed (recommendations #1 and #4). Remaining open Pre-Flight gaps: reduced-motion (P2), full accent consistency (secondary button, P1), radius tokenization (P2), and dark-theming the deep editor/admin/tabletop surfaces (currently `.theme-light`-locked).
 
 ---
 
@@ -248,3 +276,30 @@ Final contrast pairs, computed (sRGB, WCAG 2.x):
 
 `npm run check`: 0 errors (pre-existing warnings only). Landing page verified visually
 via headless Chromium screenshot.
+
+---
+
+## Appendix — Dark-mode contrast verification (2026-07-13)
+
+Dark tokens: bg `#1a1c22`, surface `#24272f`, text `#e6e8ec`, muted `#a3aab4`,
+accent-fg `#8fbf9b`, secondary-fg `#7ea9b3`, accent-solid `#537258`, danger-fg `#ff8a80`,
+danger-fill `#c62828`. Computed sRGB / WCAG 2.x (tints composited over the stated bg):
+
+| Pair | Ratio | AA (4.5) |
+|---|---|---|
+| body text on app bg | 13.88 | ✅ (AAA) |
+| body text on surface | 12.17 | ✅ (AAA) |
+| muted text on app bg / surface | 7.27 / 6.38 | ✅ |
+| accent-fg (sage) text on app bg / surface | 8.19 / 7.18 | ✅ |
+| secondary-fg (teal) text on app bg / surface | 6.66 / 5.84 | ✅ |
+| white on accent-solid (TopBar, CTAs, active tab) | 5.36 | ✅ |
+| white on danger fill `#c62828` (danger button) | 5.62 | ✅ |
+| danger-fg text on surface | 6.54 | ✅ |
+| danger-fg text on danger-bg tint | 5.50 | ✅ |
+| warning-fg on warning-bg tint | 6.66 | ✅ |
+| success / warning / info chip on surface | 8.57 / 9.04 / 5.87 | ✅ |
+| accent-fg focus ring on app bg (≥ 3 needed) | 8.19 | ✅ |
+
+Verified: landing page screenshotted in both themes (no flash on reload; `data-theme`
+resolves before first paint); light-lock cascade confirmed by computed-style probe
+(a `.theme-light` subtree resolves `--color-surface: #ffffff` while the page body is dark).

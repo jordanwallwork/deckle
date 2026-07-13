@@ -200,18 +200,18 @@
   }
 
   .char-count.warning {
-    color: #d97706;
+    color: var(--color-warning-fg);
   }
 
   .char-count.error {
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
     font-weight: 600;
   }
 
   .toggle-preview {
     font-size: 0.8125rem;
     font-weight: 600;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     background: none;
     border: none;
     cursor: pointer;
@@ -220,7 +220,7 @@
   }
 
   .toggle-preview:hover {
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
 
   .bio-textarea {
@@ -239,7 +239,7 @@
 
   .bio-textarea:focus {
     outline: none;
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
     box-shadow: 0 0 0 3px rgba(120, 160, 131, 0.15);
   }
 
@@ -258,7 +258,7 @@
   .bio-preview :global(p:last-child) { margin-bottom: 0; }
   .bio-preview :global(strong) { font-weight: 700; }
   .bio-preview :global(em) { font-style: italic; }
-  .bio-preview :global(a) { color: var(--color-muted-teal); text-decoration: underline; }
+  .bio-preview :global(a) { color: var(--color-secondary-fg); text-decoration: underline; }
   .bio-preview :global(ul), .bio-preview :global(ol) { margin: 0.5em 0; padding-left: 1.5em; }
 
   .empty-preview {
@@ -298,7 +298,7 @@
 
   .link-input:focus {
     outline: none;
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
     box-shadow: 0 0 0 3px rgba(120, 160, 131, 0.15);
   }
 
@@ -320,7 +320,7 @@
     background: none;
     border: 1px solid rgba(220, 38, 38, 0.3);
     border-radius: 6px;
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
     font-size: 1.125rem;
     cursor: pointer;
     line-height: 1;
@@ -342,25 +342,25 @@
 
   .save-error {
     font-size: 0.875rem;
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
     margin: 0;
   }
 
   .save-success {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     font-weight: 600;
     margin: 0;
   }
 
   .view-profile-link {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     text-decoration: underline;
     margin-left: auto;
   }
 
   .view-profile-link:hover {
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
   }
 </style>

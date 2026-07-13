@@ -57,7 +57,7 @@
 
 <style>
   .empty-state {
-    background: white;
+    background: var(--color-surface);
     text-align: center;
   }
 
@@ -81,7 +81,7 @@
   .empty-state-icon {
     width: 48px;
     height: 48px;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0 auto 1rem;
     opacity: 0.5;
   }
@@ -94,7 +94,7 @@
   .empty-state-title {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage-dark);
+    color: var(--color-accent-fg);
     margin-bottom: 0.5rem;
   }
 

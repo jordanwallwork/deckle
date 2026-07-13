@@ -6,12 +6,20 @@ import type { Point } from './geometry';
 import { pileWorldCenter, worldToZoneLocal } from './geometry';
 import type { Card, Pile, Selection, TabletopState, Template, Templates } from './types';
 
+let idCounter = 0;
+
 export function makeId(prefix = 'id'): string {
-  const suffix =
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
-  return `${prefix}-${suffix}`;
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    const suffix = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    return `${prefix}-${suffix}`;
+  }
+  // No Web Crypto available: these ids only need to be unique within the
+  // session, not unpredictable — a monotonic counter guarantees that.
+  return `${prefix}-${Date.now().toString(36)}-${(idCounter++).toString(36)}`;
 }
 
 /** Normalize an angle to [0, 360). */
@@ -117,7 +125,7 @@ export function spawnPileFromTemplate(
 
 function serializeMergeData(mergeData: Record<string, string> | null): string {
   if (mergeData === null) return 'null';
-  const sorted = Object.keys(mergeData).sort();
+  const sorted = Object.keys(mergeData).sort((a, b) => a.localeCompare(b));
   return JSON.stringify(Object.fromEntries(sorted.map((k) => [k, mergeData[k]])));
 }
 

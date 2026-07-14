@@ -6,7 +6,7 @@
   import { isEditableComponent } from '$lib/utils/componentTypes';
   import { getContext } from 'svelte';
   import StaticComponentRenderer from '../../../export/_components/StaticComponentRenderer.svelte';
-  import DiceView from '../DiceView.svelte';
+  import DiceView from './DiceView.svelte';
 
   let {
     card,

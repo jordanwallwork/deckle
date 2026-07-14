@@ -16,212 +16,244 @@ public static class DataSourceEndpoints
             .RequireAuthorization()
             .RequireUserId();
 
-        group.MapGet("project/{projectId:guid?}", async (Guid? projectId, HttpContext httpContext, IDataSourceService dataSourceService) =>
-        {
-            var userId = httpContext.GetUserId();
-            var dataSources = await dataSourceService.GetDataSourcesAsync(userId, projectId);
-            return Results.Ok(dataSources);
-        })
+        group.MapGet("project/{projectId:guid?}", HandleGetProjectDataSources)
         .WithName("GetProjectDataSources");
 
-        group.MapGet("{id:guid}", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService) =>
-        {
-            var userId = httpContext.GetUserId();
-            var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
-
-            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
-        })
+        group.MapGet("{id:guid}", HandleGetDataSourceById)
         .WithName("GetDataSourceById");
 
-        group.MapPost("GoogleSheets", async (HttpContext httpContext, IDataSourceService dataSourceService, CreateGoogleSheetsDataSourceRequest request) =>
-        {
-            var userId = httpContext.GetUserId();
-
-            var dataSource = await dataSourceService.CreateGoogleSheetsDataSourceAsync(
-                userId,
-                request.ProjectId,
-                request.Name,
-                request.Url,
-                request.SheetGid
-            );
-
-            return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
-        })
+        group.MapPost("GoogleSheets", HandleCreateGoogleSheetsDataSource)
         .RequireRateLimiting("strict")
         .WithName("CreateDataSource");
 
-        group.MapPut("{id:guid}", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, UpdateDataSourceRequest request) =>
-        {
-            var userId = httpContext.GetUserId();
-
-            var dataSource = await dataSourceService.UpdateDataSourceAsync(userId, id, request.Name);
-
-            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
-        })
+        group.MapPut("{id:guid}", HandleUpdateDataSource)
         .WithName("UpdateDataSource");
 
-        group.MapDelete("{id:guid}", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService) =>
-        {
-            var userId = httpContext.GetUserId();
-
-            var deleted = await dataSourceService.DeleteDataSourceAsync(userId, id);
-
-            return !deleted ? Results.NotFound() : Results.NoContent();
-        })
+        group.MapDelete("{id:guid}", HandleDeleteDataSource)
         .WithName("DeleteDataSource");
 
         // Endpoint to sync data source metadata (headers and row count)
-        group.MapPost("{id:guid}/sync", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, SyncDataSourceMetadataRequest request) =>
-        {
-            var userId = httpContext.GetUserId();
-
-            var dataSource = await dataSourceService.SyncDataSourceMetadataAsync(userId, id, request.Headers, request.RowCount);
-            return Results.Ok(dataSource);
-        })
+        group.MapPost("{id:guid}/sync", HandleSyncDataSourceMetadata)
         .WithName("SyncDataSourceMetadata");
 
         // Endpoint to get basic data source info (metadata)
-        group.MapGet("{id:guid}/metadata", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService) =>
-        {
-            var userId = httpContext.GetUserId();
-
-            var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
-
-            if (dataSource == null)
-            {
-                return Results.NotFound();
-            }
-
-            // Return basic metadata from the DataSource entity
-            var metadata = new
-            {
-                dataSource.Id,
-                dataSource.Name,
-                dataSource.GoogleSheetsId,
-                dataSource.GoogleSheetsUrl,
-                dataSource.SheetGid,
-                dataSource.CsvExportUrl
-            };
-
-            return Results.Ok(metadata);
-        })
+        group.MapGet("{id:guid}/metadata", HandleGetDataSourceMetadata)
         .WithName("GetDataSourceMetadata");
 
         // Endpoint to get sheet data (CSV)
-        group.MapGet("{id:guid}/data", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, IGoogleSheetsService googleSheetsService) =>
-        {
-            var userId = httpContext.GetUserId();
-
-            var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
-
-            if (dataSource == null)
-            {
-                return Results.NotFound();
-            }
-
-            // Handle Sample type: follow the SourceDataSourceId reference to get data from the source
-            if (dataSource.Type is "Sample")
-            {
-                if (dataSource.SourceDataSourceId.HasValue)
-                {
-                    var sourceDs = await dataSourceService.GetDataSourceByIdAsync(userId, dataSource.SourceDataSourceId.Value);
-                    if (sourceDs != null)
-                    {
-                        // Redirect to the source data source's data endpoint logic
-                        dataSource = sourceDs;
-                    }
-                    else
-                    {
-                        return Results.Ok(new { data = Array.Empty<string[]>() });
-                    }
-                }
-                else
-                {
-                    return Results.Ok(new { data = Array.Empty<string[]>() });
-                }
-            }
-
-            // Handle Spreadsheet data sources with inline JSON data
-            if (dataSource.Type is "Spreadsheet")
-            {
-                var jsonData = dataSource.JsonData;
-
-                if (jsonData != null)
-                {
-                    try
-                    {
-                        var sampleData = JsonSerializer.Deserialize<SampleDataJson>(jsonData,
-                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                        if (sampleData != null)
-                        {
-                            var rows = new List<string[]> { sampleData.Headers.ToArray() };
-                            rows.AddRange(sampleData.Rows.Select(r => r.ToArray()));
-                            return Results.Ok(new { data = rows });
-                        }
-                    }
-                    catch (JsonException)
-                    {
-                        return Results.BadRequest(new { error = "Invalid data format" });
-                    }
-                }
-
-                return Results.Ok(new { data = Array.Empty<string[]>() });
-            }
-
-            if (string.IsNullOrEmpty(dataSource.CsvExportUrl))
-            {
-                // This is a business logic error, not an exception from the service.
-                // It should still return a BadRequest.
-                return Results.BadRequest(new { error = "Data source does not have a valid CSV export URL" });
-            }
-
-            // Fetch CSV data from the public CSV export URL
-            var csvData = await googleSheetsService.FetchCsvDataAsync(dataSource.CsvExportUrl);
-
-            // Parse CSV into 2D array using RFC 4180-compliant parsing
-            var data = ParseCsv(csvData);
-
-            return Results.Ok(new { data });
-        })
+        group.MapGet("{id:guid}/data", HandleGetDataSourceData)
         .WithName("GetDataSourceData");
 
-        group.MapPost("copy-sample", async (HttpContext httpContext, IDataSourceService dataSourceService, CopySampleDataSourceRequest request) =>
-        {
-            var userId = httpContext.GetUserId();
-            var dataSource = await dataSourceService.CopySampleDataSourceToProjectAsync(userId, request.ProjectId, request.SampleDataSourceId);
-            return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
-        })
+        group.MapPost("copy-sample", HandleCopySampleDataSource)
         .WithName("CopySampleDataSource");
 
         // Spreadsheet data source endpoints
-        group.MapPost("spreadsheet", async (HttpContext httpContext, IDataSourceService dataSourceService, CreateSpreadsheetDataSourceRequest request) =>
-        {
-            var userId = httpContext.GetUserId();
-            var dataSource = await dataSourceService.CreateSpreadsheetDataSourceAsync(userId, request.ProjectId, request.Name);
-            return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
-        })
+        group.MapPost("spreadsheet", HandleCreateSpreadsheetDataSource)
         .WithName("CreateSpreadsheetDataSource");
 
-        group.MapPut("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService, UpdateSpreadsheetDataSourceRequest request) =>
-        {
-            var userId = httpContext.GetUserId();
-            var dataSource = await dataSourceService.UpdateSpreadsheetDataSourceAsync(userId, id, request.Name, request.JsonData);
-
-            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
-        })
+        group.MapPut("{id:guid}/spreadsheet", HandleUpdateSpreadsheetDataSource)
         .WithName("UpdateSpreadsheetDataSource");
 
-        group.MapGet("{id:guid}/spreadsheet", async (Guid id, HttpContext httpContext, IDataSourceService dataSourceService) =>
-        {
-            var userId = httpContext.GetUserId();
-            var dataSource = await dataSourceService.GetSpreadsheetDataSourceDetailAsync(userId, id);
-
-            return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
-        })
+        group.MapGet("{id:guid}/spreadsheet", HandleGetSpreadsheetDataSourceDetail)
         .WithName("GetSpreadsheetDataSourceDetail");
 
         return group;
+    }
+
+    private static async Task<IResult> HandleGetProjectDataSources(Guid? projectId, HttpContext httpContext, IDataSourceService dataSourceService)
+    {
+        var userId = httpContext.GetUserId();
+        var dataSources = await dataSourceService.GetDataSourcesAsync(userId, projectId);
+        return Results.Ok(dataSources);
+    }
+
+    private static async Task<IResult> HandleGetDataSourceById(Guid id, HttpContext httpContext, IDataSourceService dataSourceService)
+    {
+        var userId = httpContext.GetUserId();
+        var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
+
+        return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
+    }
+
+    private static async Task<IResult> HandleCreateGoogleSheetsDataSource(HttpContext httpContext, IDataSourceService dataSourceService, CreateGoogleSheetsDataSourceRequest request)
+    {
+        var userId = httpContext.GetUserId();
+
+        var dataSource = await dataSourceService.CreateGoogleSheetsDataSourceAsync(
+            userId,
+            request.ProjectId,
+            request.Name,
+            request.Url,
+            request.SheetGid
+        );
+
+        return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
+    }
+
+    private static async Task<IResult> HandleUpdateDataSource(Guid id, HttpContext httpContext, IDataSourceService dataSourceService, UpdateDataSourceRequest request)
+    {
+        var userId = httpContext.GetUserId();
+
+        var dataSource = await dataSourceService.UpdateDataSourceAsync(userId, id, request.Name);
+
+        return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
+    }
+
+    private static async Task<IResult> HandleDeleteDataSource(Guid id, HttpContext httpContext, IDataSourceService dataSourceService)
+    {
+        var userId = httpContext.GetUserId();
+
+        var deleted = await dataSourceService.DeleteDataSourceAsync(userId, id);
+
+        return !deleted ? Results.NotFound() : Results.NoContent();
+    }
+
+    private static async Task<IResult> HandleSyncDataSourceMetadata(Guid id, HttpContext httpContext, IDataSourceService dataSourceService, SyncDataSourceMetadataRequest request)
+    {
+        var userId = httpContext.GetUserId();
+
+        var dataSource = await dataSourceService.SyncDataSourceMetadataAsync(userId, id, request.Headers, request.RowCount);
+        return Results.Ok(dataSource);
+    }
+
+    private static async Task<IResult> HandleGetDataSourceMetadata(Guid id, HttpContext httpContext, IDataSourceService dataSourceService)
+    {
+        var userId = httpContext.GetUserId();
+
+        var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
+
+        if (dataSource == null)
+        {
+            return Results.NotFound();
+        }
+
+        // Return basic metadata from the DataSource entity
+        var metadata = new
+        {
+            dataSource.Id,
+            dataSource.Name,
+            dataSource.GoogleSheetsId,
+            dataSource.GoogleSheetsUrl,
+            dataSource.SheetGid,
+            dataSource.CsvExportUrl
+        };
+
+        return Results.Ok(metadata);
+    }
+
+    private static async Task<IResult> HandleGetDataSourceData(Guid id, HttpContext httpContext, IDataSourceService dataSourceService, IGoogleSheetsService googleSheetsService)
+    {
+        var userId = httpContext.GetUserId();
+
+        var dataSource = await dataSourceService.GetDataSourceByIdAsync(userId, id);
+
+        if (dataSource == null)
+        {
+            return Results.NotFound();
+        }
+
+        if (dataSource.Type is "Sample")
+        {
+            var (resolved, sampleResult) = await ResolveSampleDataSourceAsync(dataSourceService, userId, dataSource);
+            if (resolved == null)
+            {
+                return sampleResult!;
+            }
+
+            dataSource = resolved;
+        }
+
+        if (dataSource.Type is "Spreadsheet")
+        {
+            return GetSpreadsheetInlineData(dataSource.JsonData);
+        }
+
+        if (string.IsNullOrEmpty(dataSource.CsvExportUrl))
+        {
+            // This is a business logic error, not an exception from the service.
+            // It should still return a BadRequest.
+            return Results.BadRequest(new { error = "Data source does not have a valid CSV export URL" });
+        }
+
+        // Fetch CSV data from the public CSV export URL and parse using RFC 4180-compliant parsing
+        var csvData = await googleSheetsService.FetchCsvDataAsync(dataSource.CsvExportUrl);
+        var data = ParseCsv(csvData);
+
+        return Results.Ok(new { data });
+    }
+
+    // Handle Sample type: follow the SourceDataSourceId reference to get data from the source.
+    // Returns (null, result) when the caller should return early with `result`.
+    private static async Task<(DataSourceDto? DataSource, IResult? EarlyResult)> ResolveSampleDataSourceAsync(
+        IDataSourceService dataSourceService, Guid userId, DataSourceDto dataSource)
+    {
+        if (!dataSource.SourceDataSourceId.HasValue)
+        {
+            return (null, Results.Ok(new { data = Array.Empty<string[]>() }));
+        }
+
+        var sourceDs = await dataSourceService.GetDataSourceByIdAsync(userId, dataSource.SourceDataSourceId.Value);
+        return sourceDs != null
+            ? (sourceDs, null)
+            : (null, Results.Ok(new { data = Array.Empty<string[]>() }));
+    }
+
+    // Handle Spreadsheet data sources with inline JSON data
+    private static IResult GetSpreadsheetInlineData(string? jsonData)
+    {
+        if (jsonData == null)
+        {
+            return Results.Ok(new { data = Array.Empty<string[]>() });
+        }
+
+        try
+        {
+            var sampleData = JsonSerializer.Deserialize<SampleDataJson>(jsonData,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (sampleData == null)
+            {
+                return Results.Ok(new { data = Array.Empty<string[]>() });
+            }
+
+            var rows = new List<string[]> { sampleData.Headers.ToArray() };
+            rows.AddRange(sampleData.Rows.Select(r => r.ToArray()));
+            return Results.Ok(new { data = rows });
+        }
+        catch (JsonException)
+        {
+            return Results.BadRequest(new { error = "Invalid data format" });
+        }
+    }
+
+    private static async Task<IResult> HandleCopySampleDataSource(HttpContext httpContext, IDataSourceService dataSourceService, CopySampleDataSourceRequest request)
+    {
+        var userId = httpContext.GetUserId();
+        var dataSource = await dataSourceService.CopySampleDataSourceToProjectAsync(userId, request.ProjectId, request.SampleDataSourceId);
+        return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
+    }
+
+    private static async Task<IResult> HandleCreateSpreadsheetDataSource(HttpContext httpContext, IDataSourceService dataSourceService, CreateSpreadsheetDataSourceRequest request)
+    {
+        var userId = httpContext.GetUserId();
+        var dataSource = await dataSourceService.CreateSpreadsheetDataSourceAsync(userId, request.ProjectId, request.Name);
+        return Results.Created($"/data-sources/{dataSource.Id}", dataSource);
+    }
+
+    private static async Task<IResult> HandleUpdateSpreadsheetDataSource(Guid id, HttpContext httpContext, IDataSourceService dataSourceService, UpdateSpreadsheetDataSourceRequest request)
+    {
+        var userId = httpContext.GetUserId();
+        var dataSource = await dataSourceService.UpdateSpreadsheetDataSourceAsync(userId, id, request.Name, request.JsonData);
+
+        return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
+    }
+
+    private static async Task<IResult> HandleGetSpreadsheetDataSourceDetail(Guid id, HttpContext httpContext, IDataSourceService dataSourceService)
+    {
+        var userId = httpContext.GetUserId();
+        var dataSource = await dataSourceService.GetSpreadsheetDataSourceDetailAsync(userId, id);
+
+        return dataSource == null ? Results.NotFound() : Results.Ok(dataSource);
     }
 
     /// <summary>

@@ -23,6 +23,8 @@ public interface IDataSourceService
 
 public class DataSourceService : IDataSourceService
 {
+    private const string AccessDeniedMessage = "User does not have access to this data source";
+
     private readonly AppDbContext _dbContext;
     private readonly IGoogleSheetsService _googleSheetsService;
     private readonly IProjectAuthorizationService _authService;
@@ -58,7 +60,7 @@ public class DataSourceService : IDataSourceService
         // Sample data sources without a project are accessible to all authenticated users
         if (dataSource.ProjectId.HasValue)
         {
-            await _authService.RequireProjectAccessAsync(userId, dataSource.ProjectId.Value, "User does not have access to this data source");
+            await _authService.RequireProjectAccessAsync(userId, dataSource.ProjectId.Value, AccessDeniedMessage);
         }
 
         return DataSourceDto.FromEntity(dataSource);
@@ -167,7 +169,7 @@ public class DataSourceService : IDataSourceService
 
         // Check user's role
         var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId)
-            ?? throw new UnauthorizedAccessException("User does not have access to this data source");
+            ?? throw new UnauthorizedAccessException(AccessDeniedMessage);
 
         if (!ProjectAuthorizationService.CanManageDataSources(role))
         {
@@ -223,7 +225,7 @@ public class DataSourceService : IDataSourceService
 
         // Check user's role
         var role = await _authService.GetUserProjectRoleAsync(userId, dataSource.ProjectId)
-            ?? throw new UnauthorizedAccessException("User does not have access to this data source");
+            ?? throw new UnauthorizedAccessException(AccessDeniedMessage);
 
         if (!ProjectAuthorizationService.CanManageDataSources(role))
         {
@@ -298,7 +300,7 @@ public class DataSourceService : IDataSourceService
         if (dataSource.ProjectId.HasValue)
         {
             await _authService.RequireProjectAccessAsync(userId, dataSource.ProjectId.Value,
-                "User does not have access to this data source");
+                AccessDeniedMessage);
         }
 
         return DataSourceDto.FromEntity(dataSource);

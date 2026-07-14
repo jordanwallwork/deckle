@@ -12,8 +12,6 @@ namespace Deckle.Email;
 /// </summary>
 public partial class BrevoEmailSender : IEmailSender
 {
-    private const string _apiBaseUrl = "https://api.brevo.com/v3";
-
     private readonly BrevoOptions _options;
     private readonly ILogger<BrevoEmailSender> _logger;
     private readonly HttpClient _httpClient;
@@ -32,7 +30,7 @@ public partial class BrevoEmailSender : IEmailSender
         _options = options.Value;
         _logger = logger;
         _httpClient = httpClient;
-        _httpClient.BaseAddress ??= new Uri(_apiBaseUrl);
+        _httpClient.BaseAddress ??= new Uri(_options.ApiBaseUrl);
         _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("api-key", _options.ApiKey);
     }
 

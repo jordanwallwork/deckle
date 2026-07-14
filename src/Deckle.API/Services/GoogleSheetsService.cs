@@ -87,12 +87,9 @@ public class GoogleSheetsService : IGoogleSheetsService
         // Supports formats: #gid=123456 or ?gid=123456 or &gid=123456
         var gidPattern = @"[#?&]gid=(\d+)";
         var gidMatch = Regex.Match(url.ToString(), gidPattern);
-        if (gidMatch.Success)
+        if (gidMatch.Success && int.TryParse(gidMatch.Groups[1].Value, out var parsedGid))
         {
-            if (int.TryParse(gidMatch.Groups[1].Value, out var parsedGid))
-            {
-                sheetGid = parsedGid;
-            }
+            sheetGid = parsedGid;
         }
 
         return (spreadsheetId, sheetGid);

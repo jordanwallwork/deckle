@@ -47,30 +47,46 @@ export function isContainerTemplate(template: EntityTemplate): boolean {
  * Entities in a stack share the same rotation; odd quarter-turns swap the
  * visual width/height, so the rotation of each entity is respected.
  */
+/** Rotated display size of an entity, accounting for odd quarter-turns swapping width/height. */
+function getRotatedEntitySize(
+  entity: Entity,
+  template: EntityTemplate
+): { width: number; height: number } {
+  const { width, height } = getTemplateDisplaySize(template);
+  const quarterTurns = Math.round(entity.rotation / 90);
+  const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
+  return isOddQuarterTurn ? { width: height, height: width } : { width, height };
+}
+
+/** Largest rotated display size among a stack zone's entities. */
+function getMaxEntityDisplaySize(
+  zone: StackZone,
+  state: TabletopState,
+  templates: Record<string, EntityTemplate>
+): { maxW: number; maxH: number } {
+  let maxW = 0;
+  let maxH = 0;
+  for (const id of zone.entityIds) {
+    const entity = state.entities[id];
+    const template = entity && templates[entity.templateId];
+    if (!entity || !template) continue;
+
+    const { width, height } = getRotatedEntitySize(entity, template);
+    if (width > maxW) maxW = width;
+    if (height > maxH) maxH = height;
+  }
+  return { maxW, maxH };
+}
+
 export function resizeStackZoneToContents(
   state: TabletopState,
   zoneId: string,
   templates: Record<string, EntityTemplate>
 ): void {
   const zone = state.zones[zoneId];
-  if (!zone || zone.type !== 'stack' || zone.entityIds.length === 0) return;
+  if (zone?.type !== 'stack' || zone.entityIds.length === 0) return;
 
-  let maxW = 0;
-  let maxH = 0;
-  for (const id of zone.entityIds) {
-    const entity = state.entities[id];
-    if (!entity) continue;
-    const template = templates[entity.templateId];
-    if (!template) continue;
-    const { width, height } = getTemplateDisplaySize(template);
-    const quarterTurns = Math.round(entity.rotation / 90);
-    const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
-    const w = isOddQuarterTurn ? height : width;
-    const h = isOddQuarterTurn ? width : height;
-    if (w > maxW) maxW = w;
-    if (h > maxH) maxH = h;
-  }
-
+  const { maxW, maxH } = getMaxEntityDisplaySize(zone, state, templates);
   if (maxW === 0 || maxH === 0) return;
 
   const newWidth = maxW + STACK_ZONE_PADDING * 2;
@@ -178,7 +194,7 @@ export function getSpreadStep(zone: SpreadZone): number {
  */
 export function layoutGrid(state: TabletopState, zoneId: string): void {
   const zone = state.zones[zoneId];
-  if (!zone || zone.type !== 'grid') return;
+  if (zone?.type !== 'grid') return;
   for (let i = 0; i < zone.entityIds.length; i++) {
     const entity = state.entities[zone.entityIds[i]];
     if (!entity) continue;
@@ -195,7 +211,7 @@ export function layoutGrid(state: TabletopState, zoneId: string): void {
  */
 export function layoutSpread(state: TabletopState, zoneId: string): void {
   const zone = state.zones[zoneId];
-  if (!zone || zone.type !== 'spread') return;
+  if (zone?.type !== 'spread') return;
   const size = zone.defaultSize;
   if (!size) return;
 
@@ -225,7 +241,7 @@ export function layoutSpread(state: TabletopState, zoneId: string): void {
  */
 export function layoutGroup(state: TabletopState, zoneId: string): void {
   const zone = state.zones[zoneId];
-  if (!zone || zone.type !== 'group') return;
+  if (zone?.type !== 'group') return;
   const count = zone.entityIds.length;
   if (count === 0) return;
 
@@ -283,7 +299,7 @@ export function ensureSpreadDefaultSize(
   template: EntityTemplate
 ): void {
   const zone = state.zones[zoneId];
-  if (!zone || zone.type !== 'spread') return;
+  if (zone?.type !== 'spread') return;
   if (zone.defaultSize) return;
   const { width, height } = getTemplateDisplaySize(template);
   zone.defaultSize = { width, height };
@@ -335,7 +351,7 @@ export function moveEntity(state: TabletopState, instanceId: string, x: number, 
  */
 function maybeAutoDissolveStack(state: TabletopState, zoneId: string): void {
   const zone = state.zones[zoneId];
-  if (!zone || zone.type !== 'stack' || zone.persistent) return;
+  if (zone?.type !== 'stack' || zone.persistent) return;
   if (zone.entityIds.length > 1) return;
 
   // Prefer a freeform zone so the promoted entity keeps its visual position;
@@ -628,7 +644,7 @@ export function shuffleStack(
 ): void {
   const zone = getZone(state, zoneId);
   if (zone.type !== 'stack') return;
-  if (presetOrder && presetOrder.length === zone.entityIds.length) {
+  if (presetOrder?.length === zone.entityIds.length) {
     const current = new Set(zone.entityIds);
     if (presetOrder.every((id) => current.has(id))) {
       zone.entityIds = [...presetOrder];
@@ -936,7 +952,7 @@ export function spawnFromTemplate(
 
 function serializeMergeData(mergeData: Record<string, string> | null): string {
   if (mergeData === null) return 'null';
-  const sorted = Object.keys(mergeData).sort();
+  const sorted = Object.keys(mergeData).sort((a, b) => a.localeCompare(b));
   return JSON.stringify(Object.fromEntries(sorted.map((k) => [k, mergeData[k]])));
 }
 
@@ -1068,13 +1084,63 @@ export function findEntityAtPoint(
       zone,
       zone.x,
       zone.y,
-      worldX,
-      worldY,
+      { x: worldX, y: worldY },
       excludeInstanceId
     );
     if (result) return result;
   }
   return null;
+}
+
+/** Finds the topmost entity hit by `point` among a freeform zone's children, checked front-to-back. */
+function findEntityInChildZones(
+  state: TabletopState,
+  templates: Record<string, EntityTemplate>,
+  zone: Zone,
+  zoneWorldX: number,
+  zoneWorldY: number,
+  point: { x: number; y: number },
+  excludeInstanceId?: string
+): Entity | null {
+  if (zone.type !== 'freeform' || !zone.childZoneIds?.length) return null;
+
+  for (let i = zone.childZoneIds.length - 1; i >= 0; i--) {
+    const child = state.zones[zone.childZoneIds[i]];
+    if (!child || child.type === 'stack') continue;
+    const result = findEntityInZoneAtPoint(
+      state,
+      templates,
+      child,
+      zoneWorldX + child.x,
+      zoneWorldY + child.y,
+      point,
+      excludeInstanceId
+    );
+    if (result) return result;
+  }
+  return null;
+}
+
+/** Whether `point` falls within the rotation-aware hit box of `entity`, positioned within its zone. */
+function isPointOnEntity(
+  entity: Entity,
+  template: EntityTemplate,
+  zoneWorldX: number,
+  zoneWorldY: number,
+  point: { x: number; y: number }
+): boolean {
+  const { width, height } = getTemplateDisplaySize(template);
+  const quarterTurns = Math.round(entity.rotation / 90);
+  const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
+  const hitW = isOddQuarterTurn ? height : width;
+  const hitH = isOddQuarterTurn ? width : height;
+  // Entities render rotated about their centre, so the AABB stays anchored
+  // at the same centre — shift the origin to match.
+  const cx = zoneWorldX + entity.x + width / 2;
+  const cy = zoneWorldY + entity.y + height / 2;
+  const ex = cx - hitW / 2;
+  const ey = cy - hitH / 2;
+  return point.x >= ex && point.x < ex + hitW && point.y >= ey && point.y < ey + hitH;
 }
 
 function findEntityInZoneAtPoint(
@@ -1083,30 +1149,20 @@ function findEntityInZoneAtPoint(
   zone: Zone,
   zoneWorldX: number,
   zoneWorldY: number,
-  worldX: number,
-  worldY: number,
+  point: { x: number; y: number },
   excludeInstanceId?: string
 ): Entity | null {
   // Check children of freeform zones first — they render on top.
-  if (zone.type === 'freeform' && zone.childZoneIds?.length) {
-    for (let i = zone.childZoneIds.length - 1; i >= 0; i--) {
-      const child = state.zones[zone.childZoneIds[i]];
-      if (!child || child.type === 'stack') continue;
-      const childWorldX = zoneWorldX + child.x;
-      const childWorldY = zoneWorldY + child.y;
-      const result = findEntityInZoneAtPoint(
-        state,
-        templates,
-        child,
-        childWorldX,
-        childWorldY,
-        worldX,
-        worldY,
-        excludeInstanceId
-      );
-      if (result) return result;
-    }
-  }
+  const childResult = findEntityInChildZones(
+    state,
+    templates,
+    zone,
+    zoneWorldX,
+    zoneWorldY,
+    point,
+    excludeInstanceId
+  );
+  if (childResult) return childResult;
 
   for (let j = zone.entityIds.length - 1; j >= 0; j--) {
     const entityId = zone.entityIds[j];
@@ -1115,18 +1171,7 @@ function findEntityInZoneAtPoint(
     if (!entity) continue;
     const template = templates[entity.templateId];
     if (!template) continue;
-    const { width, height } = getTemplateDisplaySize(template);
-    const quarterTurns = Math.round(entity.rotation / 90);
-    const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
-    const hitW = isOddQuarterTurn ? height : width;
-    const hitH = isOddQuarterTurn ? width : height;
-    // Entities render rotated about their centre, so the AABB stays anchored
-    // at the same centre — shift the origin to match.
-    const cx = zoneWorldX + entity.x + width / 2;
-    const cy = zoneWorldY + entity.y + height / 2;
-    const ex = cx - hitW / 2;
-    const ey = cy - hitH / 2;
-    if (worldX >= ex && worldX < ex + hitW && worldY >= ey && worldY < ey + hitH) {
+    if (isPointOnEntity(entity, template, zoneWorldX, zoneWorldY, point)) {
       return entity;
     }
   }
@@ -1300,10 +1345,7 @@ export function removeAllEntitiesForTemplate(state: TabletopState, templateId: s
  */
 export function createSpreadZone(
   state: TabletopState,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
+  rect: { x: number; y: number; width: number; height: number },
   direction: 'row' | 'column' = 'row',
   overlap = 40,
   name = 'New Spread'
@@ -1312,10 +1354,10 @@ export function createSpreadZone(
     id: makeId('zone'),
     name,
     type: 'spread',
-    x,
-    y,
-    width,
-    height,
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
     direction,
     overlap,
     entityIds: [],
@@ -1436,12 +1478,12 @@ export function deleteZone(state: TabletopState, zoneId: string): void {
 
   // Recursively delete child zones first.
   if (zone.type === 'freeform' && zone.childZoneIds?.length) {
-    for (const childId of [...zone.childZoneIds]) {
+    for (const childId of zone.childZoneIds) {
       deleteZone(state, childId);
     }
   }
 
-  for (const id of [...zone.entityIds]) {
+  for (const id of zone.entityIds) {
     delete state.entities[id];
   }
 
@@ -1469,7 +1511,7 @@ export function deleteZone(state: TabletopState, zoneId: string): void {
 export function nestZone(state: TabletopState, childZoneId: string, parentZoneId: string): void {
   const child = state.zones[childZoneId];
   const parent = state.zones[parentZoneId] as FreeformZone | undefined;
-  if (!child || !parent || parent.type !== 'freeform') return;
+  if (!child || parent?.type !== 'freeform') return;
   if (childZoneId === parentZoneId) return;
   if (isAncestor(state, parentZoneId, childZoneId)) return;
 
@@ -1582,22 +1624,9 @@ function deriveDefaultSizeFromEntities(
  * @param templates  Optional — needed to seed defaultSize from entities when
  *                   converting from freeform/grid into spread/stack.
  */
-export function changeZoneType(
-  state: TabletopState,
-  zoneId: string,
-  newType: ZoneType,
-  templates?: Record<string, EntityTemplate>
-): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type === newType) return;
-
-  const { id, name, x, y, width, height, entityIds, locked, parentZoneId } = zone;
-  const existingDefaultSize =
-    'defaultSize' in zone && zone.defaultSize ? zone.defaultSize : undefined;
-
-  // Snapshot the current type's settings into the cache so a later conversion
-  // back to this type restores them.
-  const cache: ZoneTypeSettingsCache = { ...(zone.typeSettings ?? {}) };
+/** Snapshot a zone's type-specific settings into its cache, so converting back later restores them. */
+function snapshotZoneTypeSettings(zone: Zone): ZoneTypeSettingsCache {
+  const cache: ZoneTypeSettingsCache = { ...zone.typeSettings };
   if (zone.type === 'stack') {
     cache.stack = { faceDown: zone.faceDown, persistent: zone.persistent };
   } else if (zone.type === 'spread') {
@@ -1609,67 +1638,68 @@ export function changeZoneType(
       columns: zone.columns
     };
   }
+  return cache;
+}
 
-  const base = {
-    id,
-    name,
-    x,
-    y,
-    width,
-    height,
-    entityIds,
-    locked,
-    typeSettings: cache,
-    ...(parentZoneId !== undefined ? { parentZoneId } : {})
-  };
-  const defaultSize = existingDefaultSize ?? deriveDefaultSizeFromEntities(state, zone, templates);
+type ZoneBase = Pick<Zone, 'id' | 'name' | 'x' | 'y' | 'width' | 'height' | 'entityIds' | 'locked'> & {
+  typeSettings: ZoneTypeSettingsCache;
+  parentZoneId?: string;
+};
 
-  let newZone: Zone;
+/** Builds a zone of `newType` from the shared `base` fields, restoring cached type-specific settings. */
+function buildZoneForType(
+  base: ZoneBase,
+  newType: ZoneType,
+  cache: ZoneTypeSettingsCache,
+  defaultSize: { width: number; height: number } | undefined
+): Zone {
   switch (newType) {
     case 'freeform':
-      newZone = { ...base, type: 'freeform' };
-      break;
+      return { ...base, type: 'freeform' };
     case 'group':
-      newZone = { ...base, type: 'group' };
-      break;
+      return { ...base, type: 'group' };
     case 'grid': {
       const prev = cache.grid;
-      newZone = {
+      return {
         ...base,
         type: 'grid',
         cellWidth: prev?.cellWidth ?? 80,
         cellHeight: prev?.cellHeight ?? 80,
         columns: prev?.columns ?? 5
       };
-      break;
     }
     case 'stack': {
       const prev = cache.stack;
-      newZone = {
+      return {
         ...base,
         type: 'stack',
         faceDown: prev?.faceDown ?? false,
         persistent: prev?.persistent ?? true,
         defaultSize
       };
-      break;
     }
     case 'spread': {
       const prev = cache.spread;
-      newZone = {
+      return {
         ...base,
         type: 'spread',
         direction: prev?.direction ?? 'row',
         overlap: prev?.overlap ?? 40,
         defaultSize
       };
-      break;
     }
   }
-  state.zones[zoneId] = newZone;
+}
 
-  // Straighten them when leaving group
-  if (zone.type === 'group') {
+/** Post-conversion cleanup: straighten entities leaving a group, then reflow the zone's new layout. */
+function finalizeZoneTypeChange(
+  state: TabletopState,
+  zoneId: string,
+  previousType: ZoneType,
+  newZone: Zone,
+  newType: ZoneType
+): void {
+  if (previousType === 'group') {
     for (const entityId of newZone.entityIds) {
       const entity = state.entities[entityId];
       if (entity) entity.rotation = 0;
@@ -1691,6 +1721,40 @@ export function changeZoneType(
       }
     }
   }
+}
+
+export function changeZoneType(
+  state: TabletopState,
+  zoneId: string,
+  newType: ZoneType,
+  templates?: Record<string, EntityTemplate>
+): void {
+  const zone = getZone(state, zoneId);
+  if (zone.type === newType) return;
+
+  const { id, name, x, y, width, height, entityIds, locked, parentZoneId } = zone;
+  const existingDefaultSize =
+    'defaultSize' in zone && zone.defaultSize ? zone.defaultSize : undefined;
+
+  const cache = snapshotZoneTypeSettings(zone);
+  const base: ZoneBase = {
+    id,
+    name,
+    x,
+    y,
+    width,
+    height,
+    entityIds,
+    locked,
+    typeSettings: cache,
+    ...(parentZoneId !== undefined ? { parentZoneId } : {})
+  };
+  const defaultSize = existingDefaultSize ?? deriveDefaultSizeFromEntities(state, zone, templates);
+
+  const newZone = buildZoneForType(base, newType, cache, defaultSize);
+  state.zones[zoneId] = newZone;
+
+  finalizeZoneTypeChange(state, zoneId, zone.type, newZone, newType);
 }
 
 /** Update grid cell dimensions and column count, then reflow entities. No-op for non-grid zones. */
@@ -1752,7 +1816,7 @@ export function drawFromStack(
 ): string | null {
   const stack = getZone(state, stackZoneId);
   if (stack.type !== 'stack' || stack.entityIds.length === 0) return null;
-  const topId = stack.entityIds[stack.entityIds.length - 1];
+  const topId = stack.entityIds.at(-1)!;
   moveEntityToZone(state, topId, targetZoneId, { x, y });
   // Drawn cards face-up by default
   const entity = state.entities[topId];

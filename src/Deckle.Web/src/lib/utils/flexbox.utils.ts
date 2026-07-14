@@ -62,33 +62,34 @@ export function userValueToCss(userValue: string, axis: 'main' | 'cross'): strin
   }
 }
 
+type FlexDirection = 'row' | 'column';
+
 /**
  * Get alignment options for X axis based on flex direction
  */
-export function getXOptions(isColumn: boolean) {
-  if (isColumn) {
+export function getXOptions(direction: FlexDirection) {
+  if (direction === 'column') {
     return [
       { value: 'left', label: 'Left' },
       { value: 'center', label: 'Center' },
       { value: 'right', label: 'Right' },
       { value: 'stretch', label: 'Stretch' }
     ];
-  } else {
-    return [
-      { value: 'left', label: 'Left' },
-      { value: 'center', label: 'Center' },
-      { value: 'right', label: 'Right' },
-      { value: 'space-between', label: 'Space Between' },
-      { value: 'space-around', label: 'Space Around' }
-    ];
   }
+  return [
+    { value: 'left', label: 'Left' },
+    { value: 'center', label: 'Center' },
+    { value: 'right', label: 'Right' },
+    { value: 'space-between', label: 'Space Between' },
+    { value: 'space-around', label: 'Space Around' }
+  ];
 }
 
 /**
  * Get alignment options for Y axis based on flex direction
  */
-export function getYOptions(isColumn: boolean) {
-  if (isColumn) {
+export function getYOptions(direction: FlexDirection) {
+  if (direction === 'column') {
     return [
       { value: 'top', label: 'Top' },
       { value: 'center', label: 'Center' },
@@ -96,25 +97,24 @@ export function getYOptions(isColumn: boolean) {
       { value: 'space-between', label: 'Space Between' },
       { value: 'space-around', label: 'Space Around' }
     ];
-  } else {
-    return [
-      { value: 'top', label: 'Top' },
-      { value: 'center', label: 'Center' },
-      { value: 'bottom', label: 'Bottom' },
-      { value: 'stretch', label: 'Stretch' }
-    ];
   }
+  return [
+    { value: 'top', label: 'Top' },
+    { value: 'center', label: 'Center' },
+    { value: 'bottom', label: 'Bottom' },
+    { value: 'stretch', label: 'Stretch' }
+  ];
 }
 
 /**
  * Get the grid cells for the alignment 3x3 grid
  */
-export function getAlignmentGridCells(isColumn: boolean) {
+export function getAlignmentGridCells() {
   const cells: Array<{ x: string; y: string }> = [];
 
   // Only show the 3x3 grid with basic alignments
-  const xValues = isColumn ? ['left', 'center', 'right'] : ['left', 'center', 'right'];
-  const yValues = isColumn ? ['top', 'center', 'bottom'] : ['top', 'center', 'bottom'];
+  const xValues = ['left', 'center', 'right'];
+  const yValues = ['top', 'center', 'bottom'];
 
   for (const y of yValues) {
     for (const x of xValues) {

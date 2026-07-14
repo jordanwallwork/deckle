@@ -18,228 +18,261 @@ public static partial class AuthEndpoints
         var group = routes.MapGroup("/auth")
             .WithTags("Authentication");
 
-        group.MapGet("/login", (IConfiguration configuration, ILogger<Program> logger, HttpContext context, string? returnUrl) =>
-        {
-            var frontendUrl = configuration["FrontendUrl"];
-
-            // In production, FrontendUrl must be configured
-            if (string.IsNullOrWhiteSpace(frontendUrl))
-            {
-                var isDevelopment = context.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
-                if (isDevelopment)
-                {
-                    frontendUrl = "http://localhost:5173";
-                    LogFrontendUrlNotConfigured(logger, frontendUrl);
-                }
-                else
-                {
-                    LogFrontendUrlNotConfiguredInProduction(logger);
-                    return Results.Problem("FrontendUrl is not configured", statusCode: 500);
-                }
-            }
-
-            // Validate that frontendUrl is an absolute URL
-            if (!Uri.TryCreate(frontendUrl, UriKind.Absolute, out var frontendUri))
-            {
-                LogInvalidFrontendUrl(logger, frontendUrl);
-                return Results.Problem("Invalid FrontendUrl configuration", statusCode: 500);
-            }
-
-            // Build redirect URI, appending returnUrl path if provided and valid
-            var redirectUri = frontendUrl.TrimEnd('/');
-
-            //Ensure returnUrl is a relative path to prevent open redirect attacks
-            if (!string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/')  && !returnUrl.StartsWith("//", StringComparison.Ordinal))
-            {
-                redirectUri += returnUrl;
-            }
-
-            LogAuthLoginInitiated(logger, redirectUri);
-
-            return Results.Challenge(
-                new AuthenticationProperties { RedirectUri = redirectUri },
-                [GoogleDefaults.AuthenticationScheme]
-            );
-        })
+        group.MapGet("/login", HandleLogin)
         .AllowAnonymous()
         .WithName("Login");
 
-        group.MapPost("/register", async (RegisterRequest request, IUserService userService, HttpContext context) =>
-        {
-            var (success, error, user) = await userService.RegisterWithPasswordAsync(request.Email, request.Password);
-
-            if (!success || user == null)
-            {
-                return Results.BadRequest(new { error });
-            }
-
-            var principal = UserService.CreatePrincipalFromUser(user);
-            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-
-            return Results.Ok(UserService.GetCurrentUserFromClaims(principal));
-        })
+        group.MapPost("/register", HandleRegister)
         .AllowAnonymous()
         .RequireRateLimiting("auth")
         .WithName("RegisterWithPassword");
 
-        group.MapPost("/login/password", async (PasswordLoginRequest request, IUserService userService, HttpContext context) =>
-        {
-            var (success, error, user) = await userService.LoginWithPasswordAsync(request.Email, request.Password);
-
-            if (!success || user == null)
-            {
-                return Results.BadRequest(new { error });
-            }
-
-            var principal = UserService.CreatePrincipalFromUser(user);
-            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-
-            return Results.Ok(UserService.GetCurrentUserFromClaims(principal));
-        })
+        group.MapPost("/login/password", HandleLoginWithPassword)
         .AllowAnonymous()
         .RequireRateLimiting("auth")
         .WithName("LoginWithPassword");
 
-        group.MapPost("/logout", async (HttpContext context) =>
-        {
-            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return Results.Ok(new { message = "Logged out successfully" });
-        })
+        group.MapPost("/logout", (Delegate)HandleLogout)
         .RequireAuthorization()
         .WithName("Logout");
 
-        group.MapGet("/me", (ClaimsPrincipal user) =>
-        {
-            var currentUser = UserService.GetCurrentUserFromClaims(user);
-
-            if (currentUser == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            return Results.Ok(currentUser);
-        })
+        group.MapGet("/me", HandleGetCurrentUser)
         .RequireAuthorization()
         .WithName("GetCurrentUser");
 
-        group.MapGet("/username/check/{username}", async (string username, ClaimsPrincipal user, IUserService userService) =>
-        {
-            var userId = UserService.GetUserIdFromClaims(user);
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var isAvailable = await userService.IsUsernameAvailableAsync(username, userId);
-            return Results.Ok(new UsernameAvailabilityResponse(isAvailable));
-        })
+        group.MapGet("/username/check/{username}", HandleCheckUsernameAvailability)
         .RequireAuthorization()
         .RequireRateLimiting("strict")
         .WithName("CheckUsernameAvailability");
 
-        group.MapGet("/profile", async (ClaimsPrincipal user, IUserService userService) =>
-        {
-            var userId = UserService.GetUserIdFromClaims(user);
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var dbUser = await userService.GetUserByIdAsync(userId.Value);
-            if (dbUser == null)
-            {
-                return Results.NotFound();
-            }
-
-            var links = dbUser.ExternalLinks != null
-                ? JsonSerializer.Deserialize<List<ExternalLinkDto>>(dbUser.ExternalLinks)
-                : null;
-
-            return Results.Ok(new CurrentUserDto
-            {
-                Id = dbUser.Id.ToString(),
-                Email = dbUser.Email,
-                Username = dbUser.Username,
-                Name = dbUser.Name,
-                Picture = dbUser.PictureUrl,
-                Role = dbUser.Role.ToString(),
-                Bio = dbUser.Bio,
-                ExternalLinks = links
-            });
-        })
+        group.MapGet("/profile", HandleGetProfile)
         .RequireAuthorization()
         .WithName("GetProfile");
 
-        group.MapPut("/profile", async (UpdateProfileRequest request, ClaimsPrincipal user, IUserService userService) =>
-        {
-            var userId = UserService.GetUserIdFromClaims(user);
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var (success, error) = await userService.UpdateProfileAsync(userId.Value, request);
-            if (!success)
-            {
-                return Results.BadRequest(new { error });
-            }
-
-            return Results.Ok();
-        })
+        group.MapPut("/profile", HandleUpdateProfile)
         .RequireAuthorization()
         .WithName("UpdateProfile");
 
-        group.MapPost("/username", async (SetUsernameRequest request, ClaimsPrincipal user, IUserService userService, IPublisher publisher, HttpContext context) =>
-        {
-            var userId = UserService.GetUserIdFromClaims(user);
-            if (userId == null)
-            {
-                return Results.Unauthorized();
-            }
-
-            var (success, error, isNewRegistration) = await userService.SetUsernameAsync(userId.Value, request.Username);
-
-            if (!success)
-            {
-                return Results.BadRequest(new { error });
-            }
-
-            // Update the user's claims to include the new username
-            if (user.Identity is ClaimsIdentity identity)
-            {
-                // Remove old username claim if exists
-                var existingClaim = identity.FindFirst("username");
-                if (existingClaim != null)
-                {
-                    identity.RemoveClaim(existingClaim);
-                }
-                identity.AddClaim(new Claim("username", request.Username.Trim()));
-
-                // Re-sign in to update the cookie
-                await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-            }
-
-            if (isNewRegistration)
-            {
-                var email = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
-                var name = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
-
-                await publisher.Publish(new NewUserRegistrationEvent
-                {
-                    UserId = userId.Value,
-                    Username = request.Username.Trim(),
-                    Name = name,
-                    Email = email,
-                    SignupDate = DateTime.UtcNow
-                });
-            }
-
-            return Results.Ok(new { username = request.Username.Trim() });
-        })
+        group.MapPost("/username", HandleSetUsername)
         .RequireAuthorization()
         .WithName("SetUsername");
 
         return group;
+    }
+
+    private static IResult HandleLogin(IConfiguration configuration, ILogger<Program> logger, HttpContext context, string? returnUrl)
+    {
+        var frontendUrl = configuration["FrontendUrl"];
+
+        // In production, FrontendUrl must be configured
+        if (string.IsNullOrWhiteSpace(frontendUrl))
+        {
+            var isDevelopment = context.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment();
+            if (!isDevelopment)
+            {
+                LogFrontendUrlNotConfiguredInProduction(logger);
+                return Results.Problem("FrontendUrl is not configured", statusCode: 500);
+            }
+
+            frontendUrl = "http://localhost:5173";
+            LogFrontendUrlNotConfigured(logger, frontendUrl);
+        }
+
+        // Validate that frontendUrl is an absolute URL
+        if (!Uri.TryCreate(frontendUrl, UriKind.Absolute, out _))
+        {
+            LogInvalidFrontendUrl(logger, frontendUrl);
+            return Results.Problem("Invalid FrontendUrl configuration", statusCode: 500);
+        }
+
+        var redirectUri = BuildLoginRedirectUri(frontendUrl, returnUrl);
+        LogAuthLoginInitiated(logger, redirectUri);
+
+        return Results.Challenge(
+            new AuthenticationProperties { RedirectUri = redirectUri },
+            [GoogleDefaults.AuthenticationScheme]
+        );
+    }
+
+    private static string BuildLoginRedirectUri(string frontendUrl, string? returnUrl)
+    {
+        var redirectUri = frontendUrl.TrimEnd('/');
+
+        //Ensure returnUrl is a relative path to prevent open redirect attacks
+        if (!string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//", StringComparison.Ordinal))
+        {
+            redirectUri += returnUrl;
+        }
+
+        return redirectUri;
+    }
+
+    private static async Task<IResult> HandleRegister(RegisterRequest request, IUserService userService, HttpContext context)
+    {
+        var (success, error, user) = await userService.RegisterWithPasswordAsync(request.Email, request.Password);
+
+        if (!success || user == null)
+        {
+            return Results.BadRequest(new { error });
+        }
+
+        var principal = UserService.CreatePrincipalFromUser(user);
+        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+        return Results.Ok(UserService.GetCurrentUserFromClaims(principal));
+    }
+
+    private static async Task<IResult> HandleLoginWithPassword(PasswordLoginRequest request, IUserService userService, HttpContext context)
+    {
+        var (success, error, user) = await userService.LoginWithPasswordAsync(request.Email, request.Password);
+
+        if (!success || user == null)
+        {
+            return Results.BadRequest(new { error });
+        }
+
+        var principal = UserService.CreatePrincipalFromUser(user);
+        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+        return Results.Ok(UserService.GetCurrentUserFromClaims(principal));
+    }
+
+    private static async Task<IResult> HandleLogout(HttpContext context)
+    {
+        await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Results.Ok(new { message = "Logged out successfully" });
+    }
+
+    private static IResult HandleGetCurrentUser(ClaimsPrincipal user)
+    {
+        var currentUser = UserService.GetCurrentUserFromClaims(user);
+
+        if (currentUser == null)
+        {
+            return Results.Unauthorized();
+        }
+
+        return Results.Ok(currentUser);
+    }
+
+    private static async Task<IResult> HandleCheckUsernameAvailability(string username, ClaimsPrincipal user, IUserService userService)
+    {
+        var userId = UserService.GetUserIdFromClaims(user);
+        if (userId == null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var isAvailable = await userService.IsUsernameAvailableAsync(username, userId);
+        return Results.Ok(new UsernameAvailabilityResponse(isAvailable));
+    }
+
+    private static async Task<IResult> HandleGetProfile(ClaimsPrincipal user, IUserService userService)
+    {
+        var userId = UserService.GetUserIdFromClaims(user);
+        if (userId == null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var dbUser = await userService.GetUserByIdAsync(userId.Value);
+        if (dbUser == null)
+        {
+            return Results.NotFound();
+        }
+
+        var links = dbUser.ExternalLinks != null
+            ? JsonSerializer.Deserialize<List<ExternalLinkDto>>(dbUser.ExternalLinks)
+            : null;
+
+        return Results.Ok(new CurrentUserDto
+        {
+            Id = dbUser.Id.ToString(),
+            Email = dbUser.Email,
+            Username = dbUser.Username,
+            Name = dbUser.Name,
+            Picture = dbUser.PictureUrl,
+            Role = dbUser.Role.ToString(),
+            Bio = dbUser.Bio,
+            ExternalLinks = links
+        });
+    }
+
+    private static async Task<IResult> HandleUpdateProfile(UpdateProfileRequest request, ClaimsPrincipal user, IUserService userService)
+    {
+        var userId = UserService.GetUserIdFromClaims(user);
+        if (userId == null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var (success, error) = await userService.UpdateProfileAsync(userId.Value, request);
+        if (!success)
+        {
+            return Results.BadRequest(new { error });
+        }
+
+        return Results.Ok();
+    }
+
+    private static async Task<IResult> HandleSetUsername(SetUsernameRequest request, ClaimsPrincipal user, IUserService userService, IPublisher publisher, HttpContext context)
+    {
+        var userId = UserService.GetUserIdFromClaims(user);
+        if (userId == null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var (success, error, isNewRegistration) = await userService.SetUsernameAsync(userId.Value, request.Username);
+
+        if (!success)
+        {
+            return Results.BadRequest(new { error });
+        }
+
+        if (UpdateUsernameClaim(user, request.Username))
+        {
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, user);
+        }
+
+        if (isNewRegistration)
+        {
+            await PublishNewUserRegistrationAsync(publisher, user, userId.Value, request.Username);
+        }
+
+        return Results.Ok(new { username = request.Username.Trim() });
+    }
+
+    private static bool UpdateUsernameClaim(ClaimsPrincipal user, string username)
+    {
+        if (user.Identity is not ClaimsIdentity identity)
+        {
+            return false;
+        }
+
+        var existingClaim = identity.FindFirst("username");
+        if (existingClaim != null)
+        {
+            identity.RemoveClaim(existingClaim);
+        }
+
+        identity.AddClaim(new Claim("username", username.Trim()));
+        return true;
+    }
+
+    private static Task PublishNewUserRegistrationAsync(IPublisher publisher, ClaimsPrincipal user, Guid userId, string username)
+    {
+        var email = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+        var name = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
+
+        return publisher.Publish(new NewUserRegistrationEvent
+        {
+            UserId = userId,
+            Username = username.Trim(),
+            Name = name,
+            Email = email,
+            SignupDate = DateTime.UtcNow
+        });
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "FrontendUrl not configured, using default: {FrontendUrl}")]

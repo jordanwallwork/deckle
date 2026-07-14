@@ -3,7 +3,7 @@
  */
 
 import { writable } from 'svelte/store';
-import { loadGoogleFonts, getFontByFamily, type GoogleFont } from '$lib/services/googleFonts';
+import { loadGoogleFonts, getFontByFamily } from '$lib/services/googleFonts';
 import type { FontMetadata } from '$lib/components/editor/types';
 
 interface FontLoaderState {

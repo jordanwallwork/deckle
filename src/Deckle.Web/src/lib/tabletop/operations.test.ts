@@ -1251,7 +1251,13 @@ describe('spread zones', () => {
   describe('createSpreadZone', () => {
     it('adds a spread zone to state with editing mode set', () => {
       const state = makeState();
-      const id = createSpreadZone(state, 100, 200, 500, 200, 'row', 50, 'Hand');
+      const id = createSpreadZone(
+        state,
+        { x: 100, y: 200, width: 500, height: 200 },
+        'row',
+        50,
+        'Hand'
+      );
       const zone = state.zones[id] as SpreadZone;
       expect(zone.type).toBe('spread');
       expect(zone.direction).toBe('row');

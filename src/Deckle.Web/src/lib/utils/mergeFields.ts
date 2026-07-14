@@ -16,7 +16,7 @@ function toTypedContext(
       context[key] = true;
     } else if (lower === 'false') {
       context[key] = false;
-    } else if (value !== '' && !isNaN(Number(value))) {
+    } else if (value !== '' && !Number.isNaN(Number(value))) {
       context[key] = Number(value);
     } else {
       context[key] = value;
@@ -38,7 +38,7 @@ function toTypedContext(
 export function toIdentifier(header: string): string {
   // Split on non-alphanumeric characters, capitalize each word, rejoin
   return header
-    .split(/[^a-zA-Z0-9_]+/)
+    .split(/\W+/)
     .filter(Boolean)
     .map((word, index) => {
       // Capitalize the first letter of each word after the first split segment
@@ -55,7 +55,7 @@ export function toIdentifier(header: string): string {
 function stripQuotes(s: string): string {
   if (
     s.length >= 2 &&
-    ((s[0] === '"' && s[s.length - 1] === '"') || (s[0] === "'" && s[s.length - 1] === "'"))
+    ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))
   ) {
     return s.slice(1, -1);
   }
@@ -75,7 +75,7 @@ export function evaluateVisibility(
   condition: string | undefined,
   rowData: Record<string, string> | null | undefined
 ): boolean {
-  if (!condition || !condition.trim()) {
+  if (!condition?.trim()) {
     return false;
   }
 
@@ -162,7 +162,7 @@ export function colToLetter(col: number): string {
   let result = '';
   let n = col;
   do {
-    result = String.fromCharCode(65 + (n % 26)) + result;
+    result = String.fromCodePoint(65 + (n % 26)) + result;
     n = Math.floor(n / 26) - 1;
   } while (n >= 0);
   return result;

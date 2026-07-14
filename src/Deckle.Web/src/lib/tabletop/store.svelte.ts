@@ -30,7 +30,7 @@ export function pickShuffleAnimationCards(
   oldTopId: string,
   maxCards: number
 ): string[] {
-  const newTop = newOrder[newOrder.length - 1];
+  const newTop = newOrder.at(-1)!;
   const required = oldTopId === newTop ? [newTop] : [newTop, oldTopId];
   const requiredSet = new Set(required);
 
@@ -442,7 +442,7 @@ export function createTabletopStore(
 
   function shuffleStack(zoneId: string): void {
     const zone = store.state.zones[zoneId];
-    if (!zone || zone.type !== 'stack') return;
+    if (zone?.type !== 'stack') return;
 
     // Trivial cases — nothing visual to animate. Apply immediately.
     if (zone.entityIds.length < 2) {
@@ -537,12 +537,13 @@ export function createTabletopStore(
     const template = templates[templateId];
     if (!template) return [];
     let newIds: string[] = [];
+    const insertSuffix = insertIndex !== undefined ? `, @${insertIndex}` : '';
     apply(
       (s) => {
         newIds = ops.spawnFromTemplate(s, template, zoneId, x, y, instances, insertIndex);
         ops.resizeStackZoneToContents(s, zoneId, templates);
       },
-      `spawnFromTemplate(${templateId}, ${zoneId}${insertIndex !== undefined ? `, @${insertIndex}` : ''})`
+      `spawnFromTemplate(${templateId}, ${zoneId}${insertSuffix})`
     );
     return newIds;
   }

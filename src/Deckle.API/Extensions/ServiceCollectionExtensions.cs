@@ -44,7 +44,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static IServiceCollection AddConfigurators(this IServiceCollection services)
+    private static void AddConfigurators(this IServiceCollection services)
     {
         var implementations = Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => !t.IsAbstract && !t.IsInterface)
@@ -56,8 +56,6 @@ public static class ServiceCollectionExtensions
         {
             services.AddTransient(mapping.Interface, mapping.Implementation);
         }
-
-        return services;
     }
 
     public static IServiceCollection AddDeckleInfrastructure(

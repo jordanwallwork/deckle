@@ -187,8 +187,8 @@ describe('userValueToCss', () => {
 
 describe('getXOptions', () => {
   it('always includes left, center, right', () => {
-    for (const isColumn of [true, false]) {
-      const values = getXOptions(isColumn).map((o) => o.value);
+    for (const direction of ['column', 'row'] as const) {
+      const values = getXOptions(direction).map((o) => o.value);
       expect(values).toContain('left');
       expect(values).toContain('center');
       expect(values).toContain('right');
@@ -196,20 +196,20 @@ describe('getXOptions', () => {
   });
 
   it('includes stretch for column layout (cross-axis alignment)', () => {
-    const values = getXOptions(true).map((o) => o.value);
+    const values = getXOptions('column').map((o) => o.value);
     expect(values).toContain('stretch');
     expect(values).not.toContain('space-between');
   });
 
   it('includes space-between and space-around for row layout (main-axis alignment)', () => {
-    const values = getXOptions(false).map((o) => o.value);
+    const values = getXOptions('row').map((o) => o.value);
     expect(values).toContain('space-between');
     expect(values).toContain('space-around');
     expect(values).not.toContain('stretch');
   });
 
   it('returns objects with value and label properties', () => {
-    const options = getXOptions(false);
+    const options = getXOptions('row');
     for (const opt of options) {
       expect(opt).toHaveProperty('value');
       expect(opt).toHaveProperty('label');
@@ -219,8 +219,8 @@ describe('getXOptions', () => {
 
 describe('getYOptions', () => {
   it('always includes top, center, bottom', () => {
-    for (const isColumn of [true, false]) {
-      const values = getYOptions(isColumn).map((o) => o.value);
+    for (const direction of ['column', 'row'] as const) {
+      const values = getYOptions(direction).map((o) => o.value);
       expect(values).toContain('top');
       expect(values).toContain('center');
       expect(values).toContain('bottom');
@@ -228,20 +228,20 @@ describe('getYOptions', () => {
   });
 
   it('includes space-between and space-around for column layout (main-axis alignment)', () => {
-    const values = getYOptions(true).map((o) => o.value);
+    const values = getYOptions('column').map((o) => o.value);
     expect(values).toContain('space-between');
     expect(values).toContain('space-around');
     expect(values).not.toContain('stretch');
   });
 
   it('includes stretch for row layout (cross-axis alignment)', () => {
-    const values = getYOptions(false).map((o) => o.value);
+    const values = getYOptions('row').map((o) => o.value);
     expect(values).toContain('stretch');
     expect(values).not.toContain('space-between');
   });
 
   it('returns objects with value and label properties', () => {
-    const options = getYOptions(true);
+    const options = getYOptions('column');
     for (const opt of options) {
       expect(opt).toHaveProperty('value');
       expect(opt).toHaveProperty('label');
@@ -251,23 +251,20 @@ describe('getYOptions', () => {
 
 describe('getAlignmentGridCells', () => {
   it('always returns exactly 9 cells', () => {
-    expect(getAlignmentGridCells(true)).toHaveLength(9);
-    expect(getAlignmentGridCells(false)).toHaveLength(9);
+    expect(getAlignmentGridCells()).toHaveLength(9);
   });
 
   it('covers every combination of left/center/right and top/center/bottom', () => {
-    for (const isColumn of [true, false]) {
-      const cells = getAlignmentGridCells(isColumn);
-      for (const x of ['left', 'center', 'right']) {
-        for (const y of ['top', 'center', 'bottom']) {
-          expect(cells).toContainEqual({ x, y });
-        }
+    const cells = getAlignmentGridCells();
+    for (const x of ['left', 'center', 'right']) {
+      for (const y of ['top', 'center', 'bottom']) {
+        expect(cells).toContainEqual({ x, y });
       }
     }
   });
 
   it('returns objects with x and y properties', () => {
-    const cells = getAlignmentGridCells(false);
+    const cells = getAlignmentGridCells();
     for (const cell of cells) {
       expect(cell).toHaveProperty('x');
       expect(cell).toHaveProperty('y');

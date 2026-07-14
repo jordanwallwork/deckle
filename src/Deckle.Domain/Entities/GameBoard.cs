@@ -34,7 +34,7 @@ public enum GameBoardSize
 
 public static class GameBoardSizeExtensions
 {
-    private record SizeData(decimal LandscapeWidthMm, decimal LandscapeHeightMm, bool IsQuadFold);
+    private sealed record SizeData(decimal LandscapeWidthMm, decimal LandscapeHeightMm, bool IsQuadFold);
 
     private static readonly Dictionary<GameBoardSize, SizeData> Data = new()
     {
@@ -79,7 +79,10 @@ public static class GameBoardSizeExtensions
     /// </summary>
     public static int GetVerticalFolds(this GameBoardSize size, bool horizontal)
     {
-        return Data[size].IsQuadFold ? 1 : (horizontal ? 1 : 0);
+        if (Data[size].IsQuadFold)
+            return 1;
+
+        return horizontal ? 1 : 0;
     }
 
     /// <summary>
@@ -88,7 +91,10 @@ public static class GameBoardSizeExtensions
     /// </summary>
     public static int GetHorizontalFolds(this GameBoardSize size, bool horizontal)
     {
-        return Data[size].IsQuadFold ? 1 : (horizontal ? 0 : 1);
+        if (Data[size].IsQuadFold)
+            return 1;
+
+        return horizontal ? 0 : 1;
     }
 }
 

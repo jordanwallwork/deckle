@@ -50,10 +50,10 @@ export const gameBoardHandler: ComponentTypeHandler<GameBoardFormState> = {
       name: state.componentName,
       presetSize: state.sizeMode === 'preset' ? state.presetSize : null,
       horizontal: state.horizontal,
-      customWidthMm: state.sizeMode === 'custom' ? parseFloat(state.customWidthMm) : null,
-      customHeightMm: state.sizeMode === 'custom' ? parseFloat(state.customHeightMm) : null,
-      customHorizontalFolds: state.sizeMode === 'custom' ? parseInt(state.customHorizontalFolds) : null,
-      customVerticalFolds: state.sizeMode === 'custom' ? parseInt(state.customVerticalFolds) : null,
+      customWidthMm: state.sizeMode === 'custom' ? Number.parseFloat(state.customWidthMm) : null,
+      customHeightMm: state.sizeMode === 'custom' ? Number.parseFloat(state.customHeightMm) : null,
+      customHorizontalFolds: state.sizeMode === 'custom' ? Number.parseInt(state.customHorizontalFolds) : null,
+      customVerticalFolds: state.sizeMode === 'custom' ? Number.parseInt(state.customVerticalFolds) : null,
       sample: state.selectedSampleId
     });
   },
@@ -63,10 +63,10 @@ export const gameBoardHandler: ComponentTypeHandler<GameBoardFormState> = {
       name: state.componentName,
       presetSize: state.sizeMode === 'preset' ? state.presetSize : null,
       horizontal: state.horizontal,
-      customWidthMm: state.sizeMode === 'custom' ? parseFloat(state.customWidthMm) : null,
-      customHeightMm: state.sizeMode === 'custom' ? parseFloat(state.customHeightMm) : null,
-      customHorizontalFolds: state.sizeMode === 'custom' ? parseInt(state.customHorizontalFolds) : null,
-      customVerticalFolds: state.sizeMode === 'custom' ? parseInt(state.customVerticalFolds) : null
+      customWidthMm: state.sizeMode === 'custom' ? Number.parseFloat(state.customWidthMm) : null,
+      customHeightMm: state.sizeMode === 'custom' ? Number.parseFloat(state.customHeightMm) : null,
+      customHorizontalFolds: state.sizeMode === 'custom' ? Number.parseInt(state.customHorizontalFolds) : null,
+      customVerticalFolds: state.sizeMode === 'custom' ? Number.parseInt(state.customVerticalFolds) : null
     });
   },
 

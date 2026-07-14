@@ -26,7 +26,7 @@ public sealed class StorageQuotaInterceptor : SaveChangesInterceptor
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
-    private async ValueTask<InterceptionResult<int>> SavingChangesWithQuotaAsync(
+    private static async ValueTask<InterceptionResult<int>> SavingChangesWithQuotaAsync(
         DbContext context,
         InterceptionResult<int> result,
         CancellationToken cancellationToken)
@@ -136,10 +136,10 @@ public sealed class StorageQuotaInterceptor : SaveChangesInterceptor
         var currentSize = entry.Entity.TotalByteSize;
 
         // Handle File's Pending -> Confirmed transition
-        if (entry.Entity is Entities.File)
+        if (entry.Entity is Entities.File file)
         {
             var originalStatus = entry.OriginalValues.GetValue<FileStatus>(nameof(Entities.File.Status));
-            var currentStatus = ((Entities.File)entry.Entity).Status;
+            var currentStatus = file.Status;
 
             if (originalStatus == FileStatus.Pending && currentStatus == FileStatus.Confirmed)
                 return currentSize; // Full size added on confirmation

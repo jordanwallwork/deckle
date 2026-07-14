@@ -40,12 +40,12 @@ export const playerMatHandler: ComponentTypeHandler<PlayerMatFormState> = {
   },
 
   async create(projectId: string, state: PlayerMatFormState): Promise<void> {
-    const created = await componentsApi.createPlayerMat(projectId, {
+    await componentsApi.createPlayerMat(projectId, {
       name: state.componentName,
       presetSize: state.sizeMode === 'preset' ? state.presetSize : null,
       horizontal: state.horizontal,
-      customWidthMm: state.sizeMode === 'custom' ? parseFloat(state.customWidthMm) : null,
-      customHeightMm: state.sizeMode === 'custom' ? parseFloat(state.customHeightMm) : null,
+      customWidthMm: state.sizeMode === 'custom' ? Number.parseFloat(state.customWidthMm) : null,
+      customHeightMm: state.sizeMode === 'custom' ? Number.parseFloat(state.customHeightMm) : null,
       sample: state.selectedSampleId
     });
   },
@@ -55,8 +55,8 @@ export const playerMatHandler: ComponentTypeHandler<PlayerMatFormState> = {
       name: state.componentName,
       presetSize: state.sizeMode === 'preset' ? state.presetSize : null,
       horizontal: state.horizontal,
-      customWidthMm: state.sizeMode === 'custom' ? parseFloat(state.customWidthMm) : null,
-      customHeightMm: state.sizeMode === 'custom' ? parseFloat(state.customHeightMm) : null
+      customWidthMm: state.sizeMode === 'custom' ? Number.parseFloat(state.customWidthMm) : null,
+      customHeightMm: state.sizeMode === 'custom' ? Number.parseFloat(state.customHeightMm) : null
     });
   },
 

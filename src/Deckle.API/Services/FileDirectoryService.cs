@@ -655,14 +655,9 @@ public partial class FileDirectoryService : IFileDirectoryService
         // Update each file's path
         foreach (var file in files)
         {
-            if (file.Path.StartsWith(oldPath + "/", StringComparison.Ordinal))
+            if (file.Path.StartsWith(oldPath, StringComparison.Ordinal))
             {
                 // Replace the old path prefix with the new one
-                file.Path = newPath + file.Path[oldPath.Length..];
-            }
-            else if (file.Path.StartsWith(oldPath, StringComparison.Ordinal))
-            {
-                // Handle case where file is directly in the renamed directory
                 file.Path = newPath + file.Path[oldPath.Length..];
             }
         }

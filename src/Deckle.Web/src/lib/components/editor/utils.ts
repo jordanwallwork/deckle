@@ -1,5 +1,8 @@
 import type {
   BaseElement,
+  Background,
+  Border,
+  GridVariant,
   Shadow,
   TextElement,
   IteratorElement,
@@ -9,6 +12,16 @@ import type {
   TemplateElement
 } from './types';
 import { mmToPx } from '$lib/utils/size.utils';
+
+const GRID_VARIANT_LABELS: Record<GridVariant, string> = {
+  checkerboard: 'Checkerboard',
+  'offset-checkerboard': 'Offset Checkerboard',
+  hexagonal: 'Hexagonal'
+};
+
+function getGridVariantLabel(variant: GridVariant): string {
+  return GRID_VARIANT_LABELS[variant];
+}
 
 /**
  * Type guard for elements that have children (container, iterator, or shape).
@@ -40,13 +53,7 @@ export function getElementLabel(el: BaseElement): string {
   }
   if (el.type === 'grid') {
     const grid = el as GridElement;
-    const variantLabel =
-      grid.variant === 'checkerboard'
-        ? 'Checkerboard'
-        : grid.variant === 'offset-checkerboard'
-          ? 'Offset Checkerboard'
-          : 'Hexagonal';
-    return `Grid (${variantLabel})`;
+    return `Grid (${getGridVariantLabel(grid.variant)})`;
   }
   return el.type.charAt(0).toUpperCase() + el.type.slice(1);
 }
@@ -130,41 +137,33 @@ export function spacingToCss(
  * Builds border CSS string (complex property).
  * Handles undefined, so callers can pass optional border objects directly.
  */
-export function borderStyle(border: any | undefined, dpi?: number): string | undefined {
-  if (!border) return undefined;
+function pushIndividualBorderSides(styles: string[], border: Border, dpi: number | undefined) {
+  const sides = ['top', 'right', 'bottom', 'left'] as const;
+  for (const side of sides) {
+    const sideProps = border[side];
+    if (!sideProps) continue;
 
-  const styles: string[] = [];
-
-  // Check if individual sides are defined
-  const hasIndividualSides = border.top || border.right || border.bottom || border.left;
-
-  if (hasIndividualSides) {
-    // Use individual side properties
-    const sides = ['top', 'right', 'bottom', 'left'] as const;
-    for (const side of sides) {
-      const sideProps = border[side];
-      if (sideProps) {
-        const width = dimensionValue(sideProps.width, dpi);
-        if (width !== undefined) {
-          styles.push(`border-${side}-width: ${width}`);
-        }
-        if (sideProps.style) {
-          styles.push(`border-${side}-style: ${sideProps.style}`);
-        }
-        if (sideProps.color) {
-          styles.push(`border-${side}-color: ${sideProps.color}`);
-        }
-      }
+    const width = dimensionValue(sideProps.width, dpi);
+    if (width !== undefined) {
+      styles.push(`border-${side}-width: ${width}`);
     }
-  } else {
-    // Use main border properties (all sides)
-    const width = dimensionValue(border.width, dpi);
-    if (width !== undefined) styles.push(`border-width: ${width}`);
-    if (border.style) styles.push(`border-style: ${border.style}`);
-    if (border.color) styles.push(`border-color: ${border.color}`);
+    if (sideProps.style) {
+      styles.push(`border-${side}-style: ${sideProps.style}`);
+    }
+    if (sideProps.color) {
+      styles.push(`border-${side}-color: ${sideProps.color}`);
+    }
   }
+}
 
-  // Border radius (always applies)
+function pushUniformBorder(styles: string[], border: Border, dpi: number | undefined) {
+  const width = dimensionValue(border.width, dpi);
+  if (width !== undefined) styles.push(`border-width: ${width}`);
+  if (border.style) styles.push(`border-style: ${border.style}`);
+  if (border.color) styles.push(`border-color: ${border.color}`);
+}
+
+function pushBorderRadius(styles: string[], border: Border, dpi: number | undefined) {
   if (typeof border.radius === 'object') {
     const r = border.radius;
     const tl = dimensionValue(r.topLeft ?? 0, dpi) ?? 'auto';
@@ -178,6 +177,21 @@ export function borderStyle(border: any | undefined, dpi?: number): string | und
       styles.push(`border-radius: ${radius}`);
     }
   }
+}
+
+export function borderStyle(border: Border | undefined, dpi?: number): string | undefined {
+  if (!border) return undefined;
+
+  const styles: string[] = [];
+  const hasIndividualSides = border.top || border.right || border.bottom || border.left;
+
+  if (hasIndividualSides) {
+    pushIndividualBorderSides(styles, border, dpi);
+  } else {
+    pushUniformBorder(styles, border, dpi);
+  }
+
+  pushBorderRadius(styles, border, dpi);
 
   return styles.length > 0 ? styles.join('; ') : undefined;
 }
@@ -264,7 +278,7 @@ export function boxShadowStyle(shadow: Shadow | Shadow[] | undefined): string | 
  * Builds background CSS string.
  * Handles undefined, so callers can pass optional background objects directly.
  */
-export function backgroundStyle(background: any | undefined): string | undefined {
+export function backgroundStyle(background: Background | undefined): string | undefined {
   if (!background) return undefined;
 
   const styles: string[] = [];

@@ -23,6 +23,9 @@ public interface IFileService
 
 public partial class FileService : IFileService
 {
+    private const string FileNotFoundMessage = "File not found";
+    private const string VirtualPathSeparator = "/";
+
     private readonly AppDbContext _context;
     private readonly IProjectAuthorizationService _authService;
     private readonly ICloudflareR2Service _r2Service;
@@ -102,8 +105,12 @@ public partial class FileService : IFileService
         // 7. Validate directory if provided
         if (directoryId.HasValue)
         {
-            var directory = await _context.FileDirectories
-                .FirstOrDefaultAsync(d => d.Id == directoryId.Value && d.ProjectId == projectId) ?? throw new KeyNotFoundException("Directory not found or doesn't belong to this project");
+            var directoryExists = await _context.FileDirectories
+                .AnyAsync(d => d.Id == directoryId.Value && d.ProjectId == projectId);
+            if (!directoryExists)
+            {
+                throw new KeyNotFoundException("Directory not found or doesn't belong to this project");
+            }
         }
 
         // 8. Sanitize filename (replace invalid characters with underscores)
@@ -166,7 +173,7 @@ public partial class FileService : IFileService
         var file = await _context.Files
             .Include(f => f.Project)
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId) ?? throw new InvalidOperationException("File not found");
+            .FirstOrDefaultAsync(f => f.Id == fileId) ?? throw new InvalidOperationException(FileNotFoundMessage);
 
         // Authorization: User must have access to the project
         await _authService.RequireProjectAccessAsync(userId, file.ProjectId);
@@ -286,7 +293,7 @@ public partial class FileService : IFileService
         var file = await _context.Files
             .Include(f => f.Project)
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId) ?? throw new KeyNotFoundException("File not found");
+            .FirstOrDefaultAsync(f => f.Id == fileId) ?? throw new KeyNotFoundException(FileNotFoundMessage);
 
         // Authorization: User must have CanDeleteResources permission
         await _authService.EnsureCanDeleteResourcesAsync(userId, file.ProjectId);
@@ -336,7 +343,7 @@ public partial class FileService : IFileService
     {
         var file = await _context.Files
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new InvalidOperationException("File not found");
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new InvalidOperationException(FileNotFoundMessage);
 
         // Authorization: User must have CanModifyResources permission
         await _authService.EnsureCanModifyResourcesAsync(userId, file.ProjectId);
@@ -385,7 +392,7 @@ public partial class FileService : IFileService
     {
         var file = await _context.Files
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new KeyNotFoundException("File not found");
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new KeyNotFoundException(FileNotFoundMessage);
 
         // Authorization: User must have CanModifyResources permission
         await _authService.EnsureCanModifyResourcesAsync(userId, file.ProjectId);
@@ -461,7 +468,7 @@ public partial class FileService : IFileService
         var counter = 1;
 
         // Build the full path
-        var basePath = string.IsNullOrEmpty(directoryPath) ? "" : directoryPath + "/";
+        var basePath = string.IsNullOrEmpty(directoryPath) ? "" : directoryPath + VirtualPathSeparator;
 
         // Check if file exists at this path and generate unique name if needed
         while (await _context.Files.AnyAsync(f =>
@@ -516,7 +523,7 @@ public partial class FileService : IFileService
     {
         var file = await _context.Files
             .Include(f => f.UploadedBy)
-            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new KeyNotFoundException("File not found");
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.Status == FileStatus.Confirmed) ?? throw new KeyNotFoundException(FileNotFoundMessage);
 
         // Authorization: User must have CanModifyResources permission
         await _authService.EnsureCanModifyResourcesAsync(userId, file.ProjectId);
@@ -524,8 +531,12 @@ public partial class FileService : IFileService
         // Validate directory if provided
         if (directoryId.HasValue)
         {
-            var directory = await _context.FileDirectories
-                .FirstOrDefaultAsync(d => d.Id == directoryId.Value && d.ProjectId == file.ProjectId) ?? throw new KeyNotFoundException("Directory not found or doesn't belong to the same project");
+            var directoryExists = await _context.FileDirectories
+                .AnyAsync(d => d.Id == directoryId.Value && d.ProjectId == file.ProjectId);
+            if (!directoryExists)
+            {
+                throw new KeyNotFoundException("Directory not found or doesn't belong to the same project");
+            }
         }
 
         // Build new path and check for conflicts at destination

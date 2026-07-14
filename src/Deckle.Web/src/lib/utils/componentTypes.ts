@@ -3,8 +3,7 @@ import type {
   CardComponent,
   DiceComponent,
   GameBoardComponent,
-  PlayerMatComponent,
-  EditableComponent
+  PlayerMatComponent
 } from '$lib/types';
 
 // Type guard for components that can be edited (have front/back designs)
@@ -45,10 +44,11 @@ export function getComponentDisplayType(c: GameComponent): string {
       return 'Game Board';
     case 'PlayerMat':
       return 'Player Mat';
-    default:
+    default: {
       // Exhaustive check - this should never happen
       const _exhaustiveCheck: never = c;
       return String(_exhaustiveCheck);
+    }
   }
 }
 

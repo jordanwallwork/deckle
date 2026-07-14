@@ -14,7 +14,7 @@ export class ApiError extends Error {
 
 // Core API client class
 class ApiClient {
-  constructor(private baseUrl: string) {}
+  constructor(private readonly baseUrl: string) {}
 
   /**
    * Make a request to the API

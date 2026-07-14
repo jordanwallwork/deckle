@@ -41,11 +41,11 @@
   });
 
   // Get options for X and Y based on direction
-  const xOptions = $derived(() => getXOptions(isColumn));
-  const yOptions = $derived(() => getYOptions(isColumn));
+  const xOptions = $derived(() => getXOptions(isColumn ? 'column' : 'row'));
+  const yOptions = $derived(() => getYOptions(isColumn ? 'column' : 'row'));
 
   // Get the grid cells for the alignment grid
-  const gridCells = $derived(() => getAlignmentGridCells(isColumn));
+  const gridCells = $derived(() => getAlignmentGridCells());
 
   function isSelected(x: string, y: string): boolean {
     return currentX() === x && currentY() === y;

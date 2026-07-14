@@ -1,7 +1,7 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add a Docker Compose environment
-var compose = builder.AddDockerComposeEnvironment("compose");
+builder.AddDockerComposeEnvironment("compose");
 
 // Add PostgreSQL with pgAdmin and persistent data volume
 var postgres = builder.AddPostgres("postgres")

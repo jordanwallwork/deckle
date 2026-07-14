@@ -1,7 +1,7 @@
 // Shared validation rules for forms
 
 export const EMAIL_RULES = {
-  pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  pattern: /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/,
   messages: {
     required: 'Email is required',
     invalid: 'Please enter a valid email address'
@@ -11,7 +11,7 @@ export const EMAIL_RULES = {
 export const USERNAME_RULES = {
   minLength: 3,
   maxLength: 30,
-  pattern: /^[a-zA-Z0-9_]+$/,
+  pattern: /^\w+$/,
   inputPattern: /[^a-z0-9_]/g,
   messages: {
     tooShort: 'Username must be at least 3 characters',

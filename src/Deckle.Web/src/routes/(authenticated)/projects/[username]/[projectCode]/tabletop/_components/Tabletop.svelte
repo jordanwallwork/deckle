@@ -92,10 +92,12 @@
     const world = getWorldPoint(clientX, clientY);
     if (!world) return;
     store.createSpreadZone(
-      world.x - NEW_SPREAD_WIDTH / 2,
-      world.y - NEW_SPREAD_HEIGHT / 2,
-      NEW_SPREAD_WIDTH,
-      NEW_SPREAD_HEIGHT,
+      {
+        x: world.x - NEW_SPREAD_WIDTH / 2,
+        y: world.y - NEW_SPREAD_HEIGHT / 2,
+        width: NEW_SPREAD_WIDTH,
+        height: NEW_SPREAD_HEIGHT
+      },
       'row',
       40
     );

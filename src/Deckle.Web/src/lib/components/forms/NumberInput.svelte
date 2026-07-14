@@ -57,7 +57,7 @@
     line-height: 1.25rem;
     height: 2.125rem;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     background: var(--color-surface);
     box-sizing: border-box;
     font-family: inherit;

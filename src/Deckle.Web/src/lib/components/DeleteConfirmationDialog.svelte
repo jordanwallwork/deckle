@@ -101,7 +101,7 @@
     padding: 0.75rem;
     font-size: 0.875rem;
     border: 1px solid var(--color-border, #d1d5db);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--color-background, white);
     color: var(--color-text, #333);
     font-family: inherit;
@@ -124,7 +124,7 @@
     font-size: 0.875rem;
     padding: 0.75rem;
     background-color: #ffebee;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     border: 1px solid #ef9a9a;
   }
 </style>

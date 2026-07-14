@@ -2,6 +2,7 @@
   import type { Entity } from '$lib/tabletop';
   import { getTabletopApi } from '$lib/tabletop';
   import { getTemplateDisplaySize } from '$lib/tabletop/initialization';
+  import { prefersReducedMotion } from '$lib/utils/reducedMotion';
   import { onMount } from 'svelte';
   import EntityView from './EntityView.svelte';
 
@@ -37,6 +38,15 @@
   onMount(() => {
     const N = cardEls.length;
     if (N === 0) {
+      onComplete();
+      return;
+    }
+
+    // Reduced motion: skip the fan-out animation entirely. Apply the final
+    // z-index order (new top card on top) synchronously and complete now, so
+    // the deck lands in exactly the same state without any movement.
+    if (prefersReducedMotion()) {
+      zIndices = cards.map((_, i) => N - 1 - i);
       onComplete();
       return;
     }

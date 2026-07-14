@@ -91,41 +91,55 @@ function spreadInvariants(
 ): void {
   for (const zone of Object.values(state.zones)) {
     if (zone.type !== 'spread') continue;
-    // Membership: a pile listed here must claim this spread as its zone.
-    for (const pileId of zone.pileIds) {
-      const pile = state.piles[pileId];
-      if (pile && pile.zoneId !== zone.id) {
-        fail(`spread ${zone.id} lists pile ${pileId} whose zoneId is ${pile.zoneId}`);
-        pile.zoneId = zone.id;
-      }
-    }
-    // Splay: fan each multi-card pile into single-card piles in array order —
-    // pile-bottom at the pile's own index, pile-top last — preserving
-    // physical layering under the overlap render (later index renders on
-    // top). Cards keep their rotation and face state untouched.
-    for (let i = 0; i < zone.pileIds.length; i++) {
-      const pile = state.piles[zone.pileIds[i]];
-      if (!pile || pile.cardIds.length < 2) continue;
-      const splayed: string[] = [];
-      for (const cardId of pile.cardIds) {
-        const single: Pile = {
-          id: makeId('pile'),
-          zoneId: zone.id,
-          x: pile.x,
-          y: pile.y,
-          locked: pile.locked,
-          cardIds: [cardId]
-        };
-        state.piles[single.id] = single;
-        splayed.push(single.id);
-      }
-      delete state.piles[pile.id];
-      zone.pileIds.splice(i, 1, ...splayed);
-      i += splayed.length - 1;
-    }
+    enforceSpreadMembership(state, zone, fail);
+    splaySpreadPiles(state, zone);
     // Layout: write the spread's positions into state (renderers never
     // compute layout).
     zoneBehavior(zone).layout({ state, templates }, zone);
+  }
+}
+
+/** Membership: a pile listed in a spread must claim that spread as its zone. */
+function enforceSpreadMembership(
+  state: TabletopState,
+  zone: { id: string; pileIds: string[] },
+  fail: (message: string) => void
+): void {
+  for (const pileId of zone.pileIds) {
+    const pile = state.piles[pileId];
+    if (pile && pile.zoneId !== zone.id) {
+      fail(`spread ${zone.id} lists pile ${pileId} whose zoneId is ${pile.zoneId}`);
+      pile.zoneId = zone.id;
+    }
+  }
+}
+
+/**
+ * Fan each multi-card pile into single-card piles in array order —
+ * pile-bottom at the pile's own index, pile-top last — preserving physical
+ * layering under the overlap render (later index renders on top). Cards
+ * keep their rotation and face state untouched.
+ */
+function splaySpreadPiles(state: TabletopState, zone: { id: string; pileIds: string[] }): void {
+  for (let i = 0; i < zone.pileIds.length; i++) {
+    const pile = state.piles[zone.pileIds[i]];
+    if (!pile || pile.cardIds.length < 2) continue;
+    const splayed: string[] = [];
+    for (const cardId of pile.cardIds) {
+      const single: Pile = {
+        id: makeId('pile'),
+        zoneId: zone.id,
+        x: pile.x,
+        y: pile.y,
+        locked: pile.locked,
+        cardIds: [cardId]
+      };
+      state.piles[single.id] = single;
+      splayed.push(single.id);
+    }
+    delete state.piles[pile.id];
+    zone.pileIds.splice(i, 1, ...splayed);
+    i += splayed.length - 1;
   }
 }
 
@@ -156,7 +170,15 @@ function noEmptyPiles(state: TabletopState, fail: (message: string) => void): vo
  * cards.
  */
 function referentialIntegrity(state: TabletopState, fail: (message: string) => void): void {
-  // Zone lists reference existing top-level zones exactly once.
+  reconcileZoneLists(state, fail);
+  const seenPiles = reconcilePileContainers(state, fail);
+  reconcilePilePointers(state, fail, seenPiles);
+  reconcileCardOwnership(state, fail);
+  pruneDeadSelection(state);
+}
+
+/** Zone lists reference existing top-level zones exactly once. */
+function reconcileZoneLists(state: TabletopState, fail: (message: string) => void): void {
   dedupeExisting(state.zoneOrder, (id) => {
     const zone = state.zones[id];
     return zone !== undefined && zone.parentZoneId === undefined;
@@ -165,12 +187,14 @@ function referentialIntegrity(state: TabletopState, fail: (message: string) => v
     if (zone.type === 'freeform' && zone.childZoneIds) {
       dedupeExisting(zone.childZoneIds, (id) => {
         const child = state.zones[id];
-        return child !== undefined && child.parentZoneId === zone.id;
+        return child?.parentZoneId === zone.id;
       }, fail, `zone ${zone.id} childZoneIds`);
     }
   }
+}
 
-  // Container lists reference existing piles exactly once across all lists.
+/** Container lists reference existing piles exactly once across all lists. */
+function reconcilePileContainers(state: TabletopState, fail: (message: string) => void): Set<string> {
   const seenPiles = new Set<string>();
   const validPileFor = (containerLabel: string) => (id: string): boolean => {
     if (!state.piles[id]) return false;
@@ -185,9 +209,15 @@ function referentialIntegrity(state: TabletopState, fail: (message: string) => v
   for (const zone of Object.values(state.zones)) {
     dedupeExisting(zone.pileIds, validPileFor(`zone ${zone.id}`), fail, `zone ${zone.id} pileIds`);
   }
+  return seenPiles;
+}
 
-  // Every pile points at an existing zone (or root) and appears in its
-  // container's list.
+/** Every pile points at an existing zone (or root) and appears in its container's list. */
+function reconcilePilePointers(
+  state: TabletopState,
+  fail: (message: string) => void,
+  seenPiles: Set<string>
+): void {
   for (const pile of Object.values(state.piles)) {
     if (pile.zoneId !== null && !state.zones[pile.zoneId]) {
       fail(`pile ${pile.id} references missing zone ${pile.zoneId}`);
@@ -200,9 +230,14 @@ function referentialIntegrity(state: TabletopState, fail: (message: string) => v
       seenPiles.add(pile.id);
     }
   }
+}
 
-  // Every card id in a pile refers to an existing card, and no card appears
-  // in two piles.
+/**
+ * Every card id in a pile refers to an existing card and no card appears in
+ * two piles; every card belongs to some pile — orphans are unreachable and
+ * get deleted.
+ */
+function reconcileCardOwnership(state: TabletopState, fail: (message: string) => void): void {
   const cardOwner = new Map<string, string>();
   for (const pile of Object.values(state.piles)) {
     for (let i = pile.cardIds.length - 1; i >= 0; i--) {
@@ -222,16 +257,19 @@ function referentialIntegrity(state: TabletopState, fail: (message: string) => v
     }
   }
 
-  // Every card belongs to some pile — orphans are unreachable, delete them.
   for (const cardId of Object.keys(state.cards)) {
     if (!cardOwner.has(cardId)) {
       fail(`card ${cardId} belongs to no pile`);
       delete state.cards[cardId];
     }
   }
+}
 
-  // Selection must reference live objects; prune quietly (selection is
-  // ephemeral UI state, not an invariant worth throwing over).
+/**
+ * Selection must reference live objects; prune quietly (selection is
+ * ephemeral UI state, not an invariant worth throwing over).
+ */
+function pruneDeadSelection(state: TabletopState): void {
   if (state.selection.kind === 'piles') {
     const alive = state.selection.pileIds.filter((id) => state.piles[id]);
     if (alive.length === 0) state.selection = { kind: 'none' };

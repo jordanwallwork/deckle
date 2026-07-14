@@ -193,11 +193,11 @@ describe('convertZone — decks into layout zones', () => {
     settle(state);
 
     const zone = state.zones.z as SpreadZone;
-    expect(zone.pileIds.length).toBe(3);
+    expect(zone.pileIds).toHaveLength(3);
     // Bottom card first, top card last (physical layering under overlap).
     const cardOrder = zone.pileIds.map((id) => {
       const pile = state.piles[id];
-      expect(pile.cardIds.length).toBe(1);
+      expect(pile.cardIds).toHaveLength(1);
       return pile.cardIds[0];
     });
     expect(cardOrder).toEqual(['c1', 'c2', 'c3']);

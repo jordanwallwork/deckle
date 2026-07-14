@@ -11,8 +11,7 @@ import {
 } from './drop';
 import type { Point, Rect } from './geometry';
 import { rectFromPoints } from './geometry';
-import type { DragMutation, DragState } from './reducer';
-import { step, type DragInputEvent } from './reducer';
+import { step, type DragInputEvent, type DragMutation, type DragState } from './reducer';
 import * as ops from './operations';
 import {
   detachPileFromZone,

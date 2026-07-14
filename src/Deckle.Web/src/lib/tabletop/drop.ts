@@ -139,7 +139,7 @@ export function findPileAt(
 function refusesMerge(state: TabletopState, target: Pile): boolean {
   if (target.locked) return true;
   const zone = target.zoneId === null ? null : state.zones[target.zoneId];
-  return zone !== undefined && zone !== null && zone.locked;
+  return zone?.locked ?? false;
 }
 
 /**
@@ -170,7 +170,7 @@ export function dropTargetZoneAt(state: TabletopState, world: Point): string | n
  */
 function spreadContaining(state: TabletopState, pile: Pile): SpreadZone | null {
   const zone = pile.zoneId === null ? undefined : state.zones[pile.zoneId];
-  return zone !== undefined && zone.type === 'spread' && !zone.locked ? zone : null;
+  return zone?.type === 'spread' && !zone.locked ? zone : null;
 }
 
 /**
@@ -207,195 +207,224 @@ export function resolveDrop(
   world: Point,
   random: () => number = Math.random
 ): DropPlan {
-  const ctx = { state, templates, random };
+  const ctx: DropContext = { state, templates, random };
   switch (payload.kind) {
-    case 'template': {
-      const template = templates[payload.templateId];
-      if (!template) return NONE;
-      // Boards/mats are the one spawn that creates a zone: a freeform
-      // container region rendering the artwork, centred on the drop point at
-      // physical scale.
-      if (template.isContainer) {
-        const { width, height } = templateDisplaySize(template);
-        return {
-          kind: 'spawn-zone',
-          templateId: template.id,
-          name: template.name,
-          x: world.x - width / 2,
-          y: world.y - height / 2,
-          width,
-          height
-        };
-      }
-      const instances = getUnplacedInstances(state, template);
-      if (instances.length === 0) return NONE;
-      const region = dropRegionAt(state, world);
-      const behavior = zoneBehavior(region);
-      if (isDiceTemplate(template)) {
-        // Multi-dice spawn: scatter one loose single-die pile per instance
-        // around the drop point in whatever region was hit — spawning never
-        // creates a zone. Each die still passes through the region's own drop
-        // rules (a group re-jitters it; a grid seats it on a cell).
-        const points = scatterAround(world, instances.length, random);
-        const plans = instances.map((inst, i): DropPlan => {
-          const placement = behavior.planDrop(ctx, region, points[i]);
-          return {
-            kind: 'spawn-pile',
-            templateId: template.id,
-            instances: [inst],
-            zoneId: placement.zoneId,
-            x: placement.x,
-            y: placement.y,
-            index: placement.index,
-            rotationJitter: placement.rotationJitter
-          };
-        });
-        return { kind: 'multi', plans };
-      }
-      const placement = behavior.planDrop(ctx, region, world);
+    case 'template':
+      return resolveTemplateDrop(ctx, payload.templateId, world);
+    case 'pile':
+      return resolvePileDrop(ctx, payload.pileId, world);
+    case 'piles':
+      return resolvePilesDrop(ctx, payload.pileIds, world);
+  }
+}
+
+interface DropContext {
+  state: TabletopState;
+  templates: Templates;
+  random: () => number;
+}
+
+function resolveTemplateDrop(ctx: DropContext, templateId: string, world: Point): DropPlan {
+  const { state, templates, random } = ctx;
+  const template = templates[templateId];
+  if (!template) return NONE;
+  // Boards/mats are the one spawn that creates a zone: a freeform
+  // container region rendering the artwork, centred on the drop point at
+  // physical scale.
+  if (template.isContainer) {
+    const { width, height } = templateDisplaySize(template);
+    return {
+      kind: 'spawn-zone',
+      templateId: template.id,
+      name: template.name,
+      x: world.x - width / 2,
+      y: world.y - height / 2,
+      width,
+      height
+    };
+  }
+  const instances = getUnplacedInstances(state, template);
+  if (instances.length === 0) return NONE;
+  const region = dropRegionAt(state, world);
+  const behavior = zoneBehavior(region);
+  if (isDiceTemplate(template)) {
+    // Multi-dice spawn: scatter one loose single-die pile per instance
+    // around the drop point in whatever region was hit — spawning never
+    // creates a zone. Each die still passes through the region's own drop
+    // rules (a group re-jitters it; a grid seats it on a cell).
+    const points = scatterAround(world, instances.length, random);
+    const plans = instances.map((inst, i): DropPlan => {
+      const placement = behavior.planDrop(ctx, region, points[i]);
       return {
         kind: 'spawn-pile',
         templateId: template.id,
-        instances,
+        instances: [inst],
         zoneId: placement.zoneId,
         x: placement.x,
         y: placement.y,
         index: placement.index,
         rotationJitter: placement.rotationJitter
       };
-    }
-    case 'pile': {
-      const pile = state.piles[payload.pileId];
-      if (!pile) return NONE;
-      const target = findPileAt(state, templates, world, pile.id);
-      const targetSpread = target === null ? null : spreadContaining(state, target);
-      if (target && targetSpread) {
-        // Insert wins over merge inside the seam bands (story 24) …
-        const bandIndex = spreadInsertIntent(state, templates, targetSpread, target.id, world);
-        if (bandIndex !== null) {
-          return {
-            kind: 'place-pile',
-            pileId: pile.id,
-            zoneId: targetSpread.id,
-            x: world.x,
-            y: world.y,
-            index: bandIndex
-          };
-        }
-      }
-      if (
-        target &&
-        !refusesMerge(state, target) &&
-        isPileMergeable(state, templates, pile) &&
-        isPileMergeable(state, templates, target)
-      ) {
-        // … and the card's face merges (story 25).
-        return { kind: 'merge-piles', sourcePileId: pile.id, targetPileId: target.id };
-      }
-      if (targetSpread) {
-        // A refused merge over a spread card (locked target, unmergeable
-        // payload) still lands in the spread — nearest slot to the pointer.
-        return {
-          kind: 'place-pile',
-          pileId: pile.id,
-          zoneId: targetSpread.id,
-          x: world.x,
-          y: world.y,
-          index: spreadInsertIndex(state, templates, targetSpread, world)
-        };
-      }
-      const region = dropRegionAt(state, world);
-      const behavior = zoneBehavior(region);
-      // Ordered zones slot by the pointer; everything else keeps the pile
-      // where it visually sits.
-      const at = behavior.ordered ? world : pileWorldCenter(state, pile);
-      const placement = behavior.planDrop(ctx, region, at);
+    });
+    return { kind: 'multi', plans };
+  }
+  const placement = behavior.planDrop(ctx, region, world);
+  return {
+    kind: 'spawn-pile',
+    templateId: template.id,
+    instances,
+    zoneId: placement.zoneId,
+    x: placement.x,
+    y: placement.y,
+    index: placement.index,
+    rotationJitter: placement.rotationJitter
+  };
+}
+
+function resolvePileDrop(ctx: DropContext, pileId: string, world: Point): DropPlan {
+  const { state, templates } = ctx;
+  const pile = state.piles[pileId];
+  if (!pile) return NONE;
+  const target = findPileAt(state, templates, world, pile.id);
+  const targetSpread = target === null ? null : spreadContaining(state, target);
+  if (target && targetSpread) {
+    // Insert wins over merge inside the seam bands (story 24) …
+    const bandIndex = spreadInsertIntent(state, templates, targetSpread, target.id, world);
+    if (bandIndex !== null) {
       return {
         kind: 'place-pile',
         pileId: pile.id,
-        zoneId: placement.zoneId,
-        x: placement.x,
-        y: placement.y,
-        index: placement.index,
-        rotationJitter: placement.rotationJitter
+        zoneId: targetSpread.id,
+        x: world.x,
+        y: world.y,
+        index: bandIndex
       };
     }
-    case 'piles': {
-      const piles = payload.pileIds
-        .map((id) => state.piles[id])
-        .filter((p): p is Pile => p !== undefined);
-      if (piles.length === 0) return NONE;
-      const target = findPileAt(state, templates, world, payload.pileIds);
-      const targetSpread = target === null ? null : spreadContaining(state, target);
-      // The seam bands disable merging for the whole group, exactly as for a
-      // single pile; each pile then slots at its own centre-derived index.
-      const bandInsert =
-        target !== null && targetSpread !== null
-          ? spreadInsertIntent(state, templates, targetSpread, target.id, world)
-          : null;
-      const merging =
-        bandInsert === null &&
-        target !== null &&
-        !refusesMerge(state, target) &&
-        isPileMergeable(state, templates, target);
-      const region = targetSpread ?? dropRegionAt(state, world);
-      const behavior = zoneBehavior(region);
-      const plans = piles.map((pile): DropPlan => {
-        if (merging && isPileMergeable(state, templates, pile)) {
-          return { kind: 'merge-piles', sourcePileId: pile.id, targetPileId: target.id };
-        }
-        const placement = behavior.planDrop(ctx, region, pileWorldCenter(state, pile));
-        return {
-          kind: 'place-pile',
-          pileId: pile.id,
-          zoneId: placement.zoneId,
-          x: placement.x,
-          y: placement.y,
-          index: placement.index,
-          rotationJitter: placement.rotationJitter
-        };
-      });
-      return { kind: 'multi', plans };
-    }
   }
+  if (
+    target &&
+    !refusesMerge(state, target) &&
+    isPileMergeable(state, templates, pile) &&
+    isPileMergeable(state, templates, target)
+  ) {
+    // … and the card's face merges (story 25).
+    return { kind: 'merge-piles', sourcePileId: pile.id, targetPileId: target.id };
+  }
+  if (targetSpread) {
+    // A refused merge over a spread card (locked target, unmergeable
+    // payload) still lands in the spread — nearest slot to the pointer.
+    return {
+      kind: 'place-pile',
+      pileId: pile.id,
+      zoneId: targetSpread.id,
+      x: world.x,
+      y: world.y,
+      index: spreadInsertIndex(state, templates, targetSpread, world)
+    };
+  }
+  const region = dropRegionAt(state, world);
+  const behavior = zoneBehavior(region);
+  // Ordered zones slot by the pointer; everything else keeps the pile
+  // where it visually sits.
+  const at = behavior.ordered ? world : pileWorldCenter(state, pile);
+  const placement = behavior.planDrop(ctx, region, at);
+  return {
+    kind: 'place-pile',
+    pileId: pile.id,
+    zoneId: placement.zoneId,
+    x: placement.x,
+    y: placement.y,
+    index: placement.index,
+    rotationJitter: placement.rotationJitter
+  };
+}
+
+function resolvePilesDrop(ctx: DropContext, pileIds: readonly string[], world: Point): DropPlan {
+  const { state, templates } = ctx;
+  const piles = pileIds
+    .map((id) => state.piles[id])
+    .filter((p): p is Pile => p !== undefined);
+  if (piles.length === 0) return NONE;
+  const target = findPileAt(state, templates, world, pileIds);
+  const targetSpread = target === null ? null : spreadContaining(state, target);
+  // The seam bands disable merging for the whole group, exactly as for a
+  // single pile; each pile then slots at its own centre-derived index.
+  const bandInsert =
+    target !== null && targetSpread !== null
+      ? spreadInsertIntent(state, templates, targetSpread, target.id, world)
+      : null;
+  const merging =
+    bandInsert === null &&
+    target !== null &&
+    !refusesMerge(state, target) &&
+    isPileMergeable(state, templates, target);
+  const region = targetSpread ?? dropRegionAt(state, world);
+  const behavior = zoneBehavior(region);
+  const plans = piles.map((pile): DropPlan => {
+    if (merging && isPileMergeable(state, templates, pile)) {
+      return { kind: 'merge-piles', sourcePileId: pile.id, targetPileId: target.id };
+    }
+    const placement = behavior.planDrop(ctx, region, pileWorldCenter(state, pile));
+    return {
+      kind: 'place-pile',
+      pileId: pile.id,
+      zoneId: placement.zoneId,
+      x: placement.x,
+      y: placement.y,
+      index: placement.index,
+      rotationJitter: placement.rotationJitter
+    };
+  });
+  return { kind: 'multi', plans };
 }
 
 /** Apply a resolved plan to the state. Call inside a store commit. */
 export function applyDropPlan(state: TabletopState, templates: Templates, plan: DropPlan): void {
   switch (plan.kind) {
-    case 'spawn-pile': {
-      const template = templates[plan.templateId];
-      if (!template) return;
-      const pileId = spawnPileFromTemplate(state, template, plan.instances, plan.x, plan.y);
-      if (pileId === null) return;
-      if (plan.zoneId !== null) {
-        placePile(state, pileId, plan.zoneId, plan.x, plan.y, plan.index);
-      }
-      if (plan.rotationJitter) rotatePile(state, pileId, plan.rotationJitter);
-      return;
-    }
-    case 'spawn-zone': {
-      if (!templates[plan.templateId]) return;
-      createContainerZone(state, plan.templateId, plan.x, plan.y, plan.width, plan.height, plan.name);
-      return;
-    }
-    case 'merge-piles': {
-      mergePiles(state, plan.sourcePileId, plan.targetPileId);
-      return;
-    }
-    case 'place-pile': {
-      if (!state.piles[plan.pileId]) return;
-      placePile(state, plan.pileId, plan.zoneId, plan.x, plan.y, plan.index);
-      if (plan.rotationJitter) rotatePile(state, plan.pileId, plan.rotationJitter);
-      return;
-    }
-    case 'multi': {
+    case 'spawn-pile':
+      return applySpawnPile(state, templates, plan);
+    case 'spawn-zone':
+      return applySpawnZone(state, templates, plan);
+    case 'merge-piles':
+      return mergePiles(state, plan.sourcePileId, plan.targetPileId);
+    case 'place-pile':
+      return applyPlacePile(state, plan);
+    case 'multi':
       for (const sub of plan.plans) applyDropPlan(state, templates, sub);
       return;
-    }
     case 'none':
       return;
   }
+}
+
+function applySpawnPile(
+  state: TabletopState,
+  templates: Templates,
+  plan: Extract<DropPlan, { kind: 'spawn-pile' }>
+): void {
+  const template = templates[plan.templateId];
+  if (!template) return;
+  const pileId = spawnPileFromTemplate(state, template, plan.instances, plan.x, plan.y);
+  if (pileId === null) return;
+  if (plan.zoneId !== null) {
+    placePile(state, pileId, plan.zoneId, plan.x, plan.y, plan.index);
+  }
+  if (plan.rotationJitter) rotatePile(state, pileId, plan.rotationJitter);
+}
+
+function applySpawnZone(
+  state: TabletopState,
+  templates: Templates,
+  plan: Extract<DropPlan, { kind: 'spawn-zone' }>
+): void {
+  if (!templates[plan.templateId]) return;
+  createContainerZone(state, plan.templateId, plan.x, plan.y, plan.width, plan.height, plan.name);
+}
+
+function applyPlacePile(state: TabletopState, plan: Extract<DropPlan, { kind: 'place-pile' }>): void {
+  if (!state.piles[plan.pileId]) return;
+  placePile(state, plan.pileId, plan.zoneId, plan.x, plan.y, plan.index);
+  if (plan.rotationJitter) rotatePile(state, plan.pileId, plan.rotationJitter);
 }
 
 /**

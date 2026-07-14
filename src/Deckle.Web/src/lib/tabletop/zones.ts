@@ -343,7 +343,7 @@ export function convertZone(
   // card's cosmetic tilt to the nearest 90°; a no-op for the other types, so
   // this needs no type check).
   const behavior = zoneBehavior(zone);
-  for (const pileId of [...zone.pileIds]) {
+  for (const pileId of zone.pileIds) {
     behavior.onLeave({ state, templates }, zone, pileId);
   }
 
@@ -405,7 +405,7 @@ export function removeZone(state: TabletopState, zoneId: string): void {
   const zone = state.zones[zoneId];
   if (!zone) return;
 
-  for (const pileId of [...zone.pileIds]) {
+  for (const pileId of zone.pileIds) {
     const pile = state.piles[pileId];
     if (!pile) continue;
     for (const cardId of pile.cardIds) delete state.cards[cardId];
@@ -594,7 +594,7 @@ export function reparentZone(
   if (currentParentId === newParentId) return;
   if (newParentId !== null) {
     const parent = state.zones[newParentId];
-    if (!parent || parent.type !== 'freeform') return; // only freeform parents
+    if (parent?.type !== 'freeform') return; // only freeform parents
   }
 
   const worldOrigin = zoneWorldOrigin(state, zone);

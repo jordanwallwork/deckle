@@ -67,7 +67,7 @@ export function canRedo<S>(history: History<S>): boolean {
 /** Step back one entry. `current` is the live state, pushed onto the redo stack. */
 export function undo<S>(history: History<S>, current: S): { history: History<S>; state: S } | null {
   if (history.past.length === 0) return null;
-  const state = history.past[history.past.length - 1];
+  const state = history.past.at(-1) as S;
   return {
     history: { past: history.past.slice(0, -1), future: [...history.future, current] },
     state
@@ -77,7 +77,7 @@ export function undo<S>(history: History<S>, current: S): { history: History<S>;
 /** Step forward one undone entry. `current` is the live state, pushed onto the undo stack. */
 export function redo<S>(history: History<S>, current: S): { history: History<S>; state: S } | null {
   if (history.future.length === 0) return null;
-  const state = history.future[history.future.length - 1];
+  const state = history.future.at(-1) as S;
   return {
     history: { past: [...history.past, current], future: history.future.slice(0, -1) },
     state

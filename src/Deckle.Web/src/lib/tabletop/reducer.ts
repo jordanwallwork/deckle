@@ -282,21 +282,7 @@ function stepIdle(event: DragInputEvent, ctx: ReducerContext): StepResult {
   // resize handles start gestures. Everything else waits for Done/Escape —
   // a stray drag must not open a second transaction inside the session's.
   if (ctx.state.editingZoneId !== null) {
-    if (event.type !== 'zone-resize-down' || event.zoneId !== ctx.state.editingZoneId) {
-      return idle();
-    }
-    const zone = ctx.state.zones[event.zoneId];
-    if (!zone) return idle();
-    return {
-      drag: {
-        mode: 'zone-resize',
-        zoneId: event.zoneId,
-        corner: event.corner,
-        grab: event.world,
-        startRect: { x: zone.x, y: zone.y, width: zone.width, height: zone.height }
-      },
-      mutations: []
-    };
+    return stepIdleDuringZoneEdit(event, ctx);
   }
 
   if (event.type === 'background-down') {
@@ -337,22 +323,7 @@ function stepIdle(event: DragInputEvent, ctx: ReducerContext): StepResult {
   // selection together; grab kind doesn't matter for group moves.
   const selected = selectedPileIds(ctx.state).filter((id) => ctx.state.piles[id] !== undefined);
   if (selected.length > 1 && selected.includes(event.pileId)) {
-    const starts: Record<string, Point> = {};
-    for (const id of selected) {
-      starts[id] = pileWorldCenter(ctx.state, ctx.state.piles[id]);
-    }
-    return {
-      drag: {
-        mode: 'multi',
-        pileIds: selected,
-        pressedPileId: event.pileId,
-        grab: event.world,
-        starts,
-        active: false,
-        ctrl: event.ctrl === true
-      },
-      mutations: []
-    };
+    return startMultiGrab(selected, event, ctx);
   }
 
   // Locked piles enter the press state too — they must stay clickable to
@@ -371,52 +342,57 @@ function stepIdle(event: DragInputEvent, ctx: ReducerContext): StepResult {
   };
 }
 
+function stepIdleDuringZoneEdit(event: DragInputEvent, ctx: ReducerContext): StepResult {
+  if (event.type !== 'zone-resize-down' || event.zoneId !== ctx.state.editingZoneId) {
+    return idle();
+  }
+  const zone = ctx.state.zones[event.zoneId];
+  if (!zone) return idle();
+  return {
+    drag: {
+      mode: 'zone-resize',
+      zoneId: event.zoneId,
+      corner: event.corner,
+      grab: event.world,
+      startRect: { x: zone.x, y: zone.y, width: zone.width, height: zone.height }
+    },
+    mutations: []
+  };
+}
+
+function startMultiGrab(
+  selected: string[],
+  event: Extract<DragInputEvent, { type: 'pile-down' }>,
+  ctx: ReducerContext
+): StepResult {
+  const starts: Record<string, Point> = {};
+  for (const id of selected) {
+    starts[id] = pileWorldCenter(ctx.state, ctx.state.piles[id]);
+  }
+  return {
+    drag: {
+      mode: 'multi',
+      pileIds: selected,
+      pressedPileId: event.pileId,
+      grab: event.world,
+      starts,
+      active: false,
+      ctrl: event.ctrl === true
+    },
+    mutations: []
+  };
+}
+
 function stepPile(
   drag: Extract<DragState, { mode: 'pile' }>,
   event: DragInputEvent,
   ctx: ReducerContext
 ): StepResult {
   switch (event.type) {
-    case 'move': {
-      const dx = event.world.x - drag.grab.x;
-      const dy = event.world.y - drag.grab.y;
-      if (!drag.active && Math.hypot(dx, dy) < DRAG_THRESHOLD) {
-        return { drag, mutations: [] };
-      }
-      if (!drag.active) {
-        // A locked pile refuses the drag (and the split) but stays pressed,
-        // so releasing still counts as a click-select.
-        if (ctx.state.piles[drag.pileId]?.locked) return { drag, mutations: [] };
-        return activate(drag, dx, dy, ctx);
-      }
-      return {
-        drag,
-        mutations: [
-          { type: 'move-pile', pileId: drag.pileId, x: drag.pileStart.x + dx, y: drag.pileStart.y + dy }
-        ]
-      };
-    }
-    case 'up': {
-      if (!drag.active) {
-        // Press-and-release without movement: a click. Plain click selects
-        // just this pile; Ctrl/Cmd+click toggles it in the multi-selection.
-        return idle([{ type: 'select', selection: clickSelection(drag.pileId, drag.ctrl, ctx) }]);
-      }
-      if (event.overSidebar) {
-        // Dropping onto the sidebar removes the pile — inside the still-open
-        // transaction, so the whole gesture is a single undo step.
-        return idle([{ type: 'remove-pile', pileId: drag.pileId }, { type: 'commit' }]);
-      }
-      // Everything else goes through the shared drop resolver: merge onto the
-      // pile under the pointer, or stay where the pile visually sits.
-      const plan = resolveDrop(
-        ctx.state,
-        ctx.templates,
-        { kind: 'pile', pileId: drag.pileId },
-        event.world
-      );
-      return idle([{ type: 'drop', plan }, { type: 'commit' }]);
-    }
+    case 'move':
+      return stepPileMove(drag, event, ctx);
+    case 'up':
+      return stepPileUp(drag, event, ctx);
     case 'cancel':
       return idle(drag.active ? [{ type: 'rollback' }] : []);
     case 'pile-down':
@@ -428,6 +404,51 @@ function stepPile(
       // of the current gesture to stay consistent.
       return idle(drag.active ? [{ type: 'rollback' }] : []);
   }
+}
+
+function stepPileMove(
+  drag: Extract<DragState, { mode: 'pile' }>,
+  event: Extract<DragInputEvent, { type: 'move' }>,
+  ctx: ReducerContext
+): StepResult {
+  const dx = event.world.x - drag.grab.x;
+  const dy = event.world.y - drag.grab.y;
+  if (!drag.active && Math.hypot(dx, dy) < DRAG_THRESHOLD) {
+    return { drag, mutations: [] };
+  }
+  if (!drag.active) {
+    // A locked pile refuses the drag (and the split) but stays pressed,
+    // so releasing still counts as a click-select.
+    if (ctx.state.piles[drag.pileId]?.locked) return { drag, mutations: [] };
+    return activate(drag, dx, dy, ctx);
+  }
+  return {
+    drag,
+    mutations: [
+      { type: 'move-pile', pileId: drag.pileId, x: drag.pileStart.x + dx, y: drag.pileStart.y + dy }
+    ]
+  };
+}
+
+function stepPileUp(
+  drag: Extract<DragState, { mode: 'pile' }>,
+  event: Extract<DragInputEvent, { type: 'up' }>,
+  ctx: ReducerContext
+): StepResult {
+  if (!drag.active) {
+    // Press-and-release without movement: a click. Plain click selects
+    // just this pile; Ctrl/Cmd+click toggles it in the multi-selection.
+    return idle([{ type: 'select', selection: clickSelection(drag.pileId, drag.ctrl, ctx) }]);
+  }
+  if (event.overSidebar) {
+    // Dropping onto the sidebar removes the pile — inside the still-open
+    // transaction, so the whole gesture is a single undo step.
+    return idle([{ type: 'remove-pile', pileId: drag.pileId }, { type: 'commit' }]);
+  }
+  // Everything else goes through the shared drop resolver: merge onto the
+  // pile under the pointer, or stay where the pile visually sits.
+  const plan = resolveDrop(ctx.state, ctx.templates, { kind: 'pile', pileId: drag.pileId }, event.world);
+  return idle([{ type: 'drop', plan }, { type: 'commit' }]);
 }
 
 function stepMulti(
@@ -533,33 +554,10 @@ function stepMarquee(
   ctx: ReducerContext
 ): StepResult {
   switch (event.type) {
-    case 'move': {
-      const next = { ...drag, current: event.world };
-      if (!drag.active) {
-        const dx = event.world.x - drag.start.x;
-        const dy = event.world.y - drag.start.y;
-        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return { drag: next, mutations: [] };
-        next.active = true;
-      }
-      // Live rubber-band: the selection tracks the rectangle on every frame.
-      return { drag: next, mutations: [{ type: 'select', selection: marqueeSelection(next, ctx) }] };
-    }
-    case 'up': {
-      if (!drag.active) {
-        // A background click: on a zone's body it selects the zone; on the
-        // open table, plain deselects. Ctrl/Cmd is reserved for building
-        // selections, so it leaves the selection alone.
-        if (drag.ctrl) return idle();
-        const selection: Selection =
-          drag.zoneId !== undefined && ctx.state.zones[drag.zoneId]
-            ? { kind: 'zone', zoneId: drag.zoneId }
-            : { kind: 'none' };
-        return idle([{ type: 'select', selection }]);
-      }
-      return idle([
-        { type: 'select', selection: marqueeSelection({ ...drag, current: event.world }, ctx) }
-      ]);
-    }
+    case 'move':
+      return stepMarqueeMove(drag, event, ctx);
+    case 'up':
+      return stepMarqueeUp(drag, event, ctx);
     case 'cancel':
     case 'pile-down':
     case 'background-down':
@@ -569,6 +567,41 @@ function stepMarquee(
       // Aborting mid-marquee restores whatever was selected before it began.
       return idle(drag.active ? [{ type: 'select', selection: drag.prevSelection }] : []);
   }
+}
+
+function stepMarqueeMove(
+  drag: Extract<DragState, { mode: 'marquee' }>,
+  event: Extract<DragInputEvent, { type: 'move' }>,
+  ctx: ReducerContext
+): StepResult {
+  const next = { ...drag, current: event.world };
+  if (!drag.active) {
+    const dx = event.world.x - drag.start.x;
+    const dy = event.world.y - drag.start.y;
+    if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return { drag: next, mutations: [] };
+    next.active = true;
+  }
+  // Live rubber-band: the selection tracks the rectangle on every frame.
+  return { drag: next, mutations: [{ type: 'select', selection: marqueeSelection(next, ctx) }] };
+}
+
+function stepMarqueeUp(
+  drag: Extract<DragState, { mode: 'marquee' }>,
+  event: Extract<DragInputEvent, { type: 'up' }>,
+  ctx: ReducerContext
+): StepResult {
+  if (!drag.active) {
+    // A background click: on a zone's body it selects the zone; on the
+    // open table, plain deselects. Ctrl/Cmd is reserved for building
+    // selections, so it leaves the selection alone.
+    if (drag.ctrl) return idle();
+    const selection: Selection =
+      drag.zoneId !== undefined && ctx.state.zones[drag.zoneId]
+        ? { kind: 'zone', zoneId: drag.zoneId }
+        : { kind: 'none' };
+    return idle([{ type: 'select', selection }]);
+  }
+  return idle([{ type: 'select', selection: marqueeSelection({ ...drag, current: event.world }, ctx) }]);
 }
 
 function stepZoneMove(

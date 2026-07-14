@@ -69,7 +69,7 @@ export function pickShuffleAnimationCards(
   maxCards: number,
   random: () => number = Math.random
 ): string[] {
-  const newTop = newOrder[newOrder.length - 1];
+  const newTop = newOrder.at(-1) as string;
   const required = oldTopId === newTop ? [newTop] : [newTop, oldTopId];
   const requiredSet = new Set(required);
 
@@ -102,7 +102,7 @@ export function planShuffle(
     const pile = state.piles[pileId];
     if (!pile || pile.cardIds.length < 2) continue;
     const newOrder = computeShuffledOrder(pile.cardIds, random);
-    const oldTop = pile.cardIds[pile.cardIds.length - 1];
+    const oldTop = pile.cardIds.at(-1) as string;
     const animatedCardIds = pickShuffleAnimationCards(
       newOrder,
       oldTop,

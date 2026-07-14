@@ -59,7 +59,7 @@ describe('pickShuffleAnimationCards', () => {
   it('caps the sample at maxCards while keeping both required tops', () => {
     const newOrder = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8']; // new top = c8
     const picked = pickShuffleAnimationCards(newOrder, 'c1', 4, () => 0);
-    expect(picked.length).toBe(4);
+    expect(picked).toHaveLength(4);
     expect(picked).toContain('c8');
     expect(picked).toContain('c1');
     expect(new Set(picked).size).toBe(picked.length); // no duplicates
@@ -69,7 +69,7 @@ describe('pickShuffleAnimationCards', () => {
     const newOrder = ['c2', 'c3', 'c1'];
     const picked = pickShuffleAnimationCards(newOrder, 'c1', 5, () => 0);
     // c1 is both tops → it appears once, painted first, no trailing old top.
-    expect(picked.filter((id) => id === 'c1').length).toBe(1);
+    expect(picked.filter((id) => id === 'c1')).toHaveLength(1);
     expect(picked[0]).toBe('c1');
   });
 

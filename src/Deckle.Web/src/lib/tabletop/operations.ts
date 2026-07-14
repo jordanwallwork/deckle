@@ -117,7 +117,7 @@ export function spawnPileFromTemplate(
 
 function serializeMergeData(mergeData: Record<string, string> | null): string {
   if (mergeData === null) return 'null';
-  const sorted = Object.keys(mergeData).sort();
+  const sorted = Object.keys(mergeData).sort((a, b) => a.localeCompare(b));
   return JSON.stringify(Object.fromEntries(sorted.map((k) => [k, mergeData[k]])));
 }
 
@@ -229,7 +229,7 @@ export function splitTopCard(state: TabletopState, sourcePileId: string, newPile
   const source = getPile(state, sourcePileId);
   if (source.cardIds.length < 2) return;
   const world = pileWorldCenter(state, source);
-  const topCardId = source.cardIds[source.cardIds.length - 1];
+  const topCardId = source.cardIds.at(-1) as string;
   source.cardIds = source.cardIds.slice(0, -1);
   const pile: Pile = {
     id: newPileId,
@@ -281,7 +281,7 @@ export function flipPile(state: TabletopState, templates: Templates, pileId: str
 /** Reveal a deck's top without disturbing the rest: toggle only the top card. */
 export function flipTopCard(state: TabletopState, templates: Templates, pileId: string): void {
   const pile = getPile(state, pileId);
-  const topCard = state.cards[pile.cardIds[pile.cardIds.length - 1]];
+  const topCard = state.cards[pile.cardIds.at(-1) as string];
   if (!topCard) return;
   if (templates[topCard.templateId]?.flippable !== true) return;
   topCard.isFlipped = !topCard.isFlipped;

@@ -1,77 +1,70 @@
 <script lang="ts">
-  import type { Entity } from '$lib/tabletop';
-  import { getTabletopApi } from '$lib/tabletop';
-  import { getTemplateDisplaySize } from '$lib/tabletop/initialization';
+  // Fan-out/fan-in overlay for a shuffling pile. A sample of cards (always
+  // including the old top and the new top) separates and re-collects; a
+  // z-index swap while they're apart lands the new top on top with no visual
+  // pop. Purely visual — the store owns committing the precomputed order.
+  import type { Card } from '$lib/tabletop';
+  import {
+    getTabletopApi,
+    SHUFFLE_HOLD_MS,
+    SHUFFLE_IN_MS,
+    SHUFFLE_OUT_MS,
+    SHUFFLE_STAGGER_MS,
+    templateDisplaySize
+  } from '$lib/tabletop';
   import { prefersReducedMotion } from '$lib/utils/reducedMotion';
   import { onMount } from 'svelte';
-  import EntityView from './EntityView.svelte';
+  import FlipCard from './FlipCard.svelte';
 
-  let {
-    animatedIds,
-    onComplete
-  }: {
-    animatedIds: readonly string[];
-    onComplete: () => void;
-  } = $props();
+  let { animatedCardIds }: { animatedCardIds: readonly string[] } = $props();
 
-  const store = getTabletopApi();
+  const { store } = getTabletopApi();
 
-  // Snapshot entities at mount — the underlying state mutates when the
-  // animation completes, but our ghost cards must keep showing the pre-
-  // shuffle data right up to the final frame. The IIFE is just to silence
-  // Svelte's "captures only initial value" warning; that's exactly what we
-  // want here since the parent re-mounts us when a new shuffle starts.
-  const cards: Entity[] = ((ids) =>
+  // Snapshot the animated cards at mount — the pile's order commits when the
+  // fan lands, but the ghosts must keep showing pre-shuffle data until then.
+  // The IIFE silences Svelte's "captures only initial value" warning; a fresh
+  // shuffle re-mounts this component, so capturing once is exactly right.
+  const cards: Card[] = ((ids) =>
     ids
-      .map((id) => store.state.entities[id])
-      .filter((e): e is Entity => !!e)
-      .map((e) => $state.snapshot(e)))(animatedIds);
+      .map((id) => store.state.cards[id])
+      .filter((c): c is Card => !!c)
+      .map((c) => $state.snapshot(c) as Card))(animatedCardIds);
 
-  // Per-card z-index. Initially the LAST card (the old top) sits on top, so
-  // the user sees the same card they were just looking at. A scheduled swap
-  // reverses this once the cards have separated, leaving the FIRST card
-  // (the new top) on top when they regroup.
+  // Per-card z-index. Initially the LAST card (the old top) sits on top so the
+  // user sees the card they were looking at. A scheduled swap reverses this
+  // once the cards have separated, leaving the FIRST card (new top) on top.
   let zIndices = $state(cards.map((_, i) => i));
 
   let cardEls: (HTMLElement | null)[] = $state(cards.map(() => null));
 
   onMount(() => {
     const N = cardEls.length;
-    if (N === 0) {
-      onComplete();
-      return;
-    }
+    if (N === 0) return;
 
     // Reduced motion: skip the fan-out animation entirely. Apply the final
-    // z-index order (new top card on top) synchronously and complete now, so
-    // the deck lands in exactly the same state without any movement.
+    // z-index order (new top card on top) synchronously, so the deck lands
+    // in exactly the same state without any movement.
     if (prefersReducedMotion()) {
       zIndices = cards.map((_, i) => N - 1 - i);
-      onComplete();
       return;
     }
 
-    const STAGGER = 70;
-    const OUT_DUR = 220;
-    const HOLD_DUR = 100;
-    const IN_DUR = 240;
-    const total = (N - 1) * STAGGER + OUT_DUR + HOLD_DUR + IN_DUR;
+    const total = (N - 1) * SHUFFLE_STAGGER_MS + SHUFFLE_OUT_MS + SHUFFLE_HOLD_MS + SHUFFLE_IN_MS;
 
     cardEls.forEach((el, i) => {
       if (!el) return;
 
-      // Alternate sides with a randomised distance/rotation so the fan
-      // looks natural. Slight upward bias so cards don't all overshoot
-      // the bottom of the surface.
+      // Alternate sides with a randomised distance/rotation so the fan looks
+      // natural; a slight upward bias keeps cards off the bottom edge.
       const dir = i % 2 === 0 ? -1 : 1;
       const distance = 80 + Math.random() * 70;
       const rot = (Math.random() - 0.5) * 25 + (dir < 0 ? -8 : 8);
       const yOff = (Math.random() - 0.5) * 36 - 6;
 
-      const outStart = i * STAGGER;
-      const outEnd = outStart + OUT_DUR;
-      const inStart = outEnd + HOLD_DUR;
-      const inEnd = inStart + IN_DUR;
+      const outStart = i * SHUFFLE_STAGGER_MS;
+      const outEnd = outStart + SHUFFLE_OUT_MS;
+      const inStart = outEnd + SHUFFLE_HOLD_MS;
+      const inEnd = inStart + SHUFFLE_IN_MS;
 
       const offsets = [0, outStart / total, outEnd / total, inStart / total, inEnd / total, 1];
       // WAAPI requires non-decreasing offsets.
@@ -92,56 +85,36 @@
           { transform: home, offset: offsets[4] },
           { transform: home, offset: offsets[5] }
         ],
-        {
-          duration: total,
-          easing: 'ease-in-out',
-          fill: 'forwards'
-        }
+        { duration: total, easing: 'ease-in-out', fill: 'forwards' }
       );
     });
 
-    // Swap z-indices once every card is at its outer position — they no
-    // longer overlap, so the change is invisible. From this point on the
-    // FIRST card (the new top) renders above its peers.
-    const swapAt = (N - 1) * STAGGER + OUT_DUR + 20;
+    // Swap z-indices once every card is at its outer position — they no longer
+    // overlap, so the change is invisible. From here the FIRST card (new top)
+    // renders above its peers.
+    const swapAt = (N - 1) * SHUFFLE_STAGGER_MS + SHUFFLE_OUT_MS + 20;
     const swapTimer = setTimeout(() => {
       zIndices = cards.map((_, i) => N - 1 - i);
     }, swapAt);
-
-    const completeTimer = setTimeout(onComplete, total + 30);
-    return () => {
-      clearTimeout(swapTimer);
-      clearTimeout(completeTimer);
-    };
+    return () => clearTimeout(swapTimer);
   });
 </script>
 
 <div class="shuffle-overlay">
-  {#each cards as entity, i (entity.instanceId + ':' + i)}
-    {@const template = store.templates[entity.templateId]}
-    {@const displaySize = template ? getTemplateDisplaySize(template) : null}
-    {@const renderScale =
-      template && template.widthPx > 0 && displaySize ? displaySize.width / template.widthPx : 1}
-    <div
-      bind:this={cardEls[i]}
-      class="shuffle-card"
-      style="
-        width: {displaySize?.width ?? 100}px;
-        height: {displaySize?.height ?? 100}px;
-        z-index: {zIndices[i]};
-      "
-    >
-      <div class="rotate-wrap" style="transform: rotate({entity.rotation}deg);">
-        <div class="entity-flip-container" class:flipped={entity.isFlipped}>
-          <div class="entity-front">
-            <EntityView {entity} {template} {renderScale} side="front" />
-          </div>
-          <div class="entity-back">
-            <EntityView {entity} {template} {renderScale} side="back" />
-          </div>
+  {#each cards as card, i (card.id + ':' + i)}
+    {@const template = store.templates[card.templateId]}
+    {@const size = template ? templateDisplaySize(template) : null}
+    {#if template && size}
+      <div
+        bind:this={cardEls[i]}
+        class="shuffle-card"
+        style="width: {size.width}px; height: {size.height}px; z-index: {zIndices[i]};"
+      >
+        <div class="rotate-wrap" style="transform: rotate({card.rotation}deg);">
+          <FlipCard {card} {template} />
         </div>
       </div>
-    </div>
+    {/if}
   {/each}
 </div>
 
@@ -157,7 +130,6 @@
     position: absolute;
     inset: 0;
     margin: auto;
-    border-radius: 6px;
     perspective: 800px;
     will-change: transform;
     transform-origin: 50% 50%;
@@ -167,29 +139,5 @@
     position: relative;
     width: 100%;
     height: 100%;
-  }
-
-  .entity-flip-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    transform-style: preserve-3d;
-  }
-
-  .entity-flip-container.flipped {
-    transform: rotateY(180deg);
-  }
-
-  .entity-front,
-  .entity-back {
-    position: absolute;
-    inset: 0;
-    backface-visibility: hidden;
-    border-radius: 6px;
-    overflow: hidden;
-  }
-
-  .entity-back {
-    transform: rotateY(180deg);
   }
 </style>

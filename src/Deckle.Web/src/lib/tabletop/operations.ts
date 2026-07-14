@@ -1,108 +1,12 @@
-// Pure operations on TabletopState. Each function mutates the passed state
-// in place — callers are responsible for wrapping in history management
-// (see store.svelte.ts). Keeping these outside the store means they stay
-// unit-testable and can be reused by the boardgame.io adapter in Phase 3.
+// Pure operations on the TabletopState. Each function mutates the passed
+// state in place — callers wrap them in the store's transaction/commit API.
+// Operations stay minimal: the normalize pass owns cross-cutting bookkeeping.
 
-import type {
-  Entity,
-  EntityTemplate,
-  FreeformZone,
-  GridZone,
-  GroupZone,
-  SpreadZone,
-  StackZone,
-  TabletopState,
-  Zone,
-  ZoneType,
-  ZoneTypeSettingsCache
-} from './types';
-import { getTemplateDisplaySize } from './initialization';
+import type { Point } from './geometry';
+import { pileWorldCenter, worldToZoneLocal } from './geometry';
+import type { Card, Pile, Selection, TabletopState, Template, Templates } from './types';
 
-/**
- * Extra padding (px) added to each side of a stack zone beyond its
- * defaultSize, giving the pile some visual breathing room and a drop
- * target slightly larger than a single card.
- */
-export const STACK_ZONE_PADDING = 10;
-
-/** Only Card entities can be placed in stack, spread, or grid zones. */
-export function isStackable(template: EntityTemplate): boolean {
-  return template.type === 'Card';
-}
-
-/**
- * GameBoard and PlayerMat templates spawn as freeform container zones
- * (with the design rendered as a background) rather than as entities.
- */
-export function isContainerTemplate(template: EntityTemplate): boolean {
-  return template.type === 'GameBoard' || template.type === 'PlayerMat';
-}
-
-/**
- * Resize a stack zone's bounding box to fit the largest entity it currently
- * contains, plus STACK_ZONE_PADDING on each side. Preserves the zone's centre
- * so the pile grows/shrinks symmetrically. No-op when the zone is missing,
- * not a stack, empty, or already at the correct size.
- *
- * Entities in a stack share the same rotation; odd quarter-turns swap the
- * visual width/height, so the rotation of each entity is respected.
- */
-/** Rotated display size of an entity, accounting for odd quarter-turns swapping width/height. */
-function getRotatedEntitySize(
-  entity: Entity,
-  template: EntityTemplate
-): { width: number; height: number } {
-  const { width, height } = getTemplateDisplaySize(template);
-  const quarterTurns = Math.round(entity.rotation / 90);
-  const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
-  return isOddQuarterTurn ? { width: height, height: width } : { width, height };
-}
-
-/** Largest rotated display size among a stack zone's entities. */
-function getMaxEntityDisplaySize(
-  zone: StackZone,
-  state: TabletopState,
-  templates: Record<string, EntityTemplate>
-): { maxW: number; maxH: number } {
-  let maxW = 0;
-  let maxH = 0;
-  for (const id of zone.entityIds) {
-    const entity = state.entities[id];
-    const template = entity && templates[entity.templateId];
-    if (!entity || !template) continue;
-
-    const { width, height } = getRotatedEntitySize(entity, template);
-    if (width > maxW) maxW = width;
-    if (height > maxH) maxH = height;
-  }
-  return { maxW, maxH };
-}
-
-export function resizeStackZoneToContents(
-  state: TabletopState,
-  zoneId: string,
-  templates: Record<string, EntityTemplate>
-): void {
-  const zone = state.zones[zoneId];
-  if (zone?.type !== 'stack' || zone.entityIds.length === 0) return;
-
-  const { maxW, maxH } = getMaxEntityDisplaySize(zone, state, templates);
-  if (maxW === 0 || maxH === 0) return;
-
-  const newWidth = maxW + STACK_ZONE_PADDING * 2;
-  const newHeight = maxH + STACK_ZONE_PADDING * 2;
-  if (zone.width === newWidth && zone.height === newHeight) return;
-
-  const cx = zone.x + zone.width / 2;
-  const cy = zone.y + zone.height / 2;
-  zone.x = cx - newWidth / 2;
-  zone.y = cy - newHeight / 2;
-  zone.width = newWidth;
-  zone.height = newHeight;
-  zone.defaultSize = { width: maxW, height: maxH };
-}
-
-function makeId(prefix = 'id'): string {
+export function makeId(prefix = 'id'): string {
   const suffix =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
@@ -111,843 +15,104 @@ function makeId(prefix = 'id'): string {
 }
 
 /** Normalize an angle to [0, 360). */
-function normalizeDegrees(n: number): number {
+export function normalizeDegrees(n: number): number {
   const r = n % 360;
   return r < 0 ? r + 360 : r;
 }
 
-function getEntity(state: TabletopState, instanceId: string) {
-  const entity = state.entities[instanceId];
-  if (!entity) {
-    throw new Error(`Entity not found: ${instanceId}`);
-  }
-  return entity;
-}
-
-function getZone(state: TabletopState, zoneId: string): Zone {
-  const zone = state.zones[zoneId];
-  if (!zone) {
-    throw new Error(`Zone not found: ${zoneId}`);
-  }
-  return zone;
-}
-
 /**
- * Return the world-space (canvas-origin) top-left position of a zone.
- * For top-level zones this is just zone.x / zone.y. For zones nested inside
- * a freeform zone the x/y are parent-local, so we walk up the ancestry chain.
+ * Snap an angle to the nearest quarter turn (0/90/180/270). This is how a
+ * pile leaves a group zone: cosmetic scatter jitter (92° → 90°) is discarded
+ * while a deliberate orientation (180° → 180°) survives.
  */
-export function getZoneWorldPos(state: TabletopState, zoneId: string): { x: number; y: number } {
-  const zone = state.zones[zoneId];
-  if (!zone) return { x: 0, y: 0 };
-  if (!zone.parentZoneId) return { x: zone.x, y: zone.y };
-  const parentPos = getZoneWorldPos(state, zone.parentZoneId);
-  return { x: parentPos.x + zone.x, y: parentPos.y + zone.y };
+export function snapToRightAngle(deg: number): number {
+  return normalizeDegrees(Math.round(normalizeDegrees(deg) / 90) * 90);
 }
 
+export function getPile(state: TabletopState, pileId: string): Pile {
+  const pile = state.piles[pileId];
+  if (!pile) throw new Error(`Pile not found: ${pileId}`);
+  return pile;
+}
+
+/** The ordered pile-id list that contains this pile (root list or its zone's). */
+export function containerPileIds(state: TabletopState, pile: Pile): string[] {
+  if (pile.zoneId === null) return state.rootPileIds;
+  const zone = state.zones[pile.zoneId];
+  if (!zone) throw new Error(`Zone not found: ${pile.zoneId}`);
+  return zone.pileIds;
+}
+
+/** Radius (px) a multi-dice spawn scatters its loose dice over. */
+export const DICE_SCATTER_RADIUS = 48;
+
 /**
- * Register a freshly-constructed zone with the state: store it, append to
- * zoneOrder (or to the parent's childZoneIds when nested), and optionally
- * enter edit/select mode. Used by every zone creation path so the bookkeeping
- * stays consistent.
+ * `count` points scattered around a centre, each jittered independently on
+ * both axes within ±`radius`. Drives the multi-dice spawn: dropping a
+ * dice-set lands N loose single-die piles around the drop point (no zone is
+ * created). `random` is injectable so tests are deterministic; two calls per
+ * point (x then y).
  */
-function registerZone(
-  state: TabletopState,
-  zone: Zone,
-  opts: { edit?: boolean; select?: boolean } = {}
-): void {
-  state.zones[zone.id] = zone;
-  if (zone.parentZoneId) {
-    const parent = state.zones[zone.parentZoneId] as FreeformZone | undefined;
-    if (parent) {
-      if (!parent.childZoneIds) parent.childZoneIds = [];
-      parent.childZoneIds.push(zone.id);
-    }
-  } else {
-    state.zoneOrder.push(zone.id);
+export function scatterAround(
+  center: Point,
+  count: number,
+  random: () => number = Math.random,
+  radius = DICE_SCATTER_RADIUS
+): Point[] {
+  const points: Point[] = [];
+  for (let i = 0; i < count; i++) {
+    points.push({
+      x: center.x + (random() * 2 - 1) * radius,
+      y: center.y + (random() * 2 - 1) * radius
+    });
   }
-  if (opts.edit) state.editingZoneId = zone.id;
-  if (opts.select) {
-    state.selectedZoneId = zone.id;
-    state.selectedEntityIds = [];
-  }
+  return points;
 }
 
+// ─── Spawning ──────────────────────────────────────────────────────────────
+
 /**
- * Compute the layout step (px) between consecutive entities in a spread,
- * given its direction and defaultSize. Kept public so the renderer and
- * drop-target math use the same formula as the layout routine.
+ * Spawn one pile at a point on the root table from template instances: one
+ * card per instance (array order, last = top). Face-state heuristic: more
+ * than one instance spawns face-down (a deck); exactly one spawns face-up
+ * (a reference card). Spawning never creates zones.
  *
- * Minimum step is 1px so a runaway overlap value can't collapse positions
- * or make the insert-index math divide by zero.
+ * (x, y) is world-space and becomes the pile centre. Returns the pile id.
  */
-export function getSpreadStep(zone: SpreadZone): number {
-  const size = zone.defaultSize;
-  if (!size) return 0;
-  const primary = zone.direction === 'row' ? size.width : size.height;
-  return Math.max(1, primary - zone.overlap);
-}
-
-/**
- * Place every entity in a grid zone into consecutive cells, filling
- * left-to-right then top-to-bottom. No-op for non-grid zones.
- */
-export function layoutGrid(state: TabletopState, zoneId: string): void {
-  const zone = state.zones[zoneId];
-  if (zone?.type !== 'grid') return;
-  for (let i = 0; i < zone.entityIds.length; i++) {
-    const entity = state.entities[zone.entityIds[i]];
-    if (!entity) continue;
-    entity.x = (i % zone.columns) * zone.cellWidth;
-    entity.y = Math.floor(i / zone.columns) * zone.cellHeight;
-  }
-}
-
-/**
- * Recompute the (x, y) of every entity in a spread zone based on its
- * index, direction, and overlap. Entities are laid flush to the zone's
- * origin along the primary axis and centred on the cross axis. No-op if
- * the zone isn't a spread or has no defaultSize yet.
- */
-export function layoutSpread(state: TabletopState, zoneId: string): void {
-  const zone = state.zones[zoneId];
-  if (zone?.type !== 'spread') return;
-  const size = zone.defaultSize;
-  if (!size) return;
-
-  const step = getSpreadStep(zone);
-  const crossAxis =
-    zone.direction === 'row' ? (zone.height - size.height) / 2 : (zone.width - size.width) / 2;
-
-  for (let i = 0; i < zone.entityIds.length; i++) {
-    const entity = state.entities[zone.entityIds[i]];
-    if (!entity) continue;
-    if (zone.direction === 'row') {
-      entity.x = i * step;
-      entity.y = crossAxis;
-    } else {
-      entity.x = crossAxis;
-      entity.y = i * step;
-    }
-  }
-}
-
-/**
- * Scatter every entity in a group zone loosely. Entities are assigned to grid
- * cells (sized by count) so each one occupies its own region of the zone —
- * overlap only occurs once the cells are smaller than the entities themselves.
- * Random jitter within each cell (±30% of cell size) and a small rotation
- * (±10°) give a natural scattered look. No-op for non-group zones.
- */
-export function layoutGroup(state: TabletopState, zoneId: string): void {
-  const zone = state.zones[zoneId];
-  if (zone?.type !== 'group') return;
-  const count = zone.entityIds.length;
-  if (count === 0) return;
-
-  const cols = Math.ceil(Math.sqrt(count));
-  const rows = Math.ceil(count / cols);
-  const cellW = zone.width / cols;
-  const cellH = zone.height / rows;
-  const jitterX = cellW * 0.3;
-  const jitterY = cellH * 0.3;
-
-  for (let i = 0; i < zone.entityIds.length; i++) {
-    const entity = state.entities[zone.entityIds[i]];
-    if (!entity) continue;
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    entity.x = (col + 0.5) * cellW + (Math.random() - 0.5) * jitterX;
-    entity.y = (row + 0.5) * cellH + (Math.random() - 0.5) * jitterY;
-    entity.rotation = normalizeDegrees((Math.random() - 0.5) * 20);
-  }
-}
-
-/**
- * Derive the insert index for a drag drop at (localX, localY) within a
- * spread zone. Uses the same step as the layout so the position between
- * two cards maps to the index that visually lands there. `excludeId` is
- * filtered out first for same-zone reorders (where the dragged card's old
- * slot is about to vanish from the array).
- */
-export function computeSpreadInsertIndex(
-  zone: SpreadZone,
-  localX: number,
-  localY: number,
-  excludeId?: string
-): number {
-  const ids = excludeId ? zone.entityIds.filter((id) => id !== excludeId) : zone.entityIds;
-  if (ids.length === 0) return 0;
-  const size = zone.defaultSize;
-  if (!size) return ids.length;
-
-  const step = getSpreadStep(zone);
-  const pointer = zone.direction === 'row' ? localX : localY;
-  const half = (zone.direction === 'row' ? size.width : size.height) / 2;
-  const position = (pointer - half) / step;
-  return Math.max(0, Math.min(ids.length, Math.floor(position + 1)));
-}
-
-/**
- * Set defaultSize on a spread zone from the given template's display size,
- * if it doesn't already have one. Called when the first entity lands in an
- * empty spread so subsequent layout / insert math has the dims it needs.
- */
-export function ensureSpreadDefaultSize(
+export function spawnPileFromTemplate(
   state: TabletopState,
-  zoneId: string,
-  template: EntityTemplate
-): void {
-  const zone = state.zones[zoneId];
-  if (zone?.type !== 'spread') return;
-  if (zone.defaultSize) return;
-  const { width, height } = getTemplateDisplaySize(template);
-  zone.defaultSize = { width, height };
-}
-
-/**
- * Snap (x, y) to the nearest grid cell origin within a grid zone.
- * Keeps positions inside the zone bounds.
- */
-export function snapToGrid(
-  zone: GridZone,
+  template: Template,
+  instances: (Record<string, string> | null)[],
   x: number,
   y: number
-): { x: number; y: number; index: number } {
-  const col = Math.max(0, Math.min(zone.columns - 1, Math.round(x / zone.cellWidth)));
-  const row = Math.max(0, Math.round(y / zone.cellHeight));
-  return {
-    x: col * zone.cellWidth,
-    y: row * zone.cellHeight,
-    index: row * zone.columns + col
-  };
-}
+): string | null {
+  if (instances.length === 0) return null;
 
-/**
- * Move an entity to a new (x, y) within its current zone.
- * Grid zones snap; stack zones ignore position (entities stack on top).
- */
-export function moveEntity(state: TabletopState, instanceId: string, x: number, y: number): void {
-  const entity = getEntity(state, instanceId);
-  const zone = getZone(state, entity.zoneId);
-
-  if (zone.type === 'grid') {
-    const snapped = snapToGrid(zone, x, y);
-    entity.x = snapped.x;
-    entity.y = snapped.y;
-  } else if (zone.type === 'stack' || zone.type === 'spread') {
-    // Stack and spread positions are derived from the layout — ignore free movement.
-  } else {
-    entity.x = x;
-    entity.y = y;
-  }
-}
-
-/**
- * If the given stack is non-persistent and has dropped to a single entity (or
- * fewer), dissolve the stack: promote the last entity to a non-stack zone at
- * the stack's old location, and remove the stack from state. A no-op for
- * persistent stacks, non-stack zones, or stacks with 2+ entities.
- */
-function maybeAutoDissolveStack(state: TabletopState, zoneId: string): void {
-  const zone = state.zones[zoneId];
-  if (zone?.type !== 'stack' || zone.persistent) return;
-  if (zone.entityIds.length > 1) return;
-
-  // Prefer a freeform zone so the promoted entity keeps its visual position;
-  // fall back to any non-stack zone so it still has somewhere to live.
-  const targetZone =
-    Object.values(state.zones).find((z) => z.type === 'freeform' && z.id !== zoneId) ??
-    Object.values(state.zones).find((z) => z.type !== 'stack' && z.id !== zoneId);
-
-  if (zone.entityIds.length === 1 && targetZone) {
-    const lastId = zone.entityIds[0];
-    const entity = state.entities[lastId];
-    if (entity) {
-      const displayW = zone.defaultSize?.width ?? Math.max(0, zone.width - STACK_ZONE_PADDING * 2);
-      const displayH =
-        zone.defaultSize?.height ?? Math.max(0, zone.height - STACK_ZONE_PADDING * 2);
-      const worldX = zone.x + zone.width / 2;
-      const worldY = zone.y + zone.height / 2;
-      const localX = worldX - targetZone.x - displayW / 2;
-      const localY = worldY - targetZone.y - displayH / 2;
-
-      zone.entityIds = [];
-      entity.zoneId = targetZone.id;
-      if (targetZone.type === 'freeform') {
-        entity.x = localX;
-        entity.y = localY;
-      } else if (targetZone.type === 'grid') {
-        const snapped = snapToGrid(targetZone, localX, localY);
-        entity.x = snapped.x;
-        entity.y = snapped.y;
-      }
-      targetZone.entityIds.push(lastId);
-      if (targetZone.type === 'spread') {
-        layoutSpread(state, targetZone.id);
-      }
-    }
-  }
-
-  delete state.zones[zoneId];
-  state.zoneOrder = state.zoneOrder.filter((id) => id !== zoneId);
-  if (state.selectedZoneId === zoneId) state.selectedZoneId = null;
-}
-
-/**
- * Move an entity from its current zone into another zone.
- * @param insertIndex  Position in the target zone's entityIds array; appended if omitted.
- * @param x,y          Position within the target zone (for freeform/grid).
- */
-export function moveEntityToZone(
-  state: TabletopState,
-  instanceId: string,
-  targetZoneId: string,
-  opts: { insertIndex?: number; x?: number; y?: number } = {}
-): void {
-  const entity = getEntity(state, instanceId);
-  const sourceZone = getZone(state, entity.zoneId);
-  const targetZone = getZone(state, targetZoneId);
-  const sourceZoneId = sourceZone.id;
-
-  // Remove from source
-  sourceZone.entityIds = sourceZone.entityIds.filter((id) => id !== instanceId);
-
-  // Insert into target
-  const ids = [...targetZone.entityIds];
-  const index = opts.insertIndex ?? ids.length;
-  ids.splice(index, 0, instanceId);
-  targetZone.entityIds = ids;
-
-  entity.zoneId = targetZoneId;
-
-  // Undo the random rotation applied when the entity entered the group zone.
-  if (sourceZone.type === 'group' && sourceZoneId !== targetZoneId) {
-    entity.rotation = 0;
-  }
-
-  // Update position based on target zone type
-  if (targetZone.type === 'freeform') {
-    entity.x = opts.x ?? 0;
-    entity.y = opts.y ?? 0;
-  } else if (targetZone.type === 'group') {
-    // Land at the drop point if given; otherwise place across the full zone area.
-    entity.x = opts.x ?? targetZone.width * (0.15 + Math.random() * 0.7);
-    entity.y = opts.y ?? targetZone.height * (0.15 + Math.random() * 0.7);
-    entity.rotation = normalizeDegrees((Math.random() - 0.5) * 20);
-  } else if (targetZone.type === 'grid') {
-    const snapped = snapToGrid(targetZone, opts.x ?? 0, opts.y ?? 0);
-    entity.x = snapped.x;
-    entity.y = snapped.y;
-  } else if (targetZone.type === 'stack') {
-    // stack — positions are derived
-    entity.x = 0;
-    entity.y = 0;
-    // Preserve the entity's current flip state. Forcing it to the stack's
-    // faceDown here would visibly flip a card whenever it was dropped back
-    // onto its source stack.
-    // Align rotation with the other cards in the stack so the pile looks
-    // tidy; an empty stack has no reference, so the entity keeps its own
-    // rotation.
-    const referenceId = targetZone.entityIds.find((id) => id !== instanceId);
-    if (referenceId) {
-      const reference = state.entities[referenceId];
-      if (reference) entity.rotation = reference.rotation;
-    }
-  } else {
-    // spread — positions are set by layoutSpread
-    entity.x = 0;
-    entity.y = 0;
-    layoutSpread(state, targetZoneId);
-  }
-
-  // Source stack may need to dissolve now that an entity has left it.
-  if (sourceZoneId !== targetZoneId) {
-    maybeAutoDissolveStack(state, sourceZoneId);
-    // Re-layout the source spread so the gap left by the departing entity closes.
-    if (state.zones[sourceZoneId]?.type === 'spread') {
-      layoutSpread(state, sourceZoneId);
-    }
-  }
-}
-
-/** Move a zone to a new world-space (x, y). Entities inside keep their local positions. */
-export function moveZone(state: TabletopState, zoneId: string, x: number, y: number): void {
-  const zone = getZone(state, zoneId);
-  zone.x = x;
-  zone.y = y;
-}
-
-/**
- * Find the zone whose rectangle contains a world-space point, or null if none.
- * If zones overlap, returns the one drawn on top (last in zoneOrder / childZoneIds).
- * Recursively checks children of freeform zones, preferring deeper matches.
- * @param excludeZoneId  Optional zone to skip (e.g. the zone being dragged).
- */
-export function findZoneAtPoint(
-  state: TabletopState,
-  worldX: number,
-  worldY: number,
-  excludeZoneId?: string
-): Zone | null {
-  for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
-    const zone = state.zones[state.zoneOrder[i]];
-    if (!zone || zone.id === excludeZoneId) continue;
-    if (
-      worldX >= zone.x &&
-      worldX < zone.x + zone.width &&
-      worldY >= zone.y &&
-      worldY < zone.y + zone.height
-    ) {
-      if (zone.type === 'freeform' && zone.childZoneIds?.length) {
-        const child = findChildZoneAtPoint(
-          state,
-          zone.childZoneIds,
-          zone.x,
-          zone.y,
-          worldX,
-          worldY,
-          excludeZoneId
-        );
-        if (child) return child;
-      }
-      return zone;
-    }
-  }
-  return null;
-}
-
-/**
- * Recursively search a list of child zone IDs for the deepest zone that
- * contains the given world-space point. parentWorldX/Y is the accumulated
- * offset from the canvas origin to the parent's top-left corner.
- */
-function findChildZoneAtPoint(
-  state: TabletopState,
-  childZoneIds: string[],
-  parentWorldX: number,
-  parentWorldY: number,
-  worldX: number,
-  worldY: number,
-  excludeZoneId?: string
-): Zone | null {
-  for (let i = childZoneIds.length - 1; i >= 0; i--) {
-    const child = state.zones[childZoneIds[i]];
-    if (!child || child.id === excludeZoneId) continue;
-    const childWorldX = parentWorldX + child.x;
-    const childWorldY = parentWorldY + child.y;
-    if (
-      worldX >= childWorldX &&
-      worldX < childWorldX + child.width &&
-      worldY >= childWorldY &&
-      worldY < childWorldY + child.height
-    ) {
-      if (child.type === 'freeform' && child.childZoneIds?.length) {
-        const nested = findChildZoneAtPoint(
-          state,
-          child.childZoneIds,
-          childWorldX,
-          childWorldY,
-          worldX,
-          worldY,
-          excludeZoneId
-        );
-        if (nested) return nested;
-      }
-      return child;
-    }
-  }
-  return null;
-}
-
-/** Roll a die entity: set diceValue to a random integer in [1, maxFaces]. */
-export function rollDie(state: TabletopState, instanceId: string, maxFaces: number): void {
-  const entity = getEntity(state, instanceId);
-  entity.diceValue = Math.floor(Math.random() * maxFaces) + 1;
-}
-
-/** Toggle an entity's flipped state (front ↔ back). */
-export function flipEntity(state: TabletopState, instanceId: string): void {
-  const entity = getEntity(state, instanceId);
-  entity.isFlipped = !entity.isFlipped;
-}
-
-/**
- * Rotate an entity by a delta (degrees). Positive = clockwise.
- * Result is normalized to [0, 360).
- */
-export function rotateEntity(state: TabletopState, instanceId: string, delta: number): void {
-  const entity = getEntity(state, instanceId);
-  entity.rotation = normalizeDegrees(entity.rotation + delta);
-}
-
-/** Set absolute rotation (degrees, normalized to [0, 360)). */
-export function setRotation(state: TabletopState, instanceId: string, degrees: number): void {
-  const entity = getEntity(state, instanceId);
-  entity.rotation = normalizeDegrees(degrees);
-}
-
-/**
- * Rotate every entity in a stack by the same delta so the pile stays aligned.
- * When delta crosses a 90° boundary, the zone's width/height are swapped so
- * the stack's bounding box matches the rotated top card — otherwise the card
- * would overflow the zone and be clipped. The zone's centre is preserved so
- * the pile rotates in place rather than drifting.
- * No-op for non-stack zones.
- */
-export function rotateStack(state: TabletopState, zoneId: string, delta: number): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type !== 'stack') return;
-  for (const id of zone.entityIds) {
-    const entity = state.entities[id];
-    if (!entity) continue;
-    entity.rotation = normalizeDegrees(entity.rotation + delta);
-  }
-
-  const quarterTurns = Math.round(delta / 90);
-  if (Math.abs(quarterTurns) % 2 === 1) {
-    const oldWidth = zone.width;
-    const oldHeight = zone.height;
-    zone.width = oldHeight;
-    zone.height = oldWidth;
-    zone.x += (oldWidth - zone.width) / 2;
-    zone.y += (oldHeight - zone.height) / 2;
-    if (zone.defaultSize) {
-      zone.defaultSize = {
-        width: zone.defaultSize.height,
-        height: zone.defaultSize.width
-      };
-    }
-  }
-}
-
-/** Fisher–Yates shuffle returning a new array; pure helper used by both
- *  the immediate shuffle and the animation orchestrator (which needs to
- *  know the post-shuffle order in advance to pre-select cards to animate). */
-export function computeShuffledOrder<T>(ids: readonly T[]): T[] {
-  const result = [...ids];
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
-/** Fisher–Yates shuffle of a stack's entity order. No-op for other zone types.
- *  Pass `presetOrder` to apply a previously computed shuffle (e.g. one whose
- *  top card was chosen for an animation). Falls back to a fresh shuffle if
- *  the preset doesn't match the current entities. */
-export function shuffleStack(
-  state: TabletopState,
-  zoneId: string,
-  presetOrder?: readonly string[]
-): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type !== 'stack') return;
-  if (presetOrder?.length === zone.entityIds.length) {
-    const current = new Set(zone.entityIds);
-    if (presetOrder.every((id) => current.has(id))) {
-      zone.entityIds = [...presetOrder];
-      return;
-    }
-  }
-  zone.entityIds = computeShuffledOrder(zone.entityIds);
-}
-
-/**
- * Toggle a stack's persistent flag. When switching to non-persistent with
- * ≤1 entities already present, the stack immediately dissolves.
- */
-export function setStackPersistent(
-  state: TabletopState,
-  zoneId: string,
-  persistent: boolean
-): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type !== 'stack') return;
-  zone.persistent = persistent;
-  if (!persistent) {
-    maybeAutoDissolveStack(state, zoneId);
-  }
-}
-
-/** Flip every entity in a stack to face-down (or face-up), reversing the order as a physical flip would. */
-export function setStackFaceDown(state: TabletopState, zoneId: string, faceDown: boolean): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type !== 'stack') return;
-  zone.faceDown = faceDown;
-  zone.entityIds = [...zone.entityIds].reverse();
-  for (const id of zone.entityIds) {
-    const entity = state.entities[id];
-    if (entity) entity.isFlipped = faceDown;
-  }
-}
-
-/**
- * Toggle isFlipped on every entity in a zone. Unlike {@link setStackFaceDown},
- * this does NOT reverse order — grid/spread layouts are positional, so a
- * physical-style flip-and-reverse would scramble them.
- */
-export function flipZoneEntities(state: TabletopState, zoneId: string): void {
-  const zone = getZone(state, zoneId);
-  for (const id of zone.entityIds) {
-    const entity = state.entities[id];
-    if (entity) entity.isFlipped = !entity.isFlipped;
-  }
-}
-
-/**
- * Rotate every entity in a zone by the same delta (degrees). No layout or
- * zone-bounds adjustments — intended for spread/grid where each entity has
- * its own visible position. For stacks use {@link rotateStack}, which also
- * swaps the zone's width/height on quarter turns.
- */
-export function rotateZoneEntities(state: TabletopState, zoneId: string, delta: number): void {
-  const zone = getZone(state, zoneId);
-  for (const id of zone.entityIds) {
-    const entity = state.entities[id];
-    if (!entity) continue;
-    entity.rotation = normalizeDegrees(entity.rotation + delta);
-  }
-}
-
-/**
- * Shuffle the order of entityIds in a zone. For spread/grid, entities are
- * re-laid out so their visual positions match the new order. For stacks,
- * prefer {@link shuffleStack} (same effect; exists for parity with the
- * animation orchestrator in the store).
- */
-export function shuffleZoneEntities(state: TabletopState, zoneId: string): void {
-  const zone = getZone(state, zoneId);
-  zone.entityIds = computeShuffledOrder(zone.entityIds);
-  if (zone.type === 'spread') {
-    layoutSpread(state, zoneId);
-  } else if (zone.type === 'grid') {
-    layoutGrid(state, zoneId);
-  } else if (zone.type === 'group') {
-    layoutGroup(state, zoneId);
-  }
-}
-
-/**
- * Move an entity to a specific index within its own zone (reordering).
- * Useful for "send to front/back" in freeform zones and restacking.
- */
-export function reorderInZone(state: TabletopState, instanceId: string, newIndex: number): void {
-  const entity = getEntity(state, instanceId);
-  const zone = getZone(state, entity.zoneId);
-  const filtered = zone.entityIds.filter((id) => id !== instanceId);
-  const clamped = Math.max(0, Math.min(filtered.length, newIndex));
-  filtered.splice(clamped, 0, instanceId);
-  zone.entityIds = filtered;
-  if (zone.type === 'spread') {
-    layoutSpread(state, zone.id);
-  }
-}
-
-/** Replace the selection with the given IDs (duplicates stripped). Clears zone selection when the result is non-empty. */
-export function setSelectedEntities(state: TabletopState, ids: readonly string[]): void {
-  const unique: string[] = [];
-  const seen = new Set<string>();
-  for (const id of ids) {
-    if (!seen.has(id) && state.entities[id]) {
-      seen.add(id);
-      unique.push(id);
-    }
-  }
-  state.selectedEntityIds = unique;
-  if (unique.length > 0) state.selectedZoneId = null;
-}
-
-/** Add one entity to the selection (no-op if already present). Clears zone selection. */
-export function addEntityToSelection(state: TabletopState, id: string): void {
-  if (!state.entities[id]) return;
-  if (state.selectedEntityIds.includes(id)) return;
-  state.selectedEntityIds = [...state.selectedEntityIds, id];
-  state.selectedZoneId = null;
-}
-
-/** Remove one entity from the selection. */
-export function removeEntityFromSelection(state: TabletopState, id: string): void {
-  if (!state.selectedEntityIds.includes(id)) return;
-  state.selectedEntityIds = state.selectedEntityIds.filter((x) => x !== id);
-}
-
-/** Toggle one entity in/out of the selection. */
-export function toggleEntitySelection(state: TabletopState, id: string): void {
-  if (state.selectedEntityIds.includes(id)) {
-    removeEntityFromSelection(state, id);
-  } else {
-    addEntityToSelection(state, id);
-  }
-}
-
-/** Replace the selection with a single entity (null clears). Clears zone selection. */
-export function selectSingleEntity(state: TabletopState, instanceId: string | null): void {
-  state.selectedEntityIds = instanceId ? [instanceId] : [];
-  if (instanceId !== null) state.selectedZoneId = null;
-}
-
-/** Select a zone (null clears selection). Also clears entity selection. */
-export function selectZone(state: TabletopState, zoneId: string | null): void {
-  state.selectedZoneId = zoneId;
-  if (zoneId !== null) {
-    state.selectedEntityIds = [];
-  }
-}
-
-/**
- * World-space top-left of an entity's visual rect (ignoring rotation). For a
- * stack-top entity this is the centre-aligned position within the zone's
- * padding; for every other zone type it's zoneWorld + entity(x, y).
- * Returns null if the entity or its template is missing.
- */
-export function getEntityVisualWorldPos(
-  state: TabletopState,
-  templates: Record<string, EntityTemplate>,
-  instanceId: string
-): { x: number; y: number } | null {
-  const entity = state.entities[instanceId];
-  if (!entity) return null;
-  const zone = state.zones[entity.zoneId];
-  if (!zone) return null;
-  const template = templates[entity.templateId];
-  if (!template) return null;
-  const { width, height } = getTemplateDisplaySize(template);
-  const zoneWorld = getZoneWorldPos(state, zone.id);
-  if (zone.type === 'stack') {
-    return {
-      x: zoneWorld.x + (zone.width - width) / 2,
-      y: zoneWorld.y + (zone.height - height) / 2
+  const faceDown = template.flippable && instances.length > 1;
+  const cardIds: string[] = [];
+  for (const mergeData of instances) {
+    const card: Card = {
+      id: makeId('card'),
+      templateId: template.id,
+      mergeData,
+      isFlipped: faceDown,
+      rotation: 0
     };
-  }
-  return { x: zoneWorld.x + entity.x, y: zoneWorld.y + entity.y };
-}
-
-/**
- * Detach an entity from an ordered zone (stack/spread) into the nearest
- * freely-positioned zone, centred on the pointer's world position. Used
- * mid-drag when an entity first needs to escape its stack/spread layout so
- * it can track the pointer freely. No-op if the entity is already in a
- * freeform/grid/group zone.
- */
-export function detachEntityToFreeform(
-  state: TabletopState,
-  instanceId: string,
-  pointerWorldX: number,
-  pointerWorldY: number,
-  displayW: number,
-  displayH: number
-): { zoneId: string; localX: number; localY: number } | null {
-  const entity = state.entities[instanceId];
-  if (!entity) return null;
-  const currentZone = state.zones[entity.zoneId];
-  if (!currentZone) return null;
-  if (currentZone.type !== 'stack' && currentZone.type !== 'spread') return null;
-
-  const isFree = (t: { type: string; id: string } | null | undefined) =>
-    !!t && t.type !== 'stack' && t.type !== 'spread' && t.id !== currentZone.id;
-  let target = findZoneAtPoint(state, pointerWorldX, pointerWorldY);
-  if (!isFree(target)) {
-    target = Object.values(state.zones).find((z) => isFree(z)) ?? null;
-  }
-  if (!target) return null;
-
-  const targetWorldPos = getZoneWorldPos(state, target.id);
-  const localX = pointerWorldX - targetWorldPos.x - displayW / 2;
-  const localY = pointerWorldY - targetWorldPos.y - displayH / 2;
-  moveEntityToZone(state, instanceId, target.id, { x: localX, y: localY });
-  return { zoneId: target.id, localX, localY };
-}
-
-/**
- * Spawn a new entity from a template into the target zone.
- * Returns the new instance ID.
- *
- * `insertIndex` controls the position within the zone's entityIds — defaults
- * to the end. Only meaningful for ordered layouts (stack / spread); for
- * freeform/grid, position within the array is just z-order.
- */
-export function spawnEntity(
-  state: TabletopState,
-  template: EntityTemplate,
-  targetZoneId: string,
-  x: number,
-  y: number,
-  mergeData: Record<string, string> | null = null,
-  insertIndex?: number
-): string {
-  const zone = getZone(state, targetZoneId);
-  const instanceId = makeId();
-
-  if (zone.type === 'spread') {
-    ensureSpreadDefaultSize(state, targetZoneId, template);
+    state.cards[card.id] = card;
+    cardIds.push(card.id);
   }
 
-  let entityX = 0;
-  let entityY = 0;
-  if (zone.type === 'freeform' || zone.type === 'group') {
-    entityX = x;
-    entityY = y;
-  } else if (zone.type === 'grid') {
-    const snapped = snapToGrid(zone, x, y);
-    entityX = snapped.x;
-    entityY = snapped.y;
-  }
-
-  const entity: Entity = {
-    instanceId,
-    templateId: template.id,
-    zoneId: targetZoneId,
-    x: entityX,
-    y: entityY,
-    rotation: 0,
-    isFlipped: zone.type === 'stack' ? zone.faceDown : false,
-    mergeData,
-    label: template.name,
-    locked: false
+  const pile: Pile = {
+    id: makeId('pile'),
+    zoneId: null,
+    x,
+    y,
+    locked: false,
+    cardIds
   };
-
-  state.entities[instanceId] = entity;
-  const ids = [...zone.entityIds];
-  const idx = insertIndex ?? ids.length;
-  const clamped = Math.max(0, Math.min(ids.length, idx));
-  ids.splice(clamped, 0, instanceId);
-  zone.entityIds = ids;
-
-  if (zone.type === 'spread') {
-    layoutSpread(state, targetZoneId);
-  }
-
-  return instanceId;
-}
-
-/**
- * Spawn one entity per template.instances entry, all at the same drop point.
- * Cards with a data source produce a pile of per-row instances; templates
- * without a data source fall back to a single entity.
- * Pass `instances` to spawn a subset (e.g. only the unplaced ones).
- *
- * For ordered zones (spread/stack), `insertIndex` positions the first new
- * entity; subsequent entities are inserted after it so the batch lands
- * contiguously in the order provided.
- */
-export function spawnFromTemplate(
-  state: TabletopState,
-  template: EntityTemplate,
-  targetZoneId: string,
-  x: number,
-  y: number,
-  instances?: (Record<string, string> | null)[],
-  insertIndex?: number
-): string[] {
-  const ids: string[] = [];
-  let idx = insertIndex;
-  for (const mergeData of instances ?? template.instances) {
-    ids.push(spawnEntity(state, template, targetZoneId, x, y, mergeData, idx));
-    if (idx !== undefined) idx++;
-  }
-  return ids;
+  state.piles[pile.id] = pile;
+  state.rootPileIds.push(pile.id);
+  return pile.id;
 }
 
 function serializeMergeData(mergeData: Record<string, string> | null): string {
@@ -957,870 +122,361 @@ function serializeMergeData(mergeData: Record<string, string> | null): string {
 }
 
 /**
- * Return the subset of template.instances that are not yet on the tabletop.
- * For data-source templates, identity is determined by mergeData content.
- * For non-data-source templates (all null mergeData), identity is by count.
+ * Return the subset of template.instances not yet on the table, so re-dropping
+ * a component can never duplicate cards. For data-source templates, identity
+ * is mergeData content (duplicate rows share identity); for non-data-source
+ * templates (all null mergeData), identity is by count. Carried over from v1
+ * unchanged.
  */
 export function getUnplacedInstances(
   state: TabletopState,
-  template: EntityTemplate
+  template: Template
 ): (Record<string, string> | null)[] {
-  const placed = Object.values(state.entities).filter((e) => e.templateId === template.id);
+  const placed = Object.values(state.cards).filter((c) => c.templateId === template.id);
 
   if (template.instances.every((inst) => inst === null)) {
     const remaining = template.instances.length - placed.length;
     return remaining > 0 ? template.instances.slice(0, remaining) : [];
   }
 
-  const placedKeys = new Set(placed.map((e) => serializeMergeData(e.mergeData)));
+  const placedKeys = new Set(placed.map((c) => serializeMergeData(c.mergeData)));
   return template.instances.filter((inst) => !placedKeys.has(serializeMergeData(inst)));
 }
 
-/**
- * Create a group zone centered on (worldX, worldY) and spawn instances from
- * the template into it. Used when dropping a multi-instance non-stackable
- * template (e.g. a Dice set) so all instances land as a loose cluster rather
- * than a heap of overlapping entities.
- *
- * Zone size scales with the square root of the instance count so the group
- * stays tight for a few dice but grows gracefully for larger sets.
- */
-export function spawnGroupZoneFromTemplate(
-  state: TabletopState,
-  template: EntityTemplate,
-  worldX: number,
-  worldY: number,
-  displayWidth: number,
-  displayHeight: number,
-  instances?: (Record<string, string> | null)[]
-): { zoneId: string; instanceIds: string[] } {
-  const count = (instances ?? template.instances).length;
-  const cols = Math.ceil(Math.sqrt(count));
-  const side = Math.max(displayWidth * 4, cols * displayWidth * 2);
+// ─── Removal ───────────────────────────────────────────────────────────────
 
-  const zone: GroupZone = {
-    id: makeId('zone'),
-    name: template.name,
-    type: 'group',
-    x: worldX - side / 2,
-    y: worldY - side / 2,
-    width: side,
-    height: side,
-    entityIds: [],
-    locked: false
-  };
-
-  registerZone(state, zone);
-
-  const cx = side / 2;
-  const cy = side / 2;
-  const instanceIds = spawnFromTemplate(state, template, zone.id, cx, cy, instances);
-  layoutGroup(state, zone.id);
-  return { zoneId: zone.id, instanceIds };
-}
-
-/**
- * Create a face-down stack zone centered on (worldX, worldY) and spawn
- * instances from the template into it. Pass `instances` to spawn a subset
- * (e.g. only the unplaced ones). Used when dragging a multi-instance template
- * (e.g. a card backed by a data source) onto the tabletop — the whole set
- * lands as a real pile rather than a heap of overlapping entities.
- */
-export function spawnStackZoneFromTemplate(
-  state: TabletopState,
-  template: EntityTemplate,
-  worldX: number,
-  worldY: number,
-  displayWidth: number,
-  displayHeight: number,
-  instances?: (Record<string, string> | null)[]
-): { zoneId: string; instanceIds: string[] } {
-  const width = displayWidth + STACK_ZONE_PADDING * 2;
-  const height = displayHeight + STACK_ZONE_PADDING * 2;
-
-  const zone: StackZone = {
-    id: makeId('zone'),
-    name: template.name,
-    type: 'stack',
-    x: worldX - width / 2,
-    y: worldY - height / 2,
-    width,
-    height,
-    faceDown: true,
-    defaultSize: { width: displayWidth, height: displayHeight },
-    persistent: false,
-    entityIds: [],
-    locked: false
-  };
-
-  registerZone(state, zone);
-
-  const instanceIds = spawnFromTemplate(state, template, zone.id, 0, 0, instances);
-  return { zoneId: zone.id, instanceIds };
-}
-
-/**
- * Find the topmost entity whose bounding box contains a world-space point,
- * skipping stack zones (only top card is interactive there) and an optional
- * excluded instance (the entity being dragged).
- *
- * For entities rotated by an odd quarter turn (90° / 270°) the visual
- * footprint is transposed; the AABB test uses the swapped dimensions so the
- * hit region matches what the user actually sees.
- */
-export function findEntityAtPoint(
-  state: TabletopState,
-  templates: Record<string, EntityTemplate>,
-  worldX: number,
-  worldY: number,
-  excludeInstanceId?: string
-): Entity | null {
-  for (let i = state.zoneOrder.length - 1; i >= 0; i--) {
-    const zone = state.zones[state.zoneOrder[i]];
-    if (!zone || zone.type === 'stack') continue;
-    const result = findEntityInZoneAtPoint(
-      state,
-      templates,
-      zone,
-      zone.x,
-      zone.y,
-      { x: worldX, y: worldY },
-      excludeInstanceId
-    );
-    if (result) return result;
+/** Remove a pile and all of its cards from the table. */
+export function removePile(state: TabletopState, pileId: string): void {
+  const pile = getPile(state, pileId);
+  const ids = containerPileIds(state, pile);
+  const index = ids.indexOf(pileId);
+  if (index !== -1) ids.splice(index, 1);
+  for (const cardId of pile.cardIds) {
+    delete state.cards[cardId];
   }
-  return null;
+  delete state.piles[pileId];
 }
 
-/** Finds the topmost entity hit by `point` among a freeform zone's children, checked front-to-back. */
-function findEntityInChildZones(
-  state: TabletopState,
-  templates: Record<string, EntityTemplate>,
-  zone: Zone,
-  zoneWorldX: number,
-  zoneWorldY: number,
-  point: { x: number; y: number },
-  excludeInstanceId?: string
-): Entity | null {
-  if (zone.type !== 'freeform' || !zone.childZoneIds?.length) return null;
-
-  for (let i = zone.childZoneIds.length - 1; i >= 0; i--) {
-    const child = state.zones[zone.childZoneIds[i]];
-    if (!child || child.type === 'stack') continue;
-    const result = findEntityInZoneAtPoint(
-      state,
-      templates,
-      child,
-      zoneWorldX + child.x,
-      zoneWorldY + child.y,
-      point,
-      excludeInstanceId
-    );
-    if (result) return result;
-  }
-  return null;
-}
-
-/** Whether `point` falls within the rotation-aware hit box of `entity`, positioned within its zone. */
-function isPointOnEntity(
-  entity: Entity,
-  template: EntityTemplate,
-  zoneWorldX: number,
-  zoneWorldY: number,
-  point: { x: number; y: number }
-): boolean {
-  const { width, height } = getTemplateDisplaySize(template);
-  const quarterTurns = Math.round(entity.rotation / 90);
-  const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
-  const hitW = isOddQuarterTurn ? height : width;
-  const hitH = isOddQuarterTurn ? width : height;
-  // Entities render rotated about their centre, so the AABB stays anchored
-  // at the same centre — shift the origin to match.
-  const cx = zoneWorldX + entity.x + width / 2;
-  const cy = zoneWorldY + entity.y + height / 2;
-  const ex = cx - hitW / 2;
-  const ey = cy - hitH / 2;
-  return point.x >= ex && point.x < ex + hitW && point.y >= ey && point.y < ey + hitH;
-}
-
-function findEntityInZoneAtPoint(
-  state: TabletopState,
-  templates: Record<string, EntityTemplate>,
-  zone: Zone,
-  zoneWorldX: number,
-  zoneWorldY: number,
-  point: { x: number; y: number },
-  excludeInstanceId?: string
-): Entity | null {
-  // Check children of freeform zones first — they render on top.
-  const childResult = findEntityInChildZones(
-    state,
-    templates,
-    zone,
-    zoneWorldX,
-    zoneWorldY,
-    point,
-    excludeInstanceId
-  );
-  if (childResult) return childResult;
-
-  for (let j = zone.entityIds.length - 1; j >= 0; j--) {
-    const entityId = zone.entityIds[j];
-    if (entityId === excludeInstanceId) continue;
-    const entity = state.entities[entityId];
-    if (!entity) continue;
-    const template = templates[entity.templateId];
-    if (!template) continue;
-    if (isPointOnEntity(entity, template, zoneWorldX, zoneWorldY, point)) {
-      return entity;
+/**
+ * Remove every card of a template from the table (the sidebar's remove-all).
+ * Piles left with zero cards are removed with their container entries.
+ */
+export function removeAllCardsOfTemplate(state: TabletopState, templateId: string): void {
+  for (const pile of Object.values(state.piles)) {
+    const keep = pile.cardIds.filter((id) => state.cards[id]?.templateId !== templateId);
+    if (keep.length === pile.cardIds.length) continue;
+    for (const cardId of pile.cardIds) {
+      if (state.cards[cardId]?.templateId === templateId) delete state.cards[cardId];
     }
+    pile.cardIds = keep;
+    if (pile.cardIds.length === 0) removePile(state, pile.id);
   }
-  return null;
+}
+
+// ─── Split / merge ─────────────────────────────────────────────────────────
+
+/**
+ * Whether a pile can take part in a merge: every card's template must be
+ * mergeable (dice and tokens are not). Locked-target gating lives in the
+ * drop resolver — this is the capability check only.
+ */
+export function isPileMergeable(state: TabletopState, templates: Templates, pile: Pile): boolean {
+  return pile.cardIds.every((cardId) => {
+    const card = state.cards[cardId];
+    const template = card ? templates[card.templateId] : undefined;
+    return template?.mergeable === true;
+  });
 }
 
 /**
- * Create a new non-persistent stack zone at the target entity's location and
- * move both the dragged entity and the target entity into it. The target lands
- * at the bottom; the dragged entity goes on top. Returns the new zone id, or
- * null if the merge cannot proceed (type mismatch, target already in a stack).
+ * Whether flipping the pile means anything: at least one card is flippable.
+ * Dice are flippable: false, so F skips pure dice piles.
  */
-export function mergeEntitiesIntoStack(
-  state: TabletopState,
-  templates: Record<string, EntityTemplate>,
-  draggedId: string,
-  targetId: string
-): string | null {
-  const dragged = state.entities[draggedId];
-  const target = state.entities[targetId];
-  if (!dragged || !target) return null;
+export function isPileFlippable(state: TabletopState, templates: Templates, pile: Pile): boolean {
+  return pile.cardIds.some((cardId) => {
+    const card = state.cards[cardId];
+    const template = card ? templates[card.templateId] : undefined;
+    return template?.flippable === true;
+  });
+}
 
-  const draggedTemplate = templates[dragged.templateId];
-  const targetTemplate = templates[target.templateId];
-  if (!draggedTemplate || !targetTemplate) return null;
-  if (draggedTemplate.type !== targetTemplate.type) return null;
-  if (!isStackable(draggedTemplate)) return null;
-
-  const targetZone = state.zones[target.zoneId];
-  // A card already in an ordered zone (stack/spread) uses that zone's own
-  // insertion semantics — never form a new stack on top of it.
-  if (!targetZone || targetZone.type === 'stack' || targetZone.type === 'spread') return null;
-
-  const { width, height } = getTemplateDisplaySize(draggedTemplate);
-
-  // If the target card is rotated by an odd number of 90° turns, its visual
-  // footprint is transposed — the zone must match.
-  const quarterTurns = Math.round(target.rotation / 90);
-  const isOddQuarterTurn = Math.abs(quarterTurns) % 2 === 1;
-  const zoneW = isOddQuarterTurn ? height : width;
-  const zoneH = isOddQuarterTurn ? width : height;
-
-  // Center the stack on the target entity's world position.
-  const cx = targetZone.x + target.x + width / 2;
-  const cy = targetZone.y + target.y + height / 2;
-
-  const zone: StackZone = {
-    id: makeId('zone'),
-    name: draggedTemplate.name,
-    type: 'stack',
-    x: cx - zoneW / 2,
-    y: cy - zoneH / 2,
-    width: zoneW,
-    height: zoneH,
-    faceDown: false,
-    defaultSize: { width: zoneW, height: zoneH },
-    persistent: false,
-    entityIds: [],
-    locked: false
-  };
-
-  registerZone(state, zone);
-
-  // Target goes first (bottom), dragged goes second (top).
-  moveEntityToZone(state, targetId, zone.id);
-  moveEntityToZone(state, draggedId, zone.id);
-
-  return zone.id;
+/** Whether a template is a die: the `faces` capability drives rolling. */
+export function isDiceTemplate(template: Template | undefined): boolean {
+  return template?.faces !== undefined;
 }
 
 /**
- * Merge all entities from a dragged stack zone onto the top of a destination
- * stack zone, then remove the (now-empty) dragged zone. Both zones must have
- * matching defaultSize dimensions. Returns true on success, false if the merge
- * cannot proceed (type mismatch, same zone, missing defaultSize).
+ * Whether the pile is a die — it holds a rollable item. Dice are
+ * non-mergeable so a die pile is a pile of one, but this stays permissive:
+ * any die card makes the pile rollable (S rolls, the menu offers Roll).
  */
-export function mergeStackOntoStack(
-  state: TabletopState,
-  draggedZoneId: string,
-  targetZoneId: string
-): boolean {
-  if (draggedZoneId === targetZoneId) return false;
-  const draggedZone = state.zones[draggedZoneId];
-  const targetZone = state.zones[targetZoneId];
-  if (!draggedZone || !targetZone) return false;
-  if (draggedZone.type !== 'stack' || targetZone.type !== 'stack') return false;
-
-  const ds1 = draggedZone.defaultSize;
-  const ds2 = targetZone.defaultSize;
-  if (!ds1 || !ds2) return false;
-  if (ds1.width !== ds2.width || ds1.height !== ds2.height) return false;
-
-  // Align dragged entities to the target stack's rotation, then append them
-  // on top (end of entityIds = top of stack).
-  const referenceId = targetZone.entityIds[0];
-  const referenceRotation = referenceId ? (state.entities[referenceId]?.rotation ?? 0) : null;
-
-  for (const id of draggedZone.entityIds) {
-    const entity = state.entities[id];
-    if (!entity) continue;
-    entity.zoneId = targetZoneId;
-    entity.x = 0;
-    entity.y = 0;
-    if (referenceRotation !== null) entity.rotation = referenceRotation;
-    targetZone.entityIds.push(id);
-  }
-
-  draggedZone.entityIds = [];
-  delete state.zones[draggedZoneId];
-  state.zoneOrder = state.zoneOrder.filter((id) => id !== draggedZoneId);
-  if (state.selectedZoneId === draggedZoneId) state.selectedZoneId = null;
-  if (state.editingZoneId === draggedZoneId) state.editingZoneId = null;
-
-  return true;
-}
-
-/** Remove an entity entirely from the tabletop. */
-export function removeEntity(state: TabletopState, instanceId: string): void {
-  const entity = getEntity(state, instanceId);
-  const zone = getZone(state, entity.zoneId);
-  zone.entityIds = zone.entityIds.filter((id) => id !== instanceId);
-  delete state.entities[instanceId];
-  if (state.selectedEntityIds.includes(instanceId)) {
-    state.selectedEntityIds = state.selectedEntityIds.filter((id) => id !== instanceId);
-  }
-  maybeAutoDissolveStack(state, zone.id);
-  if (state.zones[zone.id]?.type === 'spread') {
-    layoutSpread(state, zone.id);
-  }
+export function isPileDie(state: TabletopState, templates: Templates, pile: Pile): boolean {
+  return pile.cardIds.some((cardId) => {
+    const card = state.cards[cardId];
+    return isDiceTemplate(card ? templates[card.templateId] : undefined);
+  });
 }
 
 /**
- * Remove all entities with the given templateId from the tabletop.
- * Empty non-persistent stacks are auto-dissolved afterward.
+ * Split the top card off a multi-card pile into a new zoneless single-card
+ * pile at the source's *world* centre (the source may live inside a zone),
+ * appended to the root render order (above its neighbours) so it follows the
+ * pointer in world space. The caller supplies the new pile's id so the
+ * reducer can keep addressing the split pile in later drag frames. No-op on
+ * piles of one — those move whole; there is nothing to split.
  */
-export function removeAllEntitiesForTemplate(state: TabletopState, templateId: string): void {
-  const toRemove = Object.values(state.entities)
-    .filter((e) => e.templateId === templateId)
-    .map((e) => e.instanceId);
-
-  const affectedZoneIds = new Set<string>();
-  for (const instanceId of toRemove) {
-    const entity = state.entities[instanceId];
-    if (!entity) continue;
-    affectedZoneIds.add(entity.zoneId);
-    const zone = state.zones[entity.zoneId];
-    if (zone) zone.entityIds = zone.entityIds.filter((id) => id !== instanceId);
-    delete state.entities[instanceId];
-  }
-
-  if (state.selectedEntityIds.length > 0) {
-    const removedSet = new Set(toRemove);
-    state.selectedEntityIds = state.selectedEntityIds.filter((id) => !removedSet.has(id));
-  }
-
-  for (const zoneId of affectedZoneIds) {
-    maybeAutoDissolveStack(state, zoneId);
-    if (state.zones[zoneId]?.type === 'spread') {
-      layoutSpread(state, zoneId);
-    }
-  }
-}
-
-/**
- * Create a new spread zone and add it to the tabletop. The new zone is
- * returned with `locked: false` and with `editingZoneId` set so the UI
- * renders it in edit mode immediately.
- *
- * defaultSize is filled in lazily from the first entity that lands in the
- * spread (see `ensureSpreadDefaultSize`).
- */
-export function createSpreadZone(
-  state: TabletopState,
-  rect: { x: number; y: number; width: number; height: number },
-  direction: 'row' | 'column' = 'row',
-  overlap = 40,
-  name = 'New Spread'
-): string {
-  const zone: SpreadZone = {
-    id: makeId('zone'),
-    name,
-    type: 'spread',
-    x: rect.x,
-    y: rect.y,
-    width: rect.width,
-    height: rect.height,
-    direction,
-    overlap,
-    entityIds: [],
-    locked: false
-  };
-  registerZone(state, zone, { edit: true, select: true });
-  return zone.id;
-}
-
-/**
- * Create a new group zone and add it to the tabletop. Enters edit mode
- * immediately so the user can rename and resize it.
- */
-export function createGroupZone(
-  state: TabletopState,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  name = 'New Group'
-): string {
-  const zone: GroupZone = {
-    id: makeId('zone'),
-    name,
-    type: 'group',
-    x,
-    y,
-    width,
-    height,
-    entityIds: [],
-    locked: false
-  };
-  registerZone(state, zone, { edit: true, select: true });
-  return zone.id;
-}
-
-/** Switch a spread zone's direction (row/column) and re-layout. No-op for other zone types. */
-export function setSpreadDirection(
-  state: TabletopState,
-  zoneId: string,
-  direction: 'row' | 'column'
-): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type !== 'spread') return;
-  zone.direction = direction;
-  layoutSpread(state, zoneId);
-}
-
-/** Update a spread zone's overlap (px) and re-layout. No-op for other zone types. */
-export function setSpreadOverlap(state: TabletopState, zoneId: string, overlap: number): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type !== 'spread') return;
-  zone.overlap = overlap;
-  layoutSpread(state, zoneId);
-}
-
-/**
- * Create a new freeform zone. When `parentZoneId` is given the zone is nested
- * inside that freeform zone and x/y are parent-local; otherwise x/y are
- * world-space and the zone is added to the top-level zoneOrder.
- * The new zone enters edit mode immediately.
- */
-export function createFreeformZone(
-  state: TabletopState,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  name = 'New Zone',
-  parentZoneId?: string
-): string {
-  const zone: FreeformZone = {
-    id: makeId('zone'),
-    name,
-    type: 'freeform',
-    x,
-    y,
-    width,
-    height,
-    entityIds: [],
+export function splitTopCard(state: TabletopState, sourcePileId: string, newPileId: string): void {
+  const source = getPile(state, sourcePileId);
+  if (source.cardIds.length < 2) return;
+  const world = pileWorldCenter(state, source);
+  const topCardId = source.cardIds.at(-1) as string;
+  source.cardIds = source.cardIds.slice(0, -1);
+  const pile: Pile = {
+    id: newPileId,
+    zoneId: null,
+    x: world.x,
+    y: world.y,
     locked: false,
-    ...(parentZoneId ? { parentZoneId } : {})
+    cardIds: [topCardId]
   };
-  registerZone(state, zone, { edit: true, select: true });
-  return zone.id;
-}
-
-/** Rename a zone. */
-export function renameZone(state: TabletopState, zoneId: string, name: string): void {
-  const zone = getZone(state, zoneId);
-  zone.name = name;
+  state.piles[newPileId] = pile;
+  state.rootPileIds.push(newPileId);
 }
 
 /**
- * Resize a zone. Optional x/y accept a new top-left position, so drag-resize
- * from the top-left corner can shift the origin as well.
+ * Merge the source pile onto the target: the source's cards land on top in
+ * their existing order, each keeping its own rotation and face state. The
+ * source pile is deleted (a pile with zero cards may not exist). Dropping a
+ * drawn card back onto its source deck goes through here and restores the
+ * deck exactly.
  */
-export function resizeZone(
+export function mergePiles(state: TabletopState, sourcePileId: string, targetPileId: string): void {
+  if (sourcePileId === targetPileId) return;
+  const source = getPile(state, sourcePileId);
+  const target = getPile(state, targetPileId);
+  target.cardIds = [...target.cardIds, ...source.cardIds];
+  const ids = containerPileIds(state, source);
+  const index = ids.indexOf(sourcePileId);
+  if (index !== -1) ids.splice(index, 1);
+  delete state.piles[sourcePileId];
+}
+
+// ─── Pile actions ──────────────────────────────────────────────────────────
+
+/**
+ * Flip a pile like physically turning it over: reverse the card order and
+ * toggle every card's face. Degenerates to a plain card flip for a pile of
+ * one. No-op when nothing in the pile is flippable (a lone die).
+ */
+export function flipPile(state: TabletopState, templates: Templates, pileId: string): void {
+  const pile = getPile(state, pileId);
+  if (!isPileFlippable(state, templates, pile)) return;
+  pile.cardIds = [...pile.cardIds].reverse();
+  for (const cardId of pile.cardIds) {
+    const card = state.cards[cardId];
+    if (card) card.isFlipped = !card.isFlipped;
+  }
+}
+
+/** Reveal a deck's top without disturbing the rest: toggle only the top card. */
+export function flipTopCard(state: TabletopState, templates: Templates, pileId: string): void {
+  const pile = getPile(state, pileId);
+  const topCard = state.cards[pile.cardIds.at(-1) as string];
+  if (!topCard) return;
+  if (templates[topCard.templateId]?.flippable !== true) return;
+  topCard.isFlipped = !topCard.isFlipped;
+}
+
+/**
+ * Rotate a pile as one physical object: every card turns by the same delta,
+ * preserving relative orientations (the Scout case). The derived footprint
+ * follows automatically — nothing else to update.
+ */
+export function rotatePile(state: TabletopState, pileId: string, delta = 90): void {
+  const pile = getPile(state, pileId);
+  for (const cardId of pile.cardIds) {
+    const card = state.cards[cardId];
+    if (card) card.rotation = normalizeDegrees(card.rotation + delta);
+  }
+}
+
+/**
+ * A Fisher–Yates permutation of the given ids. `random` is injectable so tests
+ * are deterministic. Pure — the shuffle animation computes the new order with
+ * this up front (so the renderer knows the eventual top card) and commits it
+ * later via {@link setPileOrder}.
+ */
+export function computeShuffledOrder<T>(ids: readonly T[], random: () => number = Math.random): T[] {
+  const result = [...ids];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
+ * Replace a pile's card order with a precomputed permutation — the order a
+ * shuffle animation commits when it lands. The permutation must contain
+ * exactly the pile's current cards; a mismatch (a stale animation, cards moved
+ * meanwhile) leaves the order untouched so it can never scramble or drop cards.
+ */
+export function setPileOrder(
   state: TabletopState,
-  zoneId: string,
-  width: number,
-  height: number,
-  x?: number,
-  y?: number
+  pileId: string,
+  order: readonly string[]
 ): void {
-  const zone = getZone(state, zoneId);
-  const MIN = 40;
-  zone.width = Math.max(MIN, width);
-  zone.height = Math.max(MIN, height);
-  if (x !== undefined) zone.x = x;
-  if (y !== undefined) zone.y = y;
-}
-
-/** Delete a zone, all its entities, and all nested child zones recursively. */
-export function deleteZone(state: TabletopState, zoneId: string): void {
-  const zone = state.zones[zoneId];
-  if (!zone) return;
-
-  // Recursively delete child zones first.
-  if (zone.type === 'freeform' && zone.childZoneIds?.length) {
-    for (const childId of zone.childZoneIds) {
-      deleteZone(state, childId);
-    }
-  }
-
-  for (const id of zone.entityIds) {
-    delete state.entities[id];
-  }
-
-  // Remove from parent's child list or from the top-level order.
-  if (zone.parentZoneId) {
-    const parent = state.zones[zone.parentZoneId] as FreeformZone | undefined;
-    if (parent?.childZoneIds) {
-      parent.childZoneIds = parent.childZoneIds.filter((id) => id !== zoneId);
-    }
-  } else {
-    state.zoneOrder = state.zoneOrder.filter((id) => id !== zoneId);
-  }
-
-  delete state.zones[zoneId];
-  if (state.selectedZoneId === zoneId) state.selectedZoneId = null;
-  if (state.editingZoneId === zoneId) state.editingZoneId = null;
+  const pile = getPile(state, pileId);
+  if (order.length !== pile.cardIds.length) return;
+  const current = new Set(pile.cardIds);
+  if (!order.every((id) => current.has(id))) return;
+  pile.cardIds = [...order];
 }
 
 /**
- * Nest `childZoneId` inside `parentZoneId` (which must be a freeform zone).
- * The child's world-space position is converted to parent-local coordinates so
- * it stays visually in place. No-op when the parent is not a freeform zone or
- * when nesting would create a cycle.
+ * Shuffle a multi-card pile's order in place (Fisher–Yates). `random` is
+ * injectable so tests are deterministic. No-op for piles of one.
  */
-export function nestZone(state: TabletopState, childZoneId: string, parentZoneId: string): void {
-  const child = state.zones[childZoneId];
-  const parent = state.zones[parentZoneId] as FreeformZone | undefined;
-  if (!child || parent?.type !== 'freeform') return;
-  if (childZoneId === parentZoneId) return;
-  if (isAncestor(state, parentZoneId, childZoneId)) return;
-
-  const childWorldPos = getZoneWorldPos(state, childZoneId);
-
-  // Remove from current context.
-  if (child.parentZoneId) {
-    const oldParent = state.zones[child.parentZoneId] as FreeformZone | undefined;
-    if (oldParent?.childZoneIds) {
-      oldParent.childZoneIds = oldParent.childZoneIds.filter((id) => id !== childZoneId);
-    }
-  } else {
-    state.zoneOrder = state.zoneOrder.filter((id) => id !== childZoneId);
-  }
-
-  // Convert to parent-local coordinates.
-  const parentWorldPos = getZoneWorldPos(state, parentZoneId);
-  child.x = childWorldPos.x - parentWorldPos.x;
-  child.y = childWorldPos.y - parentWorldPos.y;
-  child.parentZoneId = parentZoneId;
-
-  if (!parent.childZoneIds) parent.childZoneIds = [];
-  parent.childZoneIds.push(childZoneId);
-}
-
-/**
- * Remove a zone from its parent freeform zone, promoting it to the top-level
- * zoneOrder. The zone's local coordinates are converted back to world space so
- * it stays visually in place. No-op when the zone has no parent.
- */
-export function unnestZone(state: TabletopState, zoneId: string): void {
-  const zone = state.zones[zoneId];
-  if (!zone?.parentZoneId) return;
-
-  const worldPos = getZoneWorldPos(state, zoneId);
-  const parent = state.zones[zone.parentZoneId] as FreeformZone | undefined;
-  if (parent?.childZoneIds) {
-    parent.childZoneIds = parent.childZoneIds.filter((id) => id !== zoneId);
-  }
-
-  zone.x = worldPos.x;
-  zone.y = worldPos.y;
-  delete zone.parentZoneId;
-  state.zoneOrder.push(zoneId);
-}
-
-function isAncestor(state: TabletopState, potentialAncestorId: string, zoneId: string): boolean {
-  let current = state.zones[zoneId];
-  while (current?.parentZoneId) {
-    if (current.parentZoneId === potentialAncestorId) return true;
-    current = state.zones[current.parentZoneId];
-  }
-  return false;
-}
-
-/** Enter/leave edit mode for a zone. Pass null to exit. */
-export function setEditingZone(state: TabletopState, zoneId: string | null): void {
-  state.editingZoneId = zoneId;
-  if (zoneId !== null) {
-    state.selectedZoneId = zoneId;
-    state.selectedEntityIds = [];
-  }
-}
-
-/** Toggle lock on an entity. Locked entities cannot be dragged. */
-export function setEntityLocked(state: TabletopState, instanceId: string, locked: boolean): void {
-  const entity = getEntity(state, instanceId);
-  entity.locked = locked;
-}
-
-/** Toggle lock on a zone. Locked zones cannot be dragged or edited. */
-export function setZoneLocked(state: TabletopState, zoneId: string, locked: boolean): void {
-  const zone = getZone(state, zoneId);
-  zone.locked = locked;
-  if (locked && state.editingZoneId === zoneId) {
-    state.editingZoneId = null;
-  }
-}
-
-/**
- * Derive a defaultSize for a spread or stack zone from its first entity's
- * template, if any. Used when converting from a layout that doesn't track
- * entity sizes (freeform/grid) so the new layout has something to work with.
- */
-function deriveDefaultSizeFromEntities(
+export function shufflePile(
   state: TabletopState,
-  zone: Zone,
-  templates: Record<string, EntityTemplate> | undefined
-): { width: number; height: number } | undefined {
-  if (!templates) return undefined;
-  for (const entityId of zone.entityIds) {
-    const entity = state.entities[entityId];
-    if (!entity) continue;
-    const template = templates[entity.templateId];
-    if (!template) continue;
-    return getTemplateDisplaySize(template);
-  }
-  return undefined;
-}
-
-/**
- * Convert a zone to a different type in-place, preserving its id, name,
- * position, dimensions, entities, and locked state. Type-specific settings
- * (face-down / persistent / direction / overlap / grid cell dims) are
- * preserved across round-trips via the zone's `typeSettings` cache; defaults
- * apply the first time a type is seen. `defaultSize` is carried forward from
- * the previous zone where applicable, and derived from the first entity's
- * template when converting from a layout without one.
- *
- * @param templates  Optional — needed to seed defaultSize from entities when
- *                   converting from freeform/grid into spread/stack.
- */
-/** Snapshot a zone's type-specific settings into its cache, so converting back later restores them. */
-function snapshotZoneTypeSettings(zone: Zone): ZoneTypeSettingsCache {
-  const cache: ZoneTypeSettingsCache = { ...zone.typeSettings };
-  if (zone.type === 'stack') {
-    cache.stack = { faceDown: zone.faceDown, persistent: zone.persistent };
-  } else if (zone.type === 'spread') {
-    cache.spread = { direction: zone.direction, overlap: zone.overlap };
-  } else if (zone.type === 'grid') {
-    cache.grid = {
-      cellWidth: zone.cellWidth,
-      cellHeight: zone.cellHeight,
-      columns: zone.columns
-    };
-  }
-  return cache;
-}
-
-type ZoneBase = Pick<Zone, 'id' | 'name' | 'x' | 'y' | 'width' | 'height' | 'entityIds' | 'locked'> & {
-  typeSettings: ZoneTypeSettingsCache;
-  parentZoneId?: string;
-};
-
-/** Builds a zone of `newType` from the shared `base` fields, restoring cached type-specific settings. */
-function buildZoneForType(
-  base: ZoneBase,
-  newType: ZoneType,
-  cache: ZoneTypeSettingsCache,
-  defaultSize: { width: number; height: number } | undefined
-): Zone {
-  switch (newType) {
-    case 'freeform':
-      return { ...base, type: 'freeform' };
-    case 'group':
-      return { ...base, type: 'group' };
-    case 'grid': {
-      const prev = cache.grid;
-      return {
-        ...base,
-        type: 'grid',
-        cellWidth: prev?.cellWidth ?? 80,
-        cellHeight: prev?.cellHeight ?? 80,
-        columns: prev?.columns ?? 5
-      };
-    }
-    case 'stack': {
-      const prev = cache.stack;
-      return {
-        ...base,
-        type: 'stack',
-        faceDown: prev?.faceDown ?? false,
-        persistent: prev?.persistent ?? true,
-        defaultSize
-      };
-    }
-    case 'spread': {
-      const prev = cache.spread;
-      return {
-        ...base,
-        type: 'spread',
-        direction: prev?.direction ?? 'row',
-        overlap: prev?.overlap ?? 40,
-        defaultSize
-      };
-    }
-  }
-}
-
-/** Post-conversion cleanup: straighten entities leaving a group, then reflow the zone's new layout. */
-function finalizeZoneTypeChange(
-  state: TabletopState,
-  zoneId: string,
-  previousType: ZoneType,
-  newZone: Zone,
-  newType: ZoneType
+  pileId: string,
+  random: () => number = Math.random
 ): void {
-  if (previousType === 'group') {
-    for (const entityId of newZone.entityIds) {
-      const entity = state.entities[entityId];
-      if (entity) entity.rotation = 0;
-    }
-  }
-
-  if (newType === 'spread') {
-    layoutSpread(state, zoneId);
-  } else if (newType === 'grid') {
-    layoutGrid(state, zoneId);
-  } else if (newType === 'group') {
-    layoutGroup(state, zoneId);
-  } else if (newType === 'stack') {
-    for (const id of newZone.entityIds) {
-      const entity = state.entities[id];
-      if (entity) {
-        entity.x = 0;
-        entity.y = 0;
-      }
-    }
-  }
-}
-
-export function changeZoneType(
-  state: TabletopState,
-  zoneId: string,
-  newType: ZoneType,
-  templates?: Record<string, EntityTemplate>
-): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type === newType) return;
-
-  const { id, name, x, y, width, height, entityIds, locked, parentZoneId } = zone;
-  const existingDefaultSize =
-    'defaultSize' in zone && zone.defaultSize ? zone.defaultSize : undefined;
-
-  const cache = snapshotZoneTypeSettings(zone);
-  const base: ZoneBase = {
-    id,
-    name,
-    x,
-    y,
-    width,
-    height,
-    entityIds,
-    locked,
-    typeSettings: cache,
-    ...(parentZoneId !== undefined ? { parentZoneId } : {})
-  };
-  const defaultSize = existingDefaultSize ?? deriveDefaultSizeFromEntities(state, zone, templates);
-
-  const newZone = buildZoneForType(base, newType, cache, defaultSize);
-  state.zones[zoneId] = newZone;
-
-  finalizeZoneTypeChange(state, zoneId, zone.type, newZone, newType);
-}
-
-/** Update grid cell dimensions and column count, then reflow entities. No-op for non-grid zones. */
-export function setGridCellSize(
-  state: TabletopState,
-  zoneId: string,
-  cellWidth: number,
-  cellHeight: number,
-  columns: number
-): void {
-  const zone = getZone(state, zoneId);
-  if (zone.type !== 'grid') return;
-  zone.cellWidth = Math.max(1, cellWidth);
-  zone.cellHeight = Math.max(1, cellHeight);
-  zone.columns = Math.max(1, columns);
-  layoutGrid(state, zoneId);
+  const pile = getPile(state, pileId);
+  if (pile.cardIds.length < 2) return;
+  pile.cardIds = computeShuffledOrder(pile.cardIds, random);
 }
 
 /**
- * Create a freeform zone that uses the given template's design as its visual
- * background. Used when spawning GameBoard or PlayerMat templates — they act
- * as containers that other zones and entities can be parented into, while
- * still displaying their designed artwork.
- *
- * The zone is sized to the template's physical display dimensions and centred
- * on (worldX, worldY). Returns the new zone id.
+ * Roll every die in the pile: each die card gets a fresh result in
+ * [1, faces], shown on the die. `random` is injectable so tests are
+ * deterministic. No-op on cards without a `faces` capability.
  */
-export function spawnBoardZone(
+export function rollPile(
   state: TabletopState,
-  template: EntityTemplate,
+  templates: Templates,
+  pileId: string,
+  random: () => number = Math.random
+): void {
+  const pile = getPile(state, pileId);
+  for (const cardId of pile.cardIds) {
+    const card = state.cards[cardId];
+    const faces = card ? templates[card.templateId]?.faces : undefined;
+    if (card && faces !== undefined && faces > 0) {
+      card.diceValue = 1 + Math.floor(random() * faces);
+    }
+  }
+}
+
+/** Lock or unlock a pile. Gating on what "locked" refuses lives in the
+ *  reducer (drag/split) and drop resolver (incoming merge). */
+export function setPileLocked(state: TabletopState, pileId: string, locked: boolean): void {
+  getPile(state, pileId).locked = locked;
+}
+
+// ─── Movement / ordering ───────────────────────────────────────────────────
+
+/**
+ * Set a pile's position in its own coordinate frame (world for root piles,
+ * zone-local otherwise). (x, y) is the pile centre.
+ */
+export function movePileTo(state: TabletopState, pileId: string, x: number, y: number): void {
+  const pile = getPile(state, pileId);
+  pile.x = x;
+  pile.y = y;
+}
+
+/**
+ * Lift a pile out of its zone onto the root table at its current world
+ * position (visually stationary), on top of the root render order — what
+ * picking a pile up does, so drag frames can work in world coordinates
+ * regardless of where the pile came from. For a root pile this is just a
+ * raise.
+ */
+export function detachPileToRoot(state: TabletopState, pileId: string): void {
+  const pile = getPile(state, pileId);
+  if (pile.zoneId === null) {
+    raisePile(state, pileId);
+    return;
+  }
+  const world = pileWorldCenter(state, pile);
+  const ids = containerPileIds(state, pile);
+  const index = ids.indexOf(pileId);
+  if (index !== -1) ids.splice(index, 1);
+  pile.zoneId = null;
+  pile.x = world.x;
+  pile.y = world.y;
+  state.rootPileIds.push(pileId);
+}
+
+/**
+ * Place a pile into a region — a zone or the root table (null) — with its
+ * centre at a world point, converting to zone-local storage at this boundary
+ * (the SPEC's coordinate discipline). The pile joins the top of the region's
+ * render order, or the given `index` in it — ordered zones (spreads) pass the
+ * pointer-derived insert slot. Placing into its current region without an
+ * index just repositions it.
+ */
+export function placePile(
+  state: TabletopState,
+  pileId: string,
+  zoneId: string | null,
   worldX: number,
   worldY: number,
-  displayWidth: number,
-  displayHeight: number
-): string {
-  const zone: FreeformZone = {
-    id: makeId('zone'),
-    name: template.name,
-    type: 'freeform',
-    x: worldX - displayWidth / 2,
-    y: worldY - displayHeight / 2,
-    width: displayWidth,
-    height: displayHeight,
-    entityIds: [],
-    locked: false,
-    backgroundTemplateId: template.id
-  };
-  registerZone(state, zone, { select: true });
-  return zone.id;
+  index?: number
+): void {
+  const pile = getPile(state, pileId);
+  const zone = zoneId === null ? null : state.zones[zoneId];
+  if (zoneId !== null && !zone) throw new Error(`Zone not found: ${zoneId}`);
+
+  if (pile.zoneId !== zoneId || index !== undefined) {
+    const ids = containerPileIds(state, pile);
+    const currentIndex = ids.indexOf(pileId);
+    if (currentIndex !== -1) ids.splice(currentIndex, 1);
+    pile.zoneId = zoneId;
+    const target = zone === null ? state.rootPileIds : zone.pileIds;
+    if (index === undefined) target.push(pileId);
+    else target.splice(Math.max(0, Math.min(index, target.length)), 0, pileId);
+  }
+
+  const local = zone === null ? { x: worldX, y: worldY } : worldToZoneLocal(state, zone, { x: worldX, y: worldY });
+  pile.x = local.x;
+  pile.y = local.y;
 }
 
-/** Draw the top card from a stack onto a target zone at (x, y). */
-export function drawFromStack(
-  state: TabletopState,
-  stackZoneId: string,
-  targetZoneId: string,
-  x: number,
-  y: number
-): string | null {
-  const stack = getZone(state, stackZoneId);
-  if (stack.type !== 'stack' || stack.entityIds.length === 0) return null;
-  const topId = stack.entityIds.at(-1)!;
-  moveEntityToZone(state, topId, targetZoneId, { x, y });
-  // Drawn cards face-up by default
-  const entity = state.entities[topId];
-  if (entity) entity.isFlipped = false;
-  return topId;
+/**
+ * Raise a pile to the top of its container's render order — picking a pile
+ * up puts it above its neighbours, like on a real table.
+ */
+export function raisePile(state: TabletopState, pileId: string): void {
+  const pile = getPile(state, pileId);
+  const ids = containerPileIds(state, pile);
+  const index = ids.indexOf(pileId);
+  if (index === -1 || index === ids.length - 1) return;
+  ids.splice(index, 1);
+  ids.push(pileId);
 }
 
+/** Send a pile to the bottom of its container's render order. */
+export function lowerPile(state: TabletopState, pileId: string): void {
+  const pile = getPile(state, pileId);
+  const ids = containerPileIds(state, pile);
+  const index = ids.indexOf(pileId);
+  if (index <= 0) return;
+  ids.splice(index, 1);
+  ids.unshift(pileId);
+}
+
+// ─── Selection ─────────────────────────────────────────────────────────────
+
+export function setSelection(state: TabletopState, selection: Selection): void {
+  state.selection = selection;
+}
+
+export function clearSelection(state: TabletopState): void {
+  state.selection = { kind: 'none' };
+}
+
+export function isPileSelected(state: TabletopState, pileId: string): boolean {
+  return state.selection.kind === 'piles' && state.selection.pileIds.includes(pileId);
+}

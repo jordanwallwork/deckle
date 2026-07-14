@@ -40,6 +40,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
     /* Override the parent layout padding for an immersive canvas */
     margin: -2rem;
   }

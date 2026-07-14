@@ -1,45 +1,33 @@
-// Build an initial TabletopState from the project's components.
-//
-// The play space starts with a single "Play Area" freeform zone — users
-// drag components from the sidebar onto the tabletop, and create
-// additional zones via the canvas context menu.
+// Build an empty TabletopState plus the template record (with capability
+// flags) from the project's components. The table starts truly empty — the
+// root region needs no seeded zone.
 
 import type { GameComponent } from '$lib/types';
-import { isEditableComponent, isDice } from '$lib/utils/componentTypes';
-import type { EntityTemplate, FreeformZone, TabletopState, Zone } from './types';
+import {
+  isCard,
+  isDice,
+  isEditableComponent,
+  isGameBoard,
+  isPlayerMat
+} from '$lib/utils/componentTypes';
+import type { TabletopState, Template, Templates } from './types';
+import { PX_PER_MM } from './geometry';
 
-const PLAY_AREA_WIDTH = 1400;
-const PLAY_AREA_HEIGHT = 700;
-
-/**
- * Default physical size for dice entities on the tabletop (standard d6).
- * Dice components don't carry mm/px dimensions so we assume a plausible
- * physical size and derive pixel dimensions from `TABLETOP_PX_PER_MM`.
- */
+/** Assumed physical size for dice (standard d6) — dice components carry no dimensions. */
 export const DICE_SIZE_MM = 16;
 
-/**
- * How many on-screen pixels represent one millimetre of physical component.
- * All entity sizes on the tabletop are derived from their physical mm
- * dimensions times this factor, so cards, dice and player mats retain the
- * correct relative scale.
- */
-export const TABLETOP_PX_PER_MM = 2;
-
-export const DICE_SIZE_PX = DICE_SIZE_MM * TABLETOP_PX_PER_MM;
+/** Faces per dice type; rolling reads the template's `faces` flag, never the component. */
+const DICE_FACES: Record<string, number> = { D4: 4, D6: 6, D8: 8, D10: 10, D12: 12, D20: 20 };
 
 export interface TabletopInitInput {
   components: GameComponent[];
-  /**
-   * Data source rows keyed by component id. Omit or pass an empty array
-   * for components without a data source.
-   */
+  /** Data source rows keyed by component id. Omit for components without one. */
   componentRows?: Record<string, Record<string, string>[]>;
 }
 
 export interface TabletopInitResult {
   state: TabletopState;
-  templates: Record<string, EntityTemplate>;
+  templates: Templates;
 }
 
 interface TemplateDimensions {
@@ -59,26 +47,11 @@ function getTemplateDimensions(c: GameComponent): TemplateDimensions {
     };
   }
   if (isDice(c)) {
-    return {
-      widthPx: DICE_SIZE_PX,
-      heightPx: DICE_SIZE_PX,
-      widthMm: DICE_SIZE_MM,
-      heightMm: DICE_SIZE_MM
-    };
+    const px = DICE_SIZE_MM * PX_PER_MM;
+    return { widthPx: px, heightPx: px, widthMm: DICE_SIZE_MM, heightMm: DICE_SIZE_MM };
   }
   // Fallback: assume a 50mm square placeholder.
   return { widthPx: 100, heightPx: 100, widthMm: 50, heightMm: 50 };
-}
-
-/** Display size (px) for an entity rendered at physical scale on the tabletop. */
-export function getTemplateDisplaySize(template: EntityTemplate): {
-  width: number;
-  height: number;
-} {
-  return {
-    width: template.widthMm * TABLETOP_PX_PER_MM,
-    height: template.heightMm * TABLETOP_PX_PER_MM
-  };
 }
 
 /**
@@ -86,7 +59,7 @@ export function getTemplateDisplaySize(template: EntityTemplate): {
  * for duplicates (matches the export preview's behaviour). Falls back to a
  * single null instance when no rows are provided.
  */
-function buildInstances(
+export function buildInstances(
   rows: Record<string, string>[] | undefined
 ): (Record<string, string> | null)[] {
   if (!rows || rows.length === 0) return [null];
@@ -100,52 +73,47 @@ function buildInstances(
   return instances.length > 0 ? instances : [null];
 }
 
+/** Compute a template (dimensions + capability flags + instances) for one component. */
+export function buildTemplate(
+  c: GameComponent,
+  rows: Record<string, string>[] | undefined
+): Template {
+  const { widthPx, heightPx, widthMm, heightMm } = getTemplateDimensions(c);
+  const dice = isDice(c);
+  return {
+    id: c.id,
+    name: c.name,
+    widthPx,
+    heightPx,
+    widthMm,
+    heightMm,
+    mergeable: isCard(c),
+    isContainer: isGameBoard(c) || isPlayerMat(c),
+    flippable: !dice,
+    faces: dice ? (DICE_FACES[c.diceType] ?? 6) : undefined,
+    instances: dice ? Array.from({ length: Math.max(1, c.number) }, () => null) : buildInstances(rows)
+  };
+}
+
+export function emptyTabletopState(): TabletopState {
+  return {
+    cards: {},
+    piles: {},
+    zones: {},
+    zoneOrder: [],
+    rootPileIds: [],
+    selection: { kind: 'none' },
+    editingZoneId: null
+  };
+}
+
 export function buildInitialTabletop(input: TabletopInitInput): TabletopInitResult {
   const { components, componentRows = {} } = input;
 
-  const templates: Record<string, EntityTemplate> = {};
+  const templates: Templates = {};
   for (const c of components) {
-    const { widthPx, heightPx, widthMm, heightMm } = getTemplateDimensions(c);
-    templates[c.id] = {
-      id: c.id,
-      name: c.name,
-      type: c.type,
-      widthPx,
-      heightPx,
-      widthMm,
-      heightMm,
-      isEditable: isEditableComponent(c),
-      instances: isDice(c)
-        ? Array.from({ length: Math.max(1, c.number) }, () => null)
-        : buildInstances(componentRows[c.id])
-    };
+    templates[c.id] = buildTemplate(c, componentRows[c.id]);
   }
 
-  const playArea: FreeformZone = {
-    id: 'zone-play-area',
-    name: 'Play Area',
-    type: 'freeform',
-    x: 0,
-    y: 0,
-    width: PLAY_AREA_WIDTH,
-    height: PLAY_AREA_HEIGHT,
-    entityIds: [],
-    locked: false
-  };
-
-  const zones: Record<string, Zone> = {
-    [playArea.id]: playArea
-  };
-  const zoneOrder = [playArea.id];
-
-  const state: TabletopState = {
-    entities: {},
-    zones,
-    zoneOrder,
-    selectedEntityIds: [],
-    selectedZoneId: null,
-    editingZoneId: null
-  };
-
-  return { state, templates };
+  return { state: emptyTabletopState(), templates };
 }

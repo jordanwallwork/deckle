@@ -13,6 +13,8 @@ import {
   type Viewport
 } from './viewport';
 import { pileWorldRect, zoneWorldRect } from './geometry';
+import { createFreeformZone, reparentZone } from './zones';
+import { emptyTabletopState } from './initialization';
 import {
   cardTemplate,
   makeTemplates,
@@ -160,6 +162,29 @@ describe('viewport — table bounding box', () => {
     const pr = pileWorldRect(state, templates, state.piles.p1);
     expect(box.x + box.width).toBeCloseTo(pr.x + pr.width);
     expect(box.y + box.height).toBeCloseTo(pr.y + pr.height);
+  });
+
+  it('frames a nested zone that overhangs its parent zone', () => {
+    const state = emptyTabletopState();
+    const parent = createFreeformZone(state, 0, 0, 200, 200, 'Parent');
+    const child = createFreeformZone(state, 150, 150, 200, 200, 'Child');
+    reparentZone(state, child, parent);
+
+    const box = tableBoundingBox(state, templates)!;
+    expect(box.x).toBeCloseTo(0);
+    expect(box.y).toBeCloseTo(0);
+    expect(box.x + box.width).toBeCloseTo(350);
+    expect(box.y + box.height).toBeCloseTo(350);
+  });
+
+  it('frames a pile whose footprint overhangs its containing zone', () => {
+    let state = stateWithPiles(singleCardPile('p1', 'c1', 25, 25));
+    state = withZone(state, { id: 'z1', x: 0, y: 0, width: 50, height: 50 }, ['p1']);
+    const box = tableBoundingBox(state, templates)!;
+    const pr = pileWorldRect(state, templates, state.piles.p1);
+    // The card (127×177.8) is far larger than the 50×50 zone it sits in, so
+    // the true pile footprint — not the clipped zone rect — sets the box.
+    expect(box).toEqual(pr);
   });
 
   it('frames piles placed at large negative coordinates', () => {

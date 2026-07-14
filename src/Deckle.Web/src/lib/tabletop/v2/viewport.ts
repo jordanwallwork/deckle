@@ -66,10 +66,13 @@ export function panBy(vp: Viewport, dx: number, dy: number): Viewport {
 }
 
 /**
- * The world-space bounding box of everything on the table: every top-level
- * zone's rectangle *and* every loose root pile's footprint. Null when the
- * table is empty. Unlike v1 (zones only), loose piles are framed too so
- * fit-view can always recover the whole table (story 52).
+ * The world-space bounding box of everything on the table: every zone's
+ * rectangle (top-level and nested) *and* every pile's actual footprint
+ * (root or contained, including rotation/size overhang past its zone).
+ * Null when the table is empty. `state.zones`/`state.piles` are already flat
+ * by id, so no recursion is needed — walking every entry covers nesting for
+ * free. Zones do not clip pile overhang (SPEC "Rendering"), so fit-view must
+ * not clip it either (story 8, story 52).
  */
 export function tableBoundingBox(state: TabletopState, templates: Templates): Rect | null {
   let minX = Infinity;
@@ -86,13 +89,11 @@ export function tableBoundingBox(state: TabletopState, templates: Templates): Re
     any = true;
   };
 
-  for (const zoneId of state.zoneOrder) {
-    const zone = state.zones[zoneId];
-    if (zone) include(zoneWorldRect(state, zone));
+  for (const zone of Object.values(state.zones)) {
+    include(zoneWorldRect(state, zone));
   }
-  for (const pileId of state.rootPileIds) {
-    const pile = state.piles[pileId];
-    if (pile) include(pileWorldRect(state, templates, pile));
+  for (const pile of Object.values(state.piles)) {
+    include(pileWorldRect(state, templates, pile));
   }
 
   if (!any) return null;

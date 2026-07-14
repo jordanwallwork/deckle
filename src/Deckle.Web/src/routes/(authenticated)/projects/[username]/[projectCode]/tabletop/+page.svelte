@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { buildInitialTabletop } from '$lib/tabletop/v2';
-  import TabletopV2 from './_components/v2/TabletopV2.svelte';
+  import { buildInitialTabletop } from '$lib/tabletop';
+  import Tabletop from './_components/Tabletop.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -24,7 +24,7 @@
       <p>Create cards, boards, or other components first, then come back to playtest on the tabletop.</p>
     </div>
   {:else}
-    <TabletopV2
+    <Tabletop
       initialState={initResult.state}
       templates={initResult.templates}
       components={data.components}

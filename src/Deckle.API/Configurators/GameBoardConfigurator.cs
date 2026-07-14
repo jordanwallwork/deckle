@@ -64,17 +64,22 @@ public class GameBoardConfigurator : IConfigurator<GameBoard, GameBoardConfig>
 
         if (!config.PresetSize.HasValue)
         {
-            if (config.CustomWidthMm is < 304m or > 914m)
-                throw new ArgumentException("CustomWidthMm must be between 304mm and 914mm");
-            if (config.CustomHeightMm is < 152m or > 635m)
-                throw new ArgumentException("CustomHeightMm must be between 152mm and 635mm");
-            if (config.CustomHorizontalFolds is < 0 or > 2)
-                throw new ArgumentException("CustomHorizontalFolds must be between 0 and 2");
-            if (config.CustomVerticalFolds is < 0 or > 2)
-                throw new ArgumentException("CustomVerticalFolds must be between 0 and 2");
+            ValidateCustomDimensions(config);
         }
 
         return Task.CompletedTask;
+    }
+
+    private static void ValidateCustomDimensions(GameBoardConfig config)
+    {
+        if (config.CustomWidthMm is < 304m or > 914m)
+            throw new ArgumentException("CustomWidthMm must be between 304mm and 914mm");
+        if (config.CustomHeightMm is < 152m or > 635m)
+            throw new ArgumentException("CustomHeightMm must be between 152mm and 635mm");
+        if (config.CustomHorizontalFolds is < 0 or > 2)
+            throw new ArgumentException("CustomHorizontalFolds must be between 0 and 2");
+        if (config.CustomVerticalFolds is < 0 or > 2)
+            throw new ArgumentException("CustomVerticalFolds must be between 0 and 2");
     }
 
     public async Task UpdateAsync(GameBoard component, GameBoardConfig config)

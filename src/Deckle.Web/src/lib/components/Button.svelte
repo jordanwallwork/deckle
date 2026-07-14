@@ -73,30 +73,30 @@
   .btn.sm {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
   }
 
   .btn.md {
     padding: 0.625rem 1.25rem;
     font-size: 0.9375rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
   }
 
   .btn.lg {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
   }
 
   /* Primary variant */
   .btn.primary {
-    background-color: var(--color-muted-teal);
+    background-color: var(--color-accent-solid);
     color: white;
     border: 2px solid transparent;
   }
 
   .btn.primary:hover:not(:disabled) {
-    background-color: var(--color-sage);
+    background-color: var(--color-accent-solid-hover);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
@@ -104,24 +104,24 @@
   /* Secondary variant */
   .btn.secondary {
     background-color: rgba(120, 160, 131, 0.1);
-    color: var(--color-muted-teal);
-    border: 2px solid var(--color-muted-teal);
+    color: var(--color-secondary-fg);
+    border: 2px solid var(--color-secondary-fg);
   }
 
   .btn.secondary:hover:not(:disabled) {
     background-color: rgba(120, 160, 131, 0.2);
-    border-color: var(--color-sage);
-    color: var(--color-sage);
+    border-color: var(--color-accent-fg);
+    color: var(--color-accent-fg);
   }
 
   /* Danger variant */
   .btn.danger {
-    background-color: #e74c3c;
+    background-color: var(--color-danger);
     color: white;
   }
 
   .btn.danger:hover:not(:disabled) {
-    background-color: #c0392b;
+    background-color: var(--color-danger-hover);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
@@ -129,20 +129,20 @@
   /* Text variant */
   .btn.text {
     background: none;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     padding: 0.5rem 0;
     font-weight: 500;
   }
 
   .btn.text:hover:not(:disabled) {
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
   }
 
   /* Icon variant */
   .btn.icon {
     background: none;
     padding: 0.25rem;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     color: inherit;
   }
 
@@ -157,7 +157,7 @@
   }
 
   .btn.primary:disabled:hover {
-    background-color: var(--color-muted-teal);
+    background-color: var(--color-accent-solid);
     transform: none;
     box-shadow: none;
   }

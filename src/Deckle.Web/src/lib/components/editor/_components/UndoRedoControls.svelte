@@ -65,8 +65,9 @@
   .control-btn {
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -76,8 +77,8 @@
   }
 
   .control-btn:hover:not(:disabled) {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .control-btn:disabled {

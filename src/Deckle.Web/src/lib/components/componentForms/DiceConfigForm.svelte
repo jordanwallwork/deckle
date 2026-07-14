@@ -94,7 +94,7 @@
   .color-field-label {
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     margin-bottom: 0.5rem;
     display: block;
   }
@@ -114,7 +114,7 @@
     width: 100%;
     aspect-ratio: 1;
     border: 3px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
@@ -131,7 +131,7 @@
   .color-option.selected {
     border-color: var(--color-sage);
     box-shadow:
-      0 0 0 2px white,
+      0 0 0 2px var(--color-surface),
       0 0 0 4px var(--color-sage);
   }
 
@@ -146,7 +146,7 @@
     position: absolute;
     top: -6px;
     right: -6px;
-    background-color: white;
+    background-color: var(--color-surface);
     border-radius: 50%;
     width: 20px;
     height: 20px;
@@ -160,12 +160,12 @@
 
   .color-label {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin-top: 0.5rem;
   }
 
   .colorblind-text {
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     font-weight: 600;
   }
 </style>

@@ -27,11 +27,27 @@ public class AppDbContext : DbContext
     public DbSet<Entities.File> Files { get; set; }
     public DbSet<FileDirectory> FileDirectories { get; set; }
 
+    private const string CurrentTimestampSql = "CURRENT_TIMESTAMP";
+    private const string JsonbColumnType = "jsonb";
+    private const string DecimalMillimetersColumnType = "decimal(10,2)";
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling", Justification = "EF Core DbContext configuration inherently couples to all entity types")]
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        ConfigureUser(modelBuilder);
+        ConfigureApiKey(modelBuilder);
+        ConfigureProject(modelBuilder);
+        ConfigureUserProject(modelBuilder);
+        ConfigureDataSource(modelBuilder);
+        ConfigureComponent(modelBuilder);
+        ConfigureFile(modelBuilder);
+        ConfigureFileDirectory(modelBuilder);
+    }
+
+    private static void ConfigureUser(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(u => u.Id);
@@ -76,17 +92,17 @@ public class AppDbContext : DbContext
 
             entity.Property(u => u.CreatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             entity.Property(u => u.UpdatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             entity.Property(u => u.Bio)
                 .HasMaxLength(1000);
 
             entity.Property(u => u.ExternalLinks)
-                .HasColumnType("jsonb");
+                .HasColumnType(JsonbColumnType);
 
             entity.Property(u => u.StorageQuotaMb)
                 .IsRequired()
@@ -101,7 +117,10 @@ public class AppDbContext : DbContext
                 .HasConversion<string>()
                 .HasDefaultValue(UserRole.User);
         });
+    }
 
+    private static void ConfigureApiKey(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<ApiKey>(entity =>
         {
             entity.HasKey(ak => ak.Id);
@@ -116,7 +135,7 @@ public class AppDbContext : DbContext
 
             entity.Property(ak => ak.CreatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             entity.HasOne(ak => ak.User)
                 .WithMany(u => u.ApiKeys)
@@ -126,7 +145,10 @@ public class AppDbContext : DbContext
             entity.HasIndex(ak => ak.KeyHash).IsUnique();
             entity.HasIndex(ak => ak.UserId);
         });
+    }
 
+    private static void ConfigureProject(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Project>(entity =>
         {
             entity.HasKey(p => p.Id);
@@ -153,17 +175,20 @@ public class AppDbContext : DbContext
 
             entity.Property(p => p.CreatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             entity.Property(p => p.UpdatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             entity.HasMany(p => p.Users)
                 .WithMany(p => p.Projects)
                 .UsingEntity<UserProject>();
         });
+    }
 
+    private static void ConfigureUserProject(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<UserProject>(entity =>
         {
             entity.HasKey(up => new { up.UserId, up.ProjectId });
@@ -174,9 +199,12 @@ public class AppDbContext : DbContext
 
             entity.Property(up => up.JoinedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
         });
+    }
 
+    private static void ConfigureDataSource(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<DataSource>(entity =>
         {
             entity.HasKey(ds => ds.Id);
@@ -194,7 +222,7 @@ public class AppDbContext : DbContext
                 .HasConversion<string>();
 
             entity.Property(ds => ds.Headers)
-                .HasColumnType("jsonb")
+                .HasColumnType(JsonbColumnType)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null)
@@ -211,11 +239,11 @@ public class AppDbContext : DbContext
 
             entity.Property(ds => ds.CreatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             entity.Property(ds => ds.UpdatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             // ProjectId is now nullable - SampleDataSources may not be associated with a project
             entity.HasOne(ds => ds.Project)
@@ -262,9 +290,12 @@ public class AppDbContext : DbContext
         {
             entity.Property(ds => ds.JsonData)
                 .HasColumnName("JsonData")
-                .HasColumnType("jsonb");
+                .HasColumnType(JsonbColumnType);
         });
+    }
 
+    private static void ConfigureComponent(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Component>(entity =>
         {
             entity.HasKey(c => c.Id);
@@ -275,11 +306,11 @@ public class AppDbContext : DbContext
 
             entity.Property(c => c.CreatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             entity.Property(c => c.UpdatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             // ProjectId is nullable - shared sample components may not be associated with a project
             entity.HasOne(c => c.Project)
@@ -308,7 +339,7 @@ public class AppDbContext : DbContext
 
             entity.Property(ec => ec.Shape)
                 .IsRequired()
-                .HasColumnType("jsonb")
+                .HasColumnType(JsonbColumnType)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<ComponentShape>(v, (JsonSerializerOptions?)null)!
@@ -354,10 +385,10 @@ public class AppDbContext : DbContext
                 .HasConversion<string>();
 
             entity.Property(gb => gb.CustomWidthMm)
-                .HasColumnType("decimal(10,2)");
+                .HasColumnType(DecimalMillimetersColumnType);
 
             entity.Property(gb => gb.CustomHeightMm)
-                .HasColumnType("decimal(10,2)");
+                .HasColumnType(DecimalMillimetersColumnType);
 
             entity.HasOne(gb => gb.DataSource)
                 .WithMany()
@@ -374,17 +405,20 @@ public class AppDbContext : DbContext
                 .HasConversion<string>();
 
             entity.Property(pm => pm.CustomWidthMm)
-                .HasColumnType("decimal(10,2)");
+                .HasColumnType(DecimalMillimetersColumnType);
 
             entity.Property(pm => pm.CustomHeightMm)
-                .HasColumnType("decimal(10,2)");
+                .HasColumnType(DecimalMillimetersColumnType);
 
             entity.HasOne(pm => pm.DataSource)
                 .WithMany()
                 .HasForeignKey("DataSourceId")
                 .OnDelete(DeleteBehavior.SetNull);
         });
+    }
 
+    private static void ConfigureFile(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<Entities.File>(entity =>
         {
             entity.HasKey(f => f.Id);
@@ -414,7 +448,7 @@ public class AppDbContext : DbContext
 
             entity.Property(f => f.UploadedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             // Project cascade delete (cleanup R2 files in service layer)
             entity.HasOne(f => f.Project)
@@ -430,7 +464,7 @@ public class AppDbContext : DbContext
 
             // Configure Tags as JSONB
             entity.Property(f => f.Tags)
-                .HasColumnType("jsonb")
+                .HasColumnType(JsonbColumnType)
                 .HasDefaultValueSql("'[]'::jsonb")
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
@@ -465,7 +499,10 @@ public class AppDbContext : DbContext
                 .HasMethod("gin")
                 .HasAnnotation("Npgsql:IndexOperators", new[] { "jsonb_path_ops" }); // For tag queries with better performance
         });
+    }
 
+    private static void ConfigureFileDirectory(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<FileDirectory>(entity =>
         {
             entity.HasKey(d => d.Id);
@@ -476,11 +513,11 @@ public class AppDbContext : DbContext
 
             entity.Property(d => d.CreatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             entity.Property(d => d.UpdatedAt)
                 .IsRequired()
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                .HasDefaultValueSql(CurrentTimestampSql);
 
             // Project relationship (cascade delete)
             entity.HasOne(d => d.Project)

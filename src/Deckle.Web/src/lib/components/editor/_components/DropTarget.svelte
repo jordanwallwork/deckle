@@ -71,11 +71,11 @@
   }
 
   .drop-target:hover {
-    background: #e0e0e0;
+    background: var(--color-bg-subtle);
   }
 
   .drop-target.drag-over {
-    background: #28a745;
-    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+    background: var(--color-success);
+    box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2);
   }
 </style>

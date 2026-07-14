@@ -241,21 +241,21 @@
   }
 
   .error-banner {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
     border-radius: 0.5rem;
     padding: 1rem;
     margin-bottom: 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: #dc2626;
+    color: var(--color-danger);
   }
 
   .dismiss-btn {
     background: transparent;
     border: none;
-    color: #dc2626;
+    color: var(--color-danger);
     cursor: pointer;
     font-weight: 600;
   }

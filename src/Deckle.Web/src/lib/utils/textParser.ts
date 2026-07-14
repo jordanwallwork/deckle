@@ -41,11 +41,11 @@ function sanitizeIconName(iconName: string): string {
 function escapeHtml(text: string): string {
   // Manual escaping for SSR compatibility (document is not available server-side)
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 /**
@@ -111,6 +111,21 @@ function tryParseToken(inner: string, escapeText: boolean): string | null {
 }
 
 /**
+ * Scans forward from a '{' at index `braceStart`, tracking nested brace depth.
+ * Returns the index just after the matching '}', or -1 if unmatched.
+ */
+function findMatchingBraceEnd(content: string, braceStart: number): number {
+  let i = braceStart + 1; // skip '{'
+  let depth = 1;
+  while (i < content.length && depth > 0) {
+    if (content[i] === '{') depth++;
+    else if (content[i] === '}') depth--;
+    i++;
+  }
+  return depth === 0 ? i : -1;
+}
+
+/**
  * Parses text content and converts inline class syntax and icon syntax to HTML.
  *
  * Uses a character-by-character loop to avoid catastrophic backtracking from complex regex.
@@ -135,29 +150,19 @@ export function parseInlineClasses(content: string, escapeText: boolean = true):
 
     // Found '{' — scan for matching '}'
     const braceStart = i;
-    i++; // skip '{'
-    let depth = 1;
-    while (i < content.length && depth > 0) {
-      if (content[i] === '{') depth++;
-      else if (content[i] === '}') depth--;
-      i++;
-    }
+    const braceEnd = findMatchingBraceEnd(content, braceStart);
 
-    if (depth !== 0) {
+    if (braceEnd === -1) {
       // Unmatched brace — emit as literal text
-      output += maybeEscape(content.substring(braceStart, i));
-      continue;
+      output += maybeEscape(content.substring(braceStart));
+      break;
     }
 
     // inner = content between the outermost braces (exclusive)
-    const inner = content.substring(braceStart + 1, i - 1);
-
+    const inner = content.substring(braceStart + 1, braceEnd - 1);
     const result = tryParseToken(inner, escapeText);
-    if (result) {
-      output += result;
-    } else {
-      output += maybeEscape('{' + inner + '}');
-    }
+    output += result ?? maybeEscape('{' + inner + '}');
+    i = braceEnd;
   }
 
   return output;
@@ -177,20 +182,14 @@ export function hasInlineClasses(content: string): boolean {
 
     // Found '{' — scan for matching '}'
     const braceStart = i;
-    i++; // skip '{'
-    let depth = 1;
-    while (i < content.length && depth > 0) {
-      if (content[i] === '{') depth++;
-      else if (content[i] === '}') depth--;
-      i++;
-    }
+    const braceEnd = findMatchingBraceEnd(content, braceStart);
+    if (braceEnd === -1) break;
 
-    if (depth !== 0) continue;
-
-    const inner = content.substring(braceStart + 1, i - 1);
+    const inner = content.substring(braceStart + 1, braceEnd - 1);
     if (tryParseToken(inner, false) !== null) {
       return true;
     }
+    i = braceEnd;
   }
 
   return false;

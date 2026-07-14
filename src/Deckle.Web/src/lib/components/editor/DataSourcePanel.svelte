@@ -298,14 +298,14 @@
 <style>
   .dropdown-last-updated {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     padding: 0.125rem 0;
     white-space: nowrap;
   }
 
   .dropdown-divider {
     height: 1px;
-    background-color: #e5e7eb;
+    background-color: var(--color-border);
     margin: 0.25rem 0;
   }
 
@@ -317,13 +317,13 @@
     background: none;
     border-radius: 4px;
     cursor: pointer;
-    color: #374151;
+    color: var(--color-text-primary);
     transition: background 0.15s ease;
     white-space: nowrap;
   }
 
   .dropdown-action:hover:not(:disabled) {
-    background: #f3f4f6;
+    background: var(--color-bg-subtle);
   }
 
   .dropdown-action:disabled {
@@ -334,8 +334,8 @@
   .link-data-source-button {
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -343,8 +343,8 @@
   }
 
   .link-data-source-button:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .navigation-buttons {
@@ -363,18 +363,18 @@
     width: 1.5rem;
     height: 1.5rem;
     padding: 0;
-    background: white;
-    border: 1px solid #d1d5db;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 4px;
     cursor: pointer;
-    color: #666;
+    color: var(--color-text-secondary);
     transition: all 0.15s ease;
   }
 
   .nav-button:hover {
-    background: #f9fafb;
-    border-color: #9ca3af;
-    color: #374151;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
+    color: var(--color-text-primary);
   }
 
   .panel-controls {
@@ -390,24 +390,24 @@
     width: 1.5rem;
     height: 1.5rem;
     padding: 0;
-    background: white;
-    border: 1px solid #d1d5db;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 4px;
     cursor: pointer;
-    color: #666;
+    color: var(--color-text-secondary);
     transition: all 0.15s ease;
   }
 
   .icon-button:hover {
-    background: #f9fafb;
-    border-color: #9ca3af;
-    color: #374151;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
+    color: var(--color-text-primary);
   }
 
   .icon-button.active {
-    background: #e5e7eb;
-    border-color: #9ca3af;
-    color: #374151;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
+    color: var(--color-text-primary);
   }
 
   .loading-state,

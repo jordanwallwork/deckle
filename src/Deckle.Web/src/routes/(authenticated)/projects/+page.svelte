@@ -231,10 +231,10 @@
 
   .general-error {
     padding: 0.75rem 1rem;
-    background-color: rgba(211, 47, 47, 0.1);
-    border: 1px solid rgba(211, 47, 47, 0.3);
-    border-radius: 6px;
-    color: #d32f2f;
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-danger-fg);
     font-size: 0.875rem;
     margin-top: 0.5rem;
   }
@@ -247,13 +247,13 @@
     color: var(--color-text);
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     cursor: pointer;
   }
 
   .visibility-select:focus {
     outline: none;
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
     box-shadow: 0 0 0 3px rgba(120, 160, 131, 0.15);
   }
 </style>

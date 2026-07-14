@@ -1,4 +1,4 @@
-import { writable, derived, type Writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import type {
   TemplateElement,
   ContainerElement,
@@ -12,6 +12,56 @@ type ParentElement = ContainerElement | IteratorElement | ShapeElement | GridEle
 /** Type guard for elements with children arrays (container, iterator, shape, or grid). */
 function hasChildren(element: TemplateElement): element is ParentElement {
   return element.type === 'container' || element.type === 'iterator' || element.type === 'shape' || element.type === 'grid';
+}
+
+/** Whether moving `element` (with id `elementId`) under `newParentId` is a legal move. */
+function isValidMoveTarget(
+  root: ContainerElement,
+  element: TemplateElement,
+  elementId: string,
+  newParentId: string | null
+): boolean {
+  // Don't allow moving to itself or to its own descendants
+  if (elementId === newParentId) return false;
+  if (hasChildren(element) && findElementById(element, newParentId || '')) {
+    return false;
+  }
+
+  // Validate that the new parent is a container, iterator, or root
+  if (newParentId && newParentId !== 'root') {
+    const targetParent = findElementById(root, newParentId);
+    if (!targetParent || !hasChildren(targetParent)) {
+      return false;
+    }
+  }
+
+  // Iterators can only be placed inside containers, shapes, or grids (not root, not other iterators)
+  if (element.type === 'iterator') {
+    if (!newParentId || newParentId === 'root') return false;
+    const targetParent = findElementById(root, newParentId);
+    if (!targetParent || (targetParent.type !== 'container' && targetParent.type !== 'shape' && targetParent.type !== 'grid')) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/** Adjusts positioning fields on a moved element based on its new parent (root vs. container). */
+function repositionMovedElement<T extends TemplateElement>(movedElement: T, newParentId: string | null): T {
+  if (!newParentId || newParentId === 'root') {
+    // Moving to root - enforce absolute positioning
+    movedElement.position = 'absolute';
+    if (movedElement.x === undefined) movedElement.x = 0;
+    if (movedElement.y === undefined) movedElement.y = 0;
+  } else if (movedElement.position === 'absolute') {
+    // Moving to a container - use relative positioning
+    movedElement.position = 'relative';
+    delete movedElement.x;
+    delete movedElement.y;
+  }
+
+  return movedElement;
 }
 
 export interface TemplateStore {
@@ -231,59 +281,27 @@ function createTemplateStore() {
     // Move an element to a new parent
     moveElement: (elementId: string, newParentId: string | null, insertIndex?: number) => {
       update((store) => {
-        // Find the element
         const element = findElementById(store.root, elementId);
         if (!element) return store;
 
-        // Don't allow moving to itself or to its own descendants
-        if (elementId === newParentId) return store;
-        if (hasChildren(element)) {
-          const descendant = findElementById(element, newParentId || '');
-          if (descendant) return store;
-        }
-
-        // Validate that the new parent is a container, iterator, or root
-        if (newParentId && newParentId !== 'root') {
-          const targetParent = findElementById(store.root, newParentId);
-          if (!targetParent || !hasChildren(targetParent)) {
-            // Target is not a container or iterator, abort the move
-            return store;
-          }
-        }
-
-        // Iterators can only be placed inside containers, shapes, or grids (not root, not other iterators)
-        if (element.type === 'iterator') {
-          if (!newParentId || newParentId === 'root') return store;
-          const targetParent = findElementById(store.root, newParentId);
-          if (!targetParent || (targetParent.type !== 'container' && targetParent.type !== 'shape' && targetParent.type !== 'grid')) return store;
+        if (!isValidMoveTarget(store.root, element, elementId, newParentId)) {
+          return store;
         }
 
         saveHistory(store);
 
-        // Remove from current parent
         const removeResult = removeElementFromContainer(store.root, elementId);
         if (!removeResult.removed) return store;
 
         store.root = removeResult.container;
 
-        // Update positioning based on new parent
-        const movedElement = structuredClone(element);
+        const movedElement = repositionMovedElement(structuredClone(element), newParentId);
         if (!newParentId || newParentId === 'root') {
-          // Moving to root - enforce absolute positioning
-          movedElement.position = 'absolute';
-          if (movedElement.x === undefined) movedElement.x = 0;
-          if (movedElement.y === undefined) movedElement.y = 0;
           store.root = {
             ...store.root,
             children: insertAtIndex(store.root.children, movedElement, insertIndex)
           };
         } else {
-          // Moving to a container - use relative positioning
-          if (movedElement.position === 'absolute') {
-            movedElement.position = 'relative';
-            delete movedElement.x;
-            delete movedElement.y;
-          }
           store.root = addElementToContainer(store.root, newParentId, movedElement, insertIndex);
         }
 
@@ -663,7 +681,7 @@ function collectDescendantIds(element: TemplateElement): Set<string> {
 export const highlightedElementIds = derived(templateStore, ($store) => {
   if (!$store.selectedElementId) return new Set<string>();
   const selected = findElementById($store.root, $store.selectedElementId);
-  if (!selected || selected.type !== 'iterator') return new Set<string>();
+  if (selected?.type !== 'iterator') return new Set<string>();
   return collectDescendantIds(selected);
 });
 

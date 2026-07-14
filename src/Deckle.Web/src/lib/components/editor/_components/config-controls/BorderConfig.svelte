@@ -187,7 +187,7 @@
     display: block;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   .toggle-label {
@@ -195,7 +195,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.75rem;
-    color: #666;
+    color: var(--color-text-secondary);
     cursor: pointer;
   }
 
@@ -204,14 +204,14 @@
     width: 36px;
     height: 20px;
     appearance: none;
-    background: #ccc;
+    background: var(--color-disabled-border);
     border-radius: 10px;
     position: relative;
     transition: background 0.2s;
   }
 
   .toggle-label input[type='checkbox']:checked {
-    background: #0066cc;
+    background: var(--color-accent-fg);
   }
 
   .toggle-label input[type='checkbox']::before {

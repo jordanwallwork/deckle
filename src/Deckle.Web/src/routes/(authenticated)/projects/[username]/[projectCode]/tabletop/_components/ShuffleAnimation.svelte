@@ -12,6 +12,7 @@
     SHUFFLE_STAGGER_MS,
     templateDisplaySize
   } from '$lib/tabletop';
+  import { prefersReducedMotion } from '$lib/utils/reducedMotion';
   import { onMount } from 'svelte';
   import FlipCard from './FlipCard.svelte';
 
@@ -39,6 +40,14 @@
   onMount(() => {
     const N = cardEls.length;
     if (N === 0) return;
+
+    // Reduced motion: skip the fan-out animation entirely. Apply the final
+    // z-index order (new top card on top) synchronously, so the deck lands
+    // in exactly the same state without any movement.
+    if (prefersReducedMotion()) {
+      zIndices = cards.map((_, i) => N - 1 - i);
+      return;
+    }
 
     const total = (N - 1) * SHUFFLE_STAGGER_MS + SHUFFLE_OUT_MS + SHUFFLE_HOLD_MS + SHUFFLE_IN_MS;
 

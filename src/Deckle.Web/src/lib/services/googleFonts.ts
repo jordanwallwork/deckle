@@ -225,7 +225,7 @@ export function generateGoogleFontsCSSUrl(fonts: Array<{ family: string; variant
   // Simple format: just load font families with default weight
   // This avoids 400 Bad Request errors from malformed variant specifications
   const families = fonts.map(font => {
-    const family = font.family.replace(/ /g, '+');
+    const family = font.family.replaceAll(' ', '+');
     return `family=${family}`;
   }).join('&');
 

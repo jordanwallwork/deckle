@@ -83,8 +83,8 @@
   }
 
   .dialog {
-    background-color: white;
-    border-radius: 12px;
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
     padding: var(--pad-content);
     width: 90%;
     max-height: 90vh;
@@ -101,7 +101,7 @@
   .dialog h2 {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     margin: 0;
   }
 
@@ -111,9 +111,9 @@
     font-size: 1.5rem;
     line-height: 1;
     cursor: pointer;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     padding: 0.25rem;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     opacity: 0.6;
     transition: opacity 0.15s;
   }

@@ -56,26 +56,26 @@
     font-size: 0.813rem;
     line-height: 1.25rem;
     height: 2.125rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xs);
+    background: var(--color-surface);
     box-sizing: border-box;
     font-family: inherit;
   }
 
   .number-input:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-secondary-fg);
   }
 
   .number-input:disabled {
-    background-color: #f5f5f5;
+    background-color: var(--color-disabled-bg);
     opacity: 0.6;
     cursor: not-allowed;
   }
 
   .unit {
     font-size: 0.75rem;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 </style>

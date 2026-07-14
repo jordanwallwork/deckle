@@ -81,7 +81,7 @@
 
 <style>
   .no-data-sources {
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     font-style: italic;
     margin: 0;
     padding: 1rem;
@@ -99,14 +99,14 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    border: 2px solid var(--color-teal-grey);
+    border: 2px solid var(--color-teal-grey-light);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
   }
 
   .data-source-option:hover {
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
     background-color: var(--color-teal-grey);
   }
 
@@ -132,11 +132,11 @@
   .data-source-name {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
   }
 
   .data-source-meta {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 </style>

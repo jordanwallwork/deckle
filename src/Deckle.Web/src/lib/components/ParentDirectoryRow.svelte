@@ -38,6 +38,11 @@
     transition: transform 0.2s ease;
   }
 
+  :global(:root[data-theme='dark']) .parent-icon {
+    background: linear-gradient(135deg, #383d47 0%, #2f333c 100%);
+    color: #9aa3b2;
+  }
+
   .parent-icon:hover {
     transform: scale(1.05);
   }

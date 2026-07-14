@@ -28,7 +28,7 @@
     width: 50px;
     height: 36px;
     border: 1px solid #d1d5db;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     cursor: pointer;
   }
 

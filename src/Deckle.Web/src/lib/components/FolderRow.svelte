@@ -130,6 +130,11 @@
     transition: transform 0.2s ease;
   }
 
+  :global(:root[data-theme='dark']) .folder-icon {
+    background: linear-gradient(135deg, #4a3d31 0%, #3c3128 100%);
+    color: #c9a883;
+  }
+
   .folder-icon:hover {
     transform: scale(1.05);
   }
@@ -140,7 +145,7 @@
     padding: 0;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    background: white;
+    background: var(--color-surface);
     color: var(--color-text-muted);
     cursor: pointer;
     display: flex;
@@ -151,11 +156,11 @@
 
   .action-button:hover {
     border-color: var(--color-sage);
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
   }
 
   .action-button.delete:hover {
     border-color: var(--color-danger);
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
   }
 </style>

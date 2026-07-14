@@ -223,7 +223,7 @@
   }
 
   .lightbox-info {
-    background: rgba(255, 255, 255, 0.95);
+    background: color-mix(in srgb, var(--color-surface) 95%, transparent);
     padding: 1.5rem;
     border-radius: var(--radius-lg);
     max-height: calc(90vh - 2rem);
@@ -259,7 +259,7 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    background: white;
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: 0.5rem 0.75rem;
@@ -267,7 +267,7 @@
   }
 
   .filename-input-group.has-error {
-    border-color: #e74c3c;
+    border-color: var(--color-danger);
   }
 
   .filename-input {
@@ -280,7 +280,7 @@
   }
 
   .filename-input.invalid {
-    color: #e74c3c;
+    color: var(--color-danger-fg);
   }
 
   .filename-extension {
@@ -292,7 +292,7 @@
   .field-error {
     margin-top: 0.5rem;
     font-size: 0.8125rem;
-    color: #e74c3c;
+    color: var(--color-danger-fg);
   }
 
   .section-actions {
@@ -307,10 +307,10 @@
     gap: 0.5rem;
     margin-top: 1rem;
     padding: 0.75rem 1rem;
-    background-color: rgba(231, 76, 60, 0.1);
-    border: 1px solid #e74c3c;
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-md);
-    color: #e74c3c;
+    color: var(--color-danger-fg);
     font-size: 0.875rem;
   }
 

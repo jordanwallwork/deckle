@@ -12,11 +12,10 @@ import type {
   FileTagsResponse,
   CreateFileDirectoryRequest,
   RenameFileDirectoryRequest,
-  MoveFileDirectoryRequest,
-  DirectoryMoveConflict
+  MoveFileDirectoryRequest
 } from '$lib/types';
 
-export type { DirectoryMoveConflict };
+export type { DirectoryMoveConflict } from '$lib/types';
 
 /**
  * Files API
@@ -66,7 +65,8 @@ export const filesApi = {
       params.set('inRoot', 'true');
     }
     const queryString = params.toString();
-    const url = `/projects/${projectId}/files${queryString ? `?${queryString}` : ''}`;
+    const querySuffix = queryString ? `?${queryString}` : '';
+    const url = `/projects/${projectId}/files${querySuffix}`;
     return api.get<File[]>(url, undefined, fetchFn);
   },
 
@@ -135,7 +135,8 @@ export const directoriesApi = {
    */
   getByPath: (projectId: string, path: string, fetchFn?: typeof fetch) => {
     const encodedPath = path ? encodeURIComponent(path) : '';
-    const url = `/projects/${projectId}/directories/by-path${encodedPath ? `?path=${encodedPath}` : ''}`;
+    const querySuffix = encodedPath ? `?path=${encodedPath}` : '';
+    const url = `/projects/${projectId}/directories/by-path${querySuffix}`;
     return api.get<FileDirectoryWithContents>(url, undefined, fetchFn);
   },
 

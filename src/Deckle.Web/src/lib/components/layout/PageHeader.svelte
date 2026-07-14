@@ -39,13 +39,17 @@
     gap: 2rem;
   }
 
+  .page-header :global(h1) {
+    color: #fff;
+  }
+
   .header-actions {
     flex-shrink: 0;
   }
 
   :global(.header-button) {
     background-color: white !important;
-    color: var(--color-sage) !important;
+    color: var(--color-sage-dark) !important;
   }
 
   :global(.header-button:hover) {

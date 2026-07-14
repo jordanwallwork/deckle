@@ -364,10 +364,10 @@
     width: 1.75rem;
     height: 1.75rem;
     padding: 0;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: white;
-    color: #6b7280;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
     cursor: pointer;
     font-size: 0.75rem;
     transition: all 0.15s;
@@ -378,9 +378,9 @@
   }
 
   .toolbar-btn:hover:not(:disabled) {
-    background: #f3f4f6;
-    color: #374151;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    color: var(--color-text-primary);
+    border-color: var(--color-text-secondary);
   }
 
   .toolbar-btn:disabled {
@@ -389,15 +389,14 @@
   }
 
   .toolbar-btn.active {
-    background: #e8f0fe;
-    color: #1a73e8;
-    border-color: #1a73e8;
+    background: var(--color-bg-subtle);
+    color: var(--color-accent-fg);
+    border-color: var(--color-accent-fg);
   }
 
   .toolbar-btn.active:hover {
-    background: #c8d9fb;
-    color: #1558b0;
-    border-color: #1558b0;
+    color: var(--color-accent-fg-hover);
+    border-color: var(--color-accent-fg-hover);
   }
 
   .toolbar-dropdown-wrapper {
@@ -426,32 +425,32 @@
     inset: 0;
     border: 1px solid transparent;
     border-radius: 4px;
-    background: white;
+    background: var(--color-surface);
     overflow: auto;
     pointer-events: none;
   }
 
   .highlight-content {
-    color: #1a1a1a;
+    color: var(--color-text-primary);
   }
 
   .highlighted-textarea :global(textarea) {
     position: relative;
     color: transparent !important;
-    caret-color: #1a1a1a;
+    caret-color: var(--color-text-primary);
     background: transparent !important;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
     resize: vertical;
   }
 
   .highlighted-textarea :global(textarea:focus) {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
   }
 
   .highlighted-textarea :global(textarea::placeholder) {
-    color: #9ca3af;
+    color: var(--color-text-secondary);
   }
 
   :global(.highlight-content .merge-field) {
@@ -493,6 +492,45 @@
 
   :global(.highlight-content .icon-field .hl-identifier) {
     color: #1a73e8;
+    background: transparent;
+  }
+
+  /* Syntax-highlight chip colors are tuned for a light backdrop; re-tint for dark
+     so the badges keep contrast against the (now dark) textarea backdrop. */
+  :global(:root[data-theme='dark']) :global(.highlight-content .merge-field) {
+    background: rgba(122, 184, 255, 0.15);
+    color: #7ab8ff;
+  }
+
+  :global(:root[data-theme='dark']) :global(.highlight-content .merge-field .hl-function) {
+    color: #c4a4f7;
+  }
+
+  :global(:root[data-theme='dark']) :global(.highlight-content .merge-field .hl-identifier) {
+    color: #7ab8ff;
+    background: rgba(122, 184, 255, 0.22);
+  }
+
+  :global(:root[data-theme='dark']) :global(.highlight-content .merge-field .hl-string) {
+    color: #4ade80;
+  }
+
+  :global(:root[data-theme='dark']) :global(.highlight-content .merge-field .hl-number),
+  :global(:root[data-theme='dark']) :global(.highlight-content .merge-field .hl-boolean) {
+    color: #e8c07a;
+  }
+
+  :global(:root[data-theme='dark']) :global(.highlight-content .icon-field) {
+    background: rgba(255, 171, 102, 0.15);
+    color: #ffab66;
+  }
+
+  :global(:root[data-theme='dark']) :global(.highlight-content .icon-field .hl-icon-name) {
+    color: #ffab66;
+  }
+
+  :global(:root[data-theme='dark']) :global(.highlight-content .icon-field .hl-identifier) {
+    color: #7ab8ff;
     background: transparent;
   }
 </style>

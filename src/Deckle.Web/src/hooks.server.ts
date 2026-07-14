@@ -22,7 +22,14 @@ export const handle: Handle = async ({ event, resolve }) => {
   const originalFetch = event.fetch;
 
   event.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    let url: string;
+    if (typeof input === 'string') {
+      url = input;
+    } else if (input instanceof URL) {
+      url = input.href;
+    } else {
+      url = input.url;
+    }
 
     // Check if this is a request to the API domain
     const apiUrl = env.PUBLIC_API_URL || 'http://localhost:5209';

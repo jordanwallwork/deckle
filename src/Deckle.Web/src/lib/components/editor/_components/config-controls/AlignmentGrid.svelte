@@ -41,11 +41,11 @@
   });
 
   // Get options for X and Y based on direction
-  const xOptions = $derived(() => getXOptions(isColumn));
-  const yOptions = $derived(() => getYOptions(isColumn));
+  const xOptions = $derived(() => getXOptions(isColumn ? 'column' : 'row'));
+  const yOptions = $derived(() => getYOptions(isColumn ? 'column' : 'row'));
 
   // Get the grid cells for the alignment grid
-  const gridCells = $derived(() => getAlignmentGridCells(isColumn));
+  const gridCells = $derived(() => getAlignmentGridCells());
 
   function isSelected(x: string, y: string): boolean {
     return currentX() === x && currentY() === y;
@@ -159,8 +159,8 @@
   }
 
   .alignment-cell.selected {
-    background: #0066cc;
-    border-color: #0066cc;
+    background: var(--color-accent-fg);
+    border-color: var(--color-accent-fg);
   }
 
   .alignment-icon {
@@ -256,7 +256,7 @@
     min-width: 20px;
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
     margin: 0;
   }
 
@@ -266,9 +266,10 @@
     font-size: 0.813rem;
     line-height: 1.25rem;
     height: 2.125rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     box-sizing: border-box;
   }
 </style>

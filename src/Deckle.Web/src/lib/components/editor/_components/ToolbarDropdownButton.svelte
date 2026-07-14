@@ -118,19 +118,19 @@
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
     font-weight: 500;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
-    color: #374151;
+    color: var(--color-text-primary);
   }
 
   .unified-button:hover,
   .unified-button.open {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   /* Split button: main label has its own action, caret opens dropdown */
@@ -143,19 +143,19 @@
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
     font-weight: 500;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-right: none;
-    background: white;
+    background: var(--color-surface);
     border-radius: 4px 0 0 4px;
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
-    color: #374151;
+    color: var(--color-text-primary);
   }
 
   .main-button:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .caret-trigger {
@@ -163,18 +163,18 @@
     align-items: center;
     justify-content: center;
     padding: 0.25rem 0.5rem;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     border-radius: 0 4px 4px 0;
     cursor: pointer;
     transition: all 0.15s ease;
-    color: #6b7280;
+    color: var(--color-text-secondary);
   }
 
   .caret-trigger:hover,
   .caret-trigger.open {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: var(--color-bg-subtle);
+    border-color: var(--color-text-secondary);
   }
 
   .caret {
@@ -191,12 +191,10 @@
     position: fixed;
     margin: 0;
     padding: 0.75rem;
-    background: white;
-    border: 1px solid #d1d5db;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
-    box-shadow:
-      0 4px 6px -1px rgb(0 0 0 / 0.1),
-      0 2px 4px -2px rgb(0 0 0 / 0.1);
+    box-shadow: var(--shadow-md);
     min-width: 140px;
   }
 

@@ -5,6 +5,38 @@ import { dataSourcesApi } from '$lib/api';
  * Parse a single CSV line handling quoted fields (RFC 4180).
  * Quoted fields may contain commas and escaped quotes ("").
  */
+interface CsvCharResult {
+  nextIndex: number;
+  field: string;
+  inQuotes: boolean;
+}
+
+function consumeQuotedChar(line: string, i: number, field: string): CsvCharResult {
+  const c = line[i];
+  if (c !== '"') {
+    return { nextIndex: i + 1, field: field + c, inQuotes: true };
+  }
+  // Escaped quote ""
+  if (i + 1 < line.length && line[i + 1] === '"') {
+    return { nextIndex: i + 2, field: field + '"', inQuotes: true };
+  }
+  // End of quoted field
+  return { nextIndex: i + 1, field, inQuotes: false };
+}
+
+function consumeUnquotedChar(line: string, i: number, field: string, fields: string[]): CsvCharResult {
+  const c = line[i];
+  if (c === '"' && field.length === 0) {
+    // Start of quoted field
+    return { nextIndex: i + 1, field, inQuotes: true };
+  }
+  if (c === ',') {
+    fields.push(field.trim());
+    return { nextIndex: i + 1, field: '', inQuotes: false };
+  }
+  return { nextIndex: i + 1, field: field + c, inQuotes: false };
+}
+
 function parseCSVLine(line: string): string[] {
   const fields: string[] = [];
   let field = '';
@@ -12,37 +44,12 @@ function parseCSVLine(line: string): string[] {
   let i = 0;
 
   while (i < line.length) {
-    const c = line[i];
-
-    if (inQuotes) {
-      if (c === '"') {
-        // Check for escaped quote ""
-        if (i + 1 < line.length && line[i + 1] === '"') {
-          field += '"';
-          i += 2;
-        } else {
-          // End of quoted field
-          inQuotes = false;
-          i++;
-        }
-      } else {
-        field += c;
-        i++;
-      }
-    } else {
-      if (c === '"' && field.length === 0) {
-        // Start of quoted field
-        inQuotes = true;
-        i++;
-      } else if (c === ',') {
-        fields.push(field.trim());
-        field = '';
-        i++;
-      } else {
-        field += c;
-        i++;
-      }
-    }
+    const result: CsvCharResult = inQuotes
+      ? consumeQuotedChar(line, i, field)
+      : consumeUnquotedChar(line, i, field, fields);
+    i = result.nextIndex;
+    field = result.field;
+    inQuotes = result.inQuotes;
   }
 
   fields.push(field.trim());

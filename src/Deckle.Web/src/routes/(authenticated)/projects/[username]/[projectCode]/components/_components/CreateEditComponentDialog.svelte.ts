@@ -55,45 +55,56 @@ export class ComponentDialogState {
       : null
   );
 
-  formDimensions = $derived.by((): Dimensions | null => {
-    let widthMm: number;
-    let heightMm: number;
+  private cardDimensionsMm(): { widthMm: number; heightMm: number } | null {
+    const size = CARD_SIZES.find((s) => s.value === this.cardSize);
+    if (!size) return null;
+    return this.cardHorizontal
+      ? { widthMm: size.heightMm, heightMm: size.widthMm }
+      : { widthMm: size.widthMm, heightMm: size.heightMm };
+  }
 
-    if (this.selectedType === 'card') {
-      const size = CARD_SIZES.find((s) => s.value === this.cardSize);
+  private gameBoardDimensionsMm(): { widthMm: number; heightMm: number } | null {
+    if (this.gameBoardSizeMode === 'preset') {
+      const size = GAME_BOARD_SIZES.find((s) => s.value === this.gameBoardPresetSize);
       if (!size) return null;
-      widthMm = this.cardHorizontal ? size.heightMm : size.widthMm;
-      heightMm = this.cardHorizontal ? size.widthMm : size.heightMm;
+      return this.gameBoardHorizontal
+        ? { widthMm: size.landscapeWidthMm, heightMm: size.landscapeHeightMm }
+        : { widthMm: size.landscapeHeightMm, heightMm: size.landscapeWidthMm };
+    }
+    const w = Number.parseFloat(this.gameBoardCustomWidth);
+    const h = Number.parseFloat(this.gameBoardCustomHeight);
+    if (Number.isNaN(w) || Number.isNaN(h) || w <= 0 || h <= 0) return null;
+    return { widthMm: w, heightMm: h };
+  }
+
+  private playerMatDimensionsMm(): { widthMm: number; heightMm: number } | null {
+    if (this.playerMatSizeMode === 'preset') {
+      const size = PLAYER_MAT_SIZES.find((s) => s.value === this.playerMatPresetSize);
+      if (!size) return null;
+      return this.playerMatHorizontal
+        ? { widthMm: size.heightMm, heightMm: size.widthMm }
+        : { widthMm: size.widthMm, heightMm: size.heightMm };
+    }
+    const w = Number.parseFloat(this.playerMatCustomWidth);
+    const h = Number.parseFloat(this.playerMatCustomHeight);
+    if (Number.isNaN(w) || Number.isNaN(h) || w <= 0 || h <= 0) return null;
+    return { widthMm: w, heightMm: h };
+  }
+
+  formDimensions = $derived.by((): Dimensions | null => {
+    let dims: { widthMm: number; heightMm: number } | null;
+    if (this.selectedType === 'card') {
+      dims = this.cardDimensionsMm();
     } else if (this.selectedType === 'gameboard') {
-      if (this.gameBoardSizeMode === 'preset') {
-        const size = GAME_BOARD_SIZES.find((s) => s.value === this.gameBoardPresetSize);
-        if (!size) return null;
-        widthMm = this.gameBoardHorizontal ? size.landscapeWidthMm : size.landscapeHeightMm;
-        heightMm = this.gameBoardHorizontal ? size.landscapeHeightMm : size.landscapeWidthMm;
-      } else {
-        const w = parseFloat(this.gameBoardCustomWidth);
-        const h = parseFloat(this.gameBoardCustomHeight);
-        if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) return null;
-        widthMm = w;
-        heightMm = h;
-      }
+      dims = this.gameBoardDimensionsMm();
     } else if (this.selectedType === 'playermat') {
-      if (this.playerMatSizeMode === 'preset') {
-        const size = PLAYER_MAT_SIZES.find((s) => s.value === this.playerMatPresetSize);
-        if (!size) return null;
-        widthMm = this.playerMatHorizontal ? size.heightMm : size.widthMm;
-        heightMm = this.playerMatHorizontal ? size.widthMm : size.heightMm;
-      } else {
-        const w = parseFloat(this.playerMatCustomWidth);
-        const h = parseFloat(this.playerMatCustomHeight);
-        if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) return null;
-        widthMm = w;
-        heightMm = h;
-      }
+      dims = this.playerMatDimensionsMm();
     } else {
       return null;
     }
+    if (!dims) return null;
 
+    const { widthMm, heightMm } = dims;
     return {
       widthMm,
       heightMm,
@@ -110,10 +121,11 @@ export class ComponentDialogState {
     if (this.gameBoardSizeMode === 'preset') {
       const size = GAME_BOARD_SIZES.find((s) => s.value === this.gameBoardPresetSize);
       if (!size) return 0;
-      return size.isQuadFold ? 1 : (this.gameBoardHorizontal ? 0 : 1);
+      if (size.isQuadFold) return 1;
+      return this.gameBoardHorizontal ? 0 : 1;
     }
-    const v = parseInt(this.gameBoardCustomHorizontalFolds);
-    return isNaN(v) ? 0 : Math.max(0, v);
+    const v = Number.parseInt(this.gameBoardCustomHorizontalFolds);
+    return Number.isNaN(v) ? 0 : Math.max(0, v);
   });
 
   previewVerticalFolds = $derived.by((): number => {
@@ -121,10 +133,11 @@ export class ComponentDialogState {
     if (this.gameBoardSizeMode === 'preset') {
       const size = GAME_BOARD_SIZES.find((s) => s.value === this.gameBoardPresetSize);
       if (!size) return 0;
-      return size.isQuadFold ? 1 : (this.gameBoardHorizontal ? 1 : 0);
+      if (size.isQuadFold) return 1;
+      return this.gameBoardHorizontal ? 1 : 0;
     }
-    const v = parseInt(this.gameBoardCustomVerticalFolds);
-    return isNaN(v) ? 0 : Math.max(0, v);
+    const v = Number.parseInt(this.gameBoardCustomVerticalFolds);
+    return Number.isNaN(v) ? 0 : Math.max(0, v);
   });
 
   showPreview = $derived(

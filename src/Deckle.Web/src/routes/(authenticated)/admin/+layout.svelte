@@ -6,7 +6,9 @@
   const maxScreen = getMaxScreen();
 </script>
 
-<div class="admin-page-content" class:nopadding={$maxScreen}>
+<!-- theme-light: admin is not yet dark-converted; lock it light to avoid a
+     half-inverted page under the dark theme (Page Theme Lock). -->
+<div class="admin-page-content theme-light" class:nopadding={$maxScreen}>
   {@render children()}
 </div>
 

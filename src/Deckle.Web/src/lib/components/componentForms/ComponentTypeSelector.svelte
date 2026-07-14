@@ -37,9 +37,9 @@
   }
 
   .type-card {
-    background-color: white;
-    border: 2px solid var(--color-muted-teal);
-    border-radius: 8px;
+    background-color: var(--color-surface);
+    border: 2px solid var(--color-secondary-fg);
+    border-radius: var(--radius-md);
     padding: 2rem 1.5rem;
     text-align: center;
     cursor: pointer;
@@ -47,7 +47,7 @@
   }
 
   .type-card:hover {
-    border-color: var(--color-muted-teal);
+    border-color: var(--color-secondary-fg);
     transform: translateY(-4px);
     box-shadow: 0 8px 16px rgba(120, 160, 131, 0.2);
   }
@@ -60,13 +60,13 @@
   .type-card h4 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     margin: 0 0 0.5rem 0;
   }
 
   .type-card p {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0;
     line-height: 1.4;
   }

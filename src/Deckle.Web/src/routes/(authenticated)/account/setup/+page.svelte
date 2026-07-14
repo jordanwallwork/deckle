@@ -149,7 +149,9 @@
   const statusIcon = $derived(STATUS_ICON_MAP[availabilityStatus]);
 </script>
 
-<div class="setup-container">
+<!-- theme-light: onboarding page is a branded teal-gradient surface with a
+     white card; lock it light rather than partially dark-convert it. -->
+<div class="setup-container theme-light">
   <div class="setup-card">
     <div class="welcome-section">
       <Avatar src={data.user.picture} name={data.user.name} size="lg" class="welcome-avatar" />
@@ -231,7 +233,7 @@
 
   .setup-card {
     background: white;
-    border-radius: 16px;
+    border-radius: var(--radius-xl);
     padding: 3rem;
     max-width: 480px;
     width: 100%;
@@ -338,7 +340,7 @@
   }
 
   .input-status.error {
-    color: #dc2626;
+    color: var(--color-danger);
   }
 
   .field-hint {
@@ -349,7 +351,7 @@
 
   .field-error {
     font-size: 0.8125rem;
-    color: #dc2626;
+    color: var(--color-danger);
     margin: 0;
   }
 
@@ -361,10 +363,10 @@
 
   .submit-error {
     padding: 0.875rem 1rem;
-    background-color: #fef2f2;
-    border: 1px solid #fecaca;
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-md);
-    color: #dc2626;
+    color: var(--color-danger);
     font-size: 0.875rem;
   }
 
@@ -373,7 +375,7 @@
     font-size: 1rem;
     font-weight: 600;
     color: white;
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;

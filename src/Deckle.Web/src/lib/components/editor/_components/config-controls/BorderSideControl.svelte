@@ -74,7 +74,7 @@
 
   .side-label {
     font-size: 0.75rem;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   select {
@@ -82,15 +82,16 @@
     font-size: 0.813rem;
     line-height: 1.25rem;
     height: 2.125rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     box-sizing: border-box;
     font-family: inherit;
   }
 
   select:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
   }
 </style>

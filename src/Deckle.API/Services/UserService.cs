@@ -329,42 +329,10 @@ public class UserService : IUserService
             return (false, "User not found");
         }
 
-        if (request.Bio != null && request.Bio.Length > MaxBioLength)
+        var validationError = ValidateBio(request.Bio) ?? ValidateExternalLinks(request.ExternalLinks);
+        if (validationError != null)
         {
-            return (false, $"Bio must be {MaxBioLength} characters or less");
-        }
-
-        if (request.ExternalLinks != null)
-        {
-            if (request.ExternalLinks.Count > MaxExternalLinks)
-            {
-                return (false, $"You can add at most {MaxExternalLinks} external links");
-            }
-
-            foreach (var link in request.ExternalLinks)
-            {
-                if (string.IsNullOrWhiteSpace(link.Label))
-                {
-                    return (false, "Each external link must have a label");
-                }
-                if (link.Label.Length > MaxExternalLinkLabelLength)
-                {
-                    return (false, $"Link label must be {MaxExternalLinkLabelLength} characters or less");
-                }
-                if (string.IsNullOrWhiteSpace(link.Url))
-                {
-                    return (false, "Each external link must have a URL");
-                }
-                if (link.Url.Length > MaxExternalLinkUrlLength)
-                {
-                    return (false, $"Link URL must be {MaxExternalLinkUrlLength} characters or less");
-                }
-                if (!Uri.TryCreate(link.Url, UriKind.Absolute, out var uri) ||
-                    (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
-                {
-                    return (false, $"'{link.Label}' must be a valid HTTP or HTTPS URL");
-                }
-            }
+            return (false, validationError);
         }
 
         user.Bio = string.IsNullOrWhiteSpace(request.Bio) ? null : request.Bio.Trim();
@@ -375,5 +343,61 @@ public class UserService : IUserService
 
         await _dbContext.SaveChangesAsync();
         return (true, null);
+    }
+
+    private static string? ValidateBio(string? bio) =>
+        bio != null && bio.Length > MaxBioLength
+            ? $"Bio must be {MaxBioLength} characters or less"
+            : null;
+
+    private static string? ValidateExternalLinks(IReadOnlyCollection<ExternalLinkDto>? links)
+    {
+        if (links == null)
+        {
+            return null;
+        }
+
+        if (links.Count > MaxExternalLinks)
+        {
+            return $"You can add at most {MaxExternalLinks} external links";
+        }
+
+        foreach (var link in links)
+        {
+            var error = ValidateExternalLink(link);
+            if (error != null)
+            {
+                return error;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ValidateExternalLink(ExternalLinkDto link)
+    {
+        if (string.IsNullOrWhiteSpace(link.Label))
+        {
+            return "Each external link must have a label";
+        }
+        if (link.Label.Length > MaxExternalLinkLabelLength)
+        {
+            return $"Link label must be {MaxExternalLinkLabelLength} characters or less";
+        }
+        if (string.IsNullOrWhiteSpace(link.Url))
+        {
+            return "Each external link must have a URL";
+        }
+        if (link.Url.Length > MaxExternalLinkUrlLength)
+        {
+            return $"Link URL must be {MaxExternalLinkUrlLength} characters or less";
+        }
+        if (!Uri.TryCreate(link.Url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            return $"'{link.Label}' must be a valid HTTP or HTTPS URL";
+        }
+
+        return null;
     }
 }

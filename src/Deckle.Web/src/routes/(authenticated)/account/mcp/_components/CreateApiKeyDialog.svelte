@@ -156,7 +156,7 @@
 
   .field-error {
     font-size: 0.8125rem;
-    color: var(--color-danger, #c0392b);
+    color: var(--color-danger-fg);
     margin: 0;
   }
 
@@ -164,12 +164,12 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: #fff8e1;
-    border: 1px solid #ffe082;
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
     border-radius: var(--radius-md);
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
-    color: #7a5800;
+    color: var(--color-warning-fg);
     margin-bottom: 1rem;
   }
 
@@ -200,7 +200,7 @@
   .copy-btn {
     flex-shrink: 0;
     padding: 0.25rem 0.625rem;
-    background: var(--color-sage);
+    background: var(--color-accent-solid);
     color: white;
     border: none;
     border-radius: var(--radius-sm, 4px);
@@ -226,7 +226,7 @@
     font-family: monospace;
     background: var(--color-bg-subtle, #f0f0f0);
     padding: 0.1em 0.3em;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
     font-size: 0.85em;
   }
 </style>

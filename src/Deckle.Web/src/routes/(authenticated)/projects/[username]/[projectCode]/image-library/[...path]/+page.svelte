@@ -706,7 +706,7 @@
   }
 
   .icon-button:hover {
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(120, 160, 131, 0.3);
   }
@@ -732,29 +732,32 @@
   .drag-overlay p {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
-    background: white;
+    color: var(--color-accent-fg);
+    background: var(--color-surface);
     padding: 1rem 2rem;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
   }
 
   .quota-info {
     flex: 1;
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 1rem;
+    background-color: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
   }
 
   .quota-info p {
     margin: 0;
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 
   .filter-section {
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
+    background-color: var(--color-bg-subtle);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1.5rem;
@@ -796,7 +799,7 @@
 
   .loading-state p {
     font-size: 1rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 
   .empty-state {
@@ -807,13 +810,13 @@
   .empty-message {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     margin-bottom: 0.5rem;
   }
 
   .empty-subtitle {
     font-size: 1rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
   }
 
   .content-list {
@@ -861,7 +864,7 @@
 
   .error-message {
     font-size: 0.8125rem;
-    color: var(--color-danger);
+    color: var(--color-danger-fg);
     margin: 0;
   }
 
@@ -874,7 +877,7 @@
   .cancel-button {
     padding: 0.625rem 1.25rem;
     border: 1px solid var(--color-border);
-    background: white;
+    background: var(--color-surface);
     border-radius: 8px;
     font-size: 0.875rem;
     cursor: pointer;
@@ -882,7 +885,7 @@
   }
 
   .cancel-button:hover {
-    background-color: #f8f9fa;
+    background-color: var(--color-bg-subtle);
   }
 
   .submit-button {
@@ -898,7 +901,7 @@
   }
 
   .submit-button:hover:not(:disabled) {
-    background-color: var(--color-sage);
+    background-color: var(--color-sage-dark);
   }
 
   .submit-button:disabled {

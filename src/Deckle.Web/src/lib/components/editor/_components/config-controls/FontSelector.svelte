@@ -239,9 +239,10 @@
     padding: 0.375rem 0.5rem;
     font-size: 0.813rem;
     line-height: 1.25rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     text-align: left;
     cursor: pointer;
     display: flex;
@@ -251,12 +252,12 @@
   }
 
   .font-selector-trigger:hover {
-    border-color: #9ca3af;
+    border-color: var(--color-text-secondary);
   }
 
   .font-selector-trigger:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
   }
 
   .font-name {
@@ -282,16 +283,16 @@
     left: 0;
     right: 0;
     max-height: 400px;
-    background: white;
-    border: 1px solid #d1d5db;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-md);
     overflow-y: auto;
     z-index: 1000;
   }
 
   .font-section {
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .font-section:last-child {
@@ -302,17 +303,18 @@
     padding: 0.5rem 0.75rem;
     font-size: 0.688rem;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.025em;
-    background: #f9fafb;
+    background: var(--color-bg-subtle);
   }
 
   .font-option {
     width: 100%;
     padding: 0.625rem 0.75rem;
     border: none;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     text-align: left;
     cursor: pointer;
     display: flex;
@@ -324,12 +326,12 @@
   }
 
   .font-option:hover {
-    background: #f3f4f6;
+    background: var(--color-bg-subtle);
   }
 
   .font-option.selected {
-    background: #eff6ff;
-    color: #0066cc;
+    background: var(--color-bg-subtle);
+    color: var(--color-accent-fg);
   }
 
   .font-option .font-name {
@@ -341,7 +343,7 @@
 
   .font-option .font-category {
     font-size: 0.688rem;
-    color: #9ca3af;
+    color: var(--color-text-secondary);
     flex-shrink: 0;
   }
 
@@ -349,19 +351,19 @@
     width: 100%;
     padding: 0.75rem;
     border: none;
-    background: white;
+    background: var(--color-surface);
     text-align: left;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
-    color: #0066cc;
+    color: var(--color-accent-fg);
     transition: background-color 0.15s;
   }
 
   .search-trigger:hover {
-    background: #f3f4f6;
+    background: var(--color-bg-subtle);
   }
 
   .search-trigger svg {

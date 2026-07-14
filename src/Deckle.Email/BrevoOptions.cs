@@ -24,4 +24,9 @@ public class BrevoOptions
     /// Default "from" display name.
     /// </summary>
     public string FromName { get; init; } = "Deckle";
+
+    /// <summary>
+    /// Base URL for the Brevo transactional email API.
+    /// </summary>
+    public string ApiBaseUrl { get; init; } = "https://api.brevo.com/v3";
 }

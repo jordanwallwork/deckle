@@ -150,14 +150,14 @@
 		flex-wrap: wrap;
 		gap: 0.375rem;
 		padding: 0.375rem 0.5rem;
-		border: 1px solid #d1d5db;
-		border-radius: 0.25rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xs);
 		min-height: 2.125rem;
-		background-color: white;
+		background-color: var(--color-surface);
 	}
 
 	.tags-input:focus-within {
-		border-color: #0066cc;
+		border-color: var(--color-secondary-fg);
 		outline: none;
 	}
 
@@ -194,13 +194,13 @@
 		left: 0;
 		right: 0;
 		margin-top: 0.25rem;
-		background: white;
-		border: 1px solid #d1d5db;
-		border-radius: 0.25rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xs);
 		max-height: 200px;
 		overflow-y: auto;
 		z-index: 1000;
-		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+		box-shadow: var(--shadow-md);
 	}
 
 	.suggestion-item {
@@ -217,6 +217,6 @@
 
 	.suggestion-item:hover,
 	.suggestion-item.selected {
-		background-color: #f3f4f6;
+		background-color: var(--color-bg-subtle);
 	}
 </style>

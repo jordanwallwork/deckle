@@ -91,13 +91,13 @@
   .field-header label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   .placeholder-link {
     background: none;
     border: none;
-    color: #0066cc;
+    color: var(--color-accent-fg);
     font-size: 0.75rem;
     cursor: pointer;
     padding: 0;
@@ -106,7 +106,7 @@
   }
 
   .placeholder-link:hover {
-    color: #0052a3;
+    color: var(--color-accent-fg-hover);
   }
 
   .image-url-field input[type='text'] {
@@ -114,9 +114,10 @@
     padding: 0.375rem 0.5rem;
     font-size: 0.813rem;
     line-height: 1.25rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
     font-family: inherit;
     box-sizing: border-box;
     height: 2.125rem;
@@ -124,18 +125,18 @@
 
   .image-url-field input[type='text']:focus {
     outline: none;
-    border-color: #0066cc;
+    border-color: var(--color-accent-fg);
   }
 
   .helper-text {
     margin: 0.375rem 0 0 0;
     font-size: 0.688rem;
-    color: #6b7280;
+    color: var(--color-text-secondary);
     line-height: 1.2;
   }
 
   .helper-text code {
-    background: #f3f4f6;
+    background: var(--color-bg-subtle);
     padding: 0.125rem 0.25rem;
     border-radius: 2px;
     font-family: 'Courier New', monospace;
@@ -151,7 +152,7 @@
   .section-label {
     font-size: 0.75rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--color-text-secondary);
     margin: 0;
   }
 </style>

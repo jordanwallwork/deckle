@@ -246,6 +246,20 @@ Catch `ApiError` for typed error handling (`err.status`, `err.message`). In load
 2. Add function to the appropriate `$lib/api/` module
 3. Use in components or load functions
 
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues in `jordanwallwork/deckle`; use the `gh` CLI. See `agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), unchanged. See `agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + `agents/adr/` (not `docs/adr/` — `docs/` is the product documentation site). See `agents/domain.md`.
+
 ## Notes
 
 - Aspire-based application

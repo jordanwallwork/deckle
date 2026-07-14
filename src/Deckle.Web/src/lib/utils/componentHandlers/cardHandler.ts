@@ -23,7 +23,7 @@ export const cardHandler: ComponentTypeHandler<CardFormState> = {
   },
 
   async create(projectId: string, state: CardFormState): Promise<void> {
-    const created = await componentsApi.createCard(projectId, {
+    await componentsApi.createCard(projectId, {
       name: state.componentName,
       size: state.cardSize,
       horizontal: state.cardHorizontal,

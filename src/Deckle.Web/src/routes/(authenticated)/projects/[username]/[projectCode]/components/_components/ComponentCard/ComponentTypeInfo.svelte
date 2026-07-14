@@ -63,7 +63,7 @@
 <style>
   .component-type {
     font-size: 0.875rem;
-    color: var(--color-muted-teal);
+    color: var(--color-secondary-fg);
     margin: 0;
     text-align: center;
   }

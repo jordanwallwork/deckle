@@ -6,7 +6,6 @@ export const load: PageServerLoad = async ({ params, parent, fetch }) => {
   const { project } = await parent();
   // params.path is a string like "folder1/folder2" or undefined for root
   const path = params.path ?? '';
-  const pathSegments = path ? path.split('/').filter(Boolean) : [];
 
   try {
     // Load directory contents (or root) and quota in parallel

@@ -29,7 +29,7 @@
 
 <style>
   .tabs-bar {
-    background: white;
+    background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
     z-index: 50;
   }
@@ -53,14 +53,14 @@
   }
 
   .tab-link:hover {
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     background-color: rgba(120, 160, 131, 0.05);
   }
 
   .tab-link.active {
-    color: var(--color-sage);
+    color: var(--color-accent-fg);
     font-weight: 600;
-    border-bottom-color: var(--color-sage);
+    border-bottom-color: var(--color-accent-fg);
   }
 
   @media (max-width: 768px) {

@@ -22,36 +22,94 @@ function baseDoc(): Record<string, unknown> {
 			{ id: 'variant', type: 'select', label: 'Variant', choices: ['a', 'b'], default: 'a' }
 		],
 		blueprints: [
-			{ id: 'main-deck', scope: 'table', role: 'Main Deck', faceVisibility: 'none', presence: 'visible' },
+			{
+				id: 'main-deck',
+				scope: 'table',
+				displayName: 'Main Deck',
+				zones: [
+					{
+						id: 'deck-z',
+						role: 'Main Deck',
+						name: 'Main Deck',
+						geometry: { type: 'freeform', rect: { x: 0, y: 0, width: 150, height: 200 } },
+						faceVisibility: 'none',
+						presence: 'visible'
+					}
+				]
+			},
 			{
 				id: 'hand',
 				scope: 'seat',
-				role: 'Hand',
-				faceVisibility: 'owner',
-				presence: 'hidden-from-non-owners'
+				displayName: 'Player Hand',
+				zones: [
+					{
+						id: 'hand-z',
+						role: 'Hand',
+						name: 'Hand',
+						geometry: {
+							type: 'spread',
+							rect: { x: 0, y: 0, width: 400, height: 200 },
+							spread: { direction: 'row', overlap: 40 }
+						},
+						faceVisibility: 'owner',
+						presence: 'hidden-from-non-owners'
+					}
+				]
 			},
-			{ id: 'river', scope: 'edge', role: 'River', faceVisibility: 'all', presence: 'visible' }
+			{
+				id: 'river',
+				scope: 'edge',
+				displayName: 'River',
+				zones: [
+					{
+						id: 'river-z',
+						role: 'River',
+						name: 'River',
+						geometry: {
+							type: 'spread',
+							rect: { x: 0, y: 0, width: 400, height: 200 },
+							spread: { direction: 'row', overlap: 40 }
+						},
+						faceVisibility: 'all',
+						presence: 'visible'
+					}
+				]
+			}
 		],
 		setup: [
 			{ do: 'placeZone', blueprint: 'main-deck' },
 			{ do: 'placeSeats', blueprint: 'hand' },
 			{ do: 'placeZone', blueprint: 'river', edge: { kind: 'each' } },
-			{ do: 'place', component: 'card-1', zone: { blueprint: 'main-deck' }, facing: 'down', count: 52 },
-			{ do: 'shuffle', zone: { blueprint: 'main-deck' } },
+			{
+				do: 'place',
+				component: 'card-1',
+				zone: { blueprint: 'main-deck', role: 'Main Deck' },
+				facing: 'down',
+				count: 52
+			},
+			{ do: 'shuffle', zone: { blueprint: 'main-deck', role: 'Main Deck' } },
 			{
 				do: 'deal',
 				count: 2,
-				from: { blueprint: 'main-deck' },
-				to: { blueprint: 'hand', seat: { kind: 'each' } },
+				from: { blueprint: 'main-deck', role: 'Main Deck' },
+				to: { blueprint: 'hand', role: 'Hand', seat: { kind: 'each' } },
 				facing: 'down'
 			},
 			{
 				when: { op: 'gte', left: { get: 'playerCount' }, right: { const: 4 } },
-				then: [{ do: 'place', component: 'card-2', zone: { blueprint: 'main-deck' } }]
+				then: [
+					{ do: 'place', component: 'card-2', zone: { blueprint: 'main-deck', role: 'Main Deck' } }
+				]
 			},
 			{
 				forEachSeat: {
-					body: [{ do: 'flip', zone: { blueprint: 'hand', seat: { kind: 'current' } }, facing: 'up' }]
+					body: [
+						{
+							do: 'flip',
+							zone: { blueprint: 'hand', role: 'Hand', seat: { kind: 'current' } },
+							facing: 'up'
+						}
+					]
 				}
 			},
 			{ do: 'roll', component: 'die-1' }
@@ -164,19 +222,23 @@ describe('validateGameSetup — structure', () => {
 
 	it('rejects a bad facing', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'flip', zone: { blueprint: 'main-deck' }, facing: 'sideways' }];
+		doc.setup = [
+			{ do: 'flip', zone: { blueprint: 'main-deck', role: 'Main Deck' }, facing: 'sideways' }
+		];
 		expectSingleError(doc, 'setup[0].facing');
 	});
 
 	it('requires facing on flip', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'flip', zone: { blueprint: 'main-deck' } }];
+		doc.setup = [{ do: 'flip', zone: { blueprint: 'main-deck', role: 'Main Deck' } }];
 		expectSingleError(doc, 'setup[0].facing');
 	});
 
 	it('rejects a non-positive count on place', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'place', component: 'card-1', zone: { blueprint: 'main-deck' }, count: 0 }];
+		doc.setup = [
+			{ do: 'place', component: 'card-1', zone: { blueprint: 'main-deck', role: 'Main Deck' }, count: 0 }
+		];
 		expectSingleError(doc, 'setup[0].count');
 	});
 });
@@ -217,49 +279,112 @@ describe('validateGameSetup — option structure', () => {
 });
 
 describe('validateGameSetup — blueprint structure', () => {
+	/** A minimal valid table blueprint with one zone of the given id/role. */
+	function tableBlueprint(id: string, role: string, displayName = role) {
+		return {
+			id,
+			scope: 'table',
+			displayName,
+			zones: [
+				{
+					id: `${id}-z`,
+					role,
+					name: role,
+					geometry: { type: 'freeform', rect: { x: 0, y: 0, width: 100, height: 100 } },
+					faceVisibility: 'all',
+					presence: 'visible'
+				}
+			]
+		};
+	}
+
 	it('rejects duplicate blueprint ids', () => {
 		const doc = baseDoc();
-		doc.blueprints = [
-			{ id: 'z', scope: 'table', role: 'A', faceVisibility: 'all', presence: 'visible' },
-			{ id: 'z', scope: 'table', role: 'B', faceVisibility: 'all', presence: 'visible' }
-		];
+		doc.blueprints = [tableBlueprint('z', 'A', 'Alpha'), tableBlueprint('z', 'B', 'Beta')];
 		doc.setup = [];
 		expectSingleError(doc, 'blueprints[1].id');
 	});
 
-	it('rejects duplicate blueprint roles', () => {
+	it('rejects duplicate blueprint displayNames', () => {
 		const doc = baseDoc();
-		doc.blueprints = [
-			{ id: 'a', scope: 'table', role: 'Same', faceVisibility: 'all', presence: 'visible' },
-			{ id: 'b', scope: 'table', role: 'Same', faceVisibility: 'all', presence: 'visible' }
-		];
+		doc.blueprints = [tableBlueprint('a', 'A', 'Same'), tableBlueprint('b', 'B', 'Same')];
 		doc.setup = [];
-		expectSingleError(doc, 'blueprints[1].role');
+		expectSingleError(doc, 'blueprints[1].displayName');
 	});
 
 	it('rejects an invalid scope', () => {
 		const doc = baseDoc();
-		doc.blueprints = [
-			{ id: 'a', scope: 'floor', role: 'A', faceVisibility: 'all', presence: 'visible' }
-		];
+		const bp = tableBlueprint('a', 'A');
+		bp.scope = 'floor';
+		doc.blueprints = [bp];
 		doc.setup = [];
 		expectSingleError(doc, 'blueprints[0].scope');
 	});
 
-	it('rejects an invalid faceVisibility', () => {
+	it('requires zones to be an array', () => {
 		const doc = baseDoc();
-		doc.blueprints = [
-			{ id: 'a', scope: 'table', role: 'A', faceVisibility: 'sometimes', presence: 'visible' }
-		];
+		const bp = tableBlueprint('a', 'A') as Record<string, unknown>;
+		bp.zones = 'nope';
+		doc.blueprints = [bp];
 		doc.setup = [];
-		expectSingleError(doc, 'blueprints[0].faceVisibility');
+		expectSingleError(doc, 'blueprints[0].zones');
+	});
+
+	it('rejects duplicate zone roles within a blueprint', () => {
+		const doc = baseDoc();
+		const bp = tableBlueprint('a', 'A');
+		bp.zones.push({ ...bp.zones[0], id: 'a-z2' });
+		doc.blueprints = [bp];
+		doc.setup = [];
+		expectSingleError(doc, 'blueprints[0].zones[1].role');
+	});
+
+	it('rejects duplicate zone ids within a blueprint', () => {
+		const doc = baseDoc();
+		const bp = tableBlueprint('a', 'A');
+		bp.zones.push({ ...bp.zones[0], role: 'B' });
+		doc.blueprints = [bp];
+		doc.setup = [];
+		expectSingleError(doc, 'blueprints[0].zones[1].id');
+	});
+
+	it('rejects an invalid geometry type', () => {
+		const doc = baseDoc();
+		const bp = tableBlueprint('a', 'A');
+		bp.zones[0].geometry.type = 'hexagon';
+		doc.blueprints = [bp];
+		doc.setup = [];
+		expectSingleError(doc, 'blueprints[0].zones[0].geometry.type');
+	});
+
+	it('rejects a geometry rect with non-numeric fields', () => {
+		const doc = baseDoc();
+		const bp = tableBlueprint('a', 'A') as Record<string, unknown>;
+		(bp.zones as Record<string, unknown>[])[0].geometry = {
+			type: 'freeform',
+			rect: { x: 0, y: 0, width: 'wide', height: 100 }
+		};
+		doc.blueprints = [bp];
+		doc.setup = [];
+		expectSingleError(doc, 'blueprints[0].zones[0].geometry.rect');
+	});
+
+	it('rejects an invalid faceVisibility on a zone', () => {
+		const doc = baseDoc();
+		const bp = tableBlueprint('a', 'A');
+		bp.zones[0].faceVisibility = 'sometimes';
+		doc.blueprints = [bp];
+		doc.setup = [];
+		expectSingleError(doc, 'blueprints[0].zones[0].faceVisibility');
 	});
 });
 
 describe('validateGameSetup — referential integrity', () => {
 	it('rejects an unknown component id on place', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'place', component: 'ghost', zone: { blueprint: 'main-deck' } }];
+		doc.setup = [
+			{ do: 'place', component: 'ghost', zone: { blueprint: 'main-deck', role: 'Main Deck' } }
+		];
 		expectSingleError(doc, 'setup[0].component');
 	});
 
@@ -271,8 +396,20 @@ describe('validateGameSetup — referential integrity', () => {
 
 	it('rejects an unknown blueprint on a zone reference', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'nope' } }];
+		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'nope', role: 'Main Deck' } }];
 		expectSingleError(doc, 'setup[0].zone.blueprint');
+	});
+
+	it('rejects an unknown zone role on a zone reference', () => {
+		const doc = baseDoc();
+		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'main-deck', role: 'Ghost' } }];
+		expectSingleError(doc, 'setup[0].zone.role');
+	});
+
+	it('requires a role on a zone reference', () => {
+		const doc = baseDoc();
+		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'main-deck' } }];
+		expectSingleError(doc, 'setup[0].zone.role');
 	});
 
 	it('rejects an unknown option in a get expression', () => {
@@ -302,33 +439,40 @@ describe('validateGameSetup — referential integrity', () => {
 describe('validateGameSetup — zone selectors', () => {
 	it('requires a seat selector on a seat-scoped zone', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'hand' } }];
+		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'hand', role: 'Hand' } }];
 		expectSingleError(doc, 'setup[0].zone.seat');
 	});
 
 	it('rejects an edge selector on a seat-scoped zone', () => {
 		const doc = baseDoc();
 		doc.setup = [
-			{ do: 'shuffle', zone: { blueprint: 'hand', seat: { kind: 'each' }, edge: { kind: 'each' } } }
+			{
+				do: 'shuffle',
+				zone: { blueprint: 'hand', role: 'Hand', seat: { kind: 'each' }, edge: { kind: 'each' } }
+			}
 		];
 		expectSingleError(doc, 'setup[0].zone.edge');
 	});
 
 	it('rejects a seat selector on a table-scoped zone', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'main-deck', seat: { kind: 'each' } } }];
+		doc.setup = [
+			{ do: 'shuffle', zone: { blueprint: 'main-deck', role: 'Main Deck', seat: { kind: 'each' } } }
+		];
 		expectSingleError(doc, 'setup[0].zone.seat');
 	});
 
 	it('requires an edge selector on an edge-scoped zone', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'river' } }];
+		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'river', role: 'River' } }];
 		expectSingleError(doc, 'setup[0].zone.edge');
 	});
 
 	it('rejects seat "current" outside a forEachSeat loop', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'hand', seat: { kind: 'current' } } }];
+		doc.setup = [
+			{ do: 'shuffle', zone: { blueprint: 'hand', role: 'Hand', seat: { kind: 'current' } } }
+		];
 		expectSingleError(doc, 'setup[0].zone.seat');
 	});
 
@@ -337,7 +481,9 @@ describe('validateGameSetup — zone selectors', () => {
 		doc.setup = [
 			{
 				forEachSeat: {
-					body: [{ do: 'shuffle', zone: { blueprint: 'hand', seat: { kind: 'current' } } }]
+					body: [
+						{ do: 'shuffle', zone: { blueprint: 'hand', role: 'Hand', seat: { kind: 'current' } } }
+					]
 				}
 			}
 		];
@@ -346,7 +492,9 @@ describe('validateGameSetup — zone selectors', () => {
 
 	it('rejects a negative seat index', () => {
 		const doc = baseDoc();
-		doc.setup = [{ do: 'shuffle', zone: { blueprint: 'hand', seat: { kind: 'index', index: -1 } } }];
+		doc.setup = [
+			{ do: 'shuffle', zone: { blueprint: 'hand', role: 'Hand', seat: { kind: 'index', index: -1 } } }
+		];
 		expectSingleError(doc, 'setup[0].zone.seat.index');
 	});
 });
@@ -381,7 +529,7 @@ describe('validateGameSetup — condition type checking', () => {
 				when: {
 					op: 'lte',
 					left: { get: 'playerCount' },
-					right: { get: 'count', zone: { blueprint: 'main-deck' } }
+					right: { get: 'count', zone: { blueprint: 'main-deck', role: 'Main Deck' } }
 				},
 				then: []
 			}
@@ -395,7 +543,7 @@ describe('validateGameSetup — condition type checking', () => {
 			{
 				when: {
 					op: 'gte',
-					left: { get: 'count', zone: { blueprint: 'ghost' } },
+					left: { get: 'count', zone: { blueprint: 'ghost', role: 'Main Deck' } },
 					right: { const: 1 }
 				},
 				then: []
@@ -406,9 +554,7 @@ describe('validateGameSetup — condition type checking', () => {
 
 	it('rejects a malformed value expression', () => {
 		const doc = baseDoc();
-		doc.setup = [
-			{ when: { op: 'eq', left: { wat: 1 }, right: { const: 1 } }, then: [] }
-		];
+		doc.setup = [{ when: { op: 'eq', left: { wat: 1 }, right: { const: 1 } }, then: [] }];
 		expectSingleError(doc, 'setup[0].when.left');
 	});
 
@@ -436,7 +582,12 @@ describe('validateGameSetup — deal count expressions', () => {
 	it('accepts a numeric literal count', () => {
 		const doc = baseDoc();
 		doc.setup = [
-			{ do: 'deal', count: 5, from: { blueprint: 'main-deck' }, to: { blueprint: 'main-deck' } }
+			{
+				do: 'deal',
+				count: 5,
+				from: { blueprint: 'main-deck', role: 'Main Deck' },
+				to: { blueprint: 'main-deck', role: 'Main Deck' }
+			}
 		];
 		expect(validate(doc)).toEqual([]);
 	});
@@ -447,8 +598,8 @@ describe('validateGameSetup — deal count expressions', () => {
 			{
 				do: 'deal',
 				count: { get: 'option', option: 'rounds' },
-				from: { blueprint: 'main-deck' },
-				to: { blueprint: 'main-deck' }
+				from: { blueprint: 'main-deck', role: 'Main Deck' },
+				to: { blueprint: 'main-deck', role: 'Main Deck' }
 			}
 		];
 		expect(validate(doc)).toEqual([]);
@@ -460,8 +611,8 @@ describe('validateGameSetup — deal count expressions', () => {
 			{
 				do: 'deal',
 				count: { get: 'option', option: 'variant' },
-				from: { blueprint: 'main-deck' },
-				to: { blueprint: 'main-deck' }
+				from: { blueprint: 'main-deck', role: 'Main Deck' },
+				to: { blueprint: 'main-deck', role: 'Main Deck' }
 			}
 		];
 		expectSingleError(doc, 'setup[0].count');

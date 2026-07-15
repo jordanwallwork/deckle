@@ -35,6 +35,7 @@ const FACINGS = new Set(['up', 'down']);
 const FACE_VISIBILITIES = new Set(['all', 'owner', 'others', 'none']);
 const PRESENCES = new Set(['visible', 'hidden-from-non-owners']);
 const ZONE_SCOPES = new Set<ZoneScope>(['table', 'seat', 'edge']);
+const ZONE_TYPES = new Set(['freeform', 'grid', 'spread', 'group']);
 const COMPARISON_OPS = new Set(['eq', 'ne', 'lt', 'lte', 'gt', 'gte']);
 const ORDERING_OPS = new Set(['lt', 'lte', 'gt', 'gte']);
 
@@ -70,6 +71,8 @@ interface Ctx {
 	errors: SetupValidationError[];
 	optionTypes: Map<string, ValueType>;
 	blueprintScopes: Map<string, ZoneScope>;
+	/** Zone roles declared by each blueprint, for `(blueprint, role)` addressing. */
+	blueprintRoles: Map<string, Set<string>>;
 	componentIds: Set<string>;
 	componentTypes: Map<string, string>;
 }
@@ -91,6 +94,7 @@ export function validateGameSetup(doc: unknown, projectContext: ProjectContext):
 		errors: [],
 		optionTypes: new Map(),
 		blueprintScopes: new Map(),
+		blueprintRoles: new Map(),
 		componentIds: new Set(projectContext.components.map((c) => c.id)),
 		componentTypes: new Map(projectContext.components.map((c) => [c.id, c.type]))
 	};
@@ -243,8 +247,8 @@ function validateBlueprints(ctx: Ctx, blueprints: unknown): void {
 	}
 
 	const seenIds = new Set<string>();
-	const seenRoles = new Set<string>();
-	blueprints.forEach((bp, i) => validateBlueprint(ctx, bp, `blueprints[${i}]`, seenIds, seenRoles));
+	const seenNames = new Set<string>();
+	blueprints.forEach((bp, i) => validateBlueprint(ctx, bp, `blueprints[${i}]`, seenIds, seenNames));
 }
 
 function validateBlueprint(
@@ -252,40 +256,122 @@ function validateBlueprint(
 	bp: unknown,
 	path: string,
 	seenIds: Set<string>,
-	seenRoles: Set<string>
+	seenNames: Set<string>
 ): void {
 	if (!isObject(bp)) {
 		err(ctx, path, 'Blueprint must be an object.');
 		return;
 	}
 
+	let id: string | undefined;
 	if (!isNonEmptyString(bp.id)) {
 		err(ctx, `${path}.id`, 'Blueprint id must be a non-empty string.');
 	} else if (seenIds.has(bp.id)) {
 		err(ctx, `${path}.id`, `Duplicate blueprint id "${bp.id}".`);
 	} else {
 		seenIds.add(bp.id);
+		id = bp.id;
 	}
 
 	if (!ZONE_SCOPES.has(bp.scope as ZoneScope)) {
 		err(ctx, `${path}.scope`, 'Blueprint scope must be "table", "seat" or "edge".');
-	} else if (isNonEmptyString(bp.id)) {
-		ctx.blueprintScopes.set(bp.id, bp.scope as ZoneScope);
+	} else if (id !== undefined) {
+		ctx.blueprintScopes.set(id, bp.scope as ZoneScope);
 	}
 
-	if (!isNonEmptyString(bp.role)) {
-		err(ctx, `${path}.role`, 'Blueprint role must be a non-empty string.');
-	} else if (seenRoles.has(bp.role)) {
-		err(ctx, `${path}.role`, `Duplicate blueprint role "${bp.role}".`);
+	if (!isNonEmptyString(bp.displayName)) {
+		err(ctx, `${path}.displayName`, 'Blueprint displayName must be a non-empty string.');
+	} else if (seenNames.has(bp.displayName)) {
+		err(ctx, `${path}.displayName`, `Duplicate blueprint displayName "${bp.displayName}".`);
 	} else {
-		seenRoles.add(bp.role);
+		seenNames.add(bp.displayName);
 	}
 
-	if (!FACE_VISIBILITIES.has(bp.faceVisibility as string)) {
+	validateBlueprintZones(ctx, bp.zones, `${path}.zones`, id);
+}
+
+function validateBlueprintZones(
+	ctx: Ctx,
+	zones: unknown,
+	path: string,
+	blueprintId: string | undefined
+): void {
+	// Register the blueprint's roles up front (even a malformed zone list is an
+	// empty role set) so downstream `(blueprint, role)` references resolve.
+	const roles = new Set<string>();
+	if (blueprintId !== undefined) ctx.blueprintRoles.set(blueprintId, roles);
+
+	if (!Array.isArray(zones)) {
+		err(ctx, path, 'Blueprint zones must be an array.');
+		return;
+	}
+
+	const seenIds = new Set<string>();
+	zones.forEach((zone, i) => validateZone(ctx, zone, `${path}[${i}]`, seenIds, roles));
+}
+
+function validateZone(
+	ctx: Ctx,
+	zone: unknown,
+	path: string,
+	seenIds: Set<string>,
+	roles: Set<string>
+): void {
+	if (!isObject(zone)) {
+		err(ctx, path, 'Zone must be an object.');
+		return;
+	}
+
+	if (!isNonEmptyString(zone.id)) {
+		err(ctx, `${path}.id`, 'Zone id must be a non-empty string.');
+	} else if (seenIds.has(zone.id)) {
+		err(ctx, `${path}.id`, `Duplicate zone id "${zone.id}".`);
+	} else {
+		seenIds.add(zone.id);
+	}
+
+	if (!isNonEmptyString(zone.role)) {
+		err(ctx, `${path}.role`, 'Zone role must be a non-empty string.');
+	} else if (roles.has(zone.role)) {
+		err(ctx, `${path}.role`, `Duplicate zone role "${zone.role}".`);
+	} else {
+		roles.add(zone.role);
+	}
+
+	if (!isNonEmptyString(zone.name)) {
+		err(ctx, `${path}.name`, 'Zone name must be a non-empty string.');
+	}
+
+	validateZoneGeometry(ctx, zone.geometry, `${path}.geometry`);
+
+	if (!FACE_VISIBILITIES.has(zone.faceVisibility as string)) {
 		err(ctx, `${path}.faceVisibility`, 'faceVisibility must be "all", "owner", "others" or "none".');
 	}
-	if (!PRESENCES.has(bp.presence as string)) {
+	if (!PRESENCES.has(zone.presence as string)) {
 		err(ctx, `${path}.presence`, 'presence must be "visible" or "hidden-from-non-owners".');
+	}
+}
+
+function validateZoneGeometry(ctx: Ctx, geometry: unknown, path: string): void {
+	if (!isObject(geometry)) {
+		err(ctx, path, 'Zone geometry must be an object.');
+		return;
+	}
+
+	if (!isString(geometry.type) || !ZONE_TYPES.has(geometry.type)) {
+		err(ctx, `${path}.type`, 'geometry type must be "freeform", "grid", "spread" or "group".');
+	}
+
+	const rect = geometry.rect;
+	if (!isObject(rect)) {
+		err(ctx, `${path}.rect`, 'geometry rect must be an object.');
+	} else if (
+		!isNumber(rect.x) ||
+		!isNumber(rect.y) ||
+		!isNumber(rect.width) ||
+		!isNumber(rect.height)
+	) {
+		err(ctx, `${path}.rect`, 'geometry rect must have numeric x, y, width and height.');
 	}
 }
 
@@ -500,12 +586,31 @@ function validateBlueprintRef(
 	return scope;
 }
 
+/**
+ * Validate the `role` of a {@link ZoneReference}: it must be a non-empty string
+ * naming a zone the referenced blueprint actually declares. Silent when the
+ * blueprint itself is unknown — that error is already reported on `.blueprint`.
+ */
+function validateZoneRole(ctx: Ctx, blueprint: unknown, role: unknown, path: string): void {
+	if (!isNonEmptyString(role)) {
+		err(ctx, path, 'Zone reference role must be a non-empty string.');
+		return;
+	}
+	if (!isNonEmptyString(blueprint)) return;
+	const roles = ctx.blueprintRoles.get(blueprint);
+	if (roles === undefined) return; // unknown blueprint already reported
+	if (!roles.has(role)) {
+		err(ctx, path, `Blueprint "${blueprint}" has no zone with role "${role}".`);
+	}
+}
+
 function validateZoneRef(ctx: Ctx, zone: unknown, path: string, insideSeatLoop: boolean): void {
 	if (!isObject(zone)) {
 		err(ctx, path, 'Zone reference must be an object.');
 		return;
 	}
 	const scope = validateBlueprintRef(ctx, zone.blueprint, `${path}.blueprint`);
+	validateZoneRole(ctx, zone.blueprint, zone.role, `${path}.role`);
 	if (scope === undefined) return;
 
 	switch (scope) {

@@ -11,8 +11,12 @@
  * reserved keys on {@link GameSetup} hold that space without being used yet.
  *
  * See design decisions on issue #98 (#104 core semantics, #102 zone/seat model,
- * #103 ownership/visibility, #110 validation & failure semantics).
+ * #103 ownership/visibility, #110 validation & failure semantics, #111 blueprint
+ * authoring).
  */
+
+import type { Rect } from '../tabletop/geometry';
+import type { ZoneType } from '../tabletop/types';
 
 /**
  * The document version understood by this build. Documents are migrated on read
@@ -40,7 +44,7 @@ export interface GameSetup {
 	/** Options surfaced in the Play prompt and readable via `get: 'option'`. */
 	options: SetupOption[];
 	/** Zone bundles the setup steps instantiate by id. */
-	blueprints: ZoneBlueprint[];
+	blueprints: Blueprint[];
 	/** The ordered setup program. */
 	setup: SetupNode[];
 
@@ -103,18 +107,58 @@ export type FaceVisibility = 'all' | 'owner' | 'others' | 'none';
 export type ZonePresence = 'visible' | 'hidden-from-non-owners';
 
 /**
- * A drawn zone bundle. The script instantiates blueprints by {@link id}; the
- * blueprint's {@link role} doubles as its display name and must be unique.
+ * The geometry of a blueprint zone, expressed in the blueprint's own local
+ * frame (the single-seat authoring canvas, #111). Instantiation copies this
+ * verbatim onto each stamped zone; positioning it into world space (the
+ * auto-fit ring, #109) is a later, swappable layout concern (#102).
  */
-export interface ZoneBlueprint {
+export interface ZoneGeometry {
+	/** Which tabletop zone kind this zone instantiates to. */
+	type: ZoneType;
+	/** Local rectangle within the blueprint canvas. */
+	rect: Rect;
+	/** Spread layout settings; only meaningful when {@link type} is `spread`. */
+	spread?: { direction: 'row' | 'column'; overlap: number };
+	/** Grid layout settings; only meaningful when {@link type} is `grid`. */
+	grid?: { cellWidth: number; cellHeight: number; columns: number };
+}
+
+/**
+ * A single zone template within a {@link Blueprint}. Its {@link role} is the
+ * label the setup program addresses it by (the `(seat, role)` addressing of
+ * #104) and must be unique within its blueprint; it carries the geometry and
+ * the #103 visibility presets that instantiation stamps onto every copy.
+ */
+export interface Zone {
+	/** Stable id, unique within the blueprint. */
+	id: string;
+	/** Addressing label / semantic role. Unique within the blueprint. */
+	role: string;
+	/** Human display name (the editor defaults it to {@link role}). */
+	name: string;
+	/** Shape and dimensions in the blueprint's local frame. */
+	geometry: ZoneGeometry;
+	/** How the zone's cards present to viewers. */
+	faceVisibility: FaceVisibility;
+	/** Whether the zone's contents are hidden from non-owners entirely. */
+	presence: ZonePresence;
+}
+
+/**
+ * A named bundle of {@link Zone}s a designer authors once and instantiates by
+ * {@link id}. Every zone in the bundle shares the blueprint's {@link scope}, so
+ * a `seat` blueprint stamps its whole set of zones once per seat, an `edge`
+ * blueprint once per edge, and a `table` blueprint once.
+ */
+export interface Blueprint {
 	/** Stable id, referenced by {@link ZoneReference.blueprint} and place verbs. */
 	id: string;
-	/** Fixed scope of this blueprint. */
+	/** Fixed scope shared by every zone in the bundle. */
 	scope: ZoneScope;
-	/** Display name / role label. Unique within the document. */
-	role: string;
-	faceVisibility: FaceVisibility;
-	presence: ZonePresence;
+	/** Display name for the bundle. Unique within the document. */
+	displayName: string;
+	/** The zones stamped together whenever the blueprint is instantiated. */
+	zones: Zone[];
 }
 
 /** Which seat a seat-scoped {@link ZoneReference} resolves to. */
@@ -127,14 +171,17 @@ export type SeatSelector =
 export type EdgeSelector = { kind: 'each' } | { kind: 'index'; index: number };
 
 /**
- * A reference to a zone (or a fan-out set of zones). Zones are addressed by the
- * blueprint that defines them; seat/edge blueprints resolve to one zone per
- * seat/edge, so a selector narrows which. Component ids never appear here — only
- * spawn steps ({@link PlaceAction}, {@link RollAction}) name components.
+ * A reference to a zone (or a fan-out set of zones). A zone is addressed by the
+ * blueprint that defines it plus the {@link role} of the specific zone within
+ * that bundle; seat/edge blueprints resolve to one instance per seat/edge, so a
+ * selector narrows which. Component ids never appear here — only spawn steps
+ * ({@link PlaceAction}, {@link RollAction}) name components.
  */
 export interface ZoneReference {
-	/** {@link ZoneBlueprint.id} of the target zone bundle. */
+	/** {@link Blueprint.id} of the target zone bundle. */
 	blueprint: string;
+	/** {@link Zone.role} of the specific zone within the bundle. */
+	role: string;
 	/** Required for seat-scoped blueprints; invalid otherwise. */
 	seat?: SeatSelector;
 	/** Required for edge-scoped blueprints; invalid otherwise. */
@@ -199,14 +246,14 @@ export type Verb =
 /** Instantiate the seat ring by stamping a seat-scoped blueprint once per seat. */
 export interface PlaceSeatsAction {
 	do: 'placeSeats';
-	/** A seat-scoped {@link ZoneBlueprint.id}. */
+	/** A seat-scoped {@link Blueprint.id}. */
 	blueprint: string;
 }
 
-/** Instantiate a table- or edge-scoped zone from a blueprint. */
+/** Instantiate a table- or edge-scoped zone bundle from a blueprint. */
 export interface PlaceZoneAction {
 	do: 'placeZone';
-	/** A table- or edge-scoped {@link ZoneBlueprint.id}. */
+	/** A table- or edge-scoped {@link Blueprint.id}. */
 	blueprint: string;
 	/** Required when the blueprint is edge-scoped. */
 	edge?: EdgeSelector;

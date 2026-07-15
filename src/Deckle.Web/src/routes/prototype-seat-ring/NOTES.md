@@ -13,4 +13,6 @@
 
 ## Verdict
 
-_(pending user reaction — fill in which strategy/knobs won and why, then delete this route)_
+Both strategies validated — no single winner, and that's the finding: **render strategy becomes a user-facing option** (different players will prefer different views), confirming #102's swappable-view-strategy seam. Future strategies are anticipated behind the same seam (e.g. two rows of players facing one another, unlike BGA's aligned rows).
+
+Author knobs: **ring radius stays; seat-1 position angle and seat scale are rejected.** Seat scale in particular conflicts with the intent that components render at true physical scale — which also enables deriving useful data later (required table space, etc.).

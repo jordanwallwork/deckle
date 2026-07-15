@@ -69,6 +69,7 @@ public static class WebApplicationExtensions
         app.MapProjectEndpoints();
         app.MapDataSourceEndpoints();
         app.MapComponentEndpoints();
+        app.MapGameSetupEndpoints();
         app.MapSampleEndpoints();
         app.MapFileEndpoints();
         app.MapFileDirectoryEndpoints();

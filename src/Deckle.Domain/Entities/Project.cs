@@ -22,4 +22,5 @@ public class Project
     public ICollection<Component> Components { get; set; } = [];
     public ICollection<File> Files { get; set; } = [];
     public ICollection<FileDirectory> FileDirectories { get; set; } = [];
+    public ICollection<GameSetup> GameSetups { get; set; } = [];
 }

@@ -25,3 +25,16 @@ export {
 export { createInteraction, type TabletopInteraction } from './interaction.svelte';
 export { createViewport, type TabletopViewport } from './viewport.svelte';
 export { setTabletopApi, getTabletopApi, type TabletopApi } from './context';
+export {
+  computeViewState,
+  type Viewer,
+  type ZoneVisibility,
+  type VisibilityMap,
+  type MaskedCard,
+  type MaskedState
+} from './visibility';
+export {
+  createViewController,
+  type TabletopViewController,
+  type ViewControllerOptions
+} from './viewController.svelte';

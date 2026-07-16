@@ -20,5 +20,18 @@ export const gameSetupsApi = {
    * Get a single game setup including its full DSL document.
    */
   get: (projectId: string, setupId: string, fetchFn?: typeof fetch) =>
-    api.get<GameSetupDetail>(`/projects/${projectId}/setups/${setupId}`, undefined, fetchFn)
+    api.get<GameSetupDetail>(`/projects/${projectId}/setups/${setupId}`, undefined, fetchFn),
+
+  /**
+   * Update a setup: name, full DSL document, and the client-computed validity
+   * flag (persisted per decision #110 for Play-dialog badges). Added by the
+   * setup editor work (#123). Maps to the backend `UpdateGameSetupRequest`.
+   */
+  update: (
+    projectId: string,
+    setupId: string,
+    body: { name: string; document: unknown; isValid: boolean },
+    fetchFn?: typeof fetch
+  ) =>
+    api.put<GameSetupDetail>(`/projects/${projectId}/setups/${setupId}`, body, undefined, fetchFn)
 };

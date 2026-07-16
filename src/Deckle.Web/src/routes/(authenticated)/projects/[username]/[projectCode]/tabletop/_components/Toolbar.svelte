@@ -1,5 +1,7 @@
 <script lang="ts">
   import { getContext } from 'svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import { getTabletopApi } from '$lib/tabletop';
   import type { GameSetupSummary } from '$lib/types';
   import SetupPickerDialog from './SetupPickerDialog.svelte';
@@ -29,10 +31,11 @@
   }
 
   function openSetupEditor(setupId: string) {
-    // Seam for #123 (graphical setup editor). The editor route does not exist
-    // yet; wired here so the Play dialog's "Open in editor" affordance has a
-    // destination to grow into.
-    console.info('Open setup in editor (pending #123):', setupId);
+    // Navigate to the graphical setup editor (#123), a sibling route of the
+    // tabletop under the same project. The Play dialog surfaces this on a failed
+    // run ("Open in editor") so the designer can jump straight to fixing it.
+    const { username, projectCode } = $page.params;
+    goto(`/projects/${username}/${projectCode}/setups/${setupId}/edit`);
   }
 
   function zoomIn() {

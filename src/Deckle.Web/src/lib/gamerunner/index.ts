@@ -25,6 +25,24 @@ export {
 } from './interpreter';
 export { planReplay, type ReplayFrame } from './replay';
 export {
+	createNode,
+	insertStep,
+	appendStep,
+	deleteStep,
+	moveStep,
+	moveStepBy,
+	changeVerb,
+	setSlotValue,
+	computeIsValid,
+	zoneOptions,
+	zoneRefKey,
+	isAction,
+	isWhenNode,
+	isForEachSeatNode,
+	type NodeKind,
+	type ZoneOption
+} from './edit';
+export {
 	replayRegistry,
 	replayStepDuration,
 	REPLAY_STEP_MS,

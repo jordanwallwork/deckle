@@ -10,7 +10,9 @@
   import {
     createInteraction,
     createTabletopStore,
+    createViewController,
     createViewport,
+    seatCountFromVisibility,
     setTabletopApi
   } from '$lib/tabletop';
   import { setContext } from 'svelte';
@@ -38,6 +40,21 @@
   const viewport = createViewport();
   const interaction = createInteraction(store, viewport);
 
+  // Seat/omniscient view (#124). Defaults to omniscient; the toolbar seat
+  // switcher (shown only when the run has seat zones) changes only what is
+  // rendered. `renderState` funnels the masked view into the render tree while
+  // interaction keeps operating on the live `store.state`. Omniscient short-
+  // circuits to the live state itself, so freeform play is byte-for-byte
+  // unchanged (no per-frame cloning, same reactive object).
+  const viewController = createViewController({
+    getState: () => store.state,
+    getVisibility: () => store.visibility,
+    getSeatCount: () => seatCountFromVisibility(store.visibility)
+  });
+  const renderState = $derived(
+    viewController.isOmniscient ? store.state : viewController.view
+  );
+
   setContext('projectId', projectId);
   setContext('tabletopComponents', components);
 
@@ -60,6 +77,10 @@
   setTabletopApi({
     store,
     interaction,
+    viewController,
+    get renderState() {
+      return renderState;
+    },
     clientToWorld: canvas.clientToWorld,
     openPileContextMenu: menus.openPile,
     openZoneContextMenu: menus.openZone,

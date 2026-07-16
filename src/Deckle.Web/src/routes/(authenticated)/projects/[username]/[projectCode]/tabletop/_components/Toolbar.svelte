@@ -4,6 +4,7 @@
   import type { GameSetupSummary } from '$lib/types';
   import SetupPickerDialog from './SetupPickerDialog.svelte';
   import PlaySetupDialog from './PlaySetupDialog.svelte';
+  import SeatSwitcher from './SeatSwitcher.svelte';
 
   let {
     zoom,
@@ -82,6 +83,8 @@
     <button class="tool-btn play-btn" onclick={() => (showSetupPicker = true)} title="Play a setup">
       ▶ Play
     </button>
+    <!-- Seat switcher renders itself only when the run has seat zones (#124). -->
+    <SeatSwitcher />
   </div>
 </div>
 

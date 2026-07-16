@@ -38,3 +38,4 @@ export {
   type TabletopViewController,
   type ViewControllerOptions
 } from './viewController.svelte';
+export { seatCountFromVisibility, hasSeatZones } from './seatSwitcher';

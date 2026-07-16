@@ -4,25 +4,29 @@
   // poke out behind; fully covered cards are skipped, so a plain same-size deck
   // renders only its top card. The shuffle overlay replaces this while a pile
   // shuffles, so this only handles the settled state.
-  import type { Card, Pile, Template } from '$lib/tabletop';
+  import type { MaskedCard, Pile, Template } from '$lib/tabletop';
   import { cardAabbSize, getTabletopApi, templateDisplaySize } from '$lib/tabletop';
   import CardFace from './CardFace.svelte';
   import FlipCard from './FlipCard.svelte';
 
   let { pile, flipDelay = 0 }: { pile: Pile; flipDelay?: number } = $props();
 
-  const { store } = getTabletopApi();
+  const api = getTabletopApi();
+  const { store } = api;
 
-  const topCard = $derived(store.state.cards[pile.cardIds[pile.cardIds.length - 1]]);
+  // Cards come from the masked render view (#124): under a seat perspective a
+  // card whose face this viewer may not see arrives redacted (faceHidden), and
+  // FlipCard/CardFace render its back. Omniscient is the live state, unchanged.
+  const topCard = $derived(api.renderState.cards[pile.cardIds[pile.cardIds.length - 1]]);
   const template = $derived(topCard ? store.templates[topCard.templateId] : undefined);
   const cardSize = $derived(template ? templateDisplaySize(template) : { width: 0, height: 0 });
 
-  const underlays = $derived.by((): { card: Card; template: Template }[] => {
+  const underlays = $derived.by((): { card: MaskedCard; template: Template }[] => {
     if (!topCard || !template || pile.cardIds.length < 2) return [];
     const topSize = cardAabbSize(topCard, template);
-    const peeking: { card: Card; template: Template }[] = [];
+    const peeking: { card: MaskedCard; template: Template }[] = [];
     for (const cardId of pile.cardIds.slice(0, -1)) {
-      const card = store.state.cards[cardId];
+      const card = api.renderState.cards[cardId];
       const cardTemplate = card ? store.templates[card.templateId] : undefined;
       if (!card || !cardTemplate) continue;
       const size = cardAabbSize(card, cardTemplate);

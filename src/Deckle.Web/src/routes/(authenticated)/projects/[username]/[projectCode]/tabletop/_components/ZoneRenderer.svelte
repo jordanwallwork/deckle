@@ -99,7 +99,7 @@
   <div class="zone-body" onpointerdown={handleBodyPointerDown}></div>
 
   {#each zone.pileIds as pileId, i (pileId)}
-    {@const pile = store.state.piles[pileId]}
+    {@const pile = api.renderState.piles[pileId]}
     {#if pile}
       <PileRenderer {pile} flipDelay={flipDelayFor(i)} />
     {/if}
@@ -109,7 +109,7 @@
        parent-local, so rendering them inside this positioned element places
        them correctly with no world-space maths in the view. -->
   {#each childZoneIds as childId (childId)}
-    {@const child = store.state.zones[childId]}
+    {@const child = api.renderState.zones[childId]}
     {#if child}
       <ZoneRenderer zone={child} />
     {/if}

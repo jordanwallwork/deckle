@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Card, Template } from '$lib/tabletop';
+  import type { MaskedCard, Template } from '$lib/tabletop';
   import { templateDisplaySize } from '$lib/tabletop';
   import type { ContainerElement } from '$lib/components/editor/types';
   import type { DiceComponent, GameComponent } from '$lib/types';
@@ -13,7 +13,7 @@
     template,
     side
   }: {
-    card: Card;
+    card: MaskedCard;
     template: Template;
     /**
      * Force which face to render (for the 3D flip transition, which shows
@@ -30,7 +30,10 @@
   const displaySize = $derived(templateDisplaySize(template));
   const renderScale = $derived(displaySize.width / template.widthPx);
 
-  const showBack = $derived(side ? side === 'back' : card.isFlipped);
+  // A face-hidden card (#124 seat masking) always shows its back — the viewer
+  // knows a card is there but not what it is. Its identity fields are already
+  // redacted (mergeData null), so even the front would render blank.
+  const showBack = $derived(card.faceHidden ? true : side ? side === 'back' : card.isFlipped);
 
   const design = $derived.by((): ContainerElement | null => {
     if (!component || !isEditableComponent(component)) return null;

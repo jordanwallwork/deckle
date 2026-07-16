@@ -9,7 +9,7 @@
     type ProjectContext
   } from '$lib/gamerunner';
   import SetupScriptView from './_components/SetupScriptView.svelte';
-  import BlueprintEditorStub from './_components/BlueprintEditorStub.svelte';
+  import BlueprintEditorView from './_components/BlueprintEditorView.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -104,7 +104,7 @@
     {#if view === 'script'}
       <SetupScriptView {doc} components={data.componentRefs} {errors} />
     {:else}
-      <BlueprintEditorStub {doc} />
+      <BlueprintEditorView {doc} {errors} />
     {/if}
   </div>
 </div>

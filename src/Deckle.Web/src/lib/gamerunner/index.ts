@@ -48,3 +48,19 @@ export {
 	REPLAY_STEP_MS,
 	type VerbReplayAnimation
 } from './replayRegistry';
+export {
+	VISIBILITY_PRESETS,
+	matchVisibilityPreset,
+	applyVisibilityPreset,
+	createZone,
+	addZone,
+	deleteZone,
+	createBlueprint,
+	addBlueprint,
+	deleteBlueprint,
+	duplicateBlueprint,
+	collectBlueprintRefs,
+	findBlueprintReferences,
+	type VisibilityPreset,
+	type BlueprintRef
+} from './blueprintEdit';

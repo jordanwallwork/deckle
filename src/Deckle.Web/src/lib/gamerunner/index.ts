@@ -1,5 +1,16 @@
-// Game runner: setup DSL types, validation, blueprint instantiation, and
-// (future) interpreter.
+// Game runner: setup DSL types, validation, blueprint instantiation, and the
+// setup interpreter.
 export * from './types';
 export { validateGameSetup } from './validate';
-export { placeZone, instantiateBlueprint, type PlacedZone } from './instantiate';
+export { placeZone, placedZoneId, instantiateBlueprint, type PlacedZone } from './instantiate';
+export { mulberry32, deriveSeed, createRng } from './rng';
+export {
+	runSetup,
+	type RunSetupInput,
+	type RunSetupResult,
+	type RunSetupSuccess,
+	type SetupStep,
+	type DealtCard,
+	type MovedCards,
+	type DieRoll
+} from './interpreter';

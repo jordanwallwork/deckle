@@ -61,10 +61,25 @@ function placementSuffix(scope: ZoneScope, index: number): string {
 	return '';
 }
 
+/**
+ * The deterministic id a blueprint zone gets when stamped onto the table. This
+ * is the single source of truth for placed-zone ids: {@link placeSingleZone}
+ * builds them and the interpreter's zone-reference resolver reconstructs them,
+ * so the two can never drift apart. `index` is the seat/edge index (ignored for
+ * `table` scope).
+ */
+export function placedZoneId(
+	blueprintId: string,
+	zoneId: string,
+	scope: ZoneScope,
+	index = 0
+): string {
+	return `${blueprintId}:${zoneId}${placementSuffix(scope, index)}`;
+}
+
 function placeSingleZone(blueprint: Blueprint, zone: Zone, index: number): PlacedZone {
-	const suffix = placementSuffix(blueprint.scope, index);
 	const placed: PlacedZone = {
-		id: `${blueprint.id}:${zone.id}${suffix}`,
+		id: placedZoneId(blueprint.id, zone.id, blueprint.scope, index),
 		blueprintId: blueprint.id,
 		zoneId: zone.id,
 		role: zone.role,

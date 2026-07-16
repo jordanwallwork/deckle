@@ -35,6 +35,13 @@ import type { Card, Pile, TabletopState, Templates, Zone } from '../tabletop/typ
 import type { VisibilityMap, ZoneVisibility } from '../tabletop/visibility';
 import { instantiateBlueprint, placedZoneId, placeZone, type PlacedZone } from './instantiate';
 import { createRng } from './rng';
+import {
+	positionRingZones,
+	radialLayout,
+	rectsBounds,
+	type RingLayout,
+	type SeatLayoutStrategy
+} from './seatRing';
 import type {
 	Action,
 	Blueprint,
@@ -164,6 +171,10 @@ interface RunContext {
 	visibility: VisibilityMap;
 	trace: SetupStep[];
 	counter: number;
+	/** The swappable seat-arrangement strategy (#102); radial ships today. */
+	layout: SeatLayoutStrategy;
+	/** The seat ring, computed once from the seat blueprint and cached. */
+	ring?: RingLayout;
 }
 
 /** A card-scoped evaluation frame (only present when a card field is in scope). */
@@ -256,10 +267,30 @@ function addPlacedZone(ctx: RunContext, placed: PlacedZone): string {
 	return placed.id;
 }
 
+/**
+ * The seat ring for this run, computed once from the seat-scoped blueprint's
+ * bounding box (the #109 auto-fit) and cached on the context. A `radiusOverride`
+ * from a placeSeats action widens it (#111); the first caller to compute the
+ * ring fixes it, so a run should place seats before any edge zones for an
+ * override to take effect.
+ */
+function seatRing(ctx: RunContext, radiusOverride?: number): RingLayout {
+	if (ctx.ring) return ctx.ring;
+	const seatBp = [...ctx.blueprints.values()].find((bp) => bp.scope === 'seat');
+	const bounds = rectsBounds(seatBp ? seatBp.zones.map((z) => z.geometry.rect) : []);
+	ctx.ring = ctx.layout.computeRing({
+		playerCount: ctx.playerCount,
+		seatPanel: { width: bounds.width, height: bounds.height },
+		radiusOverride
+	});
+	return ctx.ring;
+}
+
 function runPlaceSeats(ctx: RunContext, action: PlaceSeatsAction, docPath: string): void {
 	const blueprint = ctx.blueprints.get(action.blueprint);
 	if (!blueprint) fail('internal', `${docPath}.blueprint`, `Unknown blueprint "${action.blueprint}".`);
-	const placed = instantiateBlueprint(blueprint, ctx.playerCount);
+	const stamped = instantiateBlueprint(blueprint, ctx.playerCount);
+	const placed = positionRingZones(stamped, seatRing(ctx, action.ringRadius), ctx.layout);
 	const zoneIds = placed.map((p) => addPlacedZone(ctx, p));
 	ctx.trace.push({
 		verb: 'placeSeats',
@@ -274,13 +305,15 @@ function runPlaceZone(ctx: RunContext, action: PlaceZoneAction, docPath: string)
 	const blueprint = ctx.blueprints.get(action.blueprint);
 	if (!blueprint) fail('internal', `${docPath}.blueprint`, `Unknown blueprint "${action.blueprint}".`);
 
-	let placed: PlacedZone[];
+	let stamped: PlacedZone[];
 	if (blueprint.scope === 'edge') {
 		const indices = resolveEdgeIndices(ctx, action.edge, `${docPath}.edge`);
-		placed = indices.flatMap((i) => placeZone(blueprint, i));
+		stamped = indices.flatMap((i) => placeZone(blueprint, i));
 	} else {
-		placed = placeZone(blueprint);
+		stamped = placeZone(blueprint);
 	}
+	// Edge zones ride the seat ring; table zones pass through unmoved.
+	const placed = positionRingZones(stamped, seatRing(ctx), ctx.layout);
 	const zoneIds = placed.map((p) => addPlacedZone(ctx, p));
 	ctx.trace.push({ verb: 'placeZone', docPath, blueprint: action.blueprint, zoneIds });
 }
@@ -755,7 +788,8 @@ export function runSetup(doc: GameSetup, input: RunSetupInput): RunSetupResult {
 		state: emptyState(),
 		visibility: {},
 		trace: [],
-		counter: 0
+		counter: 0,
+		layout: radialLayout
 	};
 
 	try {

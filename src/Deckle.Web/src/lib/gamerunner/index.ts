@@ -3,6 +3,15 @@
 export * from './types';
 export { validateGameSetup } from './validate';
 export { placeZone, placedZoneId, instantiateBlueprint, type PlacedZone } from './instantiate';
+export {
+	radialLayout,
+	positionRingZones,
+	rectsBounds,
+	boundsCenter,
+	type SeatLayoutStrategy,
+	type SeatLayoutInput,
+	type RingLayout
+} from './seatRing';
 export { mulberry32, deriveSeed, createRng } from './rng';
 export {
 	runSetup,

@@ -248,6 +248,13 @@ export interface PlaceSeatsAction {
 	do: 'placeSeats';
 	/** A seat-scoped {@link Blueprint.id}. */
 	blueprint: string;
+	/**
+	 * Optional roomier-override for the seat-ring radius (#111). The ring is
+	 * auto-fitted from the seat blueprint's bounding boxes by default; this value,
+	 * when given, acts as a minimum radius, so it only ever widens the ring (the
+	 * ONLY author knob — seat scale and start angle were rejected in #109).
+	 */
+	ringRadius?: number;
 }
 
 /** Instantiate a table- or edge-scoped zone bundle from a blueprint. */

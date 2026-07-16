@@ -4,6 +4,7 @@
 // them to Svelte reactivity.
 
 import type { Selection, TabletopState, Templates, ZoneType } from './types';
+import type { VisibilityMap } from './visibility';
 import * as hist from './history';
 import {
   applyPendingShuffle,
@@ -42,6 +43,13 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
 
   let history = $state.raw<hist.History<TabletopState>>(hist.createHistory());
   let transaction: hist.Transaction<TabletopState> | null = null;
+
+  // Per-zone ownership/visibility for the current table (#116). Produced by a
+  // setup run (#120); consumed by `computeViewState` / the seat switcher (#124).
+  // It is NOT part of undo history — undoing a run restores the previous table
+  // but not a previous run's visibility map (there is no consumer yet). Empty in
+  // the default freeform sandbox, where every zone is fully public and unowned.
+  let visibility = $state.raw<VisibilityMap>({});
 
   const canUndo = $derived(hist.canUndo(history));
   const canRedo = $derived(hist.canRedo(history));
@@ -191,6 +199,26 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     store.state.selection = selection;
   }
 
+  /**
+   * Replace the whole table with a setup run's result as ONE history entry
+   * (decision #107 — "whole run one undo entry"): a single `commit` snapshots
+   * the pre-run table, swaps in the run's cards/piles/zones, and records once,
+   * so a lone undo restores exactly what was there before Play. The run's
+   * {@link VisibilityMap} is stored alongside (outside history) for #116/#124.
+   */
+  function loadSetupRun(next: TabletopState, nextVisibility: VisibilityMap): void {
+    commit((s) => {
+      s.cards = next.cards;
+      s.piles = next.piles;
+      s.zones = next.zones;
+      s.zoneOrder = next.zoneOrder;
+      s.rootPileIds = next.rootPileIds;
+      s.selection = { kind: 'none' };
+      s.editingZoneId = null;
+    });
+    visibility = nextVisibility;
+  }
+
   // ─── Zone edit sessions ───────────────────────────────────────────────────
   // Editing a zone is one transaction: everything from entering edit mode to
   // Done lands as a single history entry, and Escape rolls the whole session
@@ -281,8 +309,13 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     get zoneFlipAnimation() {
       return zoneFlipAnimation;
     },
+    /** Per-zone ownership/visibility for the current table (#116), or empty. */
+    get visibility() {
+      return visibility;
+    },
 
     commit,
+    loadSetupRun,
     beginTransaction,
     updateTransient,
     commitTransaction,

@@ -3,6 +3,7 @@
   import { getTabletopApi } from '$lib/tabletop';
   import type { GameSetupSummary } from '$lib/types';
   import SetupPickerDialog from './SetupPickerDialog.svelte';
+  import PlaySetupDialog from './PlaySetupDialog.svelte';
 
   let {
     zoom,
@@ -15,12 +16,22 @@
 
   const zoomPercentage = $derived(Math.round(zoom * 100));
 
+  // Play flow: the picker (#119) chooses a setup; the config dialog (#120) then
+  // configures + runs it. Picking a setup hands off from one dialog to the next.
   let showSetupPicker = $state(false);
+  let showPlayDialog = $state(false);
+  let selectedSetup = $state<GameSetupSummary | null>(null);
 
   function handleSetupSelected(setup: GameSetupSummary) {
-    // TODO(#120): open the Play dialog (count stepper + typed options), then run
-    // the setup through the interpreter. #119 only browses + selects.
-    console.log('Setup selected:', setup.id, setup.name);
+    selectedSetup = setup;
+    showPlayDialog = true;
+  }
+
+  function openSetupEditor(setupId: string) {
+    // Seam for #123 (graphical setup editor). The editor route does not exist
+    // yet; wired here so the Play dialog's "Open in editor" affordance has a
+    // destination to grow into.
+    console.info('Open setup in editor (pending #123):', setupId);
   }
 
   function zoomIn() {
@@ -79,6 +90,14 @@
   {projectId}
   onSelect={handleSetupSelected}
   onclose={() => (showSetupPicker = false)}
+/>
+
+<PlaySetupDialog
+  bind:show={showPlayDialog}
+  {projectId}
+  setup={selectedSetup}
+  onOpenEditor={openSetupEditor}
+  onclose={() => (showPlayDialog = false)}
 />
 
 <style>

@@ -17,6 +17,18 @@ export const gameSetupsApi = {
     api.get<GameSetupSummary[]>(`/projects/${projectId}/setups`, undefined, fetchFn),
 
   /**
+   * Create a new setup with an initial name and DSL document. Returns the full
+   * setup (including its new id) so the caller can open it in the editor. Maps
+   * to the backend `CreateGameSetupRequest`.
+   */
+  create: (
+    projectId: string,
+    body: { name: string; document: unknown; isValid: boolean },
+    fetchFn?: typeof fetch
+  ) =>
+    api.post<GameSetupDetail>(`/projects/${projectId}/setups`, body, undefined, fetchFn),
+
+  /**
    * Get a single game setup including its full DSL document.
    */
   get: (projectId: string, setupId: string, fetchFn?: typeof fetch) =>

@@ -2,6 +2,7 @@
 // setup interpreter.
 export * from './types';
 export { validateGameSetup } from './validate';
+export { emptyGameSetup } from './document';
 export { placeZone, placedZoneId, instantiateBlueprint, type PlacedZone } from './instantiate';
 export {
 	radialLayout,

@@ -37,6 +37,37 @@ describe('gameSetupsApi.list', () => {
   });
 });
 
+describe('gameSetupsApi.create', () => {
+  const okResponse = (body: unknown) => ({
+    ok: true,
+    status: 201,
+    headers: { get: () => null },
+    json: async () => body
+  });
+
+  it('posts to the project setups endpoint with the new setup body', async () => {
+    const created = {
+      id: 'new-1',
+      projectId: 'project-123',
+      name: 'New setup',
+      isValid: true,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      document: { version: 1 }
+    };
+    const mockFetch = vi.fn().mockResolvedValue(okResponse(created));
+    const body = { name: 'New setup', document: { version: 1 }, isValid: true };
+
+    const result = await gameSetupsApi.create('project-123', body, mockFetch as typeof fetch);
+
+    const [url, options] = mockFetch.mock.calls[0];
+    expect(url).toContain('/projects/project-123/setups');
+    expect(options).toMatchObject({ method: 'POST' });
+    expect(JSON.parse(options.body)).toEqual(body);
+    expect(result).toEqual(created);
+  });
+});
+
 describe('gameSetupsApi.get', () => {
   const okResponse = (body: unknown) => ({
     ok: true,

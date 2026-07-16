@@ -16,8 +16,13 @@
   import { runSetup } from '$lib/gamerunner/interpreter';
   import type { GameSetup } from '$lib/gamerunner/types';
   import { coerceChoices, type PlayChoices } from '$lib/play/choices';
-  import { loadRememberedChoices, saveRememberedChoices } from '$lib/play/storage';
-  import { buildProjectContext, generateSeed, tableHasContent } from '$lib/play/run';
+  import {
+    loadLastSeed,
+    loadRememberedChoices,
+    saveLastSeed,
+    saveRememberedChoices
+  } from '$lib/play/storage';
+  import { buildProjectContext, chooseSeed, tableHasContent, type SeedMode } from '$lib/play/run';
   import PlayerCountStepper from './PlayerCountStepper.svelte';
   import SetupOptionInputs from './SetupOptionInputs.svelte';
   import SetupErrorPanel from './SetupErrorPanel.svelte';
@@ -45,6 +50,11 @@
   let confirmWipe = $state(false);
   let doc = $state<GameSetup | null>(null);
   let choices = $state<PlayChoices>({ playerCount: 1, options: {} });
+  // The seed of this setup's last run, if any. Drives "replay same deal" (#121,
+  // decision #107); a plain Play always mints a NEW seed. The seed chosen for a
+  // pending run (through the wipe-confirm gate).
+  let lastSeed = $state<number | null>(null);
+  let pendingSeed = $state<number | null>(null);
 
   // (Re)load whenever the dialog opens for a setup.
   $effect(() => {
@@ -71,6 +81,7 @@
       const loaded = detail.document as GameSetup;
       doc = loaded;
       choices = coerceChoices(loaded, loadRememberedChoices(chosen.id));
+      lastSeed = loadLastSeed(chosen.id);
       phase = 'ready';
     } catch (err) {
       loadError = err instanceof ApiError ? err.message : 'Failed to load this setup. Please try again.';
@@ -78,8 +89,12 @@
     }
   }
 
-  function requestRun() {
+  // `'new'` = a fresh deal (the default Play); `'same'` = re-run the last seed
+  // deterministically ("replay same deal", #121). The seed is fixed here so the
+  // wipe-confirm gate runs the same deal the user asked for.
+  function requestRun(mode: SeedMode) {
     runError = null;
+    pendingSeed = chooseSeed(mode, lastSeed);
     if (tableHasContent(store.state)) {
       confirmWipe = true;
     } else {
@@ -89,11 +104,12 @@
 
   function execute() {
     confirmWipe = false;
-    if (!setup || !doc) return;
+    if (!setup || !doc || pendingSeed === null) return;
+    const seed = pendingSeed;
     const result = runSetup(doc, {
       playerCount: choices.playerCount,
       options: choices.options,
-      seed: generateSeed(),
+      seed,
       templates: store.templates
     });
     if (!result.ok) {
@@ -102,7 +118,10 @@
       return;
     }
     saveRememberedChoices(setup.id, choices);
-    store.loadSetupRun(result.state, result.visibility);
+    saveLastSeed(setup.id, seed);
+    lastSeed = seed;
+    // Animated replay toward the final state; commits as ONE undo entry (#121).
+    store.playSetupRun(result.state, result.visibility, result.trace);
     onclose();
   }
 
@@ -142,7 +161,10 @@
   {#snippet actions()}
     <Button variant="secondary" onclick={onclose}>Cancel</Button>
     {#if phase === 'ready'}
-      <Button variant="primary" onclick={requestRun}>Play</Button>
+      {#if lastSeed !== null}
+        <Button variant="secondary" onclick={() => requestRun('same')}>Replay same deal</Button>
+      {/if}
+      <Button variant="primary" onclick={() => requestRun('new')}>Play</Button>
     {/if}
   {/snippet}
 </Dialog>

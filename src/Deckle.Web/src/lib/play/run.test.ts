@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { GameComponent } from '$lib/types';
 import { emptyTabletopState } from '$lib/tabletop';
 import type { TabletopState } from '$lib/tabletop';
-import { buildProjectContext, generateSeed, tableHasContent } from './run';
+import { buildProjectContext, chooseSeed, generateSeed, tableHasContent } from './run';
 
 describe('buildProjectContext', () => {
   it('flattens components to id/name/type refs', () => {
@@ -59,5 +59,22 @@ describe('generateSeed', () => {
 
   it('varies with the rng (new seed by default on re-run)', () => {
     expect(generateSeed(() => 0.1)).not.toBe(generateSeed(() => 0.2));
+  });
+});
+
+describe('chooseSeed', () => {
+  it("'new' mints a fresh seed, ignoring any last seed", () => {
+    expect(chooseSeed('new', 42, () => 0)).toBe(0);
+    expect(chooseSeed('new', 42, () => 0.5)).toBe(Math.floor(0.5 * 0x7fffffff));
+  });
+
+  it("'same' reuses the last seed (replay same deal)", () => {
+    expect(chooseSeed('same', 42, () => 0.9)).toBe(42);
+    expect(chooseSeed('same', 0, () => 0.9)).toBe(0);
+  });
+
+  it("'same' falls back to a fresh seed when there is no last seed", () => {
+    expect(chooseSeed('same', null, () => 0)).toBe(0);
+    expect(chooseSeed('same', null, () => 0.5)).toBe(Math.floor(0.5 * 0x7fffffff));
   });
 });

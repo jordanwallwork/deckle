@@ -39,3 +39,25 @@ export function tableHasContent(state: TabletopState): boolean {
 export function generateSeed(rng: () => number = Math.random): number {
   return Math.floor(rng() * 0x7fffffff);
 }
+
+/**
+ * How a (re-)run picks its seed (decision #107 — "new seed by default + 'replay
+ * same deal'"). `'new'` always mints a fresh seed; `'same'` reuses the last
+ * run's seed so a deterministic interpreter reproduces the identical deal.
+ */
+export type SeedMode = 'new' | 'same';
+
+/**
+ * Resolve the seed to run with. `'same'` reuses {@link lastSeed} when one is
+ * known (an earlier run of this setup), otherwise falls back to a fresh seed —
+ * so "replay same deal" degrades gracefully to a new deal when there is nothing
+ * to replay. Pure and testable: the rng is injectable.
+ */
+export function chooseSeed(
+  mode: SeedMode,
+  lastSeed: number | null,
+  rng: () => number = Math.random
+): number {
+  if (mode === 'same' && lastSeed !== null) return lastSeed;
+  return generateSeed(rng);
+}

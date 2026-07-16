@@ -57,7 +57,7 @@
     <button
       class="tool-btn"
       onclick={() => store.undo()}
-      disabled={!store.canUndo}
+      disabled={!store.canUndo || store.isReplaying}
       title="Undo (Ctrl+Z)"
     >
       ↩
@@ -65,7 +65,7 @@
     <button
       class="tool-btn"
       onclick={() => store.redo()}
-      disabled={!store.canRedo}
+      disabled={!store.canRedo || store.isReplaying}
       title="Redo (Ctrl+Y)"
     >
       ↪
@@ -80,7 +80,12 @@
   </div>
 
   <div class="toolbar-group">
-    <button class="tool-btn play-btn" onclick={() => (showSetupPicker = true)} title="Play a setup">
+    <button
+      class="tool-btn play-btn"
+      onclick={() => (showSetupPicker = true)}
+      disabled={store.isReplaying}
+      title="Play a setup"
+    >
       ▶ Play
     </button>
     <!-- Seat switcher renders itself only when the run has seat zones (#124). -->

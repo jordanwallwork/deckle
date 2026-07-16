@@ -51,8 +51,15 @@
     getVisibility: () => store.visibility,
     getSeatCount: () => seatCountFromVisibility(store.visibility)
   });
+  // While a setup run replays (#121), draw the progressive reveal frame instead
+  // of the live table — the live `store.state` still holds the untouched pre-run
+  // table, which the one closing commit snapshots for undo.
   const renderState = $derived(
-    viewController.isOmniscient ? store.state : viewController.view
+    store.isReplaying && store.replayState
+      ? store.replayState
+      : viewController.isOmniscient
+        ? store.state
+        : viewController.view
   );
 
   setContext('projectId', projectId);

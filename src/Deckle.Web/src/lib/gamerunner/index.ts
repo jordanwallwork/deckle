@@ -23,3 +23,10 @@ export {
 	type MovedCards,
 	type DieRoll
 } from './interpreter';
+export { planReplay, type ReplayFrame } from './replay';
+export {
+	replayRegistry,
+	replayStepDuration,
+	REPLAY_STEP_MS,
+	type VerbReplayAnimation
+} from './replayRegistry';

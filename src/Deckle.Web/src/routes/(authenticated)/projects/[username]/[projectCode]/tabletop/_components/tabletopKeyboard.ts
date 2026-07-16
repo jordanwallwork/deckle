@@ -36,6 +36,10 @@ export function handleTabletopKeydown(e: KeyboardEvent, ctx: TabletopKeyboardCon
   const tag = (e.target as HTMLElement)?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
+  // Input is locked while a setup run replays (#121): no undo/redo, no F/R/S,
+  // no Escape-driven mutations until the replay lands (or is skipped).
+  if (store.isReplaying) return;
+
   // A zone-edit session swallows everything except Escape (cancel the whole
   // session): undo/redo would fight the open transaction, and F/R/S have no
   // business inside an edit.

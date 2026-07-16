@@ -17,6 +17,9 @@ import {
   type ZoneFlipHint
 } from './animations';
 import { normalize } from './normalize';
+import { planReplay, type ReplayFrame } from '../gamerunner/replay';
+import { replayStepDuration } from '../gamerunner/replayRegistry';
+import type { SetupStep } from '../gamerunner/interpreter';
 import {
   convertZone,
   createFreeformZone,
@@ -195,6 +198,83 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     commit((s) => flipAllInZone(s, templates, zoneId));
   }
 
+  // ─── Animated setup replay (#121) ─────────────────────────────────────────
+  // A run is computed up front (#120's runSetup). Rather than dropping the final
+  // table on instantly, `playSetupRun` plays the trace back as a progressive
+  // reveal (planReplay frames), holding each major step for a registry-driven
+  // beat, then commits the AUTHORITATIVE final state exactly once. The original
+  // table stays untouched in `store.state` throughout — the frames render
+  // through `replayState`, off to the side — so the single closing `commit`
+  // still snapshots the pre-run table and the whole run is ONE undo entry.
+  //
+  // A full replay and a mid-flight skip both finish by committing the same
+  // `runSetup` state (`loadSetupRun`), so they land on an identical table; the
+  // frames are pure visuals that never feed history.
+  let replay = $state.raw<{ frames: ReplayFrame[]; state: TabletopState; visibility: VisibilityMap } | null>(
+    null
+  );
+  let replayIndex = $state(0);
+  let replayTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const isReplaying = $derived(replay !== null);
+  const replayState = $derived.by((): TabletopState | null => {
+    if (!replay) return null;
+    const i = Math.min(replayIndex, replay.frames.length - 1);
+    return replay.frames[i]?.state ?? null;
+  });
+
+  /** Stop replay timers and commit the authoritative final state (one entry). */
+  function finalizeReplay(): void {
+    const pending = replay;
+    if (!pending) return;
+    if (replayTimer) {
+      clearTimeout(replayTimer);
+      replayTimer = null;
+    }
+    replay = null;
+    replayIndex = 0;
+    loadSetupRun(pending.state, pending.visibility);
+  }
+
+  function scheduleReplayStep(): void {
+    if (!replay) return;
+    const frame = replay.frames[replayIndex];
+    const duration = frame ? replayStepDuration(frame.step) : 0;
+    replayTimer = setTimeout(() => {
+      replayTimer = null;
+      if (!replay) return;
+      if (replayIndex >= replay.frames.length - 1) {
+        finalizeReplay();
+      } else {
+        replayIndex += 1;
+        scheduleReplayStep();
+      }
+    }, duration);
+  }
+
+  /**
+   * Play a computed setup run (#121). Plans a progressive reveal from the run's
+   * trace and animates it step by step; when it finishes — or when
+   * {@link skipReplay} interrupts it — the run's final state is committed as one
+   * undo entry. A run with no trace commits immediately (nothing to animate).
+   */
+  function playSetupRun(next: TabletopState, nextVisibility: VisibilityMap, trace: SetupStep[]): void {
+    finalizeReplay(); // never run two replays at once
+    const frames = planReplay(next, trace);
+    if (frames.length === 0) {
+      loadSetupRun(next, nextVisibility);
+      return;
+    }
+    replay = { frames, state: next, visibility: nextVisibility };
+    replayIndex = 0;
+    scheduleReplayStep();
+  }
+
+  /** Skip/fast-forward: end the replay now and jump to the final table. */
+  function skipReplay(): void {
+    finalizeReplay();
+  }
+
   function setSelection(selection: Selection): void {
     store.state.selection = selection;
   }
@@ -313,9 +393,19 @@ export function createTabletopStore(initialState: TabletopState, templates: Temp
     get visibility() {
       return visibility;
     },
+    /** Whether a setup run is currently replaying (#121); input is locked. */
+    get isReplaying() {
+      return isReplaying;
+    },
+    /** The current replay frame to render while {@link isReplaying}, or null. */
+    get replayState() {
+      return replayState;
+    },
 
     commit,
     loadSetupRun,
+    playSetupRun,
+    skipReplay,
     beginTransaction,
     updateTransient,
     commitTransaction,

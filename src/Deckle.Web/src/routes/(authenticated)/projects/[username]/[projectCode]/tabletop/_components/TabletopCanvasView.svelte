@@ -5,6 +5,7 @@
   import type { TabletopViewport } from '$lib/tabletop';
   import type { TabletopCanvas } from './tabletopCanvas.svelte';
   import TabletopSurface from './TabletopSurface.svelte';
+  import ReplayOverlay from './ReplayOverlay.svelte';
 
   let {
     canvas,
@@ -36,6 +37,8 @@
   >
     <TabletopSurface />
   </div>
+
+  <ReplayOverlay />
 </div>
 
 <style>

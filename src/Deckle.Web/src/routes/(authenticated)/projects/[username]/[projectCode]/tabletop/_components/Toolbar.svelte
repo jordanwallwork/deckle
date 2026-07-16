@@ -1,5 +1,8 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import { getTabletopApi } from '$lib/tabletop';
+  import type { GameSetupSummary } from '$lib/types';
+  import SetupPickerDialog from './SetupPickerDialog.svelte';
 
   let {
     zoom,
@@ -8,8 +11,17 @@
   }: { zoom: number; onZoomChange: (z: number) => void; onFitView: () => void } = $props();
 
   const { store } = getTabletopApi();
+  const projectId = getContext<string>('projectId');
 
   const zoomPercentage = $derived(Math.round(zoom * 100));
+
+  let showSetupPicker = $state(false);
+
+  function handleSetupSelected(setup: GameSetupSummary) {
+    // TODO(#120): open the Play dialog (count stepper + typed options), then run
+    // the setup through the interpreter. #119 only browses + selects.
+    console.log('Setup selected:', setup.id, setup.name);
+  }
 
   function zoomIn() {
     onZoomChange(Math.min(3, zoom + 0.25));
@@ -54,7 +66,20 @@
     <button class="tool-btn" onclick={zoomIn} disabled={zoom >= 3} title="Zoom in">+</button>
     <button class="tool-btn" onclick={onFitView} title="Fit to view">⤢</button>
   </div>
+
+  <div class="toolbar-group">
+    <button class="tool-btn play-btn" onclick={() => (showSetupPicker = true)} title="Play a setup">
+      ▶ Play
+    </button>
+  </div>
 </div>
+
+<SetupPickerDialog
+  bind:show={showSetupPicker}
+  {projectId}
+  onSelect={handleSetupSelected}
+  onclose={() => (showSetupPicker = false)}
+/>
 
 <style>
   .toolbar {
@@ -111,6 +136,13 @@
   .zoom-reset {
     min-width: 3rem;
     font-size: 0.75rem;
+  }
+
+  .play-btn {
+    width: auto;
+    padding: 0.25rem 0.75rem;
+    gap: 0.25rem;
+    font-weight: 600;
   }
 </style>
 

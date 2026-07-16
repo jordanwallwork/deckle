@@ -8,3 +8,4 @@ export * from './files';
 export * from './admin';
 export * from './users';
 export * from './apiKeys';
+export * from './gameSetups';

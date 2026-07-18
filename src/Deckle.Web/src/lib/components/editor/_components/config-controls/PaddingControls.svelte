@@ -11,10 +11,16 @@
 
   let {
     padding,
-    onchange
+    onchange,
+    label = 'Padding',
+    idPrefix = 'padding'
   }: {
     padding?: Padding;
     onchange: (newPadding: Padding) => void;
+    /** Section label — override to reuse this control for margin. */
+    label?: string;
+    /** Unique id prefix so multiple instances (padding + margin) don't collide. */
+    idPrefix?: string;
   } = $props();
 
   // Track whether we're in "separate sides" mode
@@ -74,7 +80,7 @@
 
 <div class="field">
   <div class="header">
-    <span class="section-label">Padding:</span>
+    <span class="section-label">{label}:</span>
     <label class="toggle-label">
       <span>Separate sides</span>
       <input type="checkbox" checked={separateSides} onchange={toggleSeparateSides} />
@@ -85,7 +91,7 @@
     <!-- All sides mode -->
     <DimensionInput
       label="All sides"
-      id="padding-all"
+      id={`${idPrefix}-all`}
       value={padding?.all}
       onchange={(value) => updateAllSides(value)}
     />
@@ -94,28 +100,28 @@
     <div class="padding-grid">
       <DimensionInput
         label="Top"
-        id="padding-top"
+        id={`${idPrefix}-top`}
         value={padding?.top}
         onchange={(value) => updateSide('top', value)}
       />
 
       <DimensionInput
         label="Right"
-        id="padding-right"
+        id={`${idPrefix}-right`}
         value={padding?.right}
         onchange={(value) => updateSide('right', value)}
       />
 
       <DimensionInput
         label="Bottom"
-        id="padding-bottom"
+        id={`${idPrefix}-bottom`}
         value={padding?.bottom}
         onchange={(value) => updateSide('bottom', value)}
       />
 
       <DimensionInput
         label="Left"
-        id="padding-left"
+        id={`${idPrefix}-left`}
         value={padding?.left}
         onchange={(value) => updateSide('left', value)}
       />

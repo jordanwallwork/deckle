@@ -9,7 +9,8 @@
     disabled = false,
     disabledMessage,
     hideLabel = false,
-    inline = false
+    inline = false,
+    placeholder = 'auto'
   }: {
     label: string;
     id: string;
@@ -19,6 +20,8 @@
     disabledMessage?: string;
     hideLabel?: boolean;
     inline?: boolean;
+    /** Shown when unset — used to surface the effective default (ADR-0001 D4). */
+    placeholder?: string;
   } = $props();
 
   // Parse the stored value into a domain Dimension. Storage convention: a
@@ -69,7 +72,7 @@
     <input
       type="number"
       {id}
-      placeholder="auto"
+      {placeholder}
       value={numericValue}
       oninput={(e) => handleValueChange(e.currentTarget.value)}
       {disabled}

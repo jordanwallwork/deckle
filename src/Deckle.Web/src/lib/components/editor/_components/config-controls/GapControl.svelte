@@ -1,84 +1,13 @@
 <script lang="ts">
+  import DimensionInput from './DimensionInput.svelte';
+
   let {
-    value = 0,
+    value,
     onchange
   }: {
-    value?: number;
-    onchange: (gap: number) => void;
+    value?: number | string;
+    onchange: (gap: number | string | undefined) => void;
   } = $props();
 </script>
 
-<div class="gap-control">
-  <input
-    type="range"
-    id="gap"
-    min="0"
-    max="50"
-    {value}
-    oninput={(e) => onchange(Number.parseInt(e.currentTarget.value) || 0)}
-  />
-  <input
-    type="number"
-    class="gap-number"
-    min="0"
-    {value}
-    oninput={(e) => onchange(Number.parseInt(e.currentTarget.value) || 0)}
-  />
-  <span class="unit">px</span>
-</div>
-
-<style>
-  .gap-control {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .gap-control input[type='range'] {
-    flex: 1;
-    height: 4px;
-    background: var(--color-border);
-    border-radius: 2px;
-    outline: none;
-    -webkit-appearance: none;
-    appearance: none;
-  }
-
-  .gap-control input[type='range']::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    background: var(--color-accent-fg);
-    border-radius: 50%;
-    cursor: pointer;
-  }
-
-  .gap-control input[type='range']::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    background: var(--color-accent-fg);
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
-  }
-
-  .gap-control .gap-number {
-    width: 60px;
-    padding: 0.375rem 0.5rem;
-    font-size: 0.813rem;
-    line-height: 1.25rem;
-    height: 2.125rem;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    background: var(--color-surface);
-    color: var(--color-text-primary);
-    text-align: center;
-    box-sizing: border-box;
-  }
-
-  .gap-control .unit {
-    font-size: 0.75rem;
-    color: var(--color-text-secondary);
-  }
-</style>
+<DimensionInput label="Gap" id="gap" {value} onchange={onchange} hideLabel inline />

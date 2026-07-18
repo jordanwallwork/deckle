@@ -1,40 +1,35 @@
 import type { TemplateElement, ElementType, ShapeElement, GridElement } from './types';
 
 /**
- * Factory function to create new template elements with default values
+ * Factory for new template elements (ADR-0001 D4, "unset-first defaults").
+ *
+ * New elements are nearly-empty: only structural, data, and size fields are
+ * stamped. Cosmetic styling defaults (opacity, visibilityMode, container
+ * display/flex, text fontSize/color, grid cell fill/border) are intentionally
+ * left unset — their effective values live in `effectiveDefaults.ts` and are
+ * resolved by the renderers, so an omitted property renders identically to the
+ * value the factory used to stamp.
+ *
+ * Size (`dimensions` 100×100) is kept: a newly-created element needs a footprint
+ * to be usable on the canvas.
  */
 export function createElementOfType(type: ElementType): TemplateElement {
   if (type === 'container') {
     return {
       id: crypto.randomUUID(),
       type: 'container',
-      visibilityMode: 'show',
-      opacity: 1,
-      display: 'flex',
-      flexConfig: {
-        direction: 'column',
-        wrap: 'nowrap',
-        justifyContent: 'flex-start',
-        alignItems: 'flex-start'
-      },
       children: []
     };
   } else if (type === 'text') {
     return {
       id: crypto.randomUUID(),
       type: 'text',
-      visibilityMode: 'show',
-      opacity: 1,
-      content: 'New Text',
-      fontSize: 16,
-      color: '#000000'
+      content: 'New Text'
     };
   } else if (type === 'iterator') {
     return {
       id: crypto.randomUUID(),
       type: 'iterator',
-      visibilityMode: 'show',
-      opacity: 1,
       iteratorName: 'i',
       fromExpression: '1',
       toExpression: '3',
@@ -44,8 +39,6 @@ export function createElementOfType(type: ElementType): TemplateElement {
     return {
       id: crypto.randomUUID(),
       type: 'shape',
-      visibilityMode: 'show',
-      opacity: 1,
       shapeType: 'circle',
       dimensions: { width: 100, height: 100 },
       children: []
@@ -54,23 +47,17 @@ export function createElementOfType(type: ElementType): TemplateElement {
     return {
       id: crypto.randomUUID(),
       type: 'grid',
-      visibilityMode: 'show',
-      opacity: 1,
       variant: 'checkerboard',
       itemSize: 20,
       cells: [],
       children: [],
-      dimensions: { width: 100, height: 100 },
-      background: { color: '#cccccc' },
-      border: { width: 2, style: 'solid', color: '#000000' }
+      dimensions: { width: 100, height: 100 }
     } as GridElement;
   } else {
     // image
     return {
       id: crypto.randomUUID(),
       type: 'image',
-      visibilityMode: 'show',
-      opacity: 1,
       imageId: '',
       dimensions: { width: 100, height: 100 }
     };

@@ -4,6 +4,7 @@
   import BaseElementConfig from './BaseElementConfig.svelte';
   import SelectField from '../config-controls/SelectField.svelte';
   import NumberField from '../config-controls/NumberField.svelte';
+  import DimensionInput from '../config-controls/DimensionInput.svelte';
   import ColorPicker from '../config-controls/ColorPicker.svelte';
   import Fields from '../config-controls/Fields.svelte';
 
@@ -44,28 +45,24 @@
   <ColorPicker
     label="Cell color"
     id="grid-cell-color"
-    value={element.background?.color ?? '#cccccc'}
-    onchange={(color) => updateElement({ background: { ...element.background, color } })}
+    value={element.cellBackground?.color ?? '#cccccc'}
+    onchange={(color) => updateElement({ cellBackground: { ...element.cellBackground, color } })}
   />
 
   <Fields>
-    <NumberField
+    <DimensionInput
       label="Cell border"
       id="cell-border-width"
-      value={typeof element.border?.width === 'number' ? element.border.width : 0}
-      min={0}
-      max={100}
-      step={1}
-      unit="px"
+      value={element.cellBorder?.width}
       onchange={(width) =>
-        updateElement({ border: { ...element.border, width, style: element.border?.style ?? 'solid' } })}
+        updateElement({ cellBorder: { ...element.cellBorder, width, style: element.cellBorder?.style ?? 'solid' } })}
     />
     <ColorPicker
       label="Cell border color"
       id="cell-border-color"
-      value={element.border?.color ?? '#000000'}
+      value={element.cellBorder?.color ?? '#000000'}
       onchange={(color) =>
-        updateElement({ border: { ...element.border, color, style: element.border?.style ?? 'solid' } })}
+        updateElement({ cellBorder: { ...element.cellBorder, color, style: element.cellBorder?.style ?? 'solid' } })}
     />
   </Fields>
 </BaseElementConfig>

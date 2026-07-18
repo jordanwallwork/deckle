@@ -17,12 +17,6 @@
   function updateElement(updates: Partial<ShapeElement>) {
     templateStore.updateElement(element.id, updates);
   }
-
-  function toStringValue(value: number | string | undefined): string | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value === 'number') return `${value}px`;
-    return value;
-  }
 </script>
 
 <ConfigSection>
@@ -69,7 +63,7 @@
     <DimensionInput
       label="Width"
       id="shape-width"
-      value={toStringValue(element.dimensions?.width)}
+      value={element.dimensions?.width}
       onchange={(width) =>
         updateElement({
           dimensions: { ...element.dimensions, width }
@@ -78,7 +72,7 @@
     <DimensionInput
       label="Height"
       id="shape-height"
-      value={toStringValue(element.dimensions?.height)}
+      value={element.dimensions?.height}
       onchange={(height) =>
         updateElement({
           dimensions: { ...element.dimensions, height }
@@ -108,26 +102,22 @@
   />
 
   <Fields>
-    <NumberField
+    <DimensionInput
       label="Border"
       id="border-thickness"
-      value={element.shapeBorder?.thickness ?? 0}
-      min={0}
-      max={100}
-      step={1}
-      unit="px"
-      onchange={(thickness) =>
+      value={element.border?.width}
+      onchange={(width) =>
         updateElement({
-          shapeBorder: { color: element.shapeBorder?.color ?? '#000000', thickness }
+          border: { color: element.border?.color ?? '#000000', width, style: 'solid' }
         })}
     />
     <ColorPicker
       label="Border color"
       id="border-color"
-      value={element.shapeBorder?.color ?? '#000000'}
+      value={element.border?.color ?? '#000000'}
       onchange={(color) =>
         updateElement({
-          shapeBorder: { thickness: element.shapeBorder?.thickness ?? 0, color }
+          border: { width: element.border?.width, color, style: 'solid' }
         })}
     />
   </Fields>

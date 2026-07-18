@@ -49,9 +49,6 @@
       panzoom.setOptions({ disablePan: true });
     }
 
-    // Save current state to history before starting rotation
-    templateStore.saveToHistory();
-
     // Add global mouse event listeners
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -80,13 +77,20 @@
 			? Math.round(newRotation)  // Free rotation with Shift
 			: Math.round(newRotation / 5) * 5;  // Snap to 5 degrees
 
-    // Update element without adding to history (for smooth rotation)
-    templateStore.updateElementWithoutHistory(element.id, {
-      rotation: snappedRotation
-    });
+    // Batch the whole rotation gesture into a single undo step; sealed on mouseup.
+    templateStore.updateElement(
+      element.id,
+      {
+        rotation: snappedRotation
+      },
+      `${element.id}:rotation`
+    );
   }
 
   function handleMouseUp() {
+    if (isRotating) {
+      templateStore.sealSession();
+    }
     isRotating = false;
 
     // Re-enable panning

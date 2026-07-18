@@ -108,7 +108,7 @@ export interface FlexConfig {
   justifyContent?: JustifyContent;
   alignItems?: AlignItems;
   alignContent?: AlignContent;
-  gap?: number;
+  gap?: number | string; // number for px, string carries the unit (e.g. "5mm", "10%")
   rowGap?: number;
   columnGap?: number;
 }
@@ -190,7 +190,7 @@ export interface TextElement extends BaseElement {
   display?: 'block' | 'inline';
 
   // Typography
-  fontSize?: number;
+  fontSize?: number | string; // number for px, string carries the unit (e.g. "4mm", "120%")
   fontFamily?: string;
   fontWeight?: number | 'normal' | 'bold' | 'lighter' | 'bolder';
   fontStyle?: 'normal' | 'italic' | 'oblique';
@@ -201,7 +201,7 @@ export interface TextElement extends BaseElement {
   letterSpacing?: number;
 
   // Background
-  backgroundColor?: string;
+  background?: Background;
 
   // Other
   wordWrap?: 'normal' | 'break-word' | 'break-all';
@@ -240,11 +240,6 @@ export interface IteratorElement extends BaseElement {
 // Shape Element
 // ============================================================================
 
-export interface ShapeBorder {
-  thickness: number; // in pixels
-  color: string;
-}
-
 export interface ShapeElement extends BaseElement {
   type: 'shape';
   shapeType: ShapeType;
@@ -252,7 +247,6 @@ export interface ShapeElement extends BaseElement {
   background?: Background;
   shadow?: Shadow | Shadow[];
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
-  shapeBorder?: ShapeBorder;
 }
 
 // ============================================================================
@@ -274,8 +268,10 @@ export interface GridElement extends BaseElement {
   itemSize: number; // Size in pixels of each cell (side length for hexagons, side for squares)
   cells: GridCell[][];  // 2D array [row][col] — synced automatically from dimensions + itemSize
   children: TemplateElement[]; // Template rendered inside every cell
-  background?: Background; // Default cell fill
-  border?: Border; // Default cell border (squares only)
+  cellBackground?: Background; // Default cell fill
+  cellBorder?: Border; // Default cell border (squares only)
+  background?: Background; // The grid element's own background fill
+  // The grid element's own border is the inherited BaseElement.border
 }
 
 // ============================================================================

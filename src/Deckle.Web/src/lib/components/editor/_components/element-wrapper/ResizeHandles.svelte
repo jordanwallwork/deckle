@@ -3,8 +3,9 @@
   import type { TemplateElement } from '../../types';
   import { getContext } from 'svelte';
   import ResizeHandle from './ResizeHandle.svelte';
+  import { dimensionToPx, writeBackInExistingUnit } from '../../utils';
 
-  let { element }: { element: TemplateElement } = $props();
+  let { element, dpi }: { element: TemplateElement; dpi: number } = $props();
 
   // Get zoom scale from context (provided by ComponentViewer)
   const zoomContext = getContext<{ getScale: () => number }>('zoomScale');
@@ -56,17 +57,6 @@
     return Math.round(value / gridSize) * gridSize;
   }
 
-  // Get current dimensions
-  function getCurrentDimensions() {
-    const width = element.dimensions?.width;
-    const height = element.dimensions?.height;
-
-    return {
-      width: typeof width === 'number' ? width : 100,
-      height: typeof height === 'number' ? height : 100
-    };
-  }
-
   // Get actual rendered dimensions from the DOM element
   function getRenderedDimensions(targetElement: HTMLElement) {
     // For images, we need to get the img element's dimensions
@@ -95,35 +85,34 @@
     startX = e.clientX;
     startY = e.clientY;
 
-    const dims = getCurrentDimensions();
-    startLeft = typeof element.x === 'number' ? element.x : parseFloat(String(element.x)) || 0;
-    startTop = typeof element.y === 'number' ? element.y : parseFloat(String(element.y)) || 0;
+    // Use rendered pixel values as the drag origin so mm/px positions start correctly.
+    startLeft = dimensionToPx(element.x, dpi);
+    startTop = dimensionToPx(element.y, dpi);
 
     // Get the actual element being resized (parent of resize handles)
     const targetElement = resizeHandlesEl?.parentElement;
 
-    // Check if dimensions are percentages and need conversion
-    const widthIsPercentage =
-      typeof element.dimensions?.width === 'string' && element.dimensions.width.includes('%');
-    const heightIsPercentage =
-      typeof element.dimensions?.height === 'string' && element.dimensions.height.includes('%');
+    const widthVal = element.dimensions?.width;
+    const heightVal = element.dimensions?.height;
 
-    // If dimensions are percentages, get the actual rendered pixel size
-    if (targetElement && (widthIsPercentage || heightIsPercentage)) {
-      const rendered = getRenderedDimensions(targetElement);
+    // Any string dimension (mm/%/px-string) needs the rendered pixel size as the
+    // drag origin; the rendered size already reflects the resolved unit on screen.
+    const widthIsString = typeof widthVal === 'string';
+    const heightIsString = typeof heightVal === 'string';
 
-      startWidth = widthIsPercentage ? rendered.width : dims.width;
-      startHeight = heightIsPercentage ? rendered.height : dims.height;
+    const rendered =
+      targetElement && (widthIsString || heightIsString)
+        ? getRenderedDimensions(targetElement)
+        : null;
 
-      // Mark which dimensions need to be converted to pixels
-      convertWidthToPx = widthIsPercentage;
-      convertHeightToPx = heightIsPercentage;
-    } else {
-      startWidth = dims.width;
-      startHeight = dims.height;
-      convertWidthToPx = false;
-      convertHeightToPx = false;
-    }
+    startWidth = typeof widthVal === 'number' ? widthVal : (rendered?.width ?? 100);
+    startHeight = typeof heightVal === 'number' ? heightVal : (rendered?.height ?? 100);
+
+    // Only percentages get force-converted to px on resize (no reliable parent
+    // reference to keep them relative). mm/px-strings are preserved by
+    // writeBackInExistingUnit in handleMouseMove.
+    convertWidthToPx = widthIsString && widthVal.includes('%');
+    convertHeightToPx = heightIsString && heightVal.includes('%');
 
     // Initialize preview dimensions
     previewWidth = startWidth;
@@ -136,10 +125,6 @@
     if (panzoom) {
       panzoom.setOptions({ disablePan: true });
     }
-
-    // Save to history once at the start of the drag operation
-    // This ensures undo reverts to the initial size, not each pixel change
-    templateStore.saveToHistory();
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -208,9 +193,8 @@
     previewX = newX;
     previewY = newY;
 
-    // Update the element's dimensions in real-time
-    // Use updateElementWithoutHistory to avoid creating a history entry for each pixel change
-    // History is saved once at the start of the drag operation
+    // Update the element's dimensions in real-time. The resize session key
+    // batches every pixel change into one undo step (sealed on mouseup).
     const updates: any = {
       dimensions: { ...element.dimensions }
     };
@@ -222,11 +206,18 @@
 
     // Always update if we're converting from percentage to pixels (even if size hasn't changed yet)
     // This prevents the element from jumping when starting to drag a percentage dimension
+    // Preserve the existing unit (mm stays mm). Percentages have no reliable
+    // reference here, so writeBackInExistingUnit falls back to px — matching the
+    // long-standing convert-%-to-px-on-resize behaviour.
     if (widthChanged || convertWidthToPx) {
-      updates.dimensions.width = newWidth;
+      updates.dimensions.width = writeBackInExistingUnit(element.dimensions?.width, newWidth, dpi);
     }
     if (heightChanged || convertHeightToPx) {
-      updates.dimensions.height = newHeight;
+      updates.dimensions.height = writeBackInExistingUnit(
+        element.dimensions?.height,
+        newHeight,
+        dpi
+      );
     }
 
     // After first update, clear the conversion flags
@@ -235,17 +226,20 @@
 
     // If position changed (for handles that move the element), update x/y
     if (newX !== startLeft) {
-      updates.x = newX;
+      updates.x = writeBackInExistingUnit(element.x, newX, dpi);
     }
     if (newY !== startTop) {
-      updates.y = newY;
+      updates.y = writeBackInExistingUnit(element.y, newY, dpi);
     }
 
-    // Update immediately for real-time feedback without saving to history
-    templateStore.updateElementWithoutHistory(element.id, updates);
+    // Batch the whole resize gesture into a single undo step; sealed on mouseup.
+    templateStore.updateElement(element.id, updates, `${element.id}:resize`);
   }
 
   function handleMouseUp() {
+    if (isResizing) {
+      templateStore.sealSession();
+    }
     isResizing = false;
     resizeHandle = null;
 

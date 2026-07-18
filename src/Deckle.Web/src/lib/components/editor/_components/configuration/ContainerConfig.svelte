@@ -95,7 +95,7 @@
 
     <FieldWrapper label="Gap" htmlFor="gap">
       <GapControl
-        value={element.flexConfig?.gap || 0}
+        value={element.flexConfig?.gap}
         onchange={(gap) =>
           updateElement({
             flexConfig: {

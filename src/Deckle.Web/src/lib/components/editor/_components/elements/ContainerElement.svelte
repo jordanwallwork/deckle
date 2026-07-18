@@ -7,8 +7,10 @@
     backgroundStyle,
     boxShadowStyle,
     borderRadiusStyle,
-    hasAnyBorderRadiusSet
+    hasAnyBorderRadiusSet,
+    dimensionValue
   } from '../../utils';
+  import { effectiveContainerDisplay, effectiveContainerFlex } from '../../effectiveDefaults';
 
   let { element, dpi, children }: { element: ContainerElement; dpi: number; children?: any } =
     $props();
@@ -16,33 +18,29 @@
   // Check if we need nested div rendering (when innerBorderRadius is defined and non-zero)
   const hasInnerBorderRadius = $derived(hasAnyBorderRadiusSet(element.innerBorderRadius, dpi));
 
-  // Derived style properties for granular reactivity
-  const display = $derived(element.display || 'flex');
-  const flexDirection = $derived(
-    element.display === 'flex' ? element.flexConfig?.direction : undefined
-  );
-  const flexWrap = $derived(element.display === 'flex' ? element.flexConfig?.wrap : undefined);
-  const justifyContent = $derived(
-    element.display === 'flex' ? element.flexConfig?.justifyContent : undefined
-  );
-  const alignItems = $derived(
-    element.display === 'flex' ? element.flexConfig?.alignItems : undefined
-  );
-  const alignContent = $derived(
-    element.display === 'flex' ? element.flexConfig?.alignContent : undefined
-  );
+  // Derived style properties for granular reactivity.
+  // Unset display/flex values resolve to their effective defaults (flex-column)
+  // via effectiveDefaults.ts, matching what the factory used to stamp.
+  const display = $derived(effectiveContainerDisplay(element));
+  const isFlex = $derived(display === 'flex');
+  const flex = $derived(effectiveContainerFlex(element));
+  const flexDirection = $derived(isFlex ? flex.direction : undefined);
+  const flexWrap = $derived(isFlex ? flex.wrap : undefined);
+  const justifyContent = $derived(isFlex ? flex.justifyContent : undefined);
+  const alignItems = $derived(isFlex ? flex.alignItems : undefined);
+  const alignContent = $derived(isFlex ? element.flexConfig?.alignContent : undefined);
   const gap = $derived(
-    element.display === 'flex' && element.flexConfig?.gap !== undefined
-      ? `${element.flexConfig.gap}px`
+    isFlex && element.flexConfig?.gap !== undefined
+      ? dimensionValue(element.flexConfig.gap, dpi)
       : undefined
   );
   const rowGap = $derived(
-    element.display === 'flex' && element.flexConfig?.rowGap !== undefined
+    isFlex && element.flexConfig?.rowGap !== undefined
       ? `${element.flexConfig.rowGap}px`
       : undefined
   );
   const columnGap = $derived(
-    element.display === 'flex' && element.flexConfig?.columnGap !== undefined
+    isFlex && element.flexConfig?.columnGap !== undefined
       ? `${element.flexConfig.columnGap}px`
       : undefined
   );

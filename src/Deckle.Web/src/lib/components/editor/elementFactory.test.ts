@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createElementOfType } from './elementFactory';
-import type { ContainerElement, TextElement, ImageElement, IteratorElement, ShapeElement } from './types';
+import type { ContainerElement, TextElement, ImageElement, IteratorElement, ShapeElement, GridElement } from './types';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -26,17 +26,20 @@ describe('createElementOfType', () => {
     }
   );
 
+  // Unset-first (ADR-0001 D4): cosmetic styling defaults are NOT stamped —
+  // their effective values live in effectiveDefaults.ts and are resolved by
+  // the renderers, so an omitted property renders identically.
   it.each(['container', 'text', 'image', 'iterator', 'shape'] as const)(
-    '%s element has visibilityMode "show"',
+    '%s element leaves visibilityMode unset',
     (type) => {
-      expect(createElementOfType(type).visibilityMode).toBe('show');
+      expect(createElementOfType(type).visibilityMode).toBeUndefined();
     }
   );
 
   it.each(['container', 'text', 'image', 'iterator', 'shape'] as const)(
-    '%s element has opacity 1',
+    '%s element leaves opacity unset',
     (type) => {
-      expect(createElementOfType(type).opacity).toBe(1);
+      expect(createElementOfType(type).opacity).toBeUndefined();
     }
   );
 
@@ -49,19 +52,14 @@ describe('createElementOfType', () => {
       expect(createElementOfType('container').type).toBe('container');
     });
 
-    it('has display "flex"', () => {
+    it('leaves display unset (effective default "flex")', () => {
       const el = createElementOfType('container') as ContainerElement;
-      expect(el.display).toBe('flex');
+      expect(el.display).toBeUndefined();
     });
 
-    it('has sensible flex defaults', () => {
+    it('leaves flexConfig unset (resolved by the renderer)', () => {
       const el = createElementOfType('container') as ContainerElement;
-      expect(el.flexConfig).toEqual({
-        direction: 'column',
-        wrap: 'nowrap',
-        justifyContent: 'flex-start',
-        alignItems: 'flex-start'
-      });
+      expect(el.flexConfig).toBeUndefined();
     });
 
     it('starts with an empty children array', () => {
@@ -84,14 +82,14 @@ describe('createElementOfType', () => {
       expect(el.content).toBe('New Text');
     });
 
-    it('has default fontSize 16', () => {
+    it('leaves fontSize unset (effective default 16)', () => {
       const el = createElementOfType('text') as TextElement;
-      expect(el.fontSize).toBe(16);
+      expect(el.fontSize).toBeUndefined();
     });
 
-    it('has default color "#000000"', () => {
+    it('leaves color unset (effective default "#000000")', () => {
       const el = createElementOfType('text') as TextElement;
-      expect(el.color).toBe('#000000');
+      expect(el.color).toBeUndefined();
     });
   });
 
@@ -167,6 +165,28 @@ describe('createElementOfType', () => {
     it('starts with an empty children array', () => {
       const el = createElementOfType('shape') as ShapeElement;
       expect(el.children).toEqual([]);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Grid
+  // --------------------------------------------------------------------------
+
+  describe('grid', () => {
+    it('keeps structural/data/size fields', () => {
+      const el = createElementOfType('grid') as GridElement;
+      expect(el.type).toBe('grid');
+      expect(el.variant).toBe('checkerboard');
+      expect(el.itemSize).toBe(20);
+      expect(el.cells).toEqual([]);
+      expect(el.children).toEqual([]);
+      expect(el.dimensions).toEqual({ width: 100, height: 100 });
+    });
+
+    it('leaves cell styling unset (resolved by the renderer)', () => {
+      const el = createElementOfType('grid') as GridElement;
+      expect(el.cellBackground).toBeUndefined();
+      expect(el.cellBorder).toBeUndefined();
     });
   });
 });

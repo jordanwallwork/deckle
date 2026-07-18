@@ -4,7 +4,7 @@
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import { parseInlineClasses, hasInlineClasses } from '$lib/utils/textParser';
   import { replaceMergeFields } from '$lib/utils/mergeFields';
-  import { spacingToCss, borderStyle } from '../../utils';
+  import { spacingToCss, borderStyle, dimensionValue } from '../../utils';
   import { templateStore, editingElementId } from '$lib/stores/templateElements';
 
   let { element, dpi }: { element: TextElement; dpi: number } = $props();
@@ -16,7 +16,6 @@
 
   $effect(() => {
     if (isEditing && textareaEl) {
-      templateStore.saveToHistory();
       textareaEl.focus();
       // Place cursor at end
       textareaEl.setSelectionRange(textareaEl.value.length, textareaEl.value.length);
@@ -32,7 +31,8 @@
   function handleTextareaInput(e: Event) {
     const el = e.currentTarget as HTMLTextAreaElement;
     autoResize(el);
-    templateStore.updateElementWithoutHistory(element.id, { content: el.value });
+    // Collapse the whole inline edit into one undo step; sealed on blur.
+    templateStore.updateElement(element.id, { content: el.value }, `${element.id}:content`);
   }
 
   function handleTextareaKeydown(e: KeyboardEvent) {
@@ -43,6 +43,7 @@
   }
 
   function handleTextareaBlur() {
+    templateStore.sealSession();
     editingElementId.set(null);
   }
 
@@ -71,7 +72,7 @@
 
   // Derived style properties for granular reactivity
   const display = $derived(element.display || 'block');
-  const fontSize = $derived(element.fontSize ? `${element.fontSize}px` : undefined);
+  const fontSize = $derived(dimensionValue(element.fontSize, dpi));
   const fontFamily = $derived(element.fontFamily);
   const fontWeight = $derived(element.fontWeight);
   const fontStyle = $derived(element.fontStyle);
@@ -83,7 +84,7 @@
   const wordWrap = $derived(element.wordWrap);
   const textTransform = $derived(element.textTransform);
   const padding = $derived(spacingToCss(element.padding, dpi));
-  const backgroundColor = $derived(element.backgroundColor);
+  const backgroundColor = $derived(element.background?.color);
   const border = $derived(borderStyle(element.border, dpi));
 </script>
 

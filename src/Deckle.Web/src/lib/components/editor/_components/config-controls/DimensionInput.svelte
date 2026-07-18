@@ -11,7 +11,7 @@
   }: {
     label: string;
     id: string;
-    value?: string;
+    value?: number | string;
     onchange: (newValue: string | undefined) => void;
     disabled?: boolean;
     disabledMessage?: string;
@@ -19,31 +19,31 @@
     inline?: boolean;
   } = $props();
 
-  // Extract numeric value from dimension string
-  const numericValue = $derived(() => {
-    const dimStr = String(value ?? '');
-    if (!dimStr) return '';
-    const match = dimStr.match(/^(\d+\.?\d*)/);
+  // Normalize the stored value to a dimension string. Storage convention: a
+  // plain number means px; a string already carries its unit (mm/%/px).
+  const valueStr = $derived(typeof value === 'number' ? `${value}px` : (value ?? ''));
+
+  // Extract numeric value from the dimension string
+  const numericValue = $derived.by(() => {
+    if (!valueStr) return '';
+    const match = valueStr.match(/^(\d+\.?\d*)/);
     return match ? match[1] : '';
   });
 
-  // Extract unit from dimension string (default to 'mm')
-  const unit = $derived(() => {
-    const dimStr = String(value ?? '');
-    if (dimStr.includes('%')) return '%';
-    if (dimStr.includes('px')) return 'px';
+  // Extract unit from the dimension string (default to 'mm')
+  const unit = $derived.by(() => {
+    if (valueStr.includes('%')) return '%';
+    if (valueStr.includes('px')) return 'px';
     return 'mm';
   });
 
   function handleValueChange(newNumericValue: string) {
-    const currentUnit = unit();
-    onchange(newNumericValue ? `${newNumericValue}${currentUnit}` : undefined);
+    onchange(newNumericValue ? `${newNumericValue}${unit}` : undefined);
   }
 
   function handleUnitChange(newUnit: string) {
-    const numeric = numericValue();
-    if (numeric) {
-      onchange(`${numeric}${newUnit}`);
+    if (numericValue) {
+      onchange(`${numericValue}${newUnit}`);
     }
   }
 </script>
@@ -57,14 +57,14 @@
       type="number"
       {id}
       placeholder="auto"
-      value={numericValue()}
+      value={numericValue}
       oninput={(e) => handleValueChange(e.currentTarget.value)}
       {disabled}
     />
     <select
       class="unit-select"
       class:disabled-unit={!value}
-      value={unit()}
+      value={unit}
       onchange={(e) => handleUnitChange(e.currentTarget.value)}
       {disabled}
     >

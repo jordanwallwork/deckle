@@ -9,6 +9,7 @@
   import HighlightedTextArea from '../config-controls/HighlightedTextArea.svelte';
   import TextField from '../config-controls/TextField.svelte';
   import NumberField from '../config-controls/NumberField.svelte';
+  import DimensionInput from '../config-controls/DimensionInput.svelte';
   import SelectField from '../config-controls/SelectField.svelte';
   import FontSelector from '../config-controls/FontSelector.svelte';
   import Fields from '../config-controls/Fields.svelte';
@@ -61,23 +62,18 @@
     templateStore.updateElement(element.id, updates);
   }
 
-  // Track the element ID for which we've saved a history entry this edit session,
-  // so content edits only produce one history entry (like drag/resize).
-  let contentEditSessionElementId = $state<string | null>(null);
-
-  function handleContentFocus() {
-    if (contentEditSessionElementId !== element.id) {
-      templateStore.saveToHistory();
-      contentEditSessionElementId = element.id;
-    }
-  }
-
+  // Content edits collapse into one undo step via a store edit session, keyed
+  // per element so switching elements starts a fresh entry.
   function handleContentBlur() {
-    contentEditSessionElementId = null;
+    templateStore.sealSession();
   }
 
   function handleContentInput(e: Event & { currentTarget: HTMLTextAreaElement }) {
-    templateStore.updateElementWithoutHistory(element.id, { content: e.currentTarget.value });
+    templateStore.updateElement(
+      element.id,
+      { content: e.currentTarget.value },
+      `${element.id}:content`
+    );
   }
 
   function handleFontChange(font: { family: string; category: string }) {
@@ -109,7 +105,6 @@
     markdown={element.markdown ?? false}
     onmarkdownchange={(value) => updateElement({ markdown: value })}
     oninput={handleContentInput}
-    onfocus={handleContentFocus}
     onblur={handleContentBlur}
   />
 
@@ -122,11 +117,11 @@
   />
 
   <Fields>
-    <NumberField
-      label="Font Size (px)"
+    <DimensionInput
+      label="Font Size"
       id="font-size"
-      value={element.fontSize || 16}
-      oninput={(e) => updateElement({ fontSize: Number.parseInt(e.currentTarget.value) || 16 })}
+      value={element.fontSize}
+      onchange={(value) => updateElement({ fontSize: value })}
     />
 
     <SelectField
@@ -175,8 +170,8 @@
     <ColorPicker
       label="Background Color"
       id="bg-color"
-      value={element.backgroundColor || '#ffffff'}
-      onchange={(backgroundColor) => updateElement({ backgroundColor })}
+      value={element.background?.color || '#ffffff'}
+      onchange={(color) => updateElement({ background: { ...element.background, color } })}
     />
   </Fields>
 

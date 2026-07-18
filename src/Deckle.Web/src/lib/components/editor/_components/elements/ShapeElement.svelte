@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ShapeElement, Shadow } from '../../types';
   import TemplateRenderer from '../../TemplateRenderer.svelte';
-  import { backgroundStyle, boxShadowStyle } from '../../utils';
+  import { backgroundStyle, boxShadowStyle, dimensionToPx } from '../../utils';
 
   let { element, dpi }: { element: ShapeElement; dpi: number } = $props();
 
@@ -9,12 +9,14 @@
   const boxShadow = $derived(boxShadowStyle(element.shadow));
   const dropShadowFilter = $derived(shadowToDropShadow(element.shadow));
   const clipPath = $derived(getClipPath(element.shapeType, element.id));
-  const hasBorder = $derived(
-    !!element.shapeBorder && element.shapeBorder.thickness > 0
+  const borderWidthPx = $derived(
+    typeof element.border?.width === 'number'
+      ? element.border.width
+      : dimensionToPx(element.border?.width, dpi)
   );
-  const borderInset = $derived(
-    hasBorder ? `${element.shapeBorder!.thickness * 2}px` : undefined
-  );
+  const borderColor = $derived(element.border?.color);
+  const hasBorder = $derived(borderWidthPx > 0 && !!borderColor);
+  const borderInset = $derived(hasBorder ? `${borderWidthPx * 2}px` : undefined);
 
   // Heart path in objectBoundingBox units (0–1). Uses cubic Bézier curves for smooth lobes.
   // Points: bottom tip (0.5,1), left lobe peak (0.25,0), centre dip (0.5,0.25), right lobe peak (0.75,0).
@@ -66,7 +68,7 @@
   Shapes with clip-path use an outer wrapper with filter:drop-shadow so the shadow follows
   the shape silhouette.
 
-  When a shapeBorder is configured, the outer div is filled with the border color and clipped,
+  When a border is configured, the outer div is filled with the border color and clipped,
   and a scaled-down inner div with the fill color sits centred inside it — giving the appearance
   of a solid border that follows the shape outline.
 -->
@@ -83,7 +85,7 @@
         style:width="100%"
         style:height="100%"
         style:clip-path={clipPath}
-        style:background-color={element.shapeBorder!.color}
+        style:background-color={borderColor}
       >
         <div
           class="shape-element"

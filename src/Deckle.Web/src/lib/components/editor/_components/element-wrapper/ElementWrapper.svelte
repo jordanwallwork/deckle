@@ -5,6 +5,7 @@
   import RotationHandle from './RotationHandle.svelte';
   import { templateStore, highlightedElementIds, editingElementId } from '$lib/stores/templateElements';
   import { spacingToCss, dimensionValue } from '../../utils';
+  import { effectiveOpacity, effectiveVisibilityMode } from '../../effectiveDefaults';
   import { createElementOfType } from '../../elementFactory';
   import ContextMenu, { type ContextMenuItem } from '$lib/components/ContextMenu.svelte';
   import Portal from '$lib/components/Portal.svelte';
@@ -50,14 +51,16 @@
   const maxHeight = $derived(dimensionValue(element.dimensions?.maxHeight, dpi));
 
   const zIndex = $derived(element.zIndex);
-  const opacity = $derived(element.opacity);
+  // Effective defaults resolved through the single source of truth (ADR-0001 D4)
+  // so unset opacity/visibility fall back to the same values used everywhere.
+  const opacity = $derived(effectiveOpacity(element));
   const transform = $derived(
     element.rotation !== undefined && element.rotation !== 0
       ? `rotate(${element.rotation}deg)`
       : undefined
   );
   const display = $derived(
-    isElementVisible(element.visibilityMode, element.visibilityCondition, $dataSourceRow)
+    isElementVisible(effectiveVisibilityMode(element), element.visibilityCondition, $dataSourceRow)
       ? undefined
       : 'none'
   );
@@ -231,10 +234,10 @@
   {@render children()}
 
   {#if isSelected && !element.locked}
-    <ResizeHandles {element} />
+    <ResizeHandles {element} {dpi} />
     <RotationHandle {element} />
     {#if element.position === 'absolute'}
-      <DragHandles {element} />
+      <DragHandles {element} {dpi} />
     {/if}
   {/if}
 </div>

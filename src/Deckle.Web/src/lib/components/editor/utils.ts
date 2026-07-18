@@ -11,7 +11,7 @@ import type {
   GridElement,
   TemplateElement
 } from './types';
-import { mmToPx } from '$lib/utils/size.utils';
+import { mmToPx, pxToMm } from '$lib/utils/size.utils';
 
 const GRID_VARIANT_LABELS: Record<GridVariant, string> = {
   checkerboard: 'Checkerboard',
@@ -100,6 +100,43 @@ export function dimensionToPx(value: number | string | undefined, dpi?: number):
   // Try to parse numeric value from string (e.g., "10px" -> 10)
   const parsed = Number.parseFloat(value);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Given an element's existing value for a length property and a freshly computed
+ * pixel value (e.g. after a drag/resize gesture), returns the new value expressed
+ * in the SAME unit the existing value used, so a mm/%-positioned element does not
+ * silently snap to px.
+ *
+ * - `existing` is a number or undefined → returns the plain pixel number.
+ * - `existing` is `"<n>mm"` → converts `newPx` to mm and returns `"<n>mm"`.
+ * - `existing` is `"<n>%"` → converts `newPx` to a percentage of `referencePx`
+ *   (parent/card dimension) and returns `"<n>%"`. If no reliable `referencePx`
+ *   is available, falls back to the pixel number (unit is lost — caller's choice).
+ * - any other string (e.g. `"100px"`) → returns the plain pixel number.
+ */
+export function writeBackInExistingUnit(
+  existing: number | string | undefined,
+  newPx: number,
+  dpi: number,
+  referencePx?: number
+): number | string {
+  if (typeof existing !== 'string') return newPx;
+
+  if (existing.includes('mm')) {
+    return `${pxToMm(newPx, dpi)}mm`;
+  }
+
+  if (existing.includes('%')) {
+    if (referencePx && referencePx > 0) {
+      const pct = Math.round((newPx / referencePx) * 10000) / 100;
+      return `${pct}%`;
+    }
+    // No reliable reference for % → fall back to px.
+    return newPx;
+  }
+
+  return newPx;
 }
 
 /**

@@ -17,13 +17,6 @@
     onchange: (newPadding: Padding) => void;
   } = $props();
 
-  // Convert number to string format for DimensionInput
-  function toStringValue(value: number | string | undefined): string | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value === 'number') return `${value}px`;
-    return value;
-  }
-
   // Track whether we're in "separate sides" mode
   let separateSides = $state(
     !!(
@@ -93,7 +86,7 @@
     <DimensionInput
       label="All sides"
       id="padding-all"
-      value={toStringValue(padding?.all)}
+      value={padding?.all}
       onchange={(value) => updateAllSides(value)}
     />
   {:else}
@@ -102,28 +95,28 @@
       <DimensionInput
         label="Top"
         id="padding-top"
-        value={toStringValue(padding?.top)}
+        value={padding?.top}
         onchange={(value) => updateSide('top', value)}
       />
 
       <DimensionInput
         label="Right"
         id="padding-right"
-        value={toStringValue(padding?.right)}
+        value={padding?.right}
         onchange={(value) => updateSide('right', value)}
       />
 
       <DimensionInput
         label="Bottom"
         id="padding-bottom"
-        value={toStringValue(padding?.bottom)}
+        value={padding?.bottom}
         onchange={(value) => updateSide('bottom', value)}
       />
 
       <DimensionInput
         label="Left"
         id="padding-left"
-        value={toStringValue(padding?.left)}
+        value={padding?.left}
         onchange={(value) => updateSide('left', value)}
       />
     </div>

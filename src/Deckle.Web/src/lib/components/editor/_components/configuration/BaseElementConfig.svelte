@@ -20,21 +20,15 @@
     children?: any;
   } = $props();
 
-  // Helper to convert dimension value to string for DimensionInput
-  function toStringValue(value: number | string | undefined): string | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value === 'number') return `${value}px`;
-    return value;
-  }
-
-  // For container elements, get inner border radius value
+  // For container elements, get inner border radius value (skip the per-corner
+  // object form — DimensionInput only edits a single length).
   const containerElement = $derived(
     element.type === 'container' ? (element as ContainerElement) : undefined
   );
   const innerBorderRadiusValue = $derived(
     containerElement?.innerBorderRadius !== undefined &&
       typeof containerElement.innerBorderRadius !== 'object'
-      ? toStringValue(containerElement.innerBorderRadius)
+      ? containerElement.innerBorderRadius
       : undefined
   );
 

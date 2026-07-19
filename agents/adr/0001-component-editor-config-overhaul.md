@@ -1,6 +1,8 @@
 # ADR-0001: Component Editor Configuration Overhaul
 
-**Status:** Accepted (plan approved; implementation not started)
+**Status:** Accepted — Phases 1–2 implemented. D5 decision: **Variant A (collapsible
+groups)** chosen; Variants B (tab rail) and C (sticky scroll-spy rail) were prototyped and
+deleted. Phase 3 outstanding.
 **Date:** 2026-07-17
 **Scope:** `src/Deckle.Web/src/lib/components/editor/` (template schema, template store, config panel, canvas)
 
@@ -94,6 +96,11 @@ backed by the real template store, and evaluated with real designs on desktop an
   horizontal tabs are cramped at 300px), one group per tab, set-indicator dots on tabs.
 
 The winning variant keeps its code; the loser is deleted.
+
+**Decision (post-evaluation):** Variant A (collapsible accordion groups) was chosen. A third
+variant C — a sticky vertical tab rail acting as a scroll-spy over one long section list — was
+also prototyped during evaluation. Variants B and C were deleted; the config panel now renders
+only the accordion.
 
 ### D6. Mobile: bottom sheet with snap points
 

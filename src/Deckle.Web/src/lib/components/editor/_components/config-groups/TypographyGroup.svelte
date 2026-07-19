@@ -17,7 +17,7 @@
 
   const el = $derived(elements[0] as TextElement);
 
-  // Font tracking (regression-preserving: mirrors the previous TextConfig).
+  // Font tracking (regression-preserving: mirrors the previous per-type text config).
   function extractUsedFonts(e: TemplateElement, meta: FontMetadata[] | undefined): FontMetadata[] {
     const fonts: FontMetadata[] = [];
     if (e.type === 'text' && e.fontFamily && e.fontFamily !== 'System Default') {

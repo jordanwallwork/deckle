@@ -8,7 +8,7 @@ import type { PropertyGroup } from '../../capabilities';
  */
 
 /** Which panel variant is shown — the dev toggle / decision gate (D5). */
-export type PanelVariant = 'a' | 'b';
+export type PanelVariant = 'a' | 'b' | 'c';
 
 interface PanelPrefs {
   variant: PanelVariant;

@@ -6,6 +6,7 @@
   import { panelPrefs, setVariant } from './panelPrefs.svelte';
   import AccordionPanel from './AccordionPanel.svelte';
   import TabRailPanel from './TabRailPanel.svelte';
+  import ScrollSpyPanel from './ScrollSpyPanel.svelte';
 
   /**
    * Hosts the two panel prototypes behind a dev toggle (ADR-0001 D5 decision
@@ -19,10 +20,10 @@
     readOnly = false
   }: { elements: TemplateElement[]; dpi: number; readOnly?: boolean } = $props();
 
-  // Initialise the variant from `?panel=a|b` once (dev toggle via query param).
+  // Initialise the variant from `?panel=a|b|c` once (dev toggle via query param).
   onMount(() => {
     const p = $page.url.searchParams.get('panel');
-    if (p === 'a' || p === 'b') setVariant(p);
+    if (p === 'a' || p === 'b' || p === 'c') setVariant(p);
   });
 
   function update(updates: Partial<TemplateElement>, sessionKey?: string) {
@@ -53,13 +54,21 @@
         onclick={() => setVariant('b')}
         title="Variant B — vertical tab rail">B</button
       >
+      <button
+        type="button"
+        class:active={panelPrefs.variant === 'c'}
+        onclick={() => setVariant('c')}
+        title="Variant C — sticky scroll-spy tab rail">C</button
+      >
     </div>
   </div>
 
   {#if panelPrefs.variant === 'a'}
     <AccordionPanel {elements} {dpi} {update} {seal} />
-  {:else}
+  {:else if panelPrefs.variant === 'b'}
     <TabRailPanel {elements} {dpi} {update} {seal} />
+  {:else}
+    <ScrollSpyPanel {elements} {dpi} {update} {seal} />
   {/if}
 </div>
 

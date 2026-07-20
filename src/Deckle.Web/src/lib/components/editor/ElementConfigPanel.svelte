@@ -1,21 +1,16 @@
 <script lang="ts">
   import Panel from './_components/Panel.svelte';
-  import ContainerConfig from './_components/configuration/ContainerConfig.svelte';
-  import TextConfig from './_components/configuration/TextConfig.svelte';
-  import ImageConfig from './_components/configuration/ImageConfig.svelte';
-  import IteratorConfig from './_components/configuration/IteratorConfig.svelte';
-  import ShapeConfig from './_components/configuration/ShapeConfig.svelte';
-  import GridConfig from './_components/configuration/GridConfig.svelte';
   import ComponentConfig from './_components/configuration/ComponentConfig.svelte';
+  import GroupConfigHost from './_components/config-groups/GroupConfigHost.svelte';
   import { templateStore } from '$lib/stores/templateElements';
-  import type { ContainerElement, TextElement, ImageElement, IteratorElement, ShapeElement, GridElement } from './types';
   import type { EditableComponent } from '$lib/types';
 
   let {
     component,
     part,
-    readOnly = false
-  }: { component: EditableComponent; part?: string; readOnly?: boolean } = $props();
+    readOnly = false,
+    dpi = 96
+  }: { component: EditableComponent; part?: string; readOnly?: boolean; dpi?: number } = $props();
 
   const selectedElement = $derived(
     $templateStore.selectedElementId
@@ -31,23 +26,13 @@
     {#if isRootSelected}
       <ComponentConfig {component} {part} />
     {:else if selectedElement}
-      {#if selectedElement.type === 'container'}
-        <ContainerConfig element={selectedElement as ContainerElement} />
-      {:else if selectedElement.type === 'text'}
-        <TextConfig element={selectedElement as TextElement} />
-      {:else if selectedElement.type === 'image'}
-        <ImageConfig element={selectedElement as ImageElement} />
-      {:else if selectedElement.type === 'iterator'}
-        <IteratorConfig element={selectedElement as IteratorElement} />
-      {:else if selectedElement.type === 'shape'}
-        <ShapeConfig element={selectedElement as ShapeElement} />
-      {:else if selectedElement.type === 'grid'}
-        <GridConfig element={selectedElement as GridElement} />
-      {/if}
+      <GroupConfigHost elements={[selectedElement]} {dpi} {readOnly} />
     {:else}
       <div class="empty-state">
         <p>No element selected</p>
-        <p class="hint">Select an element from the structure tree to edit its properties</p>
+        <p class="hint">
+          Select an element on the canvas or in the structure tree to edit its properties
+        </p>
       </div>
     {/if}
   {/snippet}

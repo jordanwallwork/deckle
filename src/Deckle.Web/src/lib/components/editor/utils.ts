@@ -11,7 +11,8 @@ import type {
   GridElement,
   TemplateElement
 } from './types';
-import { mmToPx } from '$lib/utils/size.utils';
+import { mmToPx, pxToMm } from '$lib/utils/size.utils';
+import { toDimension, toStored, toCss, mm as mmDim } from './dimension';
 
 const GRID_VARIANT_LABELS: Record<GridVariant, string> = {
   checkerboard: 'Checkerboard',
@@ -67,18 +68,13 @@ export function dimensionValue(
   value: number | string | undefined,
   dpi?: number
 ): string | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value === 'number') return `${value}px`;
-
-  // Handle mm unit - convert to px
-  if (typeof value === 'string' && value.includes('mm') && dpi !== undefined) {
-    const numericValue = Number.parseFloat(value);
-    if (!Number.isNaN(numericValue)) {
-      return `${mmToPx(numericValue, dpi)}px`;
-    }
+  // Parse to the domain Dimension and render as CSS. For unparseable strings
+  // (e.g. "auto"), preserve the legacy pass-through behavior.
+  const dimension = toDimension(value);
+  if (dimension === undefined) {
+    return typeof value === 'string' ? value : undefined;
   }
-
-  return value;
+  return toCss(dimension, dpi);
 }
 
 /**
@@ -87,19 +83,61 @@ export function dimensionValue(
  */
 export function dimensionToPx(value: number | string | undefined, dpi?: number): number {
   if (value === undefined) return 0;
-  if (typeof value === 'number') return value;
 
-  // Handle mm unit - convert to px
-  if (typeof value === 'string' && value.includes('mm') && dpi !== undefined) {
-    const numericValue = Number.parseFloat(value);
-    if (!Number.isNaN(numericValue)) {
-      return mmToPx(numericValue, dpi);
-    }
+  const dimension = toDimension(value);
+
+  // mm converts to px only when a dpi is supplied (matches legacy behavior:
+  // an mm string with no dpi falls through to the raw parseFloat below).
+  if (dimension?.unit === 'mm' && dpi !== undefined) {
+    return mmToPx(dimension.value, dpi);
   }
 
-  // Try to parse numeric value from string (e.g., "10px" -> 10)
+  // For everything else preserve the legacy parseFloat behavior exactly,
+  // INCLUDING the quirk that "50%" yields 50 (drag/resize depends on this).
+  if (typeof value === 'number') return value;
   const parsed = Number.parseFloat(value);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Given an element's existing value for a length property and a freshly computed
+ * pixel value (e.g. after a drag/resize gesture), returns the new value expressed
+ * in the SAME unit the existing value used, so a mm/%-positioned element does not
+ * silently snap to px.
+ *
+ * - `existing` is a number or undefined → returns the plain pixel number.
+ * - `existing` is `"<n>mm"` → converts `newPx` to mm and returns `"<n>mm"`.
+ * - `existing` is `"<n>%"` → converts `newPx` to a percentage of `referencePx`
+ *   (parent/card dimension) and returns `"<n>%"`. If no reliable `referencePx`
+ *   is available, falls back to the pixel number (unit is lost — caller's choice).
+ * - any other string (e.g. `"100px"`) → returns the plain pixel number.
+ */
+export function writeBackInExistingUnit(
+  existing: number | string | undefined,
+  newPx: number,
+  dpi: number,
+  referencePx?: number
+): number | string {
+  if (typeof existing !== 'string') return newPx;
+
+  const dimension = toDimension(existing);
+
+  if (dimension?.unit === 'mm') {
+    // Rebuild in mm from the new pixel value. toStored(mm) → "<v>mm".
+    return toStored(mmDim(pxToMm(newPx, dpi))) as string;
+  }
+
+  if (dimension?.unit === 'percent') {
+    if (referencePx && referencePx > 0) {
+      const pct = Math.round((newPx / referencePx) * 10000) / 100;
+      return `${pct}%`;
+    }
+    // No reliable reference for % → fall back to px.
+    return newPx;
+  }
+
+  // px string, or any other string → plain pixel number.
+  return newPx;
 }
 
 /**

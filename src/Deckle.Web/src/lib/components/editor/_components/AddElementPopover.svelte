@@ -1,6 +1,7 @@
 <script lang="ts">
   import { templateStore } from '$lib/stores/templateElements';
-  import type { ElementType, TemplateElement, ContainerElement, IteratorElement, ShapeElement, GridElement } from '../types';
+  import { createElementOfType } from '../elementFactory';
+  import type { ElementType } from '../types';
 
   let {
     isOpen = $bindable(false),
@@ -12,102 +13,10 @@
     position: { top: number; left: number };
   } = $props();
 
-  function generateId(): string {
-    return `el-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
-
   function addElement(type: ElementType) {
-    const id = generateId();
-    const baseElement = {
-      id,
-      visibilityMode: 'show' as const,
-      opacity: 1
-    };
-
-    let newElement: TemplateElement;
-
-    switch (type) {
-      case 'container':
-        newElement = {
-          ...baseElement,
-          type: 'container',
-          display: 'flex',
-          flexConfig: {
-            direction: 'row',
-            wrap: 'nowrap',
-            justifyContent: 'flex-start',
-            alignItems: 'flex-start'
-          },
-          dimensions: {
-            width: '100%',
-            height: 100
-          },
-          padding: {
-            top: 10,
-            right: 10,
-            bottom: 10,
-            left: 10
-          },
-          children: []
-        } as ContainerElement;
-        break;
-
-      case 'text':
-        newElement = {
-          ...baseElement,
-          type: 'text',
-          content: 'New Text',
-          fontSize: 16,
-          color: '#000000'
-        };
-        break;
-
-      case 'image':
-        newElement = {
-          ...baseElement,
-          type: 'image',
-          imageId: '',
-          dimensions: { width: 100, height: 100 }
-        };
-        break;
-
-      case 'iterator':
-        newElement = {
-          ...baseElement,
-          type: 'iterator',
-          iteratorName: 'i',
-          fromExpression: '1',
-          toExpression: '3',
-          children: []
-        } as IteratorElement;
-        break;
-
-      case 'shape':
-        newElement = {
-          ...baseElement,
-          type: 'shape',
-          shapeType: 'circle',
-          dimensions: { width: 100, height: 100 },
-          children: []
-        } as ShapeElement;
-        break;
-
-      case 'grid':
-        newElement = {
-          ...baseElement,
-          type: 'grid',
-          variant: 'checkerboard',
-          itemSize: 20,
-          cells: [],
-          children: [],
-          dimensions: { width: 100, height: 100 },
-          background: { color: '#cccccc' },
-          border: { width: 2, style: 'solid', color: '#000000' }
-        } as GridElement;
-        break;
-    }
-
-    templateStore.addElement(newElement, parentId);
+    // Use the shared factory so every creation path produces the same
+    // unset-first elements (ADR-0001 D4) with the normalized schema (D3).
+    templateStore.addElement(createElementOfType(type), parentId);
     isOpen = false;
   }
 

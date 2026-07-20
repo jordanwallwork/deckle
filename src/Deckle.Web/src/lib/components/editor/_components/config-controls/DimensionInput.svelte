@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { toDimension, toStored, type Unit } from '../../dimension';
+
   let {
     label,
     id,
@@ -7,43 +9,57 @@
     disabled = false,
     disabledMessage,
     hideLabel = false,
-    inline = false
+    inline = false,
+    placeholder = 'auto'
   }: {
     label: string;
     id: string;
-    value?: string;
-    onchange: (newValue: string | undefined) => void;
+    value?: number | string;
+    onchange: (newValue: number | string | undefined) => void;
     disabled?: boolean;
     disabledMessage?: string;
     hideLabel?: boolean;
     inline?: boolean;
+    /** Shown when unset — used to surface the effective default (ADR-0001 D4). */
+    placeholder?: string;
   } = $props();
 
-  // Extract numeric value from dimension string
-  const numericValue = $derived(() => {
-    const dimStr = String(value ?? '');
-    if (!dimStr) return '';
-    const match = dimStr.match(/^(\d+\.?\d*)/);
-    return match ? match[1] : '';
-  });
+  // Parse the stored value into a domain Dimension. Storage convention: a
+  // plain number means px; a string already carries its unit (mm/%/px).
+  const dimension = $derived(toDimension(value));
 
-  // Extract unit from dimension string (default to 'mm')
-  const unit = $derived(() => {
-    const dimStr = String(value ?? '');
-    if (dimStr.includes('%')) return '%';
-    if (dimStr.includes('px')) return 'px';
-    return 'mm';
-  });
+  // The <select> uses the stored-style tokens (mm/px/%); map internal
+  // 'percent' ↔ '%' at this boundary.
+  const UNIT_TO_TOKEN: Record<Unit, string> = { px: 'px', mm: 'mm', percent: '%' };
+  const TOKEN_TO_UNIT: Record<string, Unit> = { px: 'px', mm: 'mm', '%': 'percent' };
+
+  // Numeric field value shown in the input.
+  const numericValue = $derived(dimension ? String(dimension.value) : '');
+
+  // Unit token for the select (default to 'mm' when the value is unset).
+  const unitToken = $derived(dimension ? UNIT_TO_TOKEN[dimension.unit] : 'mm');
+
+  function emit(numericStr: string, token: string) {
+    if (!numericStr) {
+      onchange(undefined);
+      return;
+    }
+    const num = Number.parseFloat(numericStr);
+    if (Number.isNaN(num)) {
+      onchange(undefined);
+      return;
+    }
+    // Serialize via toStored so a px entry emits a number, not "<v>px".
+    onchange(toStored({ unit: TOKEN_TO_UNIT[token], value: num }));
+  }
 
   function handleValueChange(newNumericValue: string) {
-    const currentUnit = unit();
-    onchange(newNumericValue ? `${newNumericValue}${currentUnit}` : undefined);
+    emit(newNumericValue, unitToken);
   }
 
   function handleUnitChange(newUnit: string) {
-    const numeric = numericValue();
-    if (numeric) {
-      onchange(`${numeric}${newUnit}`);
+    if (numericValue) {
+      emit(numericValue, newUnit);
     }
   }
 </script>
@@ -56,15 +72,15 @@
     <input
       type="number"
       {id}
-      placeholder="auto"
-      value={numericValue()}
+      {placeholder}
+      value={numericValue}
       oninput={(e) => handleValueChange(e.currentTarget.value)}
       {disabled}
     />
     <select
       class="unit-select"
       class:disabled-unit={!value}
-      value={unit()}
+      value={unitToken}
       onchange={(e) => handleUnitChange(e.currentTarget.value)}
       {disabled}
     >

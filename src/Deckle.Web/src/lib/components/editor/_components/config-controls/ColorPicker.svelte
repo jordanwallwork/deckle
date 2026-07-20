@@ -7,12 +7,17 @@
     label,
     id,
     value = '',
-    onchange
+    onchange,
+    placeholder = 'Color or formula',
+    hideLabel = false
   }: {
     label: string;
     id: string;
     value?: string;
     onchange: (color: string) => void;
+    /** Shown when unset — used to surface the effective default (ADR-0001 D4). */
+    placeholder?: string;
+    hideLabel?: boolean;
   } = $props();
 
   let buttonEl: HTMLButtonElement;
@@ -62,11 +67,13 @@
 </script>
 
 <div class="field">
-  <label for={id}>{label}</label>
+  {#if !hideLabel}
+    <label for={id}>{label}</label>
+  {/if}
   <div class="color-input">
     <button bind:this={buttonEl} aria-label="Open color picker" style="--cp-size:calc(2rem + 2px)"
     ></button>
-    <input type="text" {id} {value} oninput={handleTextInput} placeholder="Color or formula" />
+    <input type="text" {id} {value} oninput={handleTextInput} {placeholder} />
   </div>
 </div>
 

@@ -7,6 +7,7 @@
   import MergeDataProvider from './MergeDataProvider.svelte';
   import { getDataSourceRow } from '$lib/stores/dataSourceRow';
   import { cellReferenceFields } from '$lib/utils/mergeFields';
+  import { effectiveGridCellBackground, effectiveGridCellBorder } from '../../effectiveDefaults';
   import { untrack, type Snippet } from 'svelte';
 
   let {
@@ -173,13 +174,15 @@
       : null
   );
 
-  const defaultBackground = $derived(backgroundStyle(element.background));
-  const defaultBorder = $derived(borderStyle(element.border, dpi));
+  // Unset cell fill/border resolve to their effective defaults (grey fill,
+  // 2px solid black) via effectiveDefaults.ts, matching the old factory stamp.
+  const defaultBackground = $derived(backgroundStyle(effectiveGridCellBackground(element)));
+  const defaultBorder = $derived(borderStyle(effectiveGridCellBorder(element), dpi));
 
   // Build a synthetic ShapeElement for a hexagonal cell so that ShapeElement handles
   // all clip-path and border rendering (avoiding duplication of that logic here).
   function makeCellShape(cell: GridCell | undefined, fallbackId: string): ShapeElementType {
-    const border = cell?.border ?? element.border;
+    const border = cell?.border ?? effectiveGridCellBorder(element);
     const borderWidth =
       typeof border?.width === 'number'
         ? border.width
@@ -190,9 +193,9 @@
       visibilityMode: 'show',
       shapeType: 'hexagon',
       children: element.children ?? [],
-      background: cell?.background ?? element.background,
+      background: cell?.background ?? effectiveGridCellBackground(element),
       ...(borderWidth > 0
-        ? { shapeBorder: { thickness: borderWidth, color: border?.color ?? '#000000' } }
+        ? { border: { width: borderWidth, style: 'solid', color: border?.color ?? '#000000' } }
         : {})
     };
   }

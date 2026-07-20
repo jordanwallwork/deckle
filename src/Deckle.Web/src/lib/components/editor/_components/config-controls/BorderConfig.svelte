@@ -13,13 +13,6 @@
     radiusLabel?: string;
   } = $props();
 
-  // Convert number to string format for DimensionInput
-  function toStringValue(value: number | string | undefined): string | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value === 'number') return `${value}px`;
-    return value;
-  }
-
   // Track whether we're in "separate sides" mode
   let separateSides = $state(!!(border?.top || border?.right || border?.bottom || border?.left));
 
@@ -165,7 +158,7 @@
     <DimensionInput
       label={radiusLabel}
       id="border-radius"
-      value={toStringValue(typeof border?.radius === 'object' ? undefined : border?.radius)}
+      value={typeof border?.radius === 'object' ? undefined : border?.radius}
       onchange={(value) => updateRadius(value)}
     />
   {/if}

@@ -10,13 +10,6 @@
     y?: number | string;
     onchange: (updates: { x?: number | string; y?: number | string }) => void;
   } = $props();
-
-  // Convert number to string format for DimensionInput
-  function toStringValue(value: number | string | undefined): string | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value === 'number') return `${value}px`;
-    return value;
-  }
 </script>
 
 <div class="field">
@@ -25,14 +18,14 @@
     <DimensionInput
       label="Left"
       id="position-x"
-      value={toStringValue(x)}
+      value={x}
       onchange={(newValue) => onchange({ x: newValue })}
     />
 
     <DimensionInput
       label="Top"
       id="position-y"
-      value={toStringValue(y)}
+      value={y}
       onchange={(newValue) => onchange({ y: newValue })}
     />
   </div>

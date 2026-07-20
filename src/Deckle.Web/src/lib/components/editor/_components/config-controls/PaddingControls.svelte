@@ -11,18 +11,17 @@
 
   let {
     padding,
-    onchange
+    onchange,
+    label = 'Padding',
+    idPrefix = 'padding'
   }: {
     padding?: Padding;
     onchange: (newPadding: Padding) => void;
+    /** Section label — override to reuse this control for margin. */
+    label?: string;
+    /** Unique id prefix so multiple instances (padding + margin) don't collide. */
+    idPrefix?: string;
   } = $props();
-
-  // Convert number to string format for DimensionInput
-  function toStringValue(value: number | string | undefined): string | undefined {
-    if (value === undefined) return undefined;
-    if (typeof value === 'number') return `${value}px`;
-    return value;
-  }
 
   // Track whether we're in "separate sides" mode
   let separateSides = $state(
@@ -81,7 +80,7 @@
 
 <div class="field">
   <div class="header">
-    <span class="section-label">Padding:</span>
+    <span class="section-label">{label}:</span>
     <label class="toggle-label">
       <span>Separate sides</span>
       <input type="checkbox" checked={separateSides} onchange={toggleSeparateSides} />
@@ -92,8 +91,8 @@
     <!-- All sides mode -->
     <DimensionInput
       label="All sides"
-      id="padding-all"
-      value={toStringValue(padding?.all)}
+      id={`${idPrefix}-all`}
+      value={padding?.all}
       onchange={(value) => updateAllSides(value)}
     />
   {:else}
@@ -101,29 +100,29 @@
     <div class="padding-grid">
       <DimensionInput
         label="Top"
-        id="padding-top"
-        value={toStringValue(padding?.top)}
+        id={`${idPrefix}-top`}
+        value={padding?.top}
         onchange={(value) => updateSide('top', value)}
       />
 
       <DimensionInput
         label="Right"
-        id="padding-right"
-        value={toStringValue(padding?.right)}
+        id={`${idPrefix}-right`}
+        value={padding?.right}
         onchange={(value) => updateSide('right', value)}
       />
 
       <DimensionInput
         label="Bottom"
-        id="padding-bottom"
-        value={toStringValue(padding?.bottom)}
+        id={`${idPrefix}-bottom`}
+        value={padding?.bottom}
         onchange={(value) => updateSide('bottom', value)}
       />
 
       <DimensionInput
         label="Left"
-        id="padding-left"
-        value={toStringValue(padding?.left)}
+        id={`${idPrefix}-left`}
+        value={padding?.left}
         onchange={(value) => updateSide('left', value)}
       />
     </div>

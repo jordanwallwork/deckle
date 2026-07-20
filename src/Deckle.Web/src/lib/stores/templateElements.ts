@@ -81,20 +81,17 @@ interface HistoryState {
 const MAX_HISTORY_SIZE = 50;
 
 function createTemplateStore() {
+  // Unset-first (ADR-0001 D4): cosmetic styling defaults (display, flexConfig,
+  // opacity, visibilityMode) are not stamped on the root. The root's own
+  // display/flex/opacity/visibility are never read at render time — only its
+  // background, bleed/safe colors, and children are — so omitting them has no
+  // visible effect; if the root were ever rendered as a container, the
+  // container renderer resolves the same effective defaults.
   const initialRoot: ContainerElement = {
     id: 'root',
     type: 'container',
     position: 'relative',
-    display: 'flex',
-    flexConfig: {
-      direction: 'column',
-      wrap: 'nowrap',
-      justifyContent: 'flex-start',
-      alignItems: 'flex-start'
-    },
     children: [],
-    visibilityMode: 'show',
-    opacity: 1,
     bleedAreaColor: '#ff0000', // Default red for bleed area
     safeAreaColor: '#00ff00' // Default green for safe area
   };
@@ -111,6 +108,17 @@ function createTemplateStore() {
   // History stacks for undo/redo
   let past: HistoryState[] = [];
   let future: HistoryState[] = [];
+
+  // Key of the in-progress edit session (element+property scoped). Consecutive
+  // updates carrying the same key collapse into a single history entry; the
+  // session is sealed (set back to null) on blur/pointer-up, a different key, a
+  // selection change, or any structural operation.
+  let currentSessionKey: string | null = null;
+
+  // Ends any in-progress edit session so the next keyed update starts fresh.
+  function sealSession() {
+    currentSessionKey = null;
+  }
 
   // Helper to save current state to history before mutation
   function saveHistory(store: TemplateStore) {
@@ -135,6 +143,7 @@ function createTemplateStore() {
     // Add an element to a parent (or root if parentId is null)
     addElement: (element: TemplateElement, parentId: string | null = null) => {
       update((store) => {
+        sealSession();
         saveHistory(store);
         // Enforce absolute positioning for root-level elements
         if (!parentId || parentId === 'root') {
@@ -164,6 +173,7 @@ function createTemplateStore() {
     // Remove an element by ID
     removeElement: (elementId: string) => {
       update((store) => {
+        sealSession();
         saveHistory(store);
         const result = removeElementFromContainer(store.root, elementId);
         if (result.removed) {
@@ -176,34 +186,41 @@ function createTemplateStore() {
       });
     },
 
-    // Update an element
-    updateElement: (elementId: string, updates: Partial<TemplateElement>) => {
+    // Update an element.
+    //
+    // When `sessionKey` is provided, consecutive updates carrying the same key
+    // collapse into a single undo step (an edit session — e.g. one drag gesture
+    // or one multi-keystroke text edit). The store still updates live so the
+    // canvas previews continuously; only the history is batched. Passing no key
+    // (or a different key) seals the previous session and records a new entry.
+    updateElement: (
+      elementId: string,
+      updates: Partial<TemplateElement>,
+      sessionKey?: string
+    ) => {
       update((store) => {
-        saveHistory(store);
+        const continuesSession = sessionKey != null && sessionKey === currentSessionKey;
+        if (!continuesSession) {
+          saveHistory(store);
+          currentSessionKey = sessionKey ?? null;
+        } else {
+          // Batched into the open session: no new history entry, but the change
+          // is still unsaved.
+          store.hasUnsavedChanges = true;
+        }
         store.root = updateElementInContainer(store.root, elementId, updates);
         return store;
       });
     },
 
-    // Update an element without saving to history (useful for batched operations like drag)
-    updateElementWithoutHistory: (elementId: string, updates: Partial<TemplateElement>) => {
-      update((store) => {
-        store.root = updateElementInContainer(store.root, elementId, updates);
-        return store;
-      });
-    },
-
-    // Save current state to history (useful for manual history management)
-    saveToHistory: () => {
-      update((store) => {
-        saveHistory(store);
-        return store;
-      });
-    },
+    // Seal any in-progress edit session (call on blur / pointer-up) so the next
+    // keyed update begins a fresh undo step.
+    sealSession,
 
     // Select an element
     selectElement: (elementId: string | null) => {
       update((store) => {
+        sealSession();
         store.selectedElementId = elementId;
         return store;
       });
@@ -238,11 +255,13 @@ function createTemplateStore() {
       });
       past = [];
       future = [];
+      currentSessionKey = null;
     },
 
     // Undo the last change
     undo: () => {
       if (past.length === 0) return;
+      sealSession();
 
       update((store) => {
         const previousState = past.pop()!;
@@ -262,6 +281,7 @@ function createTemplateStore() {
     // Redo the last undone change
     redo: () => {
       if (future.length === 0) return;
+      sealSession();
 
       update((store) => {
         const nextState = future.pop()!;
@@ -288,6 +308,7 @@ function createTemplateStore() {
           return store;
         }
 
+        sealSession();
         saveHistory(store);
 
         const removeResult = removeElementFromContainer(store.root, elementId);
@@ -320,6 +341,7 @@ function createTemplateStore() {
         const parentInfo = findParentAndIndex(store.root, elementId);
         if (!parentInfo) return store;
 
+        sealSession();
         saveHistory(store);
 
         // Create a deep copy with new IDs

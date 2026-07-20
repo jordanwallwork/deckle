@@ -13,6 +13,7 @@
   import { isEditableComponent } from '$lib/utils/componentTypes';
   import { setContext } from 'svelte';
   import ReadOnlyBanner from './_components/ReadOnlyBanner.svelte';
+  import BottomSheet from './_components/BottomSheet.svelte';
   import { MenuIcon, GearIcon } from '$lib/components/icons';
 
   let { data, readOnly = false }: { data: PageData; readOnly?: boolean } = $props();
@@ -32,6 +33,18 @@
   // Side panel visibility (for mobile)
   let structurePanelOpen = $state(false);
   let configPanelOpen = $state(false);
+
+  // Track the mobile breakpoint so the config panel renders as a bottom sheet
+  // (ADR-0001 D6) on mobile and a right-hand column on desktop — only one
+  // ElementConfigPanel instance mounts at a time.
+  let isMobile = $state(false);
+  $effect(() => {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    isMobile = mq.matches;
+    const onChange = (e: MediaQueryListEvent) => (isMobile = e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  });
 
   function toggleStructurePanel() {
     structurePanelOpen = !structurePanelOpen;
@@ -212,13 +225,13 @@
         </div>
       </aside>
 
-      <!-- Overlay for mobile when side panel is open -->
-      {#if structurePanelOpen || configPanelOpen}
+      <!-- Overlay for mobile when the structure drawer is open (the config
+           bottom sheet brings its own scrim). -->
+      {#if structurePanelOpen}
         <button
           class="panel-overlay"
           onclick={() => {
             structurePanelOpen = false;
-            configPanelOpen = false;
           }}
           aria-label="Close panel"
         ></button>
@@ -234,13 +247,24 @@
         />
       </main>
 
-      <!-- Config Panel (right) -->
-      <aside class="side-panel config-panel" class:open={configPanelOpen}>
-        <div class="side-panel-content">
-          <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />
-        </div>
-      </aside>
+      <!-- Config Panel (right, desktop only) -->
+      {#if !isMobile}
+        <aside class="side-panel config-panel">
+          <div class="side-panel-content">
+            <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />
+          </div>
+        </aside>
+      {/if}
     </div>
+
+    <!-- Config Panel as a bottom sheet (mobile only) -->
+    {#if isMobile}
+      <BottomSheet open={configPanelOpen} onClose={() => (configPanelOpen = false)} title="Configuration">
+        {#snippet children()}
+          <ElementConfigPanel component={data.component} part={partLabel} {readOnly} />
+        {/snippet}
+      </BottomSheet>
+    {/if}
   </div>
 
   <!-- Data Source Panel (bottom) -->
@@ -410,17 +434,8 @@
       transform: translateX(0);
     }
 
-    .config-panel {
-      right: 0;
-      left: auto;
-      transform: translateX(100%);
-      border-left: 1px solid var(--color-border);
-      box-shadow: var(--shadow-lg);
-    }
-
-    .config-panel.open {
-      transform: translateX(0);
-    }
+    /* On mobile the config panel renders as a bottom sheet (BottomSheet.svelte),
+       not a slide-in aside, so no .config-panel mobile rules are needed here. */
 
     .panel-overlay {
       display: block;

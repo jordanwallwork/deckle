@@ -9,7 +9,8 @@ import {
   hasAnyBorderRadiusSet,
   borderRadiusStyle,
   boxShadowStyle,
-  backgroundStyle
+  backgroundStyle,
+  writeBackInExistingUnit
 } from './utils';
 import type {
   ContainerElement,
@@ -174,6 +175,47 @@ describe('dimensionToPx', () => {
 });
 
 // ============================================================================
+// writeBackInExistingUnit
+// ============================================================================
+
+describe('writeBackInExistingUnit', () => {
+  it('returns the pixel number when the existing value is a number', () => {
+    expect(writeBackInExistingUnit(42, 100, 96)).toBe(100);
+  });
+
+  it('returns the pixel number when the existing value is undefined', () => {
+    expect(writeBackInExistingUnit(undefined, 100, 96)).toBe(100);
+  });
+
+  it('converts back to mm when the existing value is an mm string', () => {
+    // 96px at 96 DPI = 25.4mm (1 inch)
+    expect(writeBackInExistingUnit('10mm', 96, 96)).toBe('25.4mm');
+  });
+
+  it('rounds mm to 2 decimal places', () => {
+    // 50px at 96 DPI = 13.229...mm -> 13.23mm
+    expect(writeBackInExistingUnit('5mm', 50, 96)).toBe('13.23mm');
+  });
+
+  it('converts back to % when a reference is provided', () => {
+    // 50px of a 200px reference = 25%
+    expect(writeBackInExistingUnit('10%', 50, 96, 200)).toBe('25%');
+  });
+
+  it('falls back to px for % when no reference is provided', () => {
+    expect(writeBackInExistingUnit('10%', 50, 96)).toBe(50);
+  });
+
+  it('falls back to px for % when the reference is zero', () => {
+    expect(writeBackInExistingUnit('10%', 50, 96, 0)).toBe(50);
+  });
+
+  it('returns the pixel number for a plain px string', () => {
+    expect(writeBackInExistingUnit('100px', 120, 96)).toBe(120);
+  });
+});
+
+// ============================================================================
 // spacingToCss
 // ============================================================================
 
@@ -244,6 +286,12 @@ describe('borderStyle', () => {
   it('handles border with only a radius (no width/style/color)', () => {
     const result = borderStyle({ radius: 10 });
     expect(result).toBe('border-radius: 10px');
+  });
+
+  it('builds CSS for a normalized shape border (uniform width/style/color)', () => {
+    // Shapes now use the unified Border model instead of ShapeBorder.
+    const result = borderStyle({ width: 3, style: 'solid', color: '#ff0000' });
+    expect(result).toBe('border-width: 3px; border-style: solid; border-color: #ff0000');
   });
 });
 
@@ -361,6 +409,11 @@ describe('backgroundStyle', () => {
 
   it('builds a color-only background string', () => {
     expect(backgroundStyle({ color: '#ffffff' })).toBe('background-color: #ffffff');
+  });
+
+  it('builds CSS for a normalized text background (unified Background model)', () => {
+    // Text now uses the unified Background model instead of a flat backgroundColor.
+    expect(backgroundStyle({ color: '#123456' })).toBe('background-color: #123456');
   });
 
   it('builds an image-only background string', () => {

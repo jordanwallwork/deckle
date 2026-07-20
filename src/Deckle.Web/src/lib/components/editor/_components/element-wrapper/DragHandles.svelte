@@ -2,8 +2,9 @@
   import { getContext } from 'svelte';
   import { templateStore } from '$lib/stores/templateElements';
   import type { TemplateElement } from '$lib/components/editor/types';
+  import { dimensionToPx, writeBackInExistingUnit } from '../../utils';
 
-  let { element }: { element: TemplateElement } = $props();
+  let { element, dpi }: { element: TemplateElement; dpi: number } = $props();
 
   let isDragging = $state(false);
   let isHoveringEdge = $state(false);
@@ -46,17 +47,17 @@
     isDragging = true;
     startX = e.clientX;
     startY = e.clientY;
-    initialX = typeof element.x === 'number' ? element.x : parseFloat(String(element.x)) || 0;
-    initialY = typeof element.y === 'number' ? element.y : parseFloat(String(element.y)) || 0;
+    // Use the rendered pixel value as the drag origin so mm-based positions
+    // start from the correct place (dimensionToPx handles px/mm; % falls through
+    // to its numeric prefix, matching the previous parseFloat behaviour).
+    initialX = dimensionToPx(element.x, dpi);
+    initialY = dimensionToPx(element.y, dpi);
 
     // Disable panning during drag
     const panzoom = getPanzoom();
     if (panzoom) {
       panzoom.setOptions({ disablePan: true });
     }
-
-    // Save current state to history before starting drag
-    templateStore.saveToHistory();
 
     // Add global mouse event listeners
     document.addEventListener('mousemove', handleMouseMove);
@@ -79,14 +80,22 @@
     const newX = snapToGrid(initialX + deltaX);
     const newY = snapToGrid(initialY + deltaY);
 
-    // Update element without adding to history (for smooth dragging)
-    templateStore.updateElementWithoutHistory(element.id, {
-      x: newX,
-      y: newY
-    });
+    // Preserve the element's existing unit (mm stays mm) when writing back.
+    // % has no reliable parent reference here, so it falls back to px.
+    templateStore.updateElement(
+      element.id,
+      {
+        x: writeBackInExistingUnit(element.x, newX, dpi),
+        y: writeBackInExistingUnit(element.y, newY, dpi)
+      },
+      `${element.id}:drag`
+    );
   }
 
   function handleMouseUp() {
+    if (isDragging) {
+      templateStore.sealSession();
+    }
     isDragging = false;
 
     // Re-enable panning

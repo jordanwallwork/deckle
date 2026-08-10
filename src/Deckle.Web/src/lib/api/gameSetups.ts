@@ -1,0 +1,49 @@
+import { api } from './client';
+import type { GameSetupDetail, GameSetupSummary } from '$lib/types';
+
+/**
+ * Game Setups API
+ *
+ * Setups belong to a project and are served under `/projects/{projectId}/setups`.
+ * The picker (#119) needs `list`; the Play flow (#120) additionally needs `get`
+ * to pull the full setup document before validating and running it. The
+ * remaining full-document CRUD calls are added by the setup editor work.
+ */
+export const gameSetupsApi = {
+  /**
+   * Get all game setup summaries for a project.
+   */
+  list: (projectId: string, fetchFn?: typeof fetch) =>
+    api.get<GameSetupSummary[]>(`/projects/${projectId}/setups`, undefined, fetchFn),
+
+  /**
+   * Create a new setup with an initial name and DSL document. Returns the full
+   * setup (including its new id) so the caller can open it in the editor. Maps
+   * to the backend `CreateGameSetupRequest`.
+   */
+  create: (
+    projectId: string,
+    body: { name: string; document: unknown; isValid: boolean },
+    fetchFn?: typeof fetch
+  ) =>
+    api.post<GameSetupDetail>(`/projects/${projectId}/setups`, body, undefined, fetchFn),
+
+  /**
+   * Get a single game setup including its full DSL document.
+   */
+  get: (projectId: string, setupId: string, fetchFn?: typeof fetch) =>
+    api.get<GameSetupDetail>(`/projects/${projectId}/setups/${setupId}`, undefined, fetchFn),
+
+  /**
+   * Update a setup: name, full DSL document, and the client-computed validity
+   * flag (persisted per decision #110 for Play-dialog badges). Added by the
+   * setup editor work (#123). Maps to the backend `UpdateGameSetupRequest`.
+   */
+  update: (
+    projectId: string,
+    setupId: string,
+    body: { name: string; document: unknown; isValid: boolean },
+    fetchFn?: typeof fetch
+  ) =>
+    api.put<GameSetupDetail>(`/projects/${projectId}/setups/${setupId}`, body, undefined, fetchFn)
+};

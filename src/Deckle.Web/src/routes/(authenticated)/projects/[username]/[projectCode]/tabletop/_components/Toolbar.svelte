@@ -1,5 +1,12 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import { getTabletopApi } from '$lib/tabletop';
+  import type { GameSetupSummary } from '$lib/types';
+  import SetupPickerDialog from './SetupPickerDialog.svelte';
+  import PlaySetupDialog from './PlaySetupDialog.svelte';
+  import SeatSwitcher from './SeatSwitcher.svelte';
 
   let {
     zoom,
@@ -8,8 +15,28 @@
   }: { zoom: number; onZoomChange: (z: number) => void; onFitView: () => void } = $props();
 
   const { store } = getTabletopApi();
+  const projectId = getContext<string>('projectId');
 
   const zoomPercentage = $derived(Math.round(zoom * 100));
+
+  // Play flow: the picker (#119) chooses a setup; the config dialog (#120) then
+  // configures + runs it. Picking a setup hands off from one dialog to the next.
+  let showSetupPicker = $state(false);
+  let showPlayDialog = $state(false);
+  let selectedSetup = $state<GameSetupSummary | null>(null);
+
+  function handleSetupSelected(setup: GameSetupSummary) {
+    selectedSetup = setup;
+    showPlayDialog = true;
+  }
+
+  function openSetupEditor(setupId: string) {
+    // Navigate to the graphical setup editor (#123), a sibling route of the
+    // tabletop under the same project. The Play dialog surfaces this on a failed
+    // run ("Open in editor") so the designer can jump straight to fixing it.
+    const { username, projectCode } = $page.params;
+    goto(`/projects/${username}/${projectCode}/setups/${setupId}/edit`);
+  }
 
   function zoomIn() {
     onZoomChange(Math.min(3, zoom + 0.25));
@@ -33,7 +60,7 @@
     <button
       class="tool-btn"
       onclick={() => store.undo()}
-      disabled={!store.canUndo}
+      disabled={!store.canUndo || store.isReplaying}
       title="Undo (Ctrl+Z)"
     >
       ↩
@@ -41,7 +68,7 @@
     <button
       class="tool-btn"
       onclick={() => store.redo()}
-      disabled={!store.canRedo}
+      disabled={!store.canRedo || store.isReplaying}
       title="Redo (Ctrl+Y)"
     >
       ↪
@@ -54,7 +81,35 @@
     <button class="tool-btn" onclick={zoomIn} disabled={zoom >= 3} title="Zoom in">+</button>
     <button class="tool-btn" onclick={onFitView} title="Fit to view">⤢</button>
   </div>
+
+  <div class="toolbar-group">
+    <button
+      class="tool-btn play-btn"
+      onclick={() => (showSetupPicker = true)}
+      disabled={store.isReplaying}
+      title="Play a setup"
+    >
+      ▶ Play
+    </button>
+    <!-- Seat switcher renders itself only when the run has seat zones (#124). -->
+    <SeatSwitcher />
+  </div>
 </div>
+
+<SetupPickerDialog
+  bind:show={showSetupPicker}
+  {projectId}
+  onSelect={handleSetupSelected}
+  onclose={() => (showSetupPicker = false)}
+/>
+
+<PlaySetupDialog
+  bind:show={showPlayDialog}
+  {projectId}
+  setup={selectedSetup}
+  onOpenEditor={openSetupEditor}
+  onclose={() => (showPlayDialog = false)}
+/>
 
 <style>
   .toolbar {
@@ -111,6 +166,13 @@
   .zoom-reset {
     min-width: 3rem;
     font-size: 0.75rem;
+  }
+
+  .play-btn {
+    width: auto;
+    padding: 0.25rem 0.75rem;
+    gap: 0.25rem;
+    font-weight: 600;
   }
 </style>
 

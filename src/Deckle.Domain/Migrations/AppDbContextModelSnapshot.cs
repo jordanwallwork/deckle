@@ -263,6 +263,46 @@ namespace Deckle.Domain.Migrations
                     b.ToTable("FileDirectories");
                 });
 
+            modelBuilder.Entity("Deckle.Domain.Entities.GameSetup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Document")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<bool>("IsValid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("GameSetups");
+                });
+
             modelBuilder.Entity("Deckle.Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -689,6 +729,17 @@ namespace Deckle.Domain.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("Deckle.Domain.Entities.GameSetup", b =>
+                {
+                    b.HasOne("Deckle.Domain.Entities.Project", "Project")
+                        .WithMany("GameSetups")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Deckle.Domain.Entities.UserProject", b =>
                 {
                     b.HasOne("Deckle.Domain.Entities.Project", "Project")
@@ -764,6 +815,8 @@ namespace Deckle.Domain.Migrations
                     b.Navigation("FileDirectories");
 
                     b.Navigation("Files");
+
+                    b.Navigation("GameSetups");
 
                     b.Navigation("UserProjects");
                 });

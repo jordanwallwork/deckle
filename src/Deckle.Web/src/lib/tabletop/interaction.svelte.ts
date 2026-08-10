@@ -111,6 +111,9 @@ export function createInteraction(store: TabletopStore, viewport?: TabletopViewp
   }
 
   function dispatch(event: DragInputEvent): void {
+    // Input is locked while a setup run replays (#121): swallow every gesture so
+    // the table cannot be touched mid-animation.
+    if (store.isReplaying) return;
     pointer = 'world' in event ? event.world : null;
     const result = step(drag, event, { state: store.state, templates: store.templates });
     drag = result.drag;

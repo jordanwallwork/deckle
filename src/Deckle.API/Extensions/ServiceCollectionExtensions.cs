@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
         services.AddScoped<IDataSourceService, DataSourceService>();
         services.AddScoped<IComponentService, ComponentService>();
+        services.AddScoped<IGameSetupService, GameSetupService>();
         services.AddScoped<ISampleService, SampleService>();
         services.AddScoped<IFileService, FileService>();
         services.AddScoped<IFileDirectoryService, FileDirectoryService>();

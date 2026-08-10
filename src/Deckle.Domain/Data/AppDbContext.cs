@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<PlayerMat> PlayerMats { get; set; }
     public DbSet<Entities.File> Files { get; set; }
     public DbSet<FileDirectory> FileDirectories { get; set; }
+    public DbSet<GameSetup> GameSetups { get; set; }
 
     private const string CurrentTimestampSql = "CURRENT_TIMESTAMP";
     private const string JsonbColumnType = "jsonb";
@@ -44,6 +45,7 @@ public class AppDbContext : DbContext
         ConfigureComponent(modelBuilder);
         ConfigureFile(modelBuilder);
         ConfigureFileDirectory(modelBuilder);
+        ConfigureGameSetup(modelBuilder);
     }
 
     private static void ConfigureUser(ModelBuilder modelBuilder)
@@ -414,6 +416,41 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey("DataSourceId")
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+    }
+
+    private static void ConfigureGameSetup(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<GameSetup>(entity =>
+        {
+            entity.HasKey(gs => gs.Id);
+
+            entity.Property(gs => gs.Name)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(gs => gs.Document)
+                .IsRequired()
+                .HasColumnType(JsonbColumnType);
+
+            entity.Property(gs => gs.IsValid)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            entity.Property(gs => gs.CreatedAt)
+                .IsRequired()
+                .HasDefaultValueSql(CurrentTimestampSql);
+
+            entity.Property(gs => gs.UpdatedAt)
+                .IsRequired()
+                .HasDefaultValueSql(CurrentTimestampSql);
+
+            entity.HasOne(gs => gs.Project)
+                .WithMany(p => p.GameSetups)
+                .HasForeignKey(gs => gs.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(gs => gs.ProjectId);
         });
     }
 

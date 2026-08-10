@@ -6,10 +6,23 @@ import type { SpreadInsertHint } from './drop';
 import type { Point } from './geometry';
 import type { TabletopInteraction } from './interaction.svelte';
 import type { TabletopStore } from './store.svelte';
+import type { TabletopViewController } from './viewController.svelte';
+import type { MaskedState } from './visibility';
 
 export interface TabletopApi {
   store: TabletopStore;
   interaction: TabletopInteraction;
+  /**
+   * The seat/omniscient view controller (#124). Holds the chosen viewer and
+   * derives the masked view; the toolbar's seat switcher drives it.
+   */
+  viewController: TabletopViewController;
+  /**
+   * The state the render layer should draw (#124): the live {@link TabletopState}
+   * when viewing omniscient (identity — freeform play unchanged), or the masked
+   * projection for the selected seat. Never fed back into the reducer.
+   */
+  readonly renderState: MaskedState;
   /** Convert a client (viewport) point to world coordinates. */
   clientToWorld(clientX: number, clientY: number): Point;
   /** Open the pile context menu at a client (viewport) position. */

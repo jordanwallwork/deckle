@@ -6,18 +6,21 @@
   import PileRenderer from './PileRenderer.svelte';
   import ZoneRenderer from './ZoneRenderer.svelte';
 
-  const { store, interaction } = getTabletopApi();
+  const api = getTabletopApi();
+  const { interaction } = api;
 </script>
 
-<!-- Zones render beneath root piles; each renders its own piles. -->
-{#each store.state.zoneOrder as zoneId (zoneId)}
-  {@const zone = store.state.zones[zoneId]}
+<!-- Zones render beneath root piles; each renders its own piles. Reads the
+     masked render view (#124) so a seat perspective hides zones/piles it may
+     not see; omniscient is the live state, so freeform play is unchanged. -->
+{#each api.renderState.zoneOrder as zoneId (zoneId)}
+  {@const zone = api.renderState.zones[zoneId]}
   {#if zone}
     <ZoneRenderer {zone} />
   {/if}
 {/each}
-{#each store.state.rootPileIds as pileId (pileId)}
-  {@const pile = store.state.piles[pileId]}
+{#each api.renderState.rootPileIds as pileId (pileId)}
+  {@const pile = api.renderState.piles[pileId]}
   {#if pile}
     <PileRenderer {pile} />
   {/if}

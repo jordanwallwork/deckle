@@ -390,6 +390,11 @@
                             <a href="#setting-user-secrets" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
                                 Setting User Secrets
                             </a>
+                        </li>
+                        <li class="d-flex">
+                            <a href="#local-file-storage-alternative-to-r2" class="pl-5 pt-1 pb-1 | fs-4 lsp-3 lh-5 fvs-wght-400 | blwidth-1 blstyle-dashed bcolor-neutral-500">
+                                Local file storage (alternative to R2)
+                            </a>
                         </li></ol>
                     </details>
                 
@@ -438,6 +443,11 @@
 <li>SecretAccessKey</li>
 </ul>
 </li>
+<li>LocalFileStorage (optional alternative to CloudflareR2):
+<ul>
+<li>Directory</li>
+</ul>
+</li>
 </ul>
 
                         <h2 id="setting-user-secrets" pl-9="xs,sm">
@@ -467,7 +477,22 @@ dotnet user-secrets set &quot;CloudflareR2:BucketName&quot; &quot;deckle-images-
 dotnet user-secrets set &quot;CloudflareR2:AccessKeyId&quot; &quot;YOUR_ACCESS_KEY_ID&quot;
 dotnet user-secrets set &quot;CloudflareR2:SecretAccessKey&quot; &quot;YOUR_SECRET_ACCESS_KEY&quot;
 </code></pre>
-<p><strong>Note:</strong> The R2 credentials are required for file upload functionality. You can obtain these from your Cloudflare dashboard under R2 → Manage R2 API Tokens.</p>
+<p><strong>Note:</strong> File uploads need either the R2 credentials or local file storage (see below). You can obtain R2 credentials from your Cloudflare dashboard under R2 → Manage R2 API Tokens.</p>
+
+                        <h2 id="local-file-storage-alternative-to-r2" pl-9="xs,sm">
+                            <a href="#local-file-storage-alternative-to-r2" title="Local file storage (alternative to R2)" class="pos-absolute top-50 left-0 t-tY-50 | p-4 ml-1 | td-none | brad-4 bc-neutral-100 bwidth-1 bstyle-dashed bcolor-neutral-500 __hover-1 __soft-shadow" ml-3="xs,sm">
+                                <span class="icon-link-simple | pos-absolute top-50 left-50 t-tY-50 t-tX-50 | fs-4"></span>
+                            </a>
+                    Local file storage (alternative to R2)</h2>
+<p>To store uploaded files on your own filesystem instead of in R2, set a storage directory:</p>
+<pre><code class="language-bash">cd src/Deckle.API
+dotnet user-secrets set &quot;LocalFileStorage:Directory&quot; &quot;C:\deckle-storage&quot;
+</code></pre>
+<p>When <code>LocalFileStorage:Directory</code> is set, the API uses local storage and ignores the <code>CloudflareR2</code> settings. A relative path is resolved against the <code>Deckle.API</code> project directory. Files are saved under <code>&lt;directory&gt;/projects/{projectId}/files/{fileId}/</code>.</p>
+<p>Uploads and downloads go through the API's <code>/storage</code> endpoint, which is mapped only when local storage is enabled. Like R2 presigned URLs, its URLs carry a signed token that expires after 15 minutes. You can change this with <code>LocalFileStorage:UrlExpirationMinutes</code>.</p>
+<p>To switch back to R2, remove the setting:</p>
+<pre><code class="language-bash">dotnet user-secrets remove &quot;LocalFileStorage:Directory&quot;
+</code></pre>
 
             <footer class="minh-100vh">
                 <div class="pt-11 | blwidth-1 blstyle-dashed bcolor-neutral-500"></div>

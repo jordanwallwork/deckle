@@ -36,6 +36,7 @@
 
   // Page-wide drag-and-drop state
   let isDraggingOverPage = $state(false);
+  let pendingDropFiles = $state<globalThis.File[]>([]);
 
   // Tag filtering state
   let selectedFilterTags = $state<string[]>([]);
@@ -204,6 +205,7 @@
 
   // Button click handler
   function openUploadModal() {
+    pendingDropFiles = [];
     showUploadModal = true;
   }
 
@@ -437,14 +439,23 @@
     isDraggingOverPage = false;
 
     if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      pendingDropFiles = Array.from(event.dataTransfer.files);
       showUploadModal = true;
     }
   }
 
-  // Upload complete handler
-  async function handleUploadComplete() {
+  // Batch finished: keep the modal open if anything failed so it can be retried
+  async function handleUploadComplete({ failed }: { failed: number }) {
+    if (failed === 0) {
+      showUploadModal = false;
+    }
     await invalidateAll();
-    showUploadModal = false;
+    try {
+      const { tags } = await filesApi.getTags(data.project.id);
+      availableTags = tags;
+    } catch (err) {
+      console.error('Failed to refresh tags:', err);
+    }
   }
 
   // File deleted handler
@@ -622,7 +633,9 @@
   <FileUpload
     projectId={data.project.id}
     directoryId={currentDirectoryId}
-    onUploadComplete={handleUploadComplete}
+    initialFiles={pendingDropFiles}
+    onFileUploaded={() => invalidateAll()}
+    onComplete={handleUploadComplete}
   />
 </Dialog>
 

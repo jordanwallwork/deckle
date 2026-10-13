@@ -42,11 +42,11 @@ describe('ApiClient.request', () => {
     json: async () => body
   });
 
-  const errorResponse = (status: number, body: unknown) => ({
+  const errorResponse = (status: number, body: unknown, headers: Record<string, string> = {}) => ({
     ok: false,
     status,
     statusText: 'Error',
-    headers: { get: () => null },
+    headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
     json: async () => body
   });
 
@@ -153,5 +153,20 @@ describe('ApiClient.request', () => {
       thrown = err;
     }
     expect((thrown as ApiError).response).toEqual(body);
+  });
+
+  it('exposes the Retry-After header in seconds on the thrown ApiError', async () => {
+    mockFetch.mockResolvedValue(errorResponse(429, {}, { 'retry-after': '3' }));
+    await expect(api.post('/test', {}, undefined, mockFetch as typeof fetch)).rejects.toMatchObject({
+      status: 429,
+      retryAfterSeconds: 3
+    });
+  });
+
+  it('leaves retryAfterSeconds undefined when there is no Retry-After header', async () => {
+    mockFetch.mockResolvedValue(errorResponse(429, {}));
+    await expect(
+      api.post('/test', {}, undefined, mockFetch as typeof fetch)
+    ).rejects.toHaveProperty('retryAfterSeconds', undefined);
   });
 });

@@ -12,6 +12,7 @@ using Hangfire.PostgreSql;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Globalization;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
@@ -122,9 +123,18 @@ public static class ServiceCollectionExtensions
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = (context, _) =>
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+                }
+                return ValueTask.CompletedTask;
+            };
 
             // "strict" — 10 requests/minute per user.
-            // Applied to: username enumeration check, Google Sheets creation (outbound calls), file confirm.
+            // Applied to: username enumeration check, Google Sheets creation (outbound calls).
             options.AddPolicy("strict", context =>
             {
                 var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -134,6 +144,24 @@ public static class ServiceCollectionExtensions
                 {
                     PermitLimit = 10,
                     Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0
+                });
+            });
+
+            // "upload" — token bucket per user: bursts of up to 100, replenishing 2/second.
+            // Applied to: file confirm. Generous so multi-file uploads aren't throttled;
+            // storage abuse is bounded by the owner's storage quota rather than this limit.
+            options.AddPolicy("upload", context =>
+            {
+                var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.Connection.RemoteIpAddress?.ToString()
+                    ?? "unknown";
+                return RateLimitPartition.GetTokenBucketLimiter(partitionKey, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 100,
+                    TokensPerPeriod = 2,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(1),
+                    AutoReplenishment = true,
                     QueueLimit = 0
                 });
             });

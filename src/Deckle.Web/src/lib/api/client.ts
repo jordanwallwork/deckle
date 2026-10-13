@@ -5,7 +5,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public response?: any
+    public response?: any,
+    /** Seconds to wait before retrying, from the Retry-After header (e.g. on 429) */
+    public retryAfterSeconds?: number
   ) {
     super(message);
     this.name = 'ApiError';
@@ -51,7 +53,10 @@ class ApiClient {
         }
       }
 
-      throw new ApiError(response.status, errorMessage, errorData);
+      const retryAfter = Number(response.headers.get('retry-after'));
+      const retryAfterSeconds = retryAfter > 0 ? retryAfter : undefined;
+
+      throw new ApiError(response.status, errorMessage, errorData, retryAfterSeconds);
     }
 
     // Handle empty responses (204 No Content, etc.)

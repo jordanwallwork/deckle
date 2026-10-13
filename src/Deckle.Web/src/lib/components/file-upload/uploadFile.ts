@@ -1,4 +1,4 @@
-import { filesApi } from '$lib/api';
+import { filesApi, ApiError } from '$lib/api';
 import type { File } from '$lib/types';
 
 export interface UploadFileOptions {
@@ -53,6 +53,36 @@ export const uploadFile: UploadFn = async (projectId, file, { tags, directoryId,
     xhr.send(file);
   });
 
-  // Phase 3: Confirm upload
-  return filesApi.confirmUpload(fileId);
+  // Phase 3: Confirm upload. The file is already in storage at this point, so
+  // retry if rate limited rather than failing and forcing a full re-upload.
+  return retryWhenRateLimited(() => filesApi.confirmUpload(fileId));
 };
+
+const MAX_RATE_LIMIT_RETRIES = 5;
+const MAX_BACKOFF_MS = 10_000;
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Run `fn`, retrying when it fails with a 429. Waits for the server's
+ * Retry-After hint if given, otherwise backs off exponentially (1s, 2s, 4s…).
+ * Any other error is rethrown immediately.
+ */
+export async function retryWhenRateLimited<T>(
+  fn: () => Promise<T>,
+  sleep: (ms: number) => Promise<void> = delay
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!(err instanceof ApiError) || err.status !== 429 || attempt >= MAX_RATE_LIMIT_RETRIES) {
+        throw err;
+      }
+      const waitMs = err.retryAfterSeconds
+        ? err.retryAfterSeconds * 1000
+        : Math.min(1000 * 2 ** attempt, MAX_BACKOFF_MS);
+      await sleep(waitMs);
+    }
+  }
+}

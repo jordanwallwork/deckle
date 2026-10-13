@@ -16,8 +16,22 @@ public record FileDirectoryWithContentsDto(
     string Name,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    List<FileDirectoryDto> ChildDirectories,
+    List<ChildDirectoryDto> ChildDirectories,
     List<FileDto> Files
+);
+
+/// <summary>
+/// A directory listed inside another directory, with the number of direct children
+/// (sub-directories plus confirmed files; not recursive)
+/// </summary>
+public record ChildDirectoryDto(
+    Guid Id,
+    Guid ProjectId,
+    Guid? ParentDirectoryId,
+    string Name,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
+    int ItemCount
 );
 
 public record CreateFileDirectoryRequest(

@@ -741,8 +741,7 @@
         {#each directories as directory (directory.id)}
           <FolderRow
             {directory}
-            itemCount={data.allDirectories.filter((d) => d.parentDirectoryId === directory.id)
-              .length}
+            itemCount={directory.itemCount}
             onclick={() => navigateToFolder(directory.name)}
             onrename={(name) => handleRenameFolder(directory.id, name, directory.name)}
             ondelete={() => confirmDeleteFolder(directory)}

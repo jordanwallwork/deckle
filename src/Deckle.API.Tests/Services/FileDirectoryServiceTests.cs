@@ -68,7 +68,13 @@ public class FileDirectoryServiceTests : IDisposable
         return dir;
     }
 
-    private async Task SeedFile(Guid projectId, Guid userId, string fileName, Guid? directoryId, DateTime uploadedAt)
+    private async Task SeedFile(
+        Guid projectId,
+        Guid userId,
+        string fileName,
+        Guid? directoryId,
+        DateTime uploadedAt,
+        FileStatus status = FileStatus.Confirmed)
     {
         _context.Files.Add(new Domain.Entities.File
         {
@@ -80,7 +86,7 @@ public class FileDirectoryServiceTests : IDisposable
             ContentType = "image/png",
             TotalByteSize = 1024,
             StorageKey = $"{projectId}/{Guid.NewGuid()}/{fileName}",
-            Status = FileStatus.Confirmed,
+            Status = status,
             UploadedAt = uploadedAt,
             Tags = []
         });
@@ -332,6 +338,27 @@ public class FileDirectoryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetDirectoryWithContentsAsync_ChildItemCountIncludesDirectChildrenOnly()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var parent = await SeedDirectory(projectId, "Parent");
+        var child = await SeedDirectory(projectId, "Child", parent.Id);
+        var grandchild = await SeedDirectory(projectId, "Grandchild", child.Id);
+        await SeedFile(projectId, userId, "a.png", child.Id, DateTime.UtcNow);
+        await SeedFile(projectId, userId, "b.png", child.Id, DateTime.UtcNow);
+        await SeedFile(projectId, userId, "pending.png", child.Id, DateTime.UtcNow, FileStatus.Pending);
+        // Nested deeper — must not be counted towards Child
+        await SeedFile(projectId, userId, "deep.png", grandchild.Id, DateTime.UtcNow);
+        await SeedDirectory(projectId, "GreatGrandchild", grandchild.Id);
+
+        var result = await _service.GetDirectoryWithContentsAsync(userId, projectId, parent.Id);
+
+        Assert.NotNull(result);
+        // Grandchild directory + two confirmed files
+        Assert.Equal(3, Assert.Single(result.ChildDirectories).ItemCount);
+    }
+
+    [Fact]
     public async Task GetDirectoryWithContentsAsync_OrdersFilesByFileName()
     {
         var (userId, projectId) = await SeedOwnerWithProject();
@@ -502,6 +529,22 @@ public class FileDirectoryServiceTests : IDisposable
         Assert.NotNull(result);
         Assert.Equal(3, result.ChildDirectories.Count); // RootDir1, RootDir2, Parent
         Assert.DoesNotContain(result.ChildDirectories, d => d.Name == "Nested");
+    }
+
+    [Fact]
+    public async Task GetRootContentsAsync_RootDirectoriesIncludeItemCounts()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var empty = await SeedDirectory(projectId, "Empty");
+        var parent = await SeedDirectory(projectId, "Parent");
+        await SeedDirectory(projectId, "Nested", parent.Id);
+        await SeedFile(projectId, userId, "a.png", parent.Id, DateTime.UtcNow);
+
+        var result = await _service.GetRootContentsAsync(userId, projectId);
+
+        Assert.NotNull(result);
+        Assert.Equal(0, result.ChildDirectories.Single(d => d.Id == empty.Id).ItemCount);
+        Assert.Equal(2, result.ChildDirectories.Single(d => d.Id == parent.Id).ItemCount);
     }
 
     [Fact]

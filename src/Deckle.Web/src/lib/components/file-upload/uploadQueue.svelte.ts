@@ -1,5 +1,5 @@
 import type { File } from '$lib/types';
-import { uploadFile, type UploadFn } from './uploadFile';
+import { StorageQuotaExceededError, uploadFile, type UploadFn } from './uploadFile';
 import { validateImageFile } from './validation';
 
 export type QueueItemStatus = 'pending' | 'uploading' | 'done' | 'error' | 'invalid';
@@ -17,6 +17,14 @@ export interface UploadSummary {
   failed: number;
 }
 
+/** Why a batch was halted before every file was attempted */
+export interface StopReason {
+  kind: 'quota-exceeded';
+  message: string;
+}
+
+const NOT_ATTEMPTED_MESSAGE = 'Not uploaded: storage quota exceeded';
+
 export interface StartOptions {
   tags: string[];
   directoryId: string | null;
@@ -26,10 +34,14 @@ export interface StartOptions {
 /**
  * A batch of files to upload to a project. Files are validated as they are
  * added and uploaded strictly one at a time when the queue is started.
+ * If the storage quota is exceeded the batch halts and the remaining files
+ * are marked as failed, since they would all be rejected anyway.
  */
 export class UploadQueue {
   items = $state<QueueItem[]>([]);
   isUploading = $state(false);
+  /** Set when the last run halted early; cleared when a new run starts */
+  stopReason = $state<StopReason | null>(null);
 
   pendingCount = $derived(this.items.filter((i) => i.status === 'pending').length);
   doneCount = $derived(this.items.filter((i) => i.status === 'done').length);
@@ -89,6 +101,7 @@ export class UploadQueue {
 
     this.isUploading = true;
     this.#cancelled = false;
+    this.stopReason = null;
 
     try {
       // Always read items through the $state proxy so mutations are reactive
@@ -112,6 +125,12 @@ export class UploadQueue {
           current.status = 'error';
           current.error = err instanceof Error ? err.message : 'Upload failed. Please try again.';
           summary.failed++;
+
+          if (err instanceof StorageQuotaExceededError) {
+            summary.failed += this.#failRemaining(NOT_ATTEMPTED_MESSAGE);
+            this.stopReason = { kind: 'quota-exceeded', message: err.message };
+            break;
+          }
         }
       }
     } finally {
@@ -119,5 +138,14 @@ export class UploadQueue {
     }
 
     return summary;
+  }
+
+  #failRemaining(error: string): number {
+    const remaining = this.items.filter((i) => i.status === 'pending');
+    for (const item of remaining) {
+      item.status = 'error';
+      item.error = error;
+    }
+    return remaining.length;
   }
 }

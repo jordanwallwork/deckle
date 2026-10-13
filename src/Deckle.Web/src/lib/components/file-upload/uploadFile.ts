@@ -1,5 +1,6 @@
 import { filesApi, ApiError } from '$lib/api';
 import type { File } from '$lib/types';
+import { formatFileSize } from './validation';
 
 export interface UploadFileOptions {
   tags: string[];
@@ -14,18 +15,46 @@ export type UploadFn = (
 ) => Promise<File>;
 
 /**
+ * Thrown when an upload is rejected because the project owner's storage quota
+ * is full. Later files in a batch would be rejected too, so callers should stop.
+ */
+export class StorageQuotaExceededError extends Error {
+  constructor(public availableBytes?: number) {
+    super(
+      availableBytes !== undefined
+        ? `Storage quota exceeded (${formatFileSize(availableBytes)} remaining)`
+        : 'Storage quota exceeded'
+    );
+    this.name = 'StorageQuotaExceededError';
+  }
+}
+
+/** The API reports a full storage quota as 413 with problem details */
+function toQuotaError(err: unknown): unknown {
+  if (err instanceof ApiError && err.status === 413) {
+    const available = err.response?.availableBytes;
+    return new StorageQuotaExceededError(typeof available === 'number' ? available : undefined);
+  }
+  return err;
+}
+
+/**
  * Upload a single file to a project: request a presigned URL, PUT the file
  * directly to storage (with progress), then confirm the upload.
  */
 export const uploadFile: UploadFn = async (projectId, file, { tags, directoryId, onProgress }) => {
-  // Phase 1: Request upload URL
-  const { fileId, uploadUrl } = await filesApi.requestUploadUrl(projectId, {
-    fileName: file.name,
-    contentType: file.type,
-    fileSizeBytes: file.size,
-    tags,
-    directoryId
-  });
+  // Phase 1: Request upload URL (the quota is checked here, before any bytes are sent)
+  const { fileId, uploadUrl } = await filesApi
+    .requestUploadUrl(projectId, {
+      fileName: file.name,
+      contentType: file.type,
+      fileSizeBytes: file.size,
+      tags,
+      directoryId
+    })
+    .catch((err) => {
+      throw toQuotaError(err);
+    });
 
   // Phase 2: Upload to storage (direct, with progress)
   await new Promise<void>((resolve, reject) => {
@@ -55,7 +84,10 @@ export const uploadFile: UploadFn = async (projectId, file, { tags, directoryId,
 
   // Phase 3: Confirm upload. The file is already in storage at this point, so
   // retry if rate limited rather than failing and forcing a full re-upload.
-  return retryWhenRateLimited(() => filesApi.confirmUpload(fileId));
+  // Confirm can also hit the quota if another upload used up the space meanwhile.
+  return retryWhenRateLimited(() => filesApi.confirmUpload(fileId)).catch((err) => {
+    throw toQuotaError(err);
+  });
 };
 
 const MAX_RATE_LIMIT_RETRIES = 5;

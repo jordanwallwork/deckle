@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { UploadQueue } from './uploadQueue.svelte';
-import type { UploadFn } from './uploadFile';
+import { StorageQuotaExceededError, type UploadFn } from './uploadFile';
 import { MAX_FILE_SIZE } from './validation';
 import type { File as DeckleFile } from '$lib/types';
 
@@ -136,5 +136,59 @@ describe('UploadQueue', () => {
 
     resolve();
     await run;
+  });
+
+  it('stops the batch when the storage quota is exceeded and fails the rest', async () => {
+    const upload: UploadFn = vi.fn(async (_p, file) => {
+      if (file.name === 'b.png') throw new StorageQuotaExceededError(1024);
+      return uploaded(file.name);
+    });
+    const queue = new UploadQueue('p1', upload);
+    queue.add([image('a.png'), image('b.png'), image('c.png'), image('d.png')]);
+
+    const summary = await queue.start(start);
+
+    expect(upload).toHaveBeenCalledTimes(2);
+    expect(summary).toEqual({ uploaded: 1, failed: 3 });
+    expect(queue.items.map((i) => i.status)).toEqual(['done', 'error', 'error', 'error']);
+    expect(queue.items[1].error).toBe('Storage quota exceeded (1 KB remaining)');
+    expect(queue.items[2].error).toBe('Not uploaded: storage quota exceeded');
+    expect(queue.stopReason).toEqual({
+      kind: 'quota-exceeded',
+      message: 'Storage quota exceeded (1 KB remaining)'
+    });
+  });
+
+  it('leaves invalid files as skipped when the quota is exceeded', async () => {
+    const queue = new UploadQueue(
+      'p1',
+      vi.fn(async () => {
+        throw new StorageQuotaExceededError();
+      })
+    );
+    queue.add([image('a.png'), new File(['x'], 'notes.txt', { type: 'text/plain' })]);
+
+    await queue.start(start);
+
+    expect(queue.items.map((i) => i.status)).toEqual(['error', 'invalid']);
+  });
+
+  it('clears the stop reason when a new run starts', async () => {
+    let quotaFull = true;
+    const upload: UploadFn = vi.fn(async (_p, file) => {
+      if (quotaFull) throw new StorageQuotaExceededError();
+      return uploaded(file.name);
+    });
+    const queue = new UploadQueue('p1', upload);
+    queue.add([image('a.png'), image('b.png')]);
+    await queue.start(start);
+    expect(queue.stopReason).not.toBeNull();
+
+    quotaFull = false;
+    queue.retryFailed();
+    const summary = await queue.start(start);
+
+    expect(queue.stopReason).toBeNull();
+    expect(summary).toEqual({ uploaded: 2, failed: 0 });
   });
 });

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
-import { ApiError } from '$lib/api';
-import { retryWhenRateLimited } from './uploadFile';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { ApiError, filesApi } from '$lib/api';
+import { retryWhenRateLimited, StorageQuotaExceededError, uploadFile } from './uploadFile';
 
 const rateLimited = (retryAfterSeconds?: number) =>
   new ApiError(429, 'Too Many Requests', undefined, retryAfterSeconds);
@@ -53,5 +53,33 @@ describe('retryWhenRateLimited', () => {
 
     await expect(retryWhenRateLimited(fn, sleep)).rejects.toMatchObject({ status: 429 });
     expect(fn).toHaveBeenCalledTimes(6);
+  });
+});
+
+describe('uploadFile', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const file = new File(['x'], 'a.png', { type: 'image/png' });
+  const options = { tags: [], directoryId: null };
+
+  it('reports a 413 from the API as a StorageQuotaExceededError', async () => {
+    vi.spyOn(filesApi, 'requestUploadUrl').mockRejectedValue(
+      new ApiError(413, 'HTTP 413: Payload Too Large', { availableBytes: 2048 })
+    );
+
+    const result = uploadFile('p1', file, options);
+
+    await expect(result).rejects.toBeInstanceOf(StorageQuotaExceededError);
+    await expect(result).rejects.toMatchObject({
+      availableBytes: 2048,
+      message: 'Storage quota exceeded (2 KB remaining)'
+    });
+  });
+
+  it('passes other API errors through unchanged', async () => {
+    const error = new ApiError(400, 'Bad request');
+    vi.spyOn(filesApi, 'requestUploadUrl').mockRejectedValue(error);
+
+    await expect(uploadFile('p1', file, options)).rejects.toBe(error);
   });
 });

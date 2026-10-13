@@ -137,7 +137,16 @@
       </div>
     {/if}
 
-    {#if lastSummary && lastSummary.failed > 0}
+    {#if queue.stopReason?.kind === 'quota-exceeded' && lastSummary}
+      <div class="stop-banner" role="alert">
+        <p class="stop-title">Upload stopped: {queue.stopReason.message}</p>
+        <p class="stop-detail">
+          {lastSummary.uploaded} uploaded, {lastSummary.failed}
+          {lastSummary.failed === 1 ? 'image was' : 'images were'} not uploaded. Delete unused files
+          to free up space, then retry.
+        </p>
+      </div>
+    {:else if lastSummary && lastSummary.failed > 0}
       <p class="summary">{lastSummary.uploaded} uploaded, {lastSummary.failed} failed</p>
     {/if}
 
@@ -242,6 +251,27 @@
     gap: 0.5rem;
     justify-content: center;
     align-items: center;
+  }
+
+  .stop-banner {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-danger-border);
+    border-radius: var(--radius-md);
+    background-color: var(--color-danger-bg);
+    text-align: left;
+  }
+
+  .stop-title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-danger-fg);
+  }
+
+  .stop-detail {
+    margin: 0.25rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-text);
   }
 
   .summary {

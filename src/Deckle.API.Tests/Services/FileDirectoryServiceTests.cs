@@ -68,6 +68,25 @@ public class FileDirectoryServiceTests : IDisposable
         return dir;
     }
 
+    private async Task SeedFile(Guid projectId, Guid userId, string fileName, Guid? directoryId, DateTime uploadedAt)
+    {
+        _context.Files.Add(new Domain.Entities.File
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            DirectoryId = directoryId,
+            UploadedByUserId = userId,
+            FileName = fileName,
+            ContentType = "image/png",
+            TotalByteSize = 1024,
+            StorageKey = $"{projectId}/{Guid.NewGuid()}/{fileName}",
+            Status = FileStatus.Confirmed,
+            UploadedAt = uploadedAt,
+            Tags = []
+        });
+        await _context.SaveChangesAsync();
+    }
+
     #endregion
 
     #region CreateDirectoryAsync Tests
@@ -312,6 +331,22 @@ public class FileDirectoryServiceTests : IDisposable
         Assert.Equal("Child", result.ChildDirectories[0].Name);
     }
 
+    [Fact]
+    public async Task GetDirectoryWithContentsAsync_OrdersFilesByFileName()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        var dir = await SeedDirectory(projectId, "Folder");
+        // Upload order deliberately differs from name order
+        await SeedFile(projectId, userId, "charlie.png", dir.Id, DateTime.UtcNow.AddDays(-2));
+        await SeedFile(projectId, userId, "alpha.png", dir.Id, DateTime.UtcNow.AddDays(-1));
+        await SeedFile(projectId, userId, "bravo.png", dir.Id, DateTime.UtcNow);
+
+        var result = await _service.GetDirectoryWithContentsAsync(userId, projectId, dir.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal(["alpha.png", "bravo.png", "charlie.png"], result.Files.Select(f => f.FileName));
+    }
+
     #endregion
 
     #region GetDirectoryByPathAsync Tests
@@ -467,6 +502,21 @@ public class FileDirectoryServiceTests : IDisposable
         Assert.NotNull(result);
         Assert.Equal(3, result.ChildDirectories.Count); // RootDir1, RootDir2, Parent
         Assert.DoesNotContain(result.ChildDirectories, d => d.Name == "Nested");
+    }
+
+    [Fact]
+    public async Task GetRootContentsAsync_OrdersFilesByFileName()
+    {
+        var (userId, projectId) = await SeedOwnerWithProject();
+        // Upload order deliberately differs from name order
+        await SeedFile(projectId, userId, "charlie.png", null, DateTime.UtcNow.AddDays(-2));
+        await SeedFile(projectId, userId, "alpha.png", null, DateTime.UtcNow.AddDays(-1));
+        await SeedFile(projectId, userId, "bravo.png", null, DateTime.UtcNow);
+
+        var result = await _service.GetRootContentsAsync(userId, projectId);
+
+        Assert.NotNull(result);
+        Assert.Equal(["alpha.png", "bravo.png", "charlie.png"], result.Files.Select(f => f.FileName));
     }
 
     #endregion

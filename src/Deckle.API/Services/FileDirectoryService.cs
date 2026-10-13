@@ -250,7 +250,7 @@ public partial class FileDirectoryService : IFileDirectoryService
         var rootFiles = await _context.Files
             .Include(f => f.UploadedBy)
             .Where(f => f.ProjectId == projectId && f.DirectoryId == null && f.Status == FileStatus.Confirmed)
-            .OrderByDescending(f => f.UploadedAt)
+            .OrderBy(f => f.FileName)
             .ToListAsync();
 
         // Return a virtual "root" directory
@@ -571,7 +571,7 @@ public partial class FileDirectoryService : IFileDirectoryService
             directory.CreatedAt,
             directory.UpdatedAt,
             directory.ChildDirectories.Select(MapToDto).OrderBy(d => d.Name).ToList(),
-            directory.Files.Select(MapFileToDto).OrderByDescending(f => f.UploadedAt).ToList()
+            directory.Files.Select(MapFileToDto).OrderBy(f => f.FileName).ToList()
         );
     }
 

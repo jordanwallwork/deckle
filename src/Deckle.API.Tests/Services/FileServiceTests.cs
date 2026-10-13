@@ -747,7 +747,7 @@ public class FileServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetProjectFilesAsync_ReturnsFilesInDescendingDateOrder()
+    public async Task GetProjectFilesAsync_ReturnsFilesOrderedByFileName()
     {
         // Arrange
         var userId = Guid.NewGuid();
@@ -756,11 +756,12 @@ public class FileServiceTests : IDisposable
 
         await SeedProjectWithOwner(projectId, ownerId, userId);
 
-        var oldFile = CreateConfirmedFile(projectId, userId, "old.jpg");
+        // Upload order deliberately differs from name order
+        var oldFile = CreateConfirmedFile(projectId, userId, "charlie.jpg");
         oldFile.UploadedAt = DateTime.UtcNow.AddDays(-2);
-        var middleFile = CreateConfirmedFile(projectId, userId, "middle.jpg");
+        var middleFile = CreateConfirmedFile(projectId, userId, "alpha.jpg");
         middleFile.UploadedAt = DateTime.UtcNow.AddDays(-1);
-        var newFile = CreateConfirmedFile(projectId, userId, "new.jpg");
+        var newFile = CreateConfirmedFile(projectId, userId, "bravo.jpg");
         newFile.UploadedAt = DateTime.UtcNow;
         _context.Files.AddRange(oldFile, middleFile, newFile);
         await _context.SaveChangesAsync();
@@ -768,11 +769,8 @@ public class FileServiceTests : IDisposable
         // Act
         var result = await _fileService.GetProjectFilesAsync(userId, projectId);
 
-        // Assert: kills line 252 OrderByDescending → OrderBy mutation
-        Assert.Equal(3, result.Count);
-        Assert.Equal("new.jpg", result[0].FileName);
-        Assert.Equal("middle.jpg", result[1].FileName);
-        Assert.Equal("old.jpg", result[2].FileName);
+        // Assert
+        Assert.Equal(["alpha.jpg", "bravo.jpg", "charlie.jpg"], result.Select(f => f.FileName));
     }
 
     [Fact]

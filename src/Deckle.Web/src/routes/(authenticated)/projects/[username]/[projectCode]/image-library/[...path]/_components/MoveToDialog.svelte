@@ -1,10 +1,10 @@
 <script lang="ts">
   import Dialog from '$lib/components/Dialog.svelte';
   import Button from '$lib/components/Button.svelte';
-  import { FolderIcon } from '$lib/components/icons';
-  import { directoriesApi, ApiError } from '$lib/api';
+  import { directoriesApi } from '$lib/api';
   import type { FileDirectory } from '$lib/types';
-  import { buildDirectoryTree } from './batchActions';
+  import DirectoryPicker from './DirectoryPicker.svelte';
+  import NewFolderForm from './NewFolderForm.svelte';
 
   let {
     show = $bindable(),
@@ -29,164 +29,69 @@
   let createdDirectories = $state<FileDirectory[]>([]);
   // undefined = nothing picked yet; null = library root
   let target = $state<string | null | undefined>(undefined);
-  let newFolderName = $state<string | null>(null);
-  let error = $state<string | null>(null);
-  let busy = $state(false);
-
-  let options = $derived([
-    { id: null, name: 'Image Library', depth: 0 },
-    ...buildDirectoryTree([...directories, ...createdDirectories], excludedIds).map((n) => ({
-      id: n.directory.id,
-      name: n.directory.name,
-      depth: n.depth + 1
-    }))
-  ]);
+  let creatingFolder = $state(false);
+  let moving = $state(false);
 
   $effect(() => {
     if (show) {
       createdDirectories = [];
       target = undefined;
-      newFolderName = null;
-      error = null;
+      creatingFolder = false;
     }
   });
 
-  async function createFolder() {
-    const name = newFolderName?.trim();
-    if (!name) return;
-    busy = true;
-    error = null;
-    try {
-      const created = await directoriesApi.create(projectId, { name, parentDirectoryId: target ?? null });
-      createdDirectories = [...createdDirectories, created];
-      target = created.id;
-      newFolderName = null;
-    } catch (err) {
-      error = err instanceof ApiError ? err.message : 'Failed to create folder';
-    } finally {
-      busy = false;
-    }
+  // Errors propagate to NewFolderForm, which displays them
+  async function createFolder(name: string) {
+    const created = await directoriesApi.create(projectId, {
+      name,
+      parentDirectoryId: target ?? null
+    });
+    createdDirectories = [...createdDirectories, created];
+    target = created.id;
+    creatingFolder = false;
   }
 
   async function submit() {
     if (target === undefined) return;
-    busy = true;
+    moving = true;
     try {
       await onSubmit(target);
       show = false;
     } finally {
-      busy = false;
+      moving = false;
     }
   }
 </script>
 
 <Dialog bind:show title="Move {itemCount} {itemCount === 1 ? 'item' : 'items'} to…" maxWidth="480px">
-  <div class="tree" role="listbox" aria-label="Destination folder">
-    {#each options as node (node.id ?? 'root')}
-      <button
-        type="button"
-        role="option"
-        class="tree-item"
-        class:selected={target === node.id}
-        aria-selected={target === node.id}
-        disabled={node.id === currentDirectoryId}
-        style="padding-left: {0.75 + node.depth * 1.25}rem"
-        onclick={() => (target = node.id)}
-      >
-        <FolderIcon size={16} />
-        <span>{node.name}</span>
-        {#if node.id === currentDirectoryId}<span class="hint">(current)</span>{/if}
-      </button>
-    {/each}
-  </div>
+  <DirectoryPicker
+    bind:value={target}
+    directories={[...directories, ...createdDirectories]}
+    {excludedIds}
+    disabledId={currentDirectoryId}
+  />
 
-  {#if newFolderName !== null}
-    <form class="new-folder" onsubmit={(e) => { e.preventDefault(); createFolder(); }}>
-      <!-- svelte-ignore a11y_autofocus -->
-      <input type="text" bind:value={newFolderName} placeholder="New folder name" autofocus />
-      <Button size="sm" type="submit" disabled={!newFolderName.trim() || busy}>Create</Button>
-      <Button size="sm" variant="secondary" onclick={() => (newFolderName = null)}>Cancel</Button>
-    </form>
+  {#if creatingFolder}
+    <NewFolderForm onCreate={createFolder} onCancel={() => (creatingFolder = false)} />
   {/if}
-  {#if error}<p class="error">{error}</p>{/if}
 
   {#snippet actions()}
-    {#if newFolderName === null}
-      <Button variant="text" onclick={() => (newFolderName = '')} class="new-folder-button">
+    {#if !creatingFolder}
+      <Button variant="text" onclick={() => (creatingFolder = true)} class="new-folder-button">
         New folder
       </Button>
     {/if}
     <Button variant="secondary" onclick={() => (show = false)}>Cancel</Button>
-    <Button onclick={submit} disabled={target === undefined || target === currentDirectoryId || busy}>
+    <Button
+      onclick={submit}
+      disabled={target === undefined || target === currentDirectoryId || moving}
+    >
       Move here
     </Button>
   {/snippet}
 </Dialog>
 
 <style>
-  .tree {
-    display: flex;
-    flex-direction: column;
-    max-height: 320px;
-    overflow-y: auto;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 0.25rem;
-  }
-
-  .tree-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.375rem 0.75rem;
-    border: none;
-    border-radius: var(--radius-sm);
-    background: none;
-    color: var(--color-text);
-    font-size: 0.875rem;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .tree-item:hover:not(:disabled) {
-    background-color: var(--color-bg-subtle);
-  }
-
-  .tree-item.selected {
-    background-color: rgba(120, 160, 131, 0.18);
-    color: var(--color-accent-fg);
-  }
-
-  .tree-item:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-
-  .hint {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-  }
-
-  .new-folder {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-  }
-
-  .new-folder input {
-    flex: 1;
-    padding: 0.375rem 0.625rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 0.875rem;
-  }
-
-  .error {
-    margin: 0.5rem 0 0;
-    font-size: 0.8125rem;
-    color: var(--color-danger-fg);
-  }
-
   :global(.new-folder-button) {
     margin-right: auto;
   }

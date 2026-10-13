@@ -63,7 +63,9 @@ public class LocalFileStorageTests : IDisposable
     [Fact]
     public async Task DeleteFileAsync_MissingFile_DoesNotThrow()
     {
-        await _storage.DeleteFileAsync("projects/a/files/b/missing.png");
+        var exception = await Record.ExceptionAsync(() => _storage.DeleteFileAsync("projects/a/files/b/missing.png"));
+
+        Assert.Null(exception);
     }
 
     [Fact]

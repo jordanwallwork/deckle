@@ -17,6 +17,7 @@
   import BatchAddTagsDialog from './_components/BatchAddTagsDialog.svelte';
   import BatchRemoveTagsDialog from './_components/BatchRemoveTagsDialog.svelte';
   import MoveToDialog from './_components/MoveToDialog.svelte';
+  import DirectoryBreadcrumbs from './_components/DirectoryBreadcrumbs.svelte';
   import {
     mergeTags,
     subtractTags,
@@ -665,11 +666,20 @@
       </div>
     {/if}
 
+    {#if data.currentPath}
+      <DirectoryBreadcrumbs
+        {baseUrl}
+        path={data.currentPath}
+        directories={data.allDirectories}
+        onItemDropped={(directoryId, dragData) => moveItems(draggedItems(dragData), directoryId)}
+      />
+    {/if}
+
     {#if filterLoading}
       <div class="loading-state">
         <p>Loading filtered files...</p>
       </div>
-    {:else if isEmpty}
+    {:else if isEmpty && !data.currentPath}
       <div class="empty-state">
         <p class="empty-message">No images yet</p>
         <p class="empty-subtitle">Upload images to use in your game components</p>
@@ -719,6 +729,13 @@
           />
         {/if}
       </div>
+
+      {#if isEmpty}
+        <div class="empty-state">
+          <p class="empty-message">This folder is empty</p>
+          <p class="empty-subtitle">Upload images or drag items here to add them</p>
+        </div>
+      {/if}
     {/if}
   </div>
 </TabContent>

@@ -124,7 +124,7 @@
         directoryId: directoryId
       });
 
-      // Phase 2: Upload to R2 (direct, with progress)
+      // Phase 2: Upload to storage (direct, with progress)
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
 

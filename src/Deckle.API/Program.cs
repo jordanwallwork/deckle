@@ -21,7 +21,7 @@ builder.Services.AddDeckleApiServices();
 // Rate limiting
 builder.Services.AddDeckleRateLimiting();
 
-// Infrastructure (HttpClient, email, R2 storage, background services)
+// Infrastructure (HttpClient, email, file storage, background services)
 builder.Services.AddDeckleInfrastructure(builder.Configuration);
 
 // Application services

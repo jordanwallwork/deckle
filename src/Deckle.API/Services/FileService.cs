@@ -1,4 +1,5 @@
 using Deckle.API.DTOs;
+using Deckle.API.Services.Storage;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Deckle.Domain.Exceptions;
@@ -28,23 +29,32 @@ public partial class FileService : IFileService
 
     private readonly AppDbContext _context;
     private readonly IProjectAuthorizationService _authService;
-    private readonly ICloudflareR2Service _r2Service;
+    private readonly IFileStorage _storage;
     private readonly ILogger<FileService> _logger;
 
     private const long _maxFileSizeBytes = 50 * 1024 * 1024; // 50MB
     private const int _maxTagLength = 50;
     private const int _maxTagsPerFile = 20;
     private static readonly Regex _tagPattern = TagPatternRegex();
+    private static readonly string[] _allowedContentTypes =
+    [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml"
+    ];
 
     public FileService(
         AppDbContext context,
         IProjectAuthorizationService authService,
-        ICloudflareR2Service r2Service,
+        IFileStorage storage,
         ILogger<FileService> logger)
     {
         _context = context;
         _authService = authService;
-        _r2Service = r2Service;
+        _storage = storage;
         _logger = logger;
     }
 
@@ -64,7 +74,7 @@ public partial class FileService : IFileService
         await _authService.EnsureCanModifyResourcesAsync(userId, projectId);
 
         // 2. Validate content type
-        if (!CloudflareR2Service.IsValidContentType(contentType))
+        if (!IsValidContentType(contentType))
         {
             throw new ArgumentException($"Content type '{contentType}' is not allowed. Only images are supported (JPEG, PNG, GIF, WebP, SVG).");
         }
@@ -127,7 +137,7 @@ public partial class FileService : IFileService
 
         // 9. Create pending File record
         var fileId = Guid.NewGuid();
-        var storageKey = CloudflareR2Service.GenerateStorageKey(projectId, fileId, fileName);
+        var storageKey = StorageKeys.Generate(projectId, fileId, fileName);
 
         var file = new Domain.Entities.File
         {
@@ -149,7 +159,7 @@ public partial class FileService : IFileService
         await _context.SaveChangesAsync();
 
         // 9. Generate presigned upload URL
-        var uploadUrl = _r2Service.GenerateUploadUrl(
+        var uploadUrl = _storage.GenerateUploadUrl(
             storageKey,
             contentType,
             fileSizeBytes);
@@ -184,8 +194,8 @@ public partial class FileService : IFileService
             throw new InvalidOperationException("File has already been confirmed");
         }
 
-        // Optional: Verify file exists in R2
-        var exists = await _r2Service.FileExistsAsync(file.StorageKey);
+        // Verify file exists in storage
+        var exists = await _storage.FileExistsAsync(file.StorageKey);
         if (!exists)
         {
             throw new InvalidOperationException("Upload verification failed: File not found in storage");
@@ -298,15 +308,15 @@ public partial class FileService : IFileService
         // Authorization: User must have CanDeleteResources permission
         await _authService.EnsureCanDeleteResourcesAsync(userId, file.ProjectId);
 
-        // Delete from R2
+        // Delete from storage
         try
         {
-            await _r2Service.DeleteFileAsync(file.StorageKey);
+            await _storage.DeleteFileAsync(file.StorageKey);
         }
         catch (Exception ex)
         {
-            LogR2DeleteFailed(ex, file.StorageKey);
-            // Continue with database deletion even if R2 deletion fails
+            LogStorageDeleteFailed(ex, file.StorageKey);
+            // Continue with database deletion even if storage deletion fails
         }
 
         // StorageQuotaInterceptor handles quota tracking on delete
@@ -437,13 +447,13 @@ public partial class FileService : IFileService
 
         // Generate new storage key
         var oldStorageKey = file.StorageKey;
-        var newStorageKey = CloudflareR2Service.GenerateStorageKey(file.ProjectId, file.Id, finalFileName);
+        var newStorageKey = StorageKeys.Generate(file.ProjectId, file.Id, finalFileName);
 
-        // Copy file to new location in R2
-        await _r2Service.CopyFileAsync(oldStorageKey, newStorageKey);
+        // Copy file to new location in storage
+        await _storage.CopyFileAsync(oldStorageKey, newStorageKey);
 
-        // Delete old file from R2
-        await _r2Service.DeleteFileAsync(oldStorageKey);
+        // Delete old file from storage
+        await _storage.DeleteFileAsync(oldStorageKey);
 
         // Update database record
         file.FileName = finalFileName;
@@ -514,6 +524,14 @@ public partial class FileService : IFileService
                 throw new ArgumentException($"Tag '{tag}' contains invalid characters. Only lowercase letters, numbers, hyphens, and underscores are allowed");
             }
         }
+    }
+
+    /// <summary>
+    /// Validate content type against allowed types
+    /// </summary>
+    private static bool IsValidContentType(string contentType)
+    {
+        return _allowedContentTypes.Contains(contentType.ToLowerInvariant());
     }
 
     /// <summary>
@@ -627,8 +645,8 @@ public partial class FileService : IFileService
     [LoggerMessage(Level = LogLevel.Information, Message = "Confirmed upload for file {FileId}, updated quota for project owner")]
     private partial void LogUploadConfirmed(Guid fileId);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to delete file from R2: {StorageKey}")]
-    private partial void LogR2DeleteFailed(Exception ex, string storageKey);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to delete file from storage: {StorageKey}")]
+    private partial void LogStorageDeleteFailed(Exception ex, string storageKey);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Deleted file {FileId}, updated quota for project owner")]
     private partial void LogFileDeleted(Guid fileId);

@@ -1,6 +1,7 @@
 using Deckle.API.DTOs;
 using Deckle.API.Filters;
 using Deckle.API.Services;
+using Deckle.API.Services.Storage;
 
 namespace Deckle.API.Endpoints;
 
@@ -175,6 +176,13 @@ public static class FileEndpoints
         .WithName("GetUserStorageQuota")
         .WithDescription("Get the current user's storage quota information");
 
+        routes.MapFileRedirectEndpoint();
+
+        return projectFilesGroup;
+    }
+
+    private static void MapFileRedirectEndpoint(this IEndpointRouteBuilder routes)
+    {
         // File redirect endpoint - GET /api/file/{projectId}?filename={filename}
         var fileRedirectGroup = routes.MapGroup("/file")
             .WithTags("Files")
@@ -186,7 +194,7 @@ public static class FileEndpoints
             string filename,
             HttpContext httpContext,
             IFileService fileService,
-            ICloudflareR2Service r2Service) =>
+            IFileStorage storage) =>
         {
             var userId = httpContext.GetUserId();
 
@@ -203,14 +211,12 @@ public static class FileEndpoints
             }
 
             // Generate pre-signed URL
-            var downloadUrl = r2Service.GenerateDownloadUrl(file.StorageKey, file.FileName);
+            var downloadUrl = storage.GenerateDownloadUrl(file.StorageKey, file.FileName);
 
             // Return 302 redirect
             return Results.Redirect(downloadUrl);
         })
         .WithName("GetFileByProjectAndPath")
         .WithDescription("Get a file by project ID and path (e.g., 'folder/subfolder/image.png'), returning a 302 redirect to a pre-signed download URL");
-
-        return projectFilesGroup;
     }
 }

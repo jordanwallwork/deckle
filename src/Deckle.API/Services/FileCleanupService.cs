@@ -1,3 +1,4 @@
+using Deckle.API.Services.Storage;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -44,7 +45,7 @@ public partial class FileCleanupService : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var r2Service = scope.ServiceProvider.GetRequiredService<ICloudflareR2Service>();
+        var storage = scope.ServiceProvider.GetRequiredService<IFileStorage>();
 
         var cutoff = DateTime.UtcNow - _pendingTimeout;
         var pendingFiles = await context.Files
@@ -66,15 +67,15 @@ public partial class FileCleanupService : BackgroundService
         {
             try
             {
-                // Try to delete from R2 (may not exist if upload never completed)
+                // Try to delete from storage (may not exist if upload never completed)
                 try
                 {
-                    await r2Service.DeleteFileAsync(file.StorageKey);
+                    await storage.DeleteFileAsync(file.StorageKey);
                 }
                 catch (Exception ex)
                 {
-                    LogR2DeleteFailed(ex, file.StorageKey);
-                    // Continue with database cleanup even if R2 deletion fails
+                    LogStorageDeleteFailed(ex, file.StorageKey);
+                    // Continue with database cleanup even if storage deletion fails
                 }
 
                 // Remove from database
@@ -112,8 +113,8 @@ public partial class FileCleanupService : BackgroundService
     [LoggerMessage(Level = LogLevel.Information, Message = "Found {Count} pending files to clean up")]
     private partial void LogPendingFilesFound(int count);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to delete file from R2 (may not exist): {StorageKey}")]
-    private partial void LogR2DeleteFailed(Exception ex, string storageKey);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to delete file from storage (may not exist): {StorageKey}")]
+    private partial void LogStorageDeleteFailed(Exception ex, string storageKey);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Cleaned up pending file: {FileId} (uploaded {UploadedAt})")]
     private partial void LogPendingFileCleaned(Guid fileId, DateTime uploadedAt);

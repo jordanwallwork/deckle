@@ -1,5 +1,6 @@
 using Deckle.API.Endpoints;
 using Deckle.API.Filters;
+using Deckle.API.Services.Storage;
 using Deckle.Domain.Data;
 using Exceptionless;
 using Hangfire;
@@ -14,6 +15,7 @@ public static class WebApplicationExtensions
     public static async Task<WebApplication> ConfigurePipelineAsync(this WebApplication app)
     {
         LogStartupConfigurationWarnings(app);
+        LogFileStorageBackend(app);
 
         app.UseExceptionless();
         app.UseExceptionHandler();
@@ -72,6 +74,10 @@ public static class WebApplicationExtensions
         app.MapSampleEndpoints();
         app.MapFileEndpoints();
         app.MapFileDirectoryEndpoints();
+        if (LocalFileStorageOptions.IsEnabled(app.Configuration))
+        {
+            app.MapLocalStorageEndpoints();
+        }
         app.MapAdminEndpoints();
         app.MapUserEndpoints();
         app.MapApiKeyEndpoints();
@@ -94,6 +100,21 @@ public static class WebApplicationExtensions
 
         if (string.IsNullOrWhiteSpace(config["FrontendUrl"]))
             logger.LogWarning("FrontendUrl not configured in production. CORS will block all requests.");
+    }
+
+    private static void LogFileStorageBackend(WebApplication app)
+    {
+        var logger = app.Services.GetRequiredService<ILogger<WebApplication>>();
+
+        if (LocalFileStorageOptions.IsEnabled(app.Configuration))
+        {
+            var storage = app.Services.GetRequiredService<LocalFileStorage>();
+            logger.LogInformation("File storage: local filesystem at {Directory}", storage.RootDirectory);
+        }
+        else
+        {
+            logger.LogInformation("File storage: Cloudflare R2");
+        }
     }
 
     private static async Task ApplyMigrationsAsync(this WebApplication app)

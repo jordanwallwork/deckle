@@ -2,6 +2,7 @@ using Deckle.API.Configurators;
 using Deckle.API.McpTools;
 using Deckle.API.Services;
 using Deckle.API.Services.Email;
+using Deckle.API.Services.Storage;
 using Deckle.Domain.Entities;
 using Deckle.Email;
 using Deckle.Email.Abstractions;
@@ -81,9 +82,20 @@ public static class ServiceCollectionExtensions
         services.AddScoped<EmailJobProcessor>();
         services.AddScoped<IEmailSender, BackgroundEmailSender>();
 
-        // Cloudflare R2 storage
-        services.Configure<CloudflareR2Options>(configuration.GetSection("CloudflareR2"));
-        services.AddSingleton<ICloudflareR2Service, CloudflareR2Service>();
+        // File storage: local filesystem when a storage directory is configured, otherwise Cloudflare R2
+        if (LocalFileStorageOptions.IsEnabled(configuration))
+        {
+            services.Configure<LocalFileStorageOptions>(configuration.GetSection(LocalFileStorageOptions.SectionName));
+            services.AddDataProtection();
+            services.AddHttpContextAccessor();
+            services.AddSingleton<LocalFileStorage>();
+            services.AddSingleton<IFileStorage>(sp => sp.GetRequiredService<LocalFileStorage>());
+        }
+        else
+        {
+            services.Configure<CloudflareR2Options>(configuration.GetSection("CloudflareR2"));
+            services.AddSingleton<IFileStorage, R2FileStorage>();
+        }
 
         // Background services
         services.AddHostedService<FileCleanupService>();

@@ -29,6 +29,8 @@ In order to run the project properly, configure the following user secrets:
    - BucketName
    - AccessKeyId
    - SecretAccessKey
+ - LocalFileStorage (optional alternative to CloudflareR2):
+   - Directory
 
 ## Setting User Secrets
 
@@ -57,4 +59,23 @@ dotnet user-secrets set "CloudflareR2:AccessKeyId" "YOUR_ACCESS_KEY_ID"
 dotnet user-secrets set "CloudflareR2:SecretAccessKey" "YOUR_SECRET_ACCESS_KEY"
 ```
 
-**Note:** The R2 credentials are required for file upload functionality. You can obtain these from your Cloudflare dashboard under R2 → Manage R2 API Tokens.
+**Note:** File uploads need either the R2 credentials or local file storage (see below). You can obtain R2 credentials from your Cloudflare dashboard under R2 → Manage R2 API Tokens.
+
+## Local file storage (alternative to R2)
+
+To store uploaded files on your own filesystem instead of in R2, set a storage directory:
+
+```bash
+cd src/Deckle.API
+dotnet user-secrets set "LocalFileStorage:Directory" "C:\deckle-storage"
+```
+
+When `LocalFileStorage:Directory` is set, the API uses local storage and ignores the `CloudflareR2` settings. A relative path is resolved against the `Deckle.API` project directory. Files are saved under `<directory>/projects/{projectId}/files/{fileId}/`.
+
+Uploads and downloads go through the API's `/storage` endpoint, which is mapped only when local storage is enabled. Like R2 presigned URLs, its URLs carry a signed token that expires after 15 minutes. You can change this with `LocalFileStorage:UrlExpirationMinutes`.
+
+To switch back to R2, remove the setting:
+
+```bash
+dotnet user-secrets remove "LocalFileStorage:Directory"
+```

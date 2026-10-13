@@ -4,7 +4,7 @@ using Amazon.Runtime;
 using Microsoft.Extensions.Options;
 using Amazon;
 
-namespace Deckle.API.Services;
+namespace Deckle.API.Services.Storage;
 
 public class CloudflareR2Options
 {
@@ -15,25 +15,16 @@ public class CloudflareR2Options
     public int PresignedUrlExpirationMinutes { get; set; } = 15;
 }
 
-public interface ICloudflareR2Service
-{
-    public string GenerateUploadUrl(string storageKey, string contentType, long fileSizeBytes);
-    public string GenerateDownloadUrl(string storageKey, string fileName);
-    public Task CopyFileAsync(string sourceStorageKey, string destinationStorageKey);
-    public Task DeleteFileAsync(string storageKey);
-    public Task<bool> FileExistsAsync(string storageKey);
-}
-
-public partial class CloudflareR2Service : ICloudflareR2Service, IDisposable
+public partial class R2FileStorage : IFileStorage, IDisposable
 {
     private readonly IAmazonS3 _s3Client;
     private readonly CloudflareR2Options _options;
-    private readonly ILogger<CloudflareR2Service> _logger;
+    private readonly ILogger<R2FileStorage> _logger;
     private bool _disposed;
 
-    public CloudflareR2Service(
+    public R2FileStorage(
         IOptions<CloudflareR2Options> options,
-        ILogger<CloudflareR2Service> logger)
+        ILogger<R2FileStorage> logger)
     {
         _options = options.Value;
         _logger = logger;
@@ -111,7 +102,7 @@ public partial class CloudflareR2Service : ICloudflareR2Service, IDisposable
 
             // Set content disposition to suggest filename
             request.ResponseHeaderOverrides.ContentDisposition =
-                $"inline; filename=\"{SanitizeFileName(fileName)}\"";
+                $"inline; filename=\"{StorageKeys.SanitizeFileName(fileName)}\"";
 
             var url = _s3Client.GetPreSignedURL(request);
             return url;
@@ -191,55 +182,6 @@ public partial class CloudflareR2Service : ICloudflareR2Service, IDisposable
         {
             return false;
         }
-    }
-
-    /// <summary>
-    /// Validate content type against allowed types
-    /// </summary>
-    public static bool IsValidContentType(string contentType)
-    {
-        var allowedTypes = new[]
-        {
-            "image/jpeg",
-            "image/jpg",
-            "image/png",
-            "image/gif",
-            "image/webp",
-            "image/svg+xml"
-        };
-
-        return allowedTypes.Contains(contentType.ToLowerInvariant());
-    }
-
-    /// <summary>
-    /// Generate storage key for a file
-    /// </summary>
-    public static string GenerateStorageKey(Guid projectId, Guid fileId, string fileName)
-    {
-        // Sanitize filename
-        var sanitized = SanitizeFileName(fileName);
-        return $"projects/{projectId}/files/{fileId}/{sanitized}";
-    }
-
-    /// <summary>
-    /// Sanitize filename to prevent path traversal and other issues
-    /// </summary>
-    private static string SanitizeFileName(string fileName)
-    {
-        // Remove potentially dangerous characters
-        var invalid = Path.GetInvalidFileNameChars();
-        var sanitized = string.Join("_", fileName.Split(invalid, StringSplitOptions.RemoveEmptyEntries));
-
-        // Remove leading/trailing whitespace and dots
-        sanitized = sanitized.Trim().Trim('.');
-
-        // Ensure filename is not empty
-        if (string.IsNullOrWhiteSpace(sanitized))
-        {
-            sanitized = "file";
-        }
-
-        return sanitized;
     }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Failed to generate upload URL for key: {StorageKey}")]

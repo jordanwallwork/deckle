@@ -1,5 +1,7 @@
 using Deckle.API.DTOs;
 using Deckle.API.Services;
+using Deckle.API.Services.Storage;
+using Deckle.API.Tests.Services.Storage;
 using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Deckle.Domain.Exceptions;
@@ -11,13 +13,14 @@ namespace Deckle.API.Tests.Services;
 
 /// <summary>
 /// Tests for FileService focusing on business logic, validation, and database operations.
-/// Note: Tests that require R2 storage network calls are skipped or use test doubles.
+/// Storage operations use LocalFileStorage in a temporary directory.
 /// </summary>
 public class FileServiceTests : IDisposable
 {
     private bool _disposed;
     private readonly ProjectAuthorizationService _authService;
-    private readonly CloudflareR2Service _r2Service;
+    private readonly string _storageDirectory;
+    private readonly LocalFileStorage _storage;
     private readonly Mock<ILogger<FileService>> _mockLogger;
     private readonly AppDbContext _context;
     private readonly FileService _fileService;
@@ -33,15 +36,9 @@ public class FileServiceTests : IDisposable
         // Use real ProjectAuthorizationService with in-memory database
         _authService = new ProjectAuthorizationService(_context);
 
-        // Use real CloudflareR2Service with test configuration
-        var r2Options = Microsoft.Extensions.Options.Options.Create(new CloudflareR2Options
-        {
-            AccountId = "test-account",
-            BucketName = "test-bucket",
-            AccessKeyId = "test-key",
-            SecretAccessKey = "test-secret"
-        });
-        _r2Service = new CloudflareR2Service(r2Options, new Mock<ILogger<CloudflareR2Service>>().Object);
+        // Use real LocalFileStorage in a temporary directory
+        _storageDirectory = TestLocalFileStorage.CreateTempDirectory();
+        _storage = TestLocalFileStorage.Create(_storageDirectory);
 
         // Mock logger
         _mockLogger = new Mock<ILogger<FileService>>();
@@ -49,7 +46,7 @@ public class FileServiceTests : IDisposable
         _fileService = new FileService(
             _context,
             _authService,
-            _r2Service,
+            _storage,
             _mockLogger.Object);
     }
 
@@ -547,6 +544,92 @@ public class FileServiceTests : IDisposable
             userId, projectId, "test.jpg", "image/jpeg", 1024, tags);
 
         Assert.NotNull(result);
+    }
+
+    #endregion
+
+    #region Storage Tests
+
+    [Fact]
+    public async Task ConfirmUploadAsync_FileInStorage_ConfirmsFile()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        await SeedProjectWithOwner(projectId, userId);
+
+        var upload = await _fileService.RequestUploadUrlAsync(userId, projectId, "test.png", "image/png", 3);
+        var file = await _context.Files.FindAsync(upload.FileId);
+        await _storage.SaveAsync(file!.StorageKey, new MemoryStream([1, 2, 3]), 3);
+
+        // Act
+        var result = await _fileService.ConfirmUploadAsync(userId, upload.FileId);
+
+        // Assert
+        Assert.Equal("test.png", result.FileName);
+        Assert.Equal(FileStatus.Confirmed, file.Status);
+    }
+
+    [Fact]
+    public async Task ConfirmUploadAsync_FileNotInStorage_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        await SeedProjectWithOwner(projectId, userId);
+
+        var upload = await _fileService.RequestUploadUrlAsync(userId, projectId, "test.png", "image/png", 3);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _fileService.ConfirmUploadAsync(userId, upload.FileId));
+    }
+
+    [Fact]
+    public async Task RenameFileAsync_MovesFileInStorage()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        await SeedProjectWithOwner(projectId, userId);
+
+        var file = CreateConfirmedFile(projectId, userId, "old.jpg");
+        file.Path = "old.jpg";
+        file.StorageKey = StorageKeys.Generate(projectId, file.Id, "old.jpg");
+        _context.Files.Add(file);
+        await _context.SaveChangesAsync();
+        await _storage.SaveAsync(file.StorageKey, new MemoryStream([1, 2, 3]), 3);
+        var oldStorageKey = file.StorageKey;
+
+        // Act
+        await _fileService.RenameFileAsync(userId, file.Id, "new");
+
+        // Assert
+        Assert.Equal(StorageKeys.Generate(projectId, file.Id, "new.jpg"), file.StorageKey);
+        Assert.True(await _storage.FileExistsAsync(file.StorageKey));
+        Assert.False(await _storage.FileExistsAsync(oldStorageKey));
+    }
+
+    [Fact]
+    public async Task DeleteFileAsync_RemovesFileFromStorage()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        await SeedProjectWithOwner(projectId, userId);
+
+        var file = CreateConfirmedFile(projectId, userId, "image.jpg");
+        file.StorageKey = StorageKeys.Generate(projectId, file.Id, "image.jpg");
+        _context.Files.Add(file);
+        await _context.SaveChangesAsync();
+        await _storage.SaveAsync(file.StorageKey, new MemoryStream([1, 2, 3]), 3);
+
+        // Act
+        await _fileService.DeleteFileAsync(userId, file.Id);
+
+        // Assert
+        Assert.False(await _storage.FileExistsAsync(file.StorageKey));
+        Assert.Null(await _context.Files.FindAsync(file.Id));
     }
 
     #endregion
@@ -1217,7 +1300,10 @@ public class FileServiceTests : IDisposable
             if (disposing)
             {
                 _context.Dispose();
-                _r2Service.Dispose();
+                if (Directory.Exists(_storageDirectory))
+                {
+                    Directory.Delete(_storageDirectory, recursive: true);
+                }
             }
 
             _disposed = true;

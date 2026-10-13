@@ -13,6 +13,17 @@
   import TagInput from '$lib/components/forms/TagInput.svelte';
   import { TabContent } from '$lib/components';
   import type { DragItemData } from '$lib/components/LibraryRow.svelte';
+  import type { ContextMenuItem } from '$lib/components/ContextMenu.svelte';
+  import BatchAddTagsDialog from './_components/BatchAddTagsDialog.svelte';
+  import BatchRemoveTagsDialog from './_components/BatchRemoveTagsDialog.svelte';
+  import MoveToDialog from './_components/MoveToDialog.svelte';
+  import {
+    mergeTags,
+    subtractTags,
+    unionTags,
+    runBatch,
+    type BatchResult
+  } from './_components/batchActions';
 
   let { data }: { data: PageData } = $props();
 
@@ -51,6 +62,14 @@
   let selectedIds = $state<Set<string>>(new Set());
   let lastSelectedId = $state<string | null>(null);
 
+  // Batch action state
+  let batchDeleteConfirmOpen = $state(false);
+  let batchDeleting = $state(false);
+  let showBatchAddTags = $state(false);
+  let showBatchRemoveTags = $state(false);
+  let showMoveTo = $state(false);
+  let batchError = $state<string | null>(null);
+
   // Computed values
   let files = $derived(data.directoryContents?.files ?? []);
   let directories = $derived(data.directoryContents?.childDirectories ?? []);
@@ -69,6 +88,34 @@
 
   // Get array of selected IDs for components that need it
   let selectedIdsArray = $derived(Array.from(selectedIds));
+
+  // Selection broken down for batch actions (tag actions only apply to files)
+  let selectedItems = $derived(allItems.filter((item) => selectedIds.has(item.id)));
+  let selectedFiles = $derived(files.filter((f) => selectedIds.has(f.id)));
+  let selectedFolderIds = $derived(
+    selectedItems.filter((item) => item.type === 'folder').map((item) => item.id)
+  );
+  let selectedFileTags = $derived(unionTags(selectedFiles.map((f) => f.tags ?? [])));
+
+  let batchContextMenuItems = $derived<ContextMenuItem[]>([
+    { label: 'Move to…', action: () => (showMoveTo = true) },
+    {
+      label: 'Add tags…',
+      action: () => (showBatchAddTags = true),
+      disabled: selectedFiles.length === 0
+    },
+    {
+      label: 'Remove tags…',
+      action: () => (showBatchRemoveTags = true),
+      disabled: selectedFiles.length === 0
+    },
+    { divider: true },
+    {
+      label: `Delete ${selectedItems.length} items`,
+      action: () => (batchDeleteConfirmOpen = true),
+      variant: 'danger'
+    }
+  ]);
   // Empty GUID string that represents root directory
   const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
@@ -299,14 +346,14 @@
     }
   }
 
-  // Move item(s) to a folder
-  async function handleMoveToFolder(targetFolderId: string, dragData: DragItemData) {
-    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
-
+  // Move items to a folder (null = root), stopping to prompt for a merge on a folder name conflict
+  async function moveItems(
+    itemsToMove: Array<{ type: 'file' | 'folder'; id: string }>,
+    targetFolderId: string | null
+  ) {
     for (const item of itemsToMove) {
       const result = await moveSingleItem(item, targetFolderId);
       if (!result.success && result.conflict) {
-        // Conflict - directory with same name exists, prompt for merge
         mergeConflict = result.conflict;
         pendingMergeTarget = targetFolderId;
         mergeConfirmOpen = true;
@@ -320,47 +367,20 @@
     await invalidateAll();
   }
 
-  // Move item(s) to root (null directory)
-  async function handleMoveToRoot(dragData: DragItemData) {
-    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
-
-    for (const item of itemsToMove) {
-      const result = await moveSingleItem(item, null);
-      if (!result.success && result.conflict) {
-        // Conflict - directory with same name exists at root, prompt for merge
-        mergeConflict = result.conflict;
-        pendingMergeTarget = null;
-        mergeConfirmOpen = true;
-        // Stop processing remaining items on conflict
-        break;
-      }
-    }
-
-    // Clear selection after moving
-    selectedIds = new Set();
-    await invalidateAll();
+  function draggedItems(dragData: DragItemData) {
+    return dragData.items ?? [{ type: dragData.type, id: dragData.id }];
   }
 
-  // Move item(s) to parent directory
-  async function handleMoveToParent(dragData: DragItemData) {
-    const parentId = data.directoryContents?.parentDirectoryId ?? null;
-    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
+  function handleMoveToFolder(targetFolderId: string, dragData: DragItemData) {
+    return moveItems(draggedItems(dragData), targetFolderId);
+  }
 
-    for (const item of itemsToMove) {
-      const result = await moveSingleItem(item, parentId);
-      if (!result.success && result.conflict) {
-        // Conflict - directory with same name exists in parent, prompt for merge
-        mergeConflict = result.conflict;
-        pendingMergeTarget = parentId;
-        mergeConfirmOpen = true;
-        // Stop processing remaining items on conflict
-        break;
-      }
-    }
+  function handleMoveToRoot(dragData: DragItemData) {
+    return moveItems(draggedItems(dragData), null);
+  }
 
-    // Clear selection after moving
-    selectedIds = new Set();
-    await invalidateAll();
+  function handleMoveToParent(dragData: DragItemData) {
+    return moveItems(draggedItems(dragData), data.directoryContents?.parentDirectoryId ?? null);
   }
 
   // Handle merge confirmation
@@ -450,6 +470,10 @@
       showUploadModal = false;
     }
     await invalidateAll();
+    await refreshTags();
+  }
+
+  async function refreshTags() {
     try {
       const { tags } = await filesApi.getTags(data.project.id);
       availableTags = tags;
@@ -466,12 +490,69 @@
   // File updated handler (for tag changes)
   async function handleFileUpdated() {
     await invalidateAll();
+    await refreshTags();
+  }
+
+  // Keep only failed items selected so the user can retry, and report the failure count
+  async function finishBatch(result: BatchResult<{ id: string }>, verb: string) {
+    const total = result.succeeded.length + result.failed.length;
+    batchError =
+      result.failed.length > 0 ? `${result.failed.length} of ${total} items failed to ${verb}` : null;
+    selectedIds = new Set(result.failed.map((item) => item.id));
+    await invalidateAll();
+    await refreshTags();
+  }
+
+  async function handleBatchDelete() {
+    batchDeleting = true;
     try {
-      const { tags } = await filesApi.getTags(data.project.id);
-      availableTags = tags;
-    } catch (err) {
-      console.error('Failed to refresh tags:', err);
+      // Files first: deleting a folder moves its contents up, so delete selected files before that
+      const fileResult = await runBatch(
+        selectedItems.filter((item) => item.type === 'file'),
+        (item) => filesApi.delete(item.id)
+      );
+      const folderResult = await runBatch(
+        selectedItems.filter((item) => item.type === 'folder'),
+        (item) => directoriesApi.delete(item.id)
+      );
+      batchDeleteConfirmOpen = false;
+      await finishBatch(
+        {
+          succeeded: [...fileResult.succeeded, ...folderResult.succeeded],
+          failed: [...fileResult.failed, ...folderResult.failed]
+        },
+        'delete'
+      );
+    } finally {
+      batchDeleting = false;
     }
+  }
+
+  // Apply a tag change to every selected file, skipping files it wouldn't change
+  async function updateSelectedFileTags(change: (tags: string[]) => string[]) {
+    const updates = selectedFiles
+      .map((file) => ({ id: file.id, before: file.tags ?? [], after: change(file.tags ?? []) }))
+      .filter((u) => u.after.length !== u.before.length);
+    const result = await runBatch(updates, (u) => filesApi.updateTags(u.id, { tags: u.after }));
+    await finishBatch(result, 'update');
+  }
+
+  function handleBatchAddTags(tags: string[]) {
+    return updateSelectedFileTags((existing) => mergeTags(existing, tags));
+  }
+
+  function handleBatchRemoveTags(tags: string[]) {
+    return updateSelectedFileTags((existing) => subtractTags(existing, tags));
+  }
+
+  // Delete key deletes the selection, unless typing or a dialog/lightbox/menu is open
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Delete' || event.defaultPrevented || selectedIds.size === 0) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (document.querySelector('[role="dialog"], .context-menu')) return;
+    event.preventDefault();
+    batchDeleteConfirmOpen = true;
   }
 
   // Format bytes for display
@@ -483,6 +564,8 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>Image Library - {data.project.name} - Deckle</title>
@@ -573,6 +656,15 @@
       </div>
     {/if}
 
+    {#if batchError}
+      <div class="batch-error" role="alert">
+        <span>{batchError}. The failed items are still selected.</span>
+        <button type="button" onclick={() => (batchError = null)} aria-label="Dismiss">
+          &times;
+        </button>
+      </div>
+    {/if}
+
     {#if filterLoading}
       <div class="loading-state">
         <p>Loading filtered files...</p>
@@ -609,6 +701,7 @@
               handleFolderSelectionChange(directory.id, selected, shiftKey)}
             selectedIds={selectedIdsArray}
             {allItems}
+            {batchContextMenuItems}
           />
         {/each}
 
@@ -622,6 +715,7 @@
             selectedIds={selectedIdsArray}
             onSelectionChange={handleFileSelectionChange}
             {allItems}
+            {batchContextMenuItems}
           />
         {/if}
       </div>
@@ -682,6 +776,47 @@
     deleteFolderConfirmOpen = false;
     folderToDelete = null;
   }}
+/>
+
+<ConfirmDialog
+  show={batchDeleteConfirmOpen}
+  title="Delete {selectedItems.length} Items"
+  message={[
+    `Are you sure you want to delete ${selectedFiles.length} ${selectedFiles.length === 1 ? 'image' : 'images'}`,
+    selectedFolderIds.length > 0
+      ? ` and ${selectedFolderIds.length} ${selectedFolderIds.length === 1 ? 'folder' : 'folders'}? Files inside deleted folders will be moved to the parent folder.`
+      : '?',
+    ' This action cannot be undone.'
+  ].join('')}
+  confirmText={batchDeleting ? 'Deleting...' : 'Delete'}
+  confirmVariant="danger"
+  cancelText="Cancel"
+  onconfirm={handleBatchDelete}
+  oncancel={() => (batchDeleteConfirmOpen = false)}
+/>
+
+<BatchAddTagsDialog
+  bind:show={showBatchAddTags}
+  fileCount={selectedFiles.length}
+  suggestions={availableTags}
+  onSubmit={handleBatchAddTags}
+/>
+
+<BatchRemoveTagsDialog
+  bind:show={showBatchRemoveTags}
+  fileCount={selectedFiles.length}
+  existingTags={selectedFileTags}
+  onSubmit={handleBatchRemoveTags}
+/>
+
+<MoveToDialog
+  bind:show={showMoveTo}
+  projectId={data.project.id}
+  directories={data.allDirectories}
+  excludedIds={selectedFolderIds}
+  {currentDirectoryId}
+  itemCount={selectedItems.length}
+  onSubmit={(targetId) => moveItems(selectedItems, targetId)}
 />
 
 <ConfirmDialog
@@ -802,6 +937,29 @@
   }
 
   .radio-label input[type='radio'] {
+    cursor: pointer;
+  }
+
+  .batch-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger);
+    border-radius: 8px;
+    color: var(--color-danger-fg);
+    font-size: 0.875rem;
+  }
+
+  .batch-error button {
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 1.25rem;
+    line-height: 1;
     cursor: pointer;
   }
 

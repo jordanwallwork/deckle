@@ -19,7 +19,8 @@
     isSelected = false,
     onSelectionChange,
     selectedIds = [],
-    allItems = []
+    allItems = [],
+    batchContextMenuItems
   }: {
     file: File;
     isDeleting?: boolean;
@@ -32,6 +33,7 @@
     onSelectionChange?: (selected: boolean, shiftKey: boolean) => void;
     selectedIds?: string[];
     allItems?: Array<{ type: 'file' | 'folder'; id: string }>;
+    batchContextMenuItems?: ContextMenuItem[];
   } = $props();
 
   // Drag data for this file
@@ -66,6 +68,7 @@
   onRowClick={onThumbnailClick}
   metadata="{formatFileSize(file.fileSizeBytes)} &bull; {formatShortDate(file.uploadedAt)}"
   {contextMenuItems}
+  {batchContextMenuItems}
   {dragData}
   {selectable}
   {isSelected}

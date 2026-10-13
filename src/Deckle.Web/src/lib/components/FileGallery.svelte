@@ -4,6 +4,7 @@
   import ConfirmDialog from './ConfirmDialog.svelte';
   import EmptyState from './EmptyState.svelte';
   import { FileRow, FileLightbox } from './file-gallery';
+  import type { ContextMenuItem } from './ContextMenu.svelte';
   import type { File } from '$lib/types';
 
   let {
@@ -13,7 +14,8 @@
     selectable = false,
     selectedIds = [],
     onSelectionChange,
-    allItems = []
+    allItems = [],
+    batchContextMenuItems
   }: {
     files: File[];
     onFileDeleted?: (fileId: string) => void;
@@ -22,6 +24,7 @@
     selectedIds?: string[];
     onSelectionChange?: (fileId: string, selected: boolean, shiftKey: boolean) => void;
     allItems?: Array<{ type: 'file' | 'folder'; id: string }>;
+    batchContextMenuItems?: ContextMenuItem[];
   } = $props();
 
   // Lightbox state
@@ -98,6 +101,7 @@
           onSelectionChange={(selected, shiftKey) => onSelectionChange?.(file.id, selected, shiftKey)}
           {selectedIds}
           {allItems}
+          {batchContextMenuItems}
         />
       {/each}
     </div>

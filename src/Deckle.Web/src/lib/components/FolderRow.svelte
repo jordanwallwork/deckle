@@ -15,7 +15,8 @@
     isSelected = false,
     onSelectionChange,
     selectedIds = [],
-    allItems = []
+    allItems = [],
+    batchContextMenuItems
   }: {
     directory: FileDirectory;
     itemCount?: number;
@@ -28,6 +29,7 @@
     onSelectionChange?: (selected: boolean, shiftKey: boolean) => void;
     selectedIds?: string[];
     allItems?: Array<{ type: 'file' | 'folder'; id: string }>;
+    batchContextMenuItems?: ContextMenuItem[];
   } = $props();
 
   let rowRef: LibraryRow | undefined = $state();
@@ -87,6 +89,7 @@
   onRowClick={onclick}
   onNameEdit={onrename}
   {contextMenuItems}
+  {batchContextMenuItems}
   {dragData}
   isDropTarget={true}
   {canAcceptDrop}

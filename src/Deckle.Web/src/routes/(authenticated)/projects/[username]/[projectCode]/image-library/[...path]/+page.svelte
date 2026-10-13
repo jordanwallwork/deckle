@@ -96,18 +96,39 @@
   let selectedFolderIds = $derived(
     selectedItems.filter((item) => item.type === 'folder').map((item) => item.id)
   );
-  let selectedFileTags = $derived(unionTags(selectedFiles.map((f) => f.tags ?? [])));
+
+  // Items the move/tag dialogs act on: the selection, or the single row whose menu opened them
+  let actionTargetIds = $state<Set<string>>(new Set());
+  let actingOnSelection = $state(true);
+  let targetItems = $derived(allItems.filter((item) => actionTargetIds.has(item.id)));
+  let targetFiles = $derived(files.filter((f) => actionTargetIds.has(f.id)));
+  let targetFolderIds = $derived(
+    targetItems.filter((item) => item.type === 'folder').map((item) => item.id)
+  );
+  let targetFileTags = $derived(unionTags(targetFiles.map((f) => f.tags ?? [])));
+
+  function actOnSelection(open: () => void) {
+    actionTargetIds = new Set(selectedIds);
+    actingOnSelection = true;
+    open();
+  }
+
+  function actOnItem(id: string, open: () => void) {
+    actionTargetIds = new Set([id]);
+    actingOnSelection = false;
+    open();
+  }
 
   let batchContextMenuItems = $derived<ContextMenuItem[]>([
-    { label: 'Move to…', action: () => (showMoveTo = true) },
+    { label: 'Move to…', action: () => actOnSelection(() => (showMoveTo = true)) },
     {
       label: 'Add tags…',
-      action: () => (showBatchAddTags = true),
+      action: () => actOnSelection(() => (showBatchAddTags = true)),
       disabled: selectedFiles.length === 0
     },
     {
       label: 'Remove tags…',
-      action: () => (showBatchRemoveTags = true),
+      action: () => actOnSelection(() => (showBatchRemoveTags = true)),
       disabled: selectedFiles.length === 0
     },
     { divider: true },
@@ -117,6 +138,23 @@
       variant: 'danger'
     }
   ]);
+
+  function folderContextMenuItems(folderId: string): ContextMenuItem[] {
+    return [{ label: 'Move to…', action: () => actOnItem(folderId, () => (showMoveTo = true)) }];
+  }
+
+  function fileContextMenuItems(file: (typeof files)[number]): ContextMenuItem[] {
+    return [
+      { label: 'Move to…', action: () => actOnItem(file.id, () => (showMoveTo = true)) },
+      { label: 'Add tags…', action: () => actOnItem(file.id, () => (showBatchAddTags = true)) },
+      {
+        label: 'Remove tags…',
+        action: () => actOnItem(file.id, () => (showBatchRemoveTags = true)),
+        disabled: (file.tags ?? []).length === 0
+      }
+    ];
+  }
+
   // Empty GUID string that represents root directory
   const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
@@ -350,7 +388,8 @@
   // Move items to a folder (null = root), stopping to prompt for a merge on a folder name conflict
   async function moveItems(
     itemsToMove: Array<{ type: 'file' | 'folder'; id: string }>,
-    targetFolderId: string | null
+    targetFolderId: string | null,
+    clearSelection = true
   ) {
     for (const item of itemsToMove) {
       const result = await moveSingleItem(item, targetFolderId);
@@ -363,8 +402,7 @@
       }
     }
 
-    // Clear selection after moving
-    selectedIds = new Set();
+    if (clearSelection) selectedIds = new Set();
     await invalidateAll();
   }
 
@@ -495,11 +533,15 @@
   }
 
   // Keep only failed items selected so the user can retry, and report the failure count
-  async function finishBatch(result: BatchResult<{ id: string }>, verb: string) {
+  async function finishBatch(
+    result: BatchResult<{ id: string }>,
+    verb: string,
+    reselectFailed = true
+  ) {
     const total = result.succeeded.length + result.failed.length;
     batchError =
       result.failed.length > 0 ? `${result.failed.length} of ${total} items failed to ${verb}` : null;
-    selectedIds = new Set(result.failed.map((item) => item.id));
+    if (reselectFailed) selectedIds = new Set(result.failed.map((item) => item.id));
     await invalidateAll();
     await refreshTags();
   }
@@ -529,21 +571,21 @@
     }
   }
 
-  // Apply a tag change to every selected file, skipping files it wouldn't change
-  async function updateSelectedFileTags(change: (tags: string[]) => string[]) {
-    const updates = selectedFiles
+  // Apply a tag change to every target file, skipping files it wouldn't change
+  async function updateTargetFileTags(change: (tags: string[]) => string[]) {
+    const updates = targetFiles
       .map((file) => ({ id: file.id, before: file.tags ?? [], after: change(file.tags ?? []) }))
       .filter((u) => u.after.length !== u.before.length);
     const result = await runBatch(updates, (u) => filesApi.updateTags(u.id, { tags: u.after }));
-    await finishBatch(result, 'update');
+    await finishBatch(result, 'update', actingOnSelection);
   }
 
   function handleBatchAddTags(tags: string[]) {
-    return updateSelectedFileTags((existing) => mergeTags(existing, tags));
+    return updateTargetFileTags((existing) => mergeTags(existing, tags));
   }
 
   function handleBatchRemoveTags(tags: string[]) {
-    return updateSelectedFileTags((existing) => subtractTags(existing, tags));
+    return updateTargetFileTags((existing) => subtractTags(existing, tags));
   }
 
   // Delete key deletes the selection, unless typing or a dialog/lightbox/menu is open
@@ -711,6 +753,7 @@
               handleFolderSelectionChange(directory.id, selected, shiftKey)}
             selectedIds={selectedIdsArray}
             {allItems}
+            extraContextMenuItems={folderContextMenuItems(directory.id)}
             {batchContextMenuItems}
           />
         {/each}
@@ -725,6 +768,7 @@
             selectedIds={selectedIdsArray}
             onSelectionChange={handleFileSelectionChange}
             {allItems}
+            {fileContextMenuItems}
             {batchContextMenuItems}
           />
         {/if}
@@ -814,15 +858,15 @@
 
 <BatchAddTagsDialog
   bind:show={showBatchAddTags}
-  fileCount={selectedFiles.length}
+  fileCount={targetFiles.length}
   suggestions={availableTags}
   onSubmit={handleBatchAddTags}
 />
 
 <BatchRemoveTagsDialog
   bind:show={showBatchRemoveTags}
-  fileCount={selectedFiles.length}
-  existingTags={selectedFileTags}
+  fileCount={targetFiles.length}
+  existingTags={targetFileTags}
   onSubmit={handleBatchRemoveTags}
 />
 
@@ -830,10 +874,10 @@
   bind:show={showMoveTo}
   projectId={data.project.id}
   directories={data.allDirectories}
-  excludedIds={selectedFolderIds}
+  excludedIds={targetFolderIds}
   {currentDirectoryId}
-  itemCount={selectedItems.length}
-  onSubmit={(targetId) => moveItems(selectedItems, targetId)}
+  itemCount={targetItems.length}
+  onSubmit={(targetId) => moveItems(targetItems, targetId, actingOnSelection)}
 />
 
 <ConfirmDialog

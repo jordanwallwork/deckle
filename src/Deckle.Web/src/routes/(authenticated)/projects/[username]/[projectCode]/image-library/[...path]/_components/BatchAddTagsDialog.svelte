@@ -37,7 +37,7 @@
 
 <Dialog bind:show title="Add Tags" maxWidth="480px">
   <p class="description">
-    Tags will be added to {fileCount} selected {fileCount === 1 ? 'image' : 'images'}.
+    Tags will be added to {fileCount} {fileCount === 1 ? 'image' : 'images'}.
   </p>
   <TagInput bind:value={tags} {suggestions} placeholder="Type a tag and press Enter" />
 

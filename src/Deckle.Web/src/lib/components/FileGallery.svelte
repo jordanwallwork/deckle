@@ -15,6 +15,7 @@
     selectedIds = [],
     onSelectionChange,
     allItems = [],
+    fileContextMenuItems,
     batchContextMenuItems
   }: {
     files: File[];
@@ -24,6 +25,8 @@
     selectedIds?: string[];
     onSelectionChange?: (fileId: string, selected: boolean, shiftKey: boolean) => void;
     allItems?: Array<{ type: 'file' | 'folder'; id: string }>;
+    // Extra single-item menu entries for a given file
+    fileContextMenuItems?: (file: File) => ContextMenuItem[];
     batchContextMenuItems?: ContextMenuItem[];
   } = $props();
 
@@ -101,6 +104,7 @@
           onSelectionChange={(selected, shiftKey) => onSelectionChange?.(file.id, selected, shiftKey)}
           {selectedIds}
           {allItems}
+          extraContextMenuItems={fileContextMenuItems?.(file)}
           {batchContextMenuItems}
         />
       {/each}

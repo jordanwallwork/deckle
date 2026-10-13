@@ -43,7 +43,7 @@
 
 <Dialog bind:show title="Remove Tags" maxWidth="480px">
   <p class="description">
-    Matching tags will be removed from {fileCount} selected {fileCount === 1 ? 'image' : 'images'}.
+    Matching tags will be removed from {fileCount} {fileCount === 1 ? 'image' : 'images'}.
   </p>
   <TagInput bind:value={tags} suggestions={existingTags} placeholder="Type a tag to remove" />
 

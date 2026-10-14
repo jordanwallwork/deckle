@@ -40,6 +40,16 @@ public record RegisterRequest(string Email, string Password);
 
 public record PasswordLoginRequest(string Email, string Password);
 
+/// <summary>Returned by register when the account must confirm its email before signing in.</summary>
+public record RegistrationPendingResponse(bool RequiresConfirmation);
+
+/// <summary>Auth error with a machine-readable code (e.g. "email_not_confirmed", "account_disabled").</summary>
+public record AuthErrorResponse(string Error, string Code);
+
+public record ConfirmEmailRequest(string Token);
+
+public record ResendConfirmationRequest(string Email);
+
 public record UsernameAvailabilityResponse(bool Available, string? Error = null);
 
 // Admin User Management DTOs
@@ -56,6 +66,59 @@ public record AdminUserDto
     public required int StorageQuotaMb { get; init; }
     public required long StorageUsedBytes { get; init; }
     public required int ProjectCount { get; init; }
+    public required bool EmailConfirmed { get; init; }
+    public required bool IsDisabled { get; init; }
+}
+
+/// <summary>
+/// Query-string filters for <c>GET /admin/users</c>. Date ranges are inclusive (UTC days).
+/// <paramref name="Role"/> is <c>User</c> or <c>Administrator</c>; <paramref name="Status"/> is
+/// <c>Active</c>, <c>Unconfirmed</c> or <c>Disabled</c>. Unrecognised values are ignored.
+/// <paramref name="SortBy"/> is one of <c>name</c>, <c>createdAt</c>, <c>lastLoginAt</c>, <c>storage</c>,
+/// <c>projects</c> or <c>role</c> (case-insensitive); unknown or missing values sort by <c>createdAt</c> desc.
+/// <paramref name="SortDir"/> is <c>asc</c> or <c>desc</c>; when missing or invalid it defaults to <c>desc</c>
+/// for createdAt/lastLoginAt/storage/projects and <c>asc</c> for name/role.
+/// </summary>
+public record AdminUserQuery(
+    int Page = 1,
+    int PageSize = 20,
+    string? Search = null,
+    DateOnly? CreatedFrom = null,
+    DateOnly? CreatedTo = null,
+    DateOnly? LastLoginFrom = null,
+    DateOnly? LastLoginTo = null,
+    string? Role = null,
+    string? Status = null,
+    string? SortBy = null,
+    string? SortDir = null);
+
+public record AdminApiKeyDto
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public DateTime? LastUsedAt { get; init; }
+}
+
+public record AdminUserProjectDto
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public required string Code { get; init; }
+    public required string OwnerUsername { get; init; }
+    public required string Visibility { get; init; }
+    public required int ComponentCount { get; init; }
+    public required DateTime CreatedAt { get; init; }
+}
+
+public record AdminUserDetailDto : AdminUserDto
+{
+    public DateTime? EmailConfirmedAt { get; init; }
+    public DateTime? DisabledAt { get; init; }
+    public required bool HasGoogleSignIn { get; init; }
+    public required bool HasPassword { get; init; }
+    public required List<AdminApiKeyDto> ApiKeys { get; init; }
+    public required List<AdminUserProjectDto> Projects { get; init; }
 }
 
 public record AdminUserListResponse
@@ -64,6 +127,10 @@ public record AdminUserListResponse
     public required int TotalCount { get; init; }
     public required int Page { get; init; }
     public required int PageSize { get; init; }
+    /// <summary>The sort actually applied (canonical key, e.g. <c>createdAt</c>)</summary>
+    public required string SortBy { get; init; }
+    /// <summary>The direction actually applied: <c>asc</c> or <c>desc</c></summary>
+    public required string SortDir { get; init; }
 }
 
 // Public profile DTOs
@@ -89,6 +156,10 @@ public record PublicUserProfileDto
 public record UpdateUserRoleRequest(string Role);
 
 public record UpdateUserQuotaRequest(int StorageQuotaMb);
+
+public record UpdateUserNameRequest(string? Name);
+
+public record UpdateUserDisabledRequest(bool Disabled);
 
 // Admin Sample Component DTOs
 public record AdminSampleComponentDto

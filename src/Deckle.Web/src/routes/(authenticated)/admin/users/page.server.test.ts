@@ -14,10 +14,7 @@ import { load } from './+page.server';
 const mockFetch = vi.fn();
 const adminUser = { id: 'u1', role: 'Administrator' };
 
-const makeEvent = (
-  user: object | undefined,
-  searchParams: Record<string, string> = {}
-) => {
+const makeEvent = (user: object | undefined, searchParams: Record<string, string> = {}) => {
   const url = new URL('http://localhost/admin/users');
   Object.entries(searchParams).forEach(([k, v]) => url.searchParams.set(k, v));
   return {
@@ -46,14 +43,26 @@ describe('admin users page load', () => {
     expect(result).toMatchObject({ usersResponse, user: adminUser });
   });
 
-  it('includes pagination defaults when no query params are provided', async () => {
+  it('includes pagination defaults and empty filters when no query params are provided', async () => {
     vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
 
     const result = await load(makeEvent(adminUser));
 
     expect(result!.currentPage).toBe(1);
     expect(result!.currentPageSize).toBe(20);
-    expect(result!.currentSearch).toBe('');
+    expect(result!.currentFilters).toEqual({
+      search: '',
+      createdFrom: '',
+      createdTo: '',
+      lastLoginFrom: '',
+      lastLoginTo: '',
+      role: '',
+      status: ''
+    });
+    expect(adminApi.getUsers).toHaveBeenCalledWith(
+      { page: 1, pageSize: 20, sortBy: 'createdAt', sortDir: 'desc' },
+      mockFetch
+    );
   });
 
   it('parses page, pageSize, and search from query params', async () => {
@@ -63,7 +72,83 @@ describe('admin users page load', () => {
 
     expect(result!.currentPage).toBe(4);
     expect(result!.currentPageSize).toBe(10);
-    expect(result!.currentSearch).toBe('bob');
+    expect(result!.currentFilters.search).toBe('bob');
+  });
+
+  it('parses every filter param and passes them to the API', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+    const filters = {
+      search: 'bob',
+      createdFrom: '2026-01-01',
+      createdTo: '2026-01-31',
+      lastLoginFrom: '2026-02-01',
+      lastLoginTo: '2026-02-28',
+      role: 'Administrator',
+      status: 'Disabled'
+    };
+
+    const result = await load(makeEvent(adminUser, { ...filters, page: '2' }));
+
+    expect(result!.currentFilters).toEqual(filters);
+    expect(adminApi.getUsers).toHaveBeenCalledWith(
+      { page: 2, pageSize: 20, ...filters, sortBy: 'createdAt', sortDir: 'desc' },
+      mockFetch
+    );
+  });
+
+  it('ignores malformed dates and unknown role/status values', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+
+    const result = await load(
+      makeEvent(adminUser, { createdFrom: 'not-a-date', role: 'Owner', status: 'Banned' })
+    );
+
+    expect(result!.currentFilters).toMatchObject({ createdFrom: '', role: '', status: '' });
+    expect(adminApi.getUsers).toHaveBeenCalledWith(
+      { page: 1, pageSize: 20, sortBy: 'createdAt', sortDir: 'desc' },
+      mockFetch
+    );
+  });
+
+  it('defaults the sort to sign-up date descending', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+
+    const result = await load(makeEvent(adminUser));
+
+    expect(result!.currentSort).toEqual({ sortBy: 'createdAt', sortDir: 'desc' });
+  });
+
+  it('parses the sort and passes it to the API with filters and page', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+
+    const result = await load(
+      makeEvent(adminUser, { sortBy: 'storage', sortDir: 'asc', role: 'User', page: '3' })
+    );
+
+    expect(result!.currentSort).toEqual({ sortBy: 'storage', sortDir: 'asc' });
+    expect(adminApi.getUsers).toHaveBeenCalledWith(
+      { page: 3, pageSize: 20, role: 'User', sortBy: 'storage', sortDir: 'asc' },
+      mockFetch
+    );
+  });
+
+  it('ignores an unknown sort key and fills in a missing direction', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+
+    const unknown = await load(makeEvent(adminUser, { sortBy: 'password', sortDir: 'asc' }));
+    expect(unknown!.currentSort).toEqual({ sortBy: 'createdAt', sortDir: 'desc' });
+
+    const noDirection = await load(makeEvent(adminUser, { sortBy: 'role', sortDir: 'up' }));
+    expect(noDirection!.currentSort).toEqual({ sortBy: 'role', sortDir: 'asc' });
+  });
+
+  it('falls back to defaults for invalid page values and caps pageSize at 100', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+
+    const result = await load(makeEvent(adminUser, { page: 'abc', pageSize: '500' }));
+
+    expect(result!.currentPage).toBe(1);
+    expect(result!.currentPageSize).toBe(100);
   });
 
   it('redirects to / when no user is present', async () => {

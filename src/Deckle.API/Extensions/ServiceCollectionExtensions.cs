@@ -1,3 +1,4 @@
+using Deckle.API.Auth;
 using Deckle.API.Configurators;
 using Deckle.API.McpTools;
 using Deckle.API.Services;
@@ -35,6 +36,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IFileService, FileService>();
         services.AddScoped<IFileDirectoryService, FileDirectoryService>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IEmailConfirmationService, EmailConfirmationService>();
+
+        // Account state checks for existing cookie sessions
+        services.AddMemoryCache();
+        services.AddScoped<IUserSessionCache, UserSessionCache>();
+
+        services.AddOptions<EmailConfirmationOptions>()
+            .BindConfiguration(EmailConfirmationOptions.SectionName);
 
         // MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());

@@ -1,6 +1,7 @@
 import { api } from './client';
 import type {
   CurrentUser,
+  RegistrationPendingResponse,
   UsernameAvailabilityResponse,
   SetUsernameRequest,
   SetUsernameResponse,
@@ -15,11 +16,20 @@ export interface PasswordAuthRequest {
 export const authApi = {
   me: (fetchFn?: typeof fetch) => api.get<CurrentUser>('/auth/me', undefined, fetchFn),
 
+  /** Signs the user in, or returns `{ requiresConfirmation: true }` when the email must be confirmed first */
   register: (request: PasswordAuthRequest, fetchFn?: typeof fetch) =>
-    api.post<CurrentUser>('/auth/register', request, undefined, fetchFn),
+    api.post<CurrentUser | RegistrationPendingResponse>('/auth/register', request, undefined, fetchFn),
 
   loginWithPassword: (request: PasswordAuthRequest, fetchFn?: typeof fetch) =>
     api.post<CurrentUser>('/auth/login/password', request, undefined, fetchFn),
+
+  /** Confirms the email address for the token from the confirmation link and signs the user in */
+  confirmEmail: (token: string, fetchFn?: typeof fetch) =>
+    api.post<CurrentUser>('/auth/confirm-email', { token }, undefined, fetchFn),
+
+  /** Always succeeds (unless rate limited) so it can't be used to discover accounts */
+  resendConfirmation: (email: string, fetchFn?: typeof fetch) =>
+    api.post<void>('/auth/confirm-email/resend', { email }, undefined, fetchFn),
 
   checkUsername: (username: string, fetchFn?: typeof fetch) =>
     api.get<UsernameAvailabilityResponse>(`/auth/username/check/${encodeURIComponent(username)}`, undefined, fetchFn),

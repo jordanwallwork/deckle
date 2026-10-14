@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Deckle.API.Auth;
 using Deckle.API.DTOs;
+using Deckle.API.Exceptions;
 using Deckle.API.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -79,6 +80,8 @@ public static class AuthenticationExtensions
             context.Response.StatusCode = 403;
             return Task.CompletedTask;
         };
+
+        options.Events.OnValidatePrincipal = CookieSessionValidator.ValidatePrincipalAsync;
     }
 
     private static void ConfigureProductionCookieDomain(
@@ -103,6 +106,21 @@ public static class AuthenticationExtensions
         options.SaveTokens = true;
 
         options.Events.OnCreatingTicket = HandleGoogleTicketCreation;
+        options.Events.OnRemoteFailure = context => HandleGoogleRemoteFailure(context, configuration);
+    }
+
+    private static Task HandleGoogleRemoteFailure(RemoteFailureContext context, IConfiguration configuration)
+    {
+        // Other failures keep the default behaviour (an unhandled error)
+        if (context.Failure is not AccountDisabledException)
+        {
+            return Task.CompletedTask;
+        }
+
+        var frontendUrl = (configuration["FrontendUrl"] ?? FrontendDefaults.DevelopmentUrl).TrimEnd('/');
+        context.Response.Redirect($"{frontendUrl}/?error={AuthErrorCodes.AccountDisabled}");
+        context.HandleResponse();
+        return Task.CompletedTask;
     }
 
     private static async Task HandleGoogleTicketCreation(OAuthCreatingTicketContext context)
@@ -125,6 +143,13 @@ public static class AuthenticationExtensions
 
         var userInfo = new GoogleUserInfo(googleId, email, name, givenName, familyName, picture, locale);
         var user = await userService.CreateOrUpdateUserAsync(userInfo);
+
+        if (user.DisabledAt != null)
+        {
+            // The Google handler ignores OAuthCreatingTicketContext.Fail() when building the ticket,
+            // so throw instead: the remote auth handler routes the exception to OnRemoteFailure.
+            throw new AccountDisabledException();
+        }
 
         AddUserClaimsToIdentity(context.Principal?.Identity as ClaimsIdentity, user, email, name, picture);
     }

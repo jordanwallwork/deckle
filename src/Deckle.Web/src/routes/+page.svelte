@@ -1,7 +1,16 @@
 <script lang="ts">
-  import { authApi, ApiError } from '$lib/api';
+  import { authApi } from '$lib/api';
   import { config } from '$lib/config';
   import { page } from '$app/state';
+  import {
+    getAuthErrorCode,
+    getAuthErrorMessage,
+    getRedirectErrorMessage,
+    isRegistrationPending,
+    type AuthErrorCode
+  } from '$lib/types';
+  import ResendConfirmation from '$lib/components/auth/ResendConfirmation.svelte';
+  import CheckInboxPanel from './_components/CheckInboxPanel.svelte';
 
   type Mode = 'login' | 'register';
 
@@ -10,7 +19,10 @@
   let password = $state('');
   let confirmPassword = $state('');
   let isSubmitting = $state(false);
-  let error = $state<string | null>(null);
+  let error = $state<string | null>(getRedirectErrorMessage(page.url.searchParams.get('error')));
+  let errorCode = $state<AuthErrorCode | null>(null);
+  /** Set once registration succeeds but the email still needs confirming */
+  let pendingEmail = $state<string | null>(null);
 
   function getReturnUrl(): string {
     const raw = page.url.searchParams.get('returnUrl') ?? '';
@@ -26,12 +38,20 @@
   function switchMode(next: Mode): void {
     mode = next;
     error = null;
+    errorCode = null;
     confirmPassword = '';
+  }
+
+  function backToSignIn(): void {
+    pendingEmail = null;
+    password = '';
+    switchMode('login');
   }
 
   async function handleSubmit(event: Event): Promise<void> {
     event.preventDefault();
     error = null;
+    errorCode = null;
 
     if (!email.trim() || !password) {
       error = 'Email and password are required';
@@ -52,17 +72,18 @@
     isSubmitting = true;
     try {
       if (mode === 'register') {
-        await authApi.register({ email: email.trim(), password });
+        const result = await authApi.register({ email: email.trim(), password });
+        if (isRegistrationPending(result)) {
+          pendingEmail = email.trim();
+          return;
+        }
       } else {
         await authApi.loginWithPassword({ email: email.trim(), password });
       }
       window.location.href = getReturnUrl();
     } catch (err) {
-      if (err instanceof ApiError) {
-        error = err.message;
-      } else {
-        error = 'An unexpected error occurred. Please try again.';
-      }
+      error = getAuthErrorMessage(err);
+      errorCode = getAuthErrorCode(err);
     } finally {
       isSubmitting = false;
     }
@@ -83,105 +104,116 @@
     <p class="subtitle">Effortless game design - From spreadsheet to playtest in minutes</p>
 
     <div class="auth-card">
-      <button class="google-button" onclick={handleGoogleSignIn} type="button">
-        <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-        </svg>
-        Continue with Google
-      </button>
-
-      <div class="divider">
-        <span>or</span>
-      </div>
-
-      <div class="mode-tabs">
-        <button
-          type="button"
-          class="tab-button"
-          class:active={mode === 'login'}
-          onclick={() => switchMode('login')}
-        >
-          Sign In
+      {#if pendingEmail}
+        <CheckInboxPanel email={pendingEmail} onBack={backToSignIn} />
+      {:else}
+        <button class="google-button" onclick={handleGoogleSignIn} type="button">
+          <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continue with Google
         </button>
-        <button
-          type="button"
-          class="tab-button"
-          class:active={mode === 'register'}
-          onclick={() => switchMode('register')}
-        >
-          Register
-        </button>
-      </div>
 
-      <form onsubmit={handleSubmit}>
-        <div class="form-field">
-          <label for="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            bind:value={email}
-            placeholder="you@example.com"
-            autocomplete="email"
-            disabled={isSubmitting}
-            required
-          />
+        <div class="divider">
+          <span>or</span>
         </div>
 
-        <div class="form-field">
-          <label for="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            bind:value={password}
-            placeholder={mode === 'register' ? 'At least 8 characters' : 'Your password'}
-            autocomplete={mode === 'register' ? 'new-password' : 'current-password'}
-            disabled={isSubmitting}
-            required
-          />
+        <div class="mode-tabs">
+          <button
+            type="button"
+            class="tab-button"
+            class:active={mode === 'login'}
+            onclick={() => switchMode('login')}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            class="tab-button"
+            class:active={mode === 'register'}
+            onclick={() => switchMode('register')}
+          >
+            Register
+          </button>
         </div>
 
-        {#if mode === 'register'}
+        <form onsubmit={handleSubmit}>
           <div class="form-field">
-            <label for="confirm-password">Confirm Password</label>
+            <label for="email">Email</label>
             <input
-              id="confirm-password"
-              type="password"
-              bind:value={confirmPassword}
-              placeholder="Repeat your password"
-              autocomplete="new-password"
+              id="email"
+              type="email"
+              bind:value={email}
+              placeholder="you@example.com"
+              autocomplete="email"
               disabled={isSubmitting}
               required
             />
           </div>
-        {/if}
 
-        {#if error}
-          <div class="error-message">{error}</div>
-        {/if}
+          <div class="form-field">
+            <label for="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              bind:value={password}
+              placeholder={mode === 'register' ? 'At least 8 characters' : 'Your password'}
+              autocomplete={mode === 'register' ? 'new-password' : 'current-password'}
+              disabled={isSubmitting}
+              required
+            />
+          </div>
 
-        <button type="submit" class="submit-button" disabled={isSubmitting}>
-          {#if isSubmitting}
-            <span class="spinner"></span>
-            {mode === 'register' ? 'Creating account...' : 'Signing in...'}
-          {:else}
-            {mode === 'register' ? 'Create Account' : 'Sign In'}
+          {#if mode === 'register'}
+            <div class="form-field">
+              <label for="confirm-password">Confirm Password</label>
+              <input
+                id="confirm-password"
+                type="password"
+                bind:value={confirmPassword}
+                placeholder="Repeat your password"
+                autocomplete="new-password"
+                disabled={isSubmitting}
+                required
+              />
+            </div>
           {/if}
-        </button>
-      </form>
 
-      {#if mode === 'login'}
-        <p class="switch-mode">
-          Don't have an account?
-          <button type="button" class="link-button" onclick={() => switchMode('register')}>Register</button>
-        </p>
-      {:else}
-        <p class="switch-mode">
-          Already have an account?
-          <button type="button" class="link-button" onclick={() => switchMode('login')}>Sign In</button>
-        </p>
+          {#if error}
+            <div class="error-message" role="alert">
+              {error}
+              {#if errorCode === 'email_not_confirmed'}
+                <div class="error-action">
+                  <ResendConfirmation email={email} />
+                </div>
+              {/if}
+            </div>
+          {/if}
+
+          <button type="submit" class="submit-button" disabled={isSubmitting}>
+            {#if isSubmitting}
+              <span class="spinner"></span>
+              {mode === 'register' ? 'Creating account...' : 'Signing in...'}
+            {:else}
+              {mode === 'register' ? 'Create Account' : 'Sign In'}
+            {/if}
+          </button>
+        </form>
+
+        {#if mode === 'login'}
+          <p class="switch-mode">
+            Don't have an account?
+            <button type="button" class="link-button" onclick={() => switchMode('register')}>Register</button>
+          </p>
+        {:else}
+          <p class="switch-mode">
+            Already have an account?
+            <button type="button" class="link-button" onclick={() => switchMode('login')}>Sign In</button>
+          </p>
+        {/if}
       {/if}
     </div>
   </main>
@@ -343,6 +375,10 @@
     color: var(--color-danger-fg);
     font-size: 0.875rem;
     margin-bottom: 1rem;
+  }
+
+  .error-action {
+    margin-top: 0.5rem;
   }
 
   .submit-button {

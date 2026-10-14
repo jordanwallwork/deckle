@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeTime } from './date.utils';
+import { formatDateTime, formatRelativeTime } from './date.utils';
 
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 
@@ -38,5 +38,19 @@ describe('formatRelativeTime', () => {
     expect(result).not.toBe('Just now');
     // Should contain the year
     expect(result).toContain('2020');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('returns the fallback when the date is missing', () => {
+    expect(formatDateTime(undefined)).toBe('Never');
+    expect(formatDateTime(null, 'n/a')).toBe('n/a');
+  });
+
+  it('includes the date and time', () => {
+    const result = formatDateTime('2026-03-04T14:15:00');
+    expect(result).toContain('Mar');
+    expect(result).toContain('2026');
+    expect(result).toMatch(/\d{2}:\d{2}/);
   });
 });

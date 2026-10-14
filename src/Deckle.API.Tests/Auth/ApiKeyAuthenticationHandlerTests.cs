@@ -49,7 +49,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
 
         var handler = new ApiKeyAuthenticationHandler(
             optionsMock.Object,
-            new NullLoggerFactory(),
+            NullLoggerFactory.Instance,
             UrlEncoder.Default,
             _context);
 
@@ -103,7 +103,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
         var result = await handler.AuthenticateAsync();
 
         Assert.False(result.Succeeded);
-        Assert.Contains("Missing", result.Failure!.Message);
+        Assert.Contains("Missing", result.Failure!.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
         var result = await handler.AuthenticateAsync();
 
         Assert.False(result.Succeeded);
-        Assert.Contains("Empty", result.Failure!.Message);
+        Assert.Contains("Empty", result.Failure!.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
         var result = await handler.AuthenticateAsync();
 
         Assert.False(result.Succeeded);
-        Assert.Contains("Invalid", result.Failure!.Message);
+        Assert.Contains("Invalid", result.Failure!.Message, StringComparison.Ordinal);
     }
 
     #endregion
@@ -216,6 +216,43 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
         var result = await handler.AuthenticateAsync();
 
         Assert.False(result.Succeeded);
+    }
+
+    #endregion
+
+    #region Disabled user
+
+    [Fact]
+    public async Task HandleAuthenticate_DisabledUser_ReturnsFail()
+    {
+        var (user, rawKey) = await SeedUserWithApiKey();
+        user.DisabledAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers["X-API-Key"] = rawKey;
+        var handler = await CreateHandlerAsync(httpContext);
+
+        var result = await handler.AuthenticateAsync();
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("disabled", result.Failure!.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task HandleAuthenticate_DisabledUser_DoesNotUpdateLastUsedAt()
+    {
+        var (user, rawKey) = await SeedUserWithApiKey();
+        user.DisabledAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers["X-API-Key"] = rawKey;
+        var handler = await CreateHandlerAsync(httpContext);
+
+        await handler.AuthenticateAsync();
+
+        _context.ChangeTracker.Clear();
+        var key = await _context.ApiKeys.FirstAsync(k => k.UserId == user.Id);
+        Assert.Null(key.LastUsedAt);
     }
 
     #endregion

@@ -229,8 +229,8 @@ public class ComponentToolsTests : IDisposable
 
         var result = await CreateTools(userId).CreateCard(projectId, "Bad Card", "GiantCard");
 
-        Assert.Contains("error", result);
-        Assert.Contains("GiantCard", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
+        Assert.Contains("GiantCard", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -267,8 +267,8 @@ public class ComponentToolsTests : IDisposable
 
         var result = await CreateTools(userId).CreateDice(projectId, "Die", "D100");
 
-        Assert.Contains("error", result);
-        Assert.Contains("D100", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
+        Assert.Contains("D100", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -278,8 +278,8 @@ public class ComponentToolsTests : IDisposable
 
         var result = await CreateTools(userId).CreateDice(projectId, "Die", "D6", "Fantasy");
 
-        Assert.Contains("error", result);
-        Assert.Contains("Fantasy", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
+        Assert.Contains("Fantasy", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -289,8 +289,8 @@ public class ComponentToolsTests : IDisposable
 
         var result = await CreateTools(userId).CreateDice(projectId, "Die", "D6", "Numbered", "Rainbow");
 
-        Assert.Contains("error", result);
-        Assert.Contains("Rainbow", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
+        Assert.Contains("Rainbow", result, StringComparison.Ordinal);
     }
 
     #endregion
@@ -327,8 +327,8 @@ public class ComponentToolsTests : IDisposable
 
         var result = await CreateTools(userId).CreateGameBoard(projectId, "Board", "MassiveBoard");
 
-        Assert.Contains("error", result);
-        Assert.Contains("MassiveBoard", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
+        Assert.Contains("MassiveBoard", result, StringComparison.Ordinal);
     }
 
     #endregion
@@ -354,7 +354,7 @@ public class ComponentToolsTests : IDisposable
 
         var result = await CreateTools(userId).CreatePlayerMat(projectId, "Mat", "A10");
 
-        Assert.Contains("error", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
     }
 
     #endregion
@@ -460,8 +460,8 @@ public class ComponentToolsTests : IDisposable
 
         var result = await CreateTools(userId).LinkDataSource(dice.Id, null);
 
-        Assert.Contains("error", result);
-        Assert.Contains("not support data sources", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
+        Assert.Contains("not support data sources", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -474,8 +474,8 @@ public class ComponentToolsTests : IDisposable
 
         var result = await CreateTools(userId).LinkDataSource(card.Id, otherDs.Id);
 
-        Assert.Contains("error", result);
-        Assert.Contains("not found", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
+        Assert.Contains("not found", result, StringComparison.Ordinal);
     }
 
     #endregion

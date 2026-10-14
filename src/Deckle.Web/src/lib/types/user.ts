@@ -1,3 +1,5 @@
+import type { SortDirection } from './sort';
+
 // User entity types
 
 export interface User {
@@ -29,6 +31,17 @@ export interface CurrentUser {
   role?: string;
   bio?: string;
   externalLinks?: ExternalLink[];
+}
+
+/** Returned by POST /auth/register when the email must be confirmed before signing in */
+export interface RegistrationPendingResponse {
+  requiresConfirmation: true;
+}
+
+export function isRegistrationPending(
+  response: CurrentUser | RegistrationPendingResponse | undefined
+): response is RegistrationPendingResponse {
+  return (response as RegistrationPendingResponse | undefined)?.requiresConfirmation === true;
 }
 
 export interface UpdateProfileRequest {
@@ -67,6 +80,35 @@ export interface AdminUser {
   storageQuotaMb: number;
   storageUsedBytes: number;
   projectCount: number;
+  emailConfirmed: boolean;
+  isDisabled: boolean;
+}
+
+export interface AdminApiKey {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+/** A project owned by the user, as shown on the admin user detail page */
+export interface AdminUserProject {
+  id: string;
+  name: string;
+  code: string;
+  ownerUsername: string;
+  visibility: string;
+  componentCount: number;
+  createdAt: string;
+}
+
+export interface AdminUserDetail extends AdminUser {
+  emailConfirmedAt?: string;
+  disabledAt?: string;
+  hasGoogleSignIn: boolean;
+  hasPassword: boolean;
+  apiKeys: AdminApiKey[];
+  projects: AdminUserProject[];
 }
 
 export interface AdminUserListResponse {
@@ -74,6 +116,9 @@ export interface AdminUserListResponse {
   totalCount: number;
   page: number;
   pageSize: number;
+  /** The sort the server applied, e.g. `createdAt` */
+  sortBy: string;
+  sortDir: SortDirection;
 }
 
 // Username availability response

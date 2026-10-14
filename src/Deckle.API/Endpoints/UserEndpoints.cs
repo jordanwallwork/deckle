@@ -16,9 +16,12 @@ public static class UserEndpoints
         // Public profile endpoint — no authentication required
         group.MapGet("{username}", async (string username, AppDbContext dbContext) =>
         {
+            var lowerUsername = username.ToLower(System.Globalization.CultureInfo.InvariantCulture);
+#pragma warning disable CA1304 // ToLower() in EF expression tree is translated to SQL LOWER()
             var user = await dbContext.Users
-                .Where(u => u.Username != null && u.Username.ToLower() == username.ToLower())
+                .Where(u => u.Username != null && u.Username.ToLower() == lowerUsername)
                 .FirstOrDefaultAsync();
+#pragma warning restore CA1304
 
             if (user == null)
             {

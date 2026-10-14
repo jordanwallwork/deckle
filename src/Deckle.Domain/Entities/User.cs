@@ -30,6 +30,14 @@ public class User
 
     public UserRole Role { get; set; } = UserRole.User;
 
+    // Email confirmation
+    public DateTime? EmailConfirmedAt { get; set; }
+    public string? EmailConfirmationTokenHash { get; set; }
+    public DateTime? EmailConfirmationTokenExpiresAt { get; set; }
+
+    // Account status
+    public DateTime? DisabledAt { get; set; }
+
     // Profile fields
     public string? Bio { get; set; }
     public string? ExternalLinks { get; set; }

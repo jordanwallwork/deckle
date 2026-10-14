@@ -36,6 +36,9 @@ public class ApiKeyAuthenticationHandler(
         if (apiKey == null)
             return AuthenticateResult.Fail("Invalid API key");
 
+        if (apiKey.User.DisabledAt != null)
+            return AuthenticateResult.Fail("Account disabled");
+
         apiKey.LastUsedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 

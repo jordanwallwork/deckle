@@ -72,7 +72,7 @@ public class ApiKeyEndpointsTests : IDisposable
     {
         var key = GenerateRawKey();
 
-        Assert.StartsWith("dk_", key);
+        Assert.StartsWith("dk_", key, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -81,9 +81,9 @@ public class ApiKeyEndpointsTests : IDisposable
         for (var i = 0; i < 20; i++)
         {
             var key = GenerateRawKey();
-            Assert.DoesNotContain("+", key);
-            Assert.DoesNotContain("/", key);
-            Assert.DoesNotContain("=", key);
+            Assert.DoesNotContain("+", key, StringComparison.Ordinal);
+            Assert.DoesNotContain("/", key, StringComparison.Ordinal);
+            Assert.DoesNotContain("=", key, StringComparison.Ordinal);
         }
     }
 

@@ -209,9 +209,9 @@ public class DataSourceToolsTests : IDisposable
         var result = await CreateTools(userId).CreateGoogleSheetsDataSource(projectId, "Sheet", url);
 
         var csvUrl = JsonSerializer.Deserialize<JsonElement>(result).GetProperty("CsvExportUrl").GetString()!;
-        Assert.Contains("myid", csvUrl);
-        Assert.Contains("format=csv", csvUrl);
-        Assert.Contains("gid=5", csvUrl);
+        Assert.Contains("myid", csvUrl, StringComparison.Ordinal);
+        Assert.Contains("format=csv", csvUrl, StringComparison.Ordinal);
+        Assert.Contains("gid=5", csvUrl, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -221,8 +221,8 @@ public class DataSourceToolsTests : IDisposable
 
         var result = await CreateTools(userId).CreateGoogleSheetsDataSource(projectId, "Sheet", "not-a-url");
 
-        Assert.Contains("error", result);
-        Assert.Contains("Invalid", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
+        Assert.Contains("Invalid", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -232,7 +232,7 @@ public class DataSourceToolsTests : IDisposable
 
         var result = await CreateTools(userId).CreateGoogleSheetsDataSource(projectId, "Sheet", "https://example.com/notsheets");
 
-        Assert.Contains("error", result);
+        Assert.Contains("error", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -270,7 +270,7 @@ public class DataSourceToolsTests : IDisposable
 
         var result = await CreateTools(userId).SyncDataSourceMetadata(ds.Id, ["A", "B", "C"], 42);
 
-        Assert.Contains("synced", result);
+        Assert.Contains("synced", result, StringComparison.Ordinal);
         _context.ChangeTracker.Clear();
         var updated = await _context.DataSources.FindAsync(ds.Id);
         Assert.NotNull(updated);

@@ -49,7 +49,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
 
         var handler = new ApiKeyAuthenticationHandler(
             optionsMock.Object,
-            new NullLoggerFactory(),
+            NullLoggerFactory.Instance,
             UrlEncoder.Default,
             _context);
 
@@ -103,7 +103,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
         var result = await handler.AuthenticateAsync();
 
         Assert.False(result.Succeeded);
-        Assert.Contains("Missing", result.Failure!.Message);
+        Assert.Contains("Missing", result.Failure!.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
         var result = await handler.AuthenticateAsync();
 
         Assert.False(result.Succeeded);
-        Assert.Contains("Empty", result.Failure!.Message);
+        Assert.Contains("Empty", result.Failure!.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
         var result = await handler.AuthenticateAsync();
 
         Assert.False(result.Succeeded);
-        Assert.Contains("Invalid", result.Failure!.Message);
+        Assert.Contains("Invalid", result.Failure!.Message, StringComparison.Ordinal);
     }
 
     #endregion

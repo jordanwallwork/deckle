@@ -79,7 +79,10 @@ public partial class SmtpEmailSender : IEmailSender
                 _options.UseSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None,
                 cancellationToken);
 
-            await client.AuthenticateAsync(_options.Username, _options.Password, cancellationToken);
+            if (!string.IsNullOrEmpty(_options.Username) && !string.IsNullOrEmpty(_options.Password))
+            {
+                await client.AuthenticateAsync(_options.Username, _options.Password, cancellationToken);
+            }
 
             // Send all emails using the same connection
             foreach (var template in templateList)

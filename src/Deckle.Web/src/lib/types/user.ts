@@ -31,6 +31,17 @@ export interface CurrentUser {
   externalLinks?: ExternalLink[];
 }
 
+/** Returned by POST /auth/register when the email must be confirmed before signing in */
+export interface RegistrationPendingResponse {
+  requiresConfirmation: true;
+}
+
+export function isRegistrationPending(
+  response: CurrentUser | RegistrationPendingResponse | undefined
+): response is RegistrationPendingResponse {
+  return (response as RegistrationPendingResponse | undefined)?.requiresConfirmation === true;
+}
+
 export interface UpdateProfileRequest {
   bio?: string | null;
   externalLinks?: ExternalLink[] | null;

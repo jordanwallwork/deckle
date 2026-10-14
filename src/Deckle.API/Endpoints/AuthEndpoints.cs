@@ -32,6 +32,15 @@ public static partial class AuthEndpoints
         .RequireRateLimiting("auth")
         .WithName("LoginWithPassword");
 
+        group.MapPost("/confirm-email", HandleConfirmEmail)
+        .AllowAnonymous()
+        .WithName("ConfirmEmail");
+
+        group.MapPost("/confirm-email/resend", HandleResendConfirmation)
+        .AllowAnonymous()
+        .RequireRateLimiting("strict")
+        .WithName("ResendEmailConfirmation");
+
         group.MapPost("/logout", (Delegate)HandleLogout)
         .RequireAuthorization()
         .WithName("Logout");
@@ -107,7 +116,11 @@ public static partial class AuthEndpoints
         return redirectUri;
     }
 
-    private static async Task<IResult> HandleRegister(RegisterRequest request, IUserService userService, HttpContext context)
+    private static async Task<IResult> HandleRegister(
+        RegisterRequest request,
+        IUserService userService,
+        IEmailConfirmationService emailConfirmationService,
+        HttpContext context)
     {
         var (success, error, user) = await userService.RegisterWithPasswordAsync(request.Email, request.Password);
 
@@ -116,25 +129,74 @@ public static partial class AuthEndpoints
             return Results.BadRequest(new { error });
         }
 
-        var principal = UserService.CreatePrincipalFromUser(user);
-        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+        // Unconfirmed means confirmation is enforced: send the link and don't sign in yet
+        if (user.EmailConfirmedAt == null)
+        {
+            await emailConfirmationService.SendAsync(user, context.RequestAborted);
+            return Results.Ok(new RegistrationPendingResponse(RequiresConfirmation: true));
+        }
 
-        return Results.Ok(UserService.GetCurrentUserFromClaims(principal));
+        return Results.Ok(await SignInAsync(context, user));
     }
 
     private static async Task<IResult> HandleLoginWithPassword(PasswordLoginRequest request, IUserService userService, HttpContext context)
     {
-        var (success, error, user) = await userService.LoginWithPasswordAsync(request.Email, request.Password);
+        var result = await userService.LoginWithPasswordAsync(request.Email, request.Password);
 
-        if (!success || user == null)
+        if (result.ErrorCode != null)
         {
-            return Results.BadRequest(new { error });
+            return Results.Json(
+                new AuthErrorResponse(result.Error ?? "Sign in is not allowed", result.ErrorCode),
+                statusCode: StatusCodes.Status403Forbidden);
         }
 
+        if (!result.Success || result.User == null)
+        {
+            return Results.BadRequest(new { error = result.Error });
+        }
+
+        return Results.Ok(await SignInAsync(context, result.User));
+    }
+
+    private static async Task<IResult> HandleConfirmEmail(
+        ConfirmEmailRequest request,
+        IEmailConfirmationService emailConfirmationService,
+        HttpContext context)
+    {
+        var user = await emailConfirmationService.ConfirmAsync(request.Token, context.RequestAborted);
+
+        if (user == null)
+        {
+            return Results.BadRequest(new AuthErrorResponse(
+                "This confirmation link is invalid or has expired",
+                AuthErrorCodes.InvalidConfirmationToken));
+        }
+
+        if (user.DisabledAt != null)
+        {
+            return Results.Json(
+                new AuthErrorResponse("This account has been disabled", AuthErrorCodes.AccountDisabled),
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        return Results.Ok(await SignInAsync(context, user));
+    }
+
+    private static async Task<IResult> HandleResendConfirmation(
+        ResendConfirmationRequest request,
+        IEmailConfirmationService emailConfirmationService,
+        HttpContext context)
+    {
+        // Always succeeds so the endpoint can't be used to discover accounts
+        await emailConfirmationService.ResendByEmailAsync(request.Email, context.RequestAborted);
+        return Results.Ok();
+    }
+
+    private static async Task<CurrentUserDto?> SignInAsync(HttpContext context, Deckle.Domain.Entities.User user)
+    {
         var principal = UserService.CreatePrincipalFromUser(user);
         await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-
-        return Results.Ok(UserService.GetCurrentUserFromClaims(principal));
+        return UserService.GetCurrentUserFromClaims(principal);
     }
 
     private static async Task<IResult> HandleLogout(HttpContext context)

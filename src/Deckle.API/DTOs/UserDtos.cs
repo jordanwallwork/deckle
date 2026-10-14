@@ -40,6 +40,16 @@ public record RegisterRequest(string Email, string Password);
 
 public record PasswordLoginRequest(string Email, string Password);
 
+/// <summary>Returned by register when the account must confirm its email before signing in.</summary>
+public record RegistrationPendingResponse(bool RequiresConfirmation);
+
+/// <summary>Auth error with a machine-readable code (e.g. "email_not_confirmed", "account_disabled").</summary>
+public record AuthErrorResponse(string Error, string Code);
+
+public record ConfirmEmailRequest(string Token);
+
+public record ResendConfirmationRequest(string Email);
+
 public record UsernameAvailabilityResponse(bool Available, string? Error = null);
 
 // Admin User Management DTOs

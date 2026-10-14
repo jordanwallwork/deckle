@@ -116,6 +116,12 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasConversion<string>()
                 .HasDefaultValue(UserRole.User);
+
+            entity.Property(u => u.EmailConfirmationTokenHash)
+                .HasMaxLength(128);
+
+            entity.HasIndex(u => u.EmailConfirmationTokenHash)
+                .HasFilter("\"EmailConfirmationTokenHash\" IS NOT NULL");
         });
     }
 

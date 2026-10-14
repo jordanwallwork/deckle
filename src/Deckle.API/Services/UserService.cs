@@ -3,6 +3,7 @@ using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -13,22 +14,39 @@ public interface IUserService
 {
     public Task<User> CreateOrUpdateUserAsync(GoogleUserInfo userInfo);
     public Task<(bool Success, string? Error, User? User)> RegisterWithPasswordAsync(string email, string password);
-    public Task<(bool Success, string? Error, User? User)> LoginWithPasswordAsync(string email, string password);
+    public Task<PasswordLoginResult> LoginWithPasswordAsync(string email, string password);
     public Task<bool> IsUsernameAvailableAsync(string username, Guid? excludeUserId = null);
     public Task<(bool Success, string? Error, bool IsNewRegistration)> SetUsernameAsync(Guid userId, string username);
     public Task<User?> GetUserByIdAsync(Guid userId);
     public Task<(bool Success, string? Error)> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
 }
 
+/// <summary>
+/// Outcome of a password sign-in attempt. <see cref="ErrorCode"/> is set (see <see cref="AuthErrorCodes"/>)
+/// when the credentials were valid but the account isn't allowed to sign in.
+/// </summary>
+public record PasswordLoginResult(bool Success, string? Error, string? ErrorCode, User? User)
+{
+    public static PasswordLoginResult Succeeded(User user) => new(true, null, null, user);
+    public static PasswordLoginResult Failed(string error, string? errorCode = null) => new(false, error, errorCode, null);
+}
+
 public partial class UserService : IUserService
 {
+    private const string InvalidCredentialsError = "Invalid email or password";
+
     private readonly AppDbContext _dbContext;
     private readonly IPasswordHasher<User> _passwordHasher;
+    private readonly EmailConfirmationOptions _emailConfirmationOptions;
 
-    public UserService(AppDbContext dbContext, IPasswordHasher<User> passwordHasher)
+    public UserService(
+        AppDbContext dbContext,
+        IPasswordHasher<User> passwordHasher,
+        IOptions<EmailConfirmationOptions> emailConfirmationOptions)
     {
         _dbContext = dbContext;
         _passwordHasher = passwordHasher;
+        _emailConfirmationOptions = emailConfirmationOptions.Value;
     }
 
     public async Task<User> CreateOrUpdateUserAsync(GoogleUserInfo userInfo)
@@ -47,9 +65,10 @@ public partial class UserService : IUserService
 
             if (user != null)
             {
-                // User was invited but hasn't signed in yet - merge the account
+                // User was invited (or registered with a password) - merge the account.
+                // Google has verified the email address, so this also confirms it.
                 user.GoogleId = userInfo.GoogleId;
-                user.Name = userInfo.Name;
+                user.Name ??= userInfo.Name;
                 user.GivenName = userInfo.GivenName;
                 user.FamilyName = userInfo.FamilyName;
                 user.PictureUrl = userInfo.Picture;
@@ -72,7 +91,8 @@ public partial class UserService : IUserService
                     Locale = userInfo.Locale,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
-                    LastLoginAt = DateTime.UtcNow
+                    LastLoginAt = DateTime.UtcNow,
+                    EmailConfirmedAt = DateTime.UtcNow
                 };
 
                 _dbContext.Users.Add(user);
@@ -80,9 +100,10 @@ public partial class UserService : IUserService
         }
         else
         {
-            // User exists with this GoogleId - update profile
+            // User exists with this GoogleId - update profile.
+            // Name is only filled when empty so an admin rename isn't undone by the next Google login.
             user.Email = userInfo.Email;
-            user.Name = userInfo.Name;
+            user.Name ??= userInfo.Name;
             user.GivenName = userInfo.GivenName;
             user.FamilyName = userInfo.FamilyName;
             user.PictureUrl = userInfo.Picture;
@@ -90,6 +111,9 @@ public partial class UserService : IUserService
             user.UpdatedAt = DateTime.UtcNow;
             user.LastLoginAt = DateTime.UtcNow;
         }
+
+        // Google verifies email addresses
+        user.EmailConfirmedAt ??= DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
 
@@ -119,13 +143,18 @@ public partial class UserService : IUserService
             return (false, "An account with this email already exists", null);
         }
 
+        var now = DateTime.UtcNow;
+        var requireConfirmation = _emailConfirmationOptions.RequireEmailConfirmation;
+
+        // When confirmation is required the user isn't signed in until they follow the emailed link
         var user = new User
         {
             Id = Guid.NewGuid(),
             Email = email.Trim(),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            LastLoginAt = DateTime.UtcNow
+            CreatedAt = now,
+            UpdatedAt = now,
+            LastLoginAt = requireConfirmation ? null : now,
+            EmailConfirmedAt = requireConfirmation ? null : now
         };
 
         user.PasswordHash = _passwordHasher.HashPassword(user, password);
@@ -136,11 +165,11 @@ public partial class UserService : IUserService
         return (true, null, user);
     }
 
-    public async Task<(bool Success, string? Error, User? User)> LoginWithPasswordAsync(string email, string password)
+    public async Task<PasswordLoginResult> LoginWithPasswordAsync(string email, string password)
     {
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
-            return (false, "Invalid email or password", null);
+            return PasswordLoginResult.Failed(InvalidCredentialsError);
         }
 
         var normalizedEmail = email.Trim().ToLower(System.Globalization.CultureInfo.InvariantCulture);
@@ -151,14 +180,27 @@ public partial class UserService : IUserService
 
         if (user == null || user.PasswordHash == null)
         {
-            return (false, "Invalid email or password", null);
+            return PasswordLoginResult.Failed(InvalidCredentialsError);
         }
 
         var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
 
         if (result == PasswordVerificationResult.Failed)
         {
-            return (false, "Invalid email or password", null);
+            return PasswordLoginResult.Failed(InvalidCredentialsError);
+        }
+
+        // Account status is only revealed once the password has been verified
+        if (user.DisabledAt != null)
+        {
+            return PasswordLoginResult.Failed("This account has been disabled", AuthErrorCodes.AccountDisabled);
+        }
+
+        if (_emailConfirmationOptions.RequireEmailConfirmation && user.EmailConfirmedAt == null)
+        {
+            return PasswordLoginResult.Failed(
+                "Please confirm your email address before signing in",
+                AuthErrorCodes.EmailNotConfirmed);
         }
 
         if (result == PasswordVerificationResult.SuccessRehashNeeded)
@@ -170,7 +212,7 @@ public partial class UserService : IUserService
         user.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
-        return (true, null, user);
+        return PasswordLoginResult.Succeeded(user);
     }
 
     private static bool IsValidEmail(string email)

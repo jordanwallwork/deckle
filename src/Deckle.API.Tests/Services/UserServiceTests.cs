@@ -4,6 +4,7 @@ using Deckle.Domain.Data;
 using Deckle.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Moq;
 using System.Security.Claims;
 
@@ -22,10 +23,38 @@ public class UserServiceTests : IDisposable
             .Options;
         _context = new AppDbContext(options);
         var passwordHasher = new Mock<IPasswordHasher<User>>().Object;
-        _service = new UserService(_context, passwordHasher);
+        _service = new UserService(_context, passwordHasher, ConfirmationOptions(required: true));
     }
 
     #region Helpers
+
+    private static IOptions<EmailConfirmationOptions> ConfirmationOptions(bool required) =>
+        Options.Create(new EmailConfirmationOptions { RequireEmailConfirmation = required });
+
+    /// <summary>A service using a real password hasher, for register/login round trips.</summary>
+    private UserService CreatePasswordService(bool requireConfirmation) =>
+        new(_context, new PasswordHasher<User>(), ConfirmationOptions(requireConfirmation));
+
+    private async Task<User> SeedPasswordUser(
+        string email,
+        string password,
+        DateTime? emailConfirmedAt = null,
+        DateTime? disabledAt = null)
+    {
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            EmailConfirmedAt = emailConfirmedAt,
+            DisabledAt = disabledAt
+        };
+        user.PasswordHash = new PasswordHasher<User>().HashPassword(user, password);
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+        return user;
+    }
 
     private async Task<User> SeedUser(string email, string? googleId = null, string? username = null)
     {
@@ -184,6 +213,183 @@ public class UserServiceTests : IDisposable
         var result = await _service.CreateOrUpdateUserAsync(info);
 
         Assert.Equal("https://example.com/pic.jpg", result.PictureUrl);
+    }
+
+    [Fact]
+    public async Task CreateOrUpdateUserAsync_NewUser_ConfirmsEmail()
+    {
+        var result = await _service.CreateOrUpdateUserAsync(MakeGoogleUserInfo("google-c", "c@test.com"));
+
+        Assert.NotNull(result.EmailConfirmedAt);
+    }
+
+    [Fact]
+    public async Task CreateOrUpdateUserAsync_ExistingUnconfirmedUser_ConfirmsEmail()
+    {
+        var user = await SeedUser("u@test.com", googleId: "google-u");
+        Assert.Null(user.EmailConfirmedAt);
+
+        var result = await _service.CreateOrUpdateUserAsync(MakeGoogleUserInfo("google-u", "u@test.com"));
+
+        Assert.NotNull(result.EmailConfirmedAt);
+    }
+
+    [Fact]
+    public async Task CreateOrUpdateUserAsync_UnconfirmedPasswordUserMerges_ConfirmsEmail()
+    {
+        var user = await SeedPasswordUser("pw@test.com", "password123");
+
+        var result = await _service.CreateOrUpdateUserAsync(MakeGoogleUserInfo("google-pw", "pw@test.com"));
+
+        Assert.Equal(user.Id, result.Id);
+        Assert.Equal("google-pw", result.GoogleId);
+        Assert.NotNull(result.EmailConfirmedAt);
+    }
+
+    [Fact]
+    public async Task CreateOrUpdateUserAsync_AlreadyConfirmed_KeepsOriginalConfirmationDate()
+    {
+        var confirmedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var user = await SeedUser("k@test.com", googleId: "google-k");
+        user.EmailConfirmedAt = confirmedAt;
+        await _context.SaveChangesAsync();
+
+        var result = await _service.CreateOrUpdateUserAsync(MakeGoogleUserInfo("google-k", "k@test.com"));
+
+        Assert.Equal(confirmedAt, result.EmailConfirmedAt);
+    }
+
+    [Fact]
+    public async Task CreateOrUpdateUserAsync_ExistingUserWithName_PreservesName()
+    {
+        var user = await SeedUser("n@test.com", googleId: "google-n");
+        user.Name = "Admin Renamed";
+        await _context.SaveChangesAsync();
+
+        var result = await _service.CreateOrUpdateUserAsync(MakeGoogleUserInfo("google-n", "n@test.com", "Google Name"));
+
+        Assert.Equal("Admin Renamed", result.Name);
+    }
+
+    [Fact]
+    public async Task CreateOrUpdateUserAsync_ExistingUserWithoutName_FillsNameFromGoogle()
+    {
+        await SeedUser("e@test.com", googleId: "google-e");
+
+        var result = await _service.CreateOrUpdateUserAsync(MakeGoogleUserInfo("google-e", "e@test.com", "Google Name"));
+
+        Assert.Equal("Google Name", result.Name);
+    }
+
+    #endregion
+
+    #region RegisterWithPasswordAsync Tests
+
+    [Fact]
+    public async Task RegisterWithPasswordAsync_ConfirmationRequired_CreatesUnconfirmedUser()
+    {
+        var service = CreatePasswordService(requireConfirmation: true);
+
+        var (success, _, user) = await service.RegisterWithPasswordAsync("new@test.com", "password123");
+
+        Assert.True(success);
+        Assert.NotNull(user);
+        Assert.Null(user.EmailConfirmedAt);
+        Assert.Null(user.LastLoginAt);
+    }
+
+    [Fact]
+    public async Task RegisterWithPasswordAsync_ConfirmationNotRequired_CreatesConfirmedUser()
+    {
+        var service = CreatePasswordService(requireConfirmation: false);
+
+        var (success, _, user) = await service.RegisterWithPasswordAsync("new@test.com", "password123");
+
+        Assert.True(success);
+        Assert.NotNull(user);
+        Assert.NotNull(user.EmailConfirmedAt);
+        Assert.NotNull(user.LastLoginAt);
+    }
+
+    #endregion
+
+    #region LoginWithPasswordAsync Tests
+
+    [Fact]
+    public async Task LoginWithPasswordAsync_UnconfirmedAndConfirmationRequired_ReturnsEmailNotConfirmed()
+    {
+        await SeedPasswordUser("u@test.com", "password123");
+        var service = CreatePasswordService(requireConfirmation: true);
+
+        var result = await service.LoginWithPasswordAsync("u@test.com", "password123");
+
+        Assert.False(result.Success);
+        Assert.Equal(AuthErrorCodes.EmailNotConfirmed, result.ErrorCode);
+        Assert.Null(result.User);
+    }
+
+    [Fact]
+    public async Task LoginWithPasswordAsync_UnconfirmedAndConfirmationRequired_DoesNotUpdateLastLogin()
+    {
+        var user = await SeedPasswordUser("u@test.com", "password123");
+        var service = CreatePasswordService(requireConfirmation: true);
+
+        await service.LoginWithPasswordAsync("u@test.com", "password123");
+
+        _context.ChangeTracker.Clear();
+        var persisted = await _context.Users.FindAsync(user.Id);
+        Assert.Null(persisted!.LastLoginAt);
+    }
+
+    [Fact]
+    public async Task LoginWithPasswordAsync_UnconfirmedAndConfirmationNotRequired_Succeeds()
+    {
+        await SeedPasswordUser("u@test.com", "password123");
+        var service = CreatePasswordService(requireConfirmation: false);
+
+        var result = await service.LoginWithPasswordAsync("u@test.com", "password123");
+
+        Assert.True(result.Success);
+        Assert.Null(result.ErrorCode);
+        Assert.NotNull(result.User);
+    }
+
+    [Fact]
+    public async Task LoginWithPasswordAsync_ConfirmedAndConfirmationRequired_Succeeds()
+    {
+        await SeedPasswordUser("c@test.com", "password123", emailConfirmedAt: DateTime.UtcNow);
+        var service = CreatePasswordService(requireConfirmation: true);
+
+        var result = await service.LoginWithPasswordAsync("c@test.com", "password123");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.User);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LoginWithPasswordAsync_DisabledUser_ReturnsAccountDisabled(bool requireConfirmation)
+    {
+        await SeedPasswordUser("d@test.com", "password123", emailConfirmedAt: DateTime.UtcNow, disabledAt: DateTime.UtcNow);
+        var service = CreatePasswordService(requireConfirmation);
+
+        var result = await service.LoginWithPasswordAsync("d@test.com", "password123");
+
+        Assert.False(result.Success);
+        Assert.Equal(AuthErrorCodes.AccountDisabled, result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task LoginWithPasswordAsync_DisabledUserWrongPassword_ReturnsInvalidCredentialsWithoutCode()
+    {
+        await SeedPasswordUser("d@test.com", "password123", emailConfirmedAt: DateTime.UtcNow, disabledAt: DateTime.UtcNow);
+        var service = CreatePasswordService(requireConfirmation: true);
+
+        var result = await service.LoginWithPasswordAsync("d@test.com", "wrong-password");
+
+        Assert.False(result.Success);
+        Assert.Null(result.ErrorCode);
     }
 
     #endregion

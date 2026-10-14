@@ -24,40 +24,33 @@ public static class AdminEndpoints
 
     private static void MapUserEndpoints(RouteGroupBuilder group)
     {
-        // GET /admin/users - List all users with pagination and search
+        // GET /admin/users - List users with pagination, search and filters
         group.MapGet("/users", async (
-            IAdminService adminService,
-            int page = 1,
-            int pageSize = 20,
-            string? search = null) =>
+            [AsParameters] AdminUserQuery query,
+            IAdminService adminService) =>
         {
-            if (page < 1) page = 1;
-            if (pageSize is < 1 or > 100) pageSize = 20;
-
-            var result = await adminService.GetUsersAsync(page, pageSize, search);
+            var result = await adminService.GetUsersAsync(query);
             return Results.Ok(result);
         })
         .WithName("GetAdminUsers");
 
-        // GET /admin/users/{id} - Get a specific user by ID
+        // GET /admin/users/{id} - Get a user's full admin detail
         group.MapGet("/users/{id:guid}", async (
             Guid id,
             IAdminService adminService) =>
         {
-            var user = await adminService.GetUserByIdAsync(id);
+            var user = await adminService.GetUserDetailAsync(id);
             return user == null ? Results.NotFound(new { error = "User not found" }) : Results.Ok(user);
         })
         .WithName("GetAdminUser");
 
-        // PUT /admin/users/{id}/role - Update user role
+        // PUT /admin/users/{id}/role - Update user role (not your own)
         group.MapPut("/users/{id:guid}/role", async (
             Guid id,
             UpdateUserRoleRequest request,
+            HttpContext httpContext,
             IAdminService adminService) =>
-        {
-            var user = await adminService.UpdateUserRoleAsync(id, request.Role);
-            return user == null ? Results.BadRequest(new { error = "Invalid role or user not found" }) : Results.Ok(user);
-        })
+            ToHttpResult(await adminService.UpdateUserRoleAsync(httpContext.GetUserId(), id, request.Role)))
         .WithName("UpdateAdminUserRole");
 
         // PUT /admin/users/{id}/quota - Update user storage quota
@@ -70,7 +63,56 @@ public static class AdminEndpoints
             return user == null ? Results.BadRequest(new { error = "Invalid quota or user not found" }) : Results.Ok(user);
         })
         .WithName("UpdateAdminUserQuota");
+
+        // PUT /admin/users/{id}/name - Rename a user (empty clears the name)
+        group.MapPut("/users/{id:guid}/name", async (
+            Guid id,
+            UpdateUserNameRequest request,
+            IAdminService adminService) =>
+            ToHttpResult(await adminService.UpdateUserNameAsync(id, request.Name)))
+        .WithName("UpdateAdminUserName");
+
+        // POST /admin/users/{id}/resend-confirmation - Re-send the email confirmation link
+        group.MapPost("/users/{id:guid}/resend-confirmation", async (
+            Guid id,
+            IAdminService adminService) =>
+            ToHttpResult(await adminService.ResendConfirmationAsync(id)))
+        .WithName("ResendAdminUserConfirmation");
+
+        // POST /admin/users/{id}/confirm-email - Manually mark a user's email as confirmed
+        group.MapPost("/users/{id:guid}/confirm-email", async (
+            Guid id,
+            IAdminService adminService) =>
+            ToHttpResult(await adminService.ConfirmEmailAsync(id)))
+        .WithName("ConfirmAdminUserEmail");
+
+        // PUT /admin/users/{id}/disabled - Disable or re-enable an account (not your own)
+        group.MapPut("/users/{id:guid}/disabled", async (
+            Guid id,
+            UpdateUserDisabledRequest request,
+            HttpContext httpContext,
+            IAdminService adminService) =>
+            ToHttpResult(await adminService.SetUserDisabledAsync(httpContext.GetUserId(), id, request.Disabled)))
+        .WithName("UpdateAdminUserDisabled");
+
+        // DELETE /admin/users/{id}/api-keys/{keyId} - Revoke one of a user's API keys
+        group.MapDelete("/users/{id:guid}/api-keys/{keyId:guid}", async (
+            Guid id,
+            Guid keyId,
+            IAdminService adminService) =>
+        {
+            var revoked = await adminService.RevokeApiKeyAsync(id, keyId);
+            return revoked ? Results.NoContent() : Results.NotFound(new { error = "API key not found" });
+        })
+        .WithName("RevokeAdminUserApiKey");
     }
+
+    private static IResult ToHttpResult(AdminActionResult result) => result.Status switch
+    {
+        AdminActionStatus.Success => Results.Ok(result.User),
+        AdminActionStatus.NotFound => Results.NotFound(new { error = result.Error }),
+        _ => Results.BadRequest(new { error = result.Error })
+    };
 
     private static void MapSampleComponentEndpoints(RouteGroupBuilder group)
     {

@@ -66,6 +66,53 @@ public record AdminUserDto
     public required int StorageQuotaMb { get; init; }
     public required long StorageUsedBytes { get; init; }
     public required int ProjectCount { get; init; }
+    public required bool EmailConfirmed { get; init; }
+    public required bool IsDisabled { get; init; }
+}
+
+/// <summary>
+/// Query-string filters for <c>GET /admin/users</c>. Date ranges are inclusive (UTC days).
+/// <paramref name="Role"/> is <c>User</c> or <c>Administrator</c>; <paramref name="Status"/> is
+/// <c>Active</c>, <c>Unconfirmed</c> or <c>Disabled</c>. Unrecognised values are ignored.
+/// </summary>
+public record AdminUserQuery(
+    int Page = 1,
+    int PageSize = 20,
+    string? Search = null,
+    DateOnly? CreatedFrom = null,
+    DateOnly? CreatedTo = null,
+    DateOnly? LastLoginFrom = null,
+    DateOnly? LastLoginTo = null,
+    string? Role = null,
+    string? Status = null);
+
+public record AdminApiKeyDto
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public DateTime? LastUsedAt { get; init; }
+}
+
+public record AdminUserProjectDto
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public required string Code { get; init; }
+    public required string OwnerUsername { get; init; }
+    public required string Visibility { get; init; }
+    public required int ComponentCount { get; init; }
+    public required DateTime CreatedAt { get; init; }
+}
+
+public record AdminUserDetailDto : AdminUserDto
+{
+    public DateTime? EmailConfirmedAt { get; init; }
+    public DateTime? DisabledAt { get; init; }
+    public required bool HasGoogleSignIn { get; init; }
+    public required bool HasPassword { get; init; }
+    public required List<AdminApiKeyDto> ApiKeys { get; init; }
+    public required List<AdminUserProjectDto> Projects { get; init; }
 }
 
 public record AdminUserListResponse
@@ -99,6 +146,10 @@ public record PublicUserProfileDto
 public record UpdateUserRoleRequest(string Role);
 
 public record UpdateUserQuotaRequest(int StorageQuotaMb);
+
+public record UpdateUserNameRequest(string? Name);
+
+public record UpdateUserDisabledRequest(bool Disabled);
 
 // Admin Sample Component DTOs
 public record AdminSampleComponentDto

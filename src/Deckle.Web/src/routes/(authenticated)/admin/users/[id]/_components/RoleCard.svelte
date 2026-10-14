@@ -2,6 +2,7 @@
   import type { AdminUserDetail } from '$lib/types';
   import { adminApi } from '$lib/api';
   import { Button } from '$lib/components';
+  import RoleBadge from '../../_components/RoleBadge.svelte';
   import AdminCard from './AdminCard.svelte';
   import { runAdminAction } from './adminAction';
 
@@ -31,7 +32,7 @@
 
 <AdminCard title="Role" {error}>
   <div>
-    <span class="role-badge" class:admin={isAdmin}>{user.role}</span>
+    <RoleBadge role={user.role} />
   </div>
   <div class="card-actions">
     <Button
@@ -47,20 +48,3 @@
     <p class="card-hint">You can't change your own role.</p>
   {/if}
 </AdminCard>
-
-<style>
-  .role-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: #e5e7eb;
-    color: #374151;
-  }
-
-  .role-badge.admin {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-  }
-</style>

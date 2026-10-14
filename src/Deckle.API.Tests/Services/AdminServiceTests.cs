@@ -120,6 +120,30 @@ public class AdminServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetUsersAsync_WithMixedCaseSearch_MatchesEmailCaseInsensitively()
+    {
+        await SeedUser("Alice.Smith@Example.com");
+        await SeedUser("bob@other.com");
+
+        var result = await _service.GetUsersAsync(search: "  aLICE.sMITH@example  ");
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal("Alice.Smith@Example.com", result.Users[0].Email);
+    }
+
+    [Fact]
+    public async Task GetUsersAsync_WithMixedCaseSearch_MatchesNameCaseInsensitively()
+    {
+        await SeedUser("alice@test.com", "Alice Wonder");
+        await SeedUser("bob@test.com", "Bob Builder");
+
+        var result = await _service.GetUsersAsync(search: "wONDER");
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal("Alice Wonder", result.Users[0].Name);
+    }
+
+    [Fact]
     public async Task GetUsersAsync_Pagination_RespectsPageSize()
     {
         for (int i = 0; i < 5; i++)

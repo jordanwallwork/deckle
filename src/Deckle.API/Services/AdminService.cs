@@ -29,9 +29,12 @@ public class AdminService : IAdminService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
+            var term = search.Trim().ToLower(System.Globalization.CultureInfo.InvariantCulture);
+#pragma warning disable CA1304 // ToLower() in EF expression tree is translated to SQL LOWER()
             query = query.Where(u =>
-                u.Email.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
-                (u.Name != null && u.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
+                u.Email.ToLower().Contains(term) ||
+                (u.Name != null && u.Name.ToLower().Contains(term)));
+#pragma warning restore CA1304
         }
 
         var totalCount = await query.CountAsync();

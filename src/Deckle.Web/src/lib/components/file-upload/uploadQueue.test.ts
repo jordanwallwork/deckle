@@ -56,7 +56,7 @@ describe('UploadQueue', () => {
   });
 
   it('skips invalid files', async () => {
-    const upload: UploadFn = vi.fn(async (_p, file) => uploaded(file.name));
+    const upload: UploadFn = vi.fn((_p, file) => Promise.resolve(uploaded(file.name)));
     const queue = new UploadQueue('p1', upload);
     queue.add([image('a.png'), new File(['x'], 'notes.txt', { type: 'text/plain' })]);
 
@@ -67,9 +67,9 @@ describe('UploadQueue', () => {
   });
 
   it('continues past a failed upload and reports it', async () => {
-    const upload: UploadFn = vi.fn(async (_p, file) => {
-      if (file.name === 'b.png') throw new Error('Network error');
-      return uploaded(file.name);
+    const upload: UploadFn = vi.fn((_p, file) => {
+      if (file.name === 'b.png') return Promise.reject(new Error('Network error'));
+      return Promise.resolve(uploaded(file.name));
     });
     const queue = new UploadQueue('p1', upload);
     queue.add([image('a.png'), image('b.png'), image('c.png')]);
@@ -84,9 +84,9 @@ describe('UploadQueue', () => {
 
   it('retries only previously failed files', async () => {
     let failB = true;
-    const upload: UploadFn = vi.fn(async (_p, file) => {
-      if (file.name === 'b.png' && failB) throw new Error('boom');
-      return uploaded(file.name);
+    const upload: UploadFn = vi.fn((_p, file) => {
+      if (file.name === 'b.png' && failB) return Promise.reject(new Error('boom'));
+      return Promise.resolve(uploaded(file.name));
     });
     const queue = new UploadQueue('p1', upload);
     queue.add([image('a.png'), image('b.png')]);
@@ -106,9 +106,9 @@ describe('UploadQueue', () => {
   it('stops after the in-flight file when cancelled', async () => {
     const queue = new UploadQueue(
       'p1',
-      vi.fn(async (_p, file) => {
+      vi.fn((_p, file) => {
         queue.cancel();
-        return uploaded(file.name);
+        return Promise.resolve(uploaded(file.name));
       })
     );
     queue.add([image('a.png'), image('b.png')]);
@@ -139,9 +139,9 @@ describe('UploadQueue', () => {
   });
 
   it('stops the batch when the storage quota is exceeded and fails the rest', async () => {
-    const upload: UploadFn = vi.fn(async (_p, file) => {
-      if (file.name === 'b.png') throw new StorageQuotaExceededError(1024);
-      return uploaded(file.name);
+    const upload: UploadFn = vi.fn((_p, file) => {
+      if (file.name === 'b.png') return Promise.reject(new StorageQuotaExceededError(1024));
+      return Promise.resolve(uploaded(file.name));
     });
     const queue = new UploadQueue('p1', upload);
     queue.add([image('a.png'), image('b.png'), image('c.png'), image('d.png')]);
@@ -162,9 +162,7 @@ describe('UploadQueue', () => {
   it('leaves invalid files as skipped when the quota is exceeded', async () => {
     const queue = new UploadQueue(
       'p1',
-      vi.fn(async () => {
-        throw new StorageQuotaExceededError();
-      })
+      vi.fn(() => Promise.reject(new StorageQuotaExceededError()))
     );
     queue.add([image('a.png'), new File(['x'], 'notes.txt', { type: 'text/plain' })]);
 
@@ -175,9 +173,9 @@ describe('UploadQueue', () => {
 
   it('clears the stop reason when a new run starts', async () => {
     let quotaFull = true;
-    const upload: UploadFn = vi.fn(async (_p, file) => {
-      if (quotaFull) throw new StorageQuotaExceededError();
-      return uploaded(file.name);
+    const upload: UploadFn = vi.fn((_p, file) => {
+      if (quotaFull) return Promise.reject(new StorageQuotaExceededError());
+      return Promise.resolve(uploaded(file.name));
     });
     const queue = new UploadQueue('p1', upload);
     queue.add([image('a.png'), image('b.png')]);

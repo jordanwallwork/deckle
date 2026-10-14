@@ -13,7 +13,13 @@ export default tseslint.config(
     plugins: { '@typescript-eslint': tseslint.plugin },
     rules: {
       // Sonar S2933: members only assigned in the constructor should be readonly
-      '@typescript-eslint/prefer-readonly': 'error'
+      '@typescript-eslint/prefer-readonly': 'error',
+      // Sonar S7503: async functions should contain an await
+      '@typescript-eslint/require-await': 'error',
+      // Sonar S6594: use RegExp.exec() instead of String.match()
+      '@typescript-eslint/prefer-regexp-exec': 'error',
+      // Sonar S6551: objects should not be stringified as [object Object]
+      '@typescript-eslint/no-base-to-string': 'error'
     }
   }
 );

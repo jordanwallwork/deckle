@@ -2,14 +2,15 @@ import FormulaEvaluator from 'formula-evaluator';
 
 const evaluator = new FormulaEvaluator();
 
+/** Primitive value a formula can read from row data or render as output. */
+type FormulaScalar = string | number | boolean;
+
 /**
  * Converts string rowData values to appropriate types for formula evaluation.
  * Numeric strings become numbers, "true"/"false" become booleans.
  */
-function toTypedContext(
-  rowData: Record<string, string>
-): Record<string, string | number | boolean> {
-  const context: Record<string, string | number | boolean> = {};
+function toTypedContext(rowData: Record<string, string>): Record<string, FormulaScalar> {
+  const context: Record<string, FormulaScalar> = {};
   for (const [key, value] of Object.entries(rowData)) {
     const lower = value.toLowerCase();
     if (lower === 'true') {
@@ -191,7 +192,7 @@ export function cellReferenceFields(
 /** Regex for matching merge field patterns: {{expression}} or {{expression|fallback}} */
 const MERGE_FIELD_PATTERN = /\{\{((?:\|\||[^|{}])+)(?:\|([^}]*))?\}\}/g;
 
-function isRenderableScalar(value: unknown): value is string | number | boolean {
+function isRenderableScalar(value: unknown): value is FormulaScalar {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 }
 

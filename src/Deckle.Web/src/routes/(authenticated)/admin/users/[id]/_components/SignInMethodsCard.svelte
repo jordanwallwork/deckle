@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { AdminApiKey, AdminUserDetail } from '$lib/types';
   import { adminApi } from '$lib/api';
-  import { Button } from '$lib/components';
+  import { Button, Table } from '$lib/components';
   import { formatShortDate } from '$lib/utils/file.utils';
   import AdminCard from './AdminCard.svelte';
   import { runAdminAction } from './adminAction';
@@ -40,37 +40,32 @@
   {#if user.apiKeys.length === 0}
     <p class="card-hint">No API keys.</p>
   {:else}
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Created</th>
-            <th>Last used</th>
-            <th aria-label="Actions"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each user.apiKeys as key (key.id)}
-            <tr>
-              <td>{key.name}</td>
-              <td>{formatShortDate(key.createdAt)}</td>
-              <td>{key.lastUsedAt ? formatShortDate(key.lastUsedAt) : 'Never'}</td>
-              <td class="actions">
-                <Button
-                  variant="danger"
-                  size="sm"
-                  disabled={revoking !== null}
-                  onclick={() => revoke(key)}
-                >
-                  {revoking === key.id ? 'Revoking...' : 'Revoke'}
-                </Button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+    <Table compact label="API keys">
+      {#snippet head()}
+        <th>Name</th>
+        <th>Created</th>
+        <th>Last used</th>
+        <th aria-label="Actions"></th>
+      {/snippet}
+
+      {#each user.apiKeys as key (key.id)}
+        <tr>
+          <td>{key.name}</td>
+          <td>{formatShortDate(key.createdAt)}</td>
+          <td>{key.lastUsedAt ? formatShortDate(key.lastUsedAt) : 'Never'}</td>
+          <td class="actions">
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={revoking !== null}
+              onclick={() => revoke(key)}
+            >
+              {revoking === key.id ? 'Revoking...' : 'Revoke'}
+            </Button>
+          </td>
+        </tr>
+      {/each}
+    </Table>
   {/if}
 </AdminCard>
 
@@ -104,38 +99,6 @@
     font-size: 0.875rem;
     font-weight: 600;
     color: #1a1a1a;
-  }
-
-  .table-scroll {
-    overflow-x: auto;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  th {
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #374151;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  td {
-    padding: 0.5rem 0.75rem;
-    color: #374151;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  tbody tr:last-child td {
-    border-bottom: none;
   }
 
   .actions {

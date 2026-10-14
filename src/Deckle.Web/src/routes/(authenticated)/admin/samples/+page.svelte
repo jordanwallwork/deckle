@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import type { AdminSampleComponent } from '$lib/types';
-  import { Button, Dialog, CardConfigForm, PlayerMatConfigForm } from '$lib/components';
+  import { Button, Dialog, CardConfigForm, PlayerMatConfigForm, Pagination } from '$lib/components';
   import { goto, invalidateAll } from '$app/navigation';
   import { adminApi, ApiError } from '$lib/api';
   const DATA_SOURCE_TYPES = new Set(['Card', 'GameBoard', 'PlayerMat']);
@@ -295,27 +295,7 @@
     </div>
   {/if}
 
-  {#if totalPages > 1}
-    <div class="pagination">
-      <button
-        class="page-btn"
-        disabled={data.currentPage <= 1}
-        onclick={() => goToPage(data.currentPage - 1)}
-      >
-        Previous
-      </button>
-      <span class="page-info">
-        Page {data.currentPage} of {totalPages}
-      </span>
-      <button
-        class="page-btn"
-        disabled={data.currentPage >= totalPages}
-        onclick={() => goToPage(data.currentPage + 1)}
-      >
-        Next
-      </button>
-    </div>
-  {/if}
+  <Pagination page={data.currentPage} {totalPages} onPageChange={goToPage} />
 </div>
 
 <Dialog bind:show={showModal} title="New Sample Component" maxWidth="600px" onclose={closeModal}>
@@ -629,39 +609,6 @@
   .edit-link:hover {
     background: #667eea;
     color: white;
-  }
-
-  .pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1.5rem;
-  }
-
-  .page-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid #e5e7eb;
-    background: white;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .page-btn:hover:not(:disabled) {
-    border-color: #667eea;
-    color: #667eea;
-  }
-
-  .page-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .page-info {
-    font-size: 0.875rem;
-    color: #6b7280;
   }
 
   @media (max-width: 768px) {

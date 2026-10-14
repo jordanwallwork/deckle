@@ -17,11 +17,11 @@ if (exceptionlessKey) {
  * This hook intercepts all server-side requests and modifies the fetch function
  * to forward authentication cookies to the API domain during SSR.
  */
-export const handle: Handle = async ({ event, resolve }) => {
+export const handle: Handle = ({ event, resolve }) => {
   // Override the fetch function to forward cookies to API domain
   const originalFetch = event.fetch;
 
-  event.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  event.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     let url: string;
     if (typeof input === 'string') {
       url = input;

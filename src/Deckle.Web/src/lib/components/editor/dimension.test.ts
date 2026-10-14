@@ -65,6 +65,28 @@ describe('toDimension', () => {
     expect(toDimension('   ')).toBeUndefined();
   });
 
+  it('parses a trailing-dot number', () => {
+    expect(toDimension('5.')).toEqual(px(5));
+    expect(toDimension('5.mm')).toEqual(mm(5));
+  });
+
+  it('parses negative values and whitespace before the unit', () => {
+    expect(toDimension('-3.5 mm')).toEqual(mm(-3.5));
+    expect(toDimension('  -10 px ')).toEqual(px(-10));
+  });
+
+  it('rejects malformed numbers', () => {
+    expect(toDimension('1.2.3')).toBeUndefined();
+    expect(toDimension('.5')).toBeUndefined();
+    expect(toDimension('5..mm')).toBeUndefined();
+  });
+
+  it('rejects long non-matching input quickly (no catastrophic backtracking)', () => {
+    const start = performance.now();
+    expect(toDimension('1'.repeat(50_000) + 'x')).toBeUndefined();
+    expect(performance.now() - start).toBeLessThan(250);
+  });
+
   it('returns undefined for unparseable strings', () => {
     expect(toDimension('auto')).toBeUndefined();
     expect(toDimension('abc')).toBeUndefined();

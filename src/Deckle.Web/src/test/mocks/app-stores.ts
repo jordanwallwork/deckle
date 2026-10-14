@@ -18,4 +18,4 @@ const pageValue = {
 
 export const page = readable(pageValue);
 export const navigating = readable(null);
-export const updated = { subscribe: readable(false).subscribe, check: async () => false };
+export const updated = { subscribe: readable(false).subscribe, check: () => Promise.resolve(false) };

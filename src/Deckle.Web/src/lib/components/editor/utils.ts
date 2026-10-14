@@ -12,7 +12,7 @@ import type {
   TemplateElement
 } from './types';
 import { mmToPx, pxToMm } from '$lib/utils/size.utils';
-import { toDimension, toStored, toCss, mm as mmDim } from './dimension';
+import { toDimension, toStored, toCss, mm as mmDim, type StoredDimension } from './dimension';
 
 const GRID_VARIANT_LABELS: Record<GridVariant, string> = {
   checkerboard: 'Checkerboard',
@@ -65,7 +65,7 @@ export function getElementLabel(el: BaseElement): string {
  * The undefined check is included, so callers can pass optional values directly.
  */
 export function dimensionValue(
-  value: number | string | undefined,
+  value: StoredDimension | undefined,
   dpi?: number
 ): string | undefined {
   // Parse to the domain Dimension and render as CSS. For unparseable strings
@@ -81,7 +81,7 @@ export function dimensionValue(
  * Converts a dimension value to a numeric pixel value.
  * Returns 0 if the value is undefined or cannot be parsed.
  */
-export function dimensionToPx(value: number | string | undefined, dpi?: number): number {
+export function dimensionToPx(value: StoredDimension | undefined, dpi?: number): number {
   if (value === undefined) return 0;
 
   const dimension = toDimension(value);
@@ -113,7 +113,7 @@ export function dimensionToPx(value: number | string | undefined, dpi?: number):
  * - any other string (e.g. `"100px"`) → returns the plain pixel number.
  */
 export function writeBackInExistingUnit(
-  existing: number | string | undefined,
+  existing: StoredDimension | undefined,
   newPx: number,
   dpi: number,
   referencePx?: number

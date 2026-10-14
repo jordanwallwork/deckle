@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { goto } from '$app/navigation';
+  import { Pagination } from '$lib/components';
   import {
     buildUserQuery,
     emptyUserFilters,
@@ -48,27 +49,7 @@
     <UsersTable users={data.usersResponse.users} />
   {/if}
 
-  {#if totalPages > 1}
-    <div class="pagination">
-      <button
-        class="page-btn"
-        disabled={data.currentPage <= 1}
-        onclick={() => goToPage(data.currentPage - 1)}
-      >
-        Previous
-      </button>
-      <span class="page-info">
-        Page {data.currentPage} of {totalPages}
-      </span>
-      <button
-        class="page-btn"
-        disabled={data.currentPage >= totalPages}
-        onclick={() => goToPage(data.currentPage + 1)}
-      >
-        Next
-      </button>
-    </div>
-  {/if}
+  <Pagination page={data.currentPage} {totalPages} onPageChange={goToPage} />
 </div>
 
 <style>
@@ -103,38 +84,5 @@
     border: 1px solid #e5e7eb;
     border-radius: 0.75rem;
     margin: 0;
-  }
-
-  .pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1.5rem;
-  }
-
-  .page-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid #e5e7eb;
-    background: white;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .page-btn:hover:not(:disabled) {
-    border-color: #667eea;
-    color: #667eea;
-  }
-
-  .page-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .page-info {
-    font-size: 0.875rem;
-    color: #6b7280;
   }
 </style>

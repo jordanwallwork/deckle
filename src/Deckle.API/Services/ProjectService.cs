@@ -237,7 +237,6 @@ public partial class ProjectService : IProjectService
 
         var users = await _dbContext.UserProjects
             .Where(up => up.ProjectId == projectId)
-            .Include(up => up.User)
             .Select(up => new ProjectUserDto
             {
                 UserId = up.UserId,

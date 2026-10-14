@@ -1,3 +1,5 @@
+import type { SortDirection } from './sort';
+
 // User entity types
 
 export interface User {
@@ -114,6 +116,9 @@ export interface AdminUserListResponse {
   totalCount: number;
   page: number;
   pageSize: number;
+  /** The sort the server applied, e.g. `createdAt` */
+  sortBy: string;
+  sortDir: SortDirection;
 }
 
 // Username availability response

@@ -59,7 +59,10 @@ describe('admin users page load', () => {
       role: '',
       status: ''
     });
-    expect(adminApi.getUsers).toHaveBeenCalledWith({ page: 1, pageSize: 20 }, mockFetch);
+    expect(adminApi.getUsers).toHaveBeenCalledWith(
+      { page: 1, pageSize: 20, sortBy: 'createdAt', sortDir: 'desc' },
+      mockFetch
+    );
   });
 
   it('parses page, pageSize, and search from query params', async () => {
@@ -88,7 +91,7 @@ describe('admin users page load', () => {
 
     expect(result!.currentFilters).toEqual(filters);
     expect(adminApi.getUsers).toHaveBeenCalledWith(
-      { page: 2, pageSize: 20, ...filters },
+      { page: 2, pageSize: 20, ...filters, sortBy: 'createdAt', sortDir: 'desc' },
       mockFetch
     );
   });
@@ -101,7 +104,42 @@ describe('admin users page load', () => {
     );
 
     expect(result!.currentFilters).toMatchObject({ createdFrom: '', role: '', status: '' });
-    expect(adminApi.getUsers).toHaveBeenCalledWith({ page: 1, pageSize: 20 }, mockFetch);
+    expect(adminApi.getUsers).toHaveBeenCalledWith(
+      { page: 1, pageSize: 20, sortBy: 'createdAt', sortDir: 'desc' },
+      mockFetch
+    );
+  });
+
+  it('defaults the sort to sign-up date descending', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+
+    const result = await load(makeEvent(adminUser));
+
+    expect(result!.currentSort).toEqual({ sortBy: 'createdAt', sortDir: 'desc' });
+  });
+
+  it('parses the sort and passes it to the API with filters and page', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+
+    const result = await load(
+      makeEvent(adminUser, { sortBy: 'storage', sortDir: 'asc', role: 'User', page: '3' })
+    );
+
+    expect(result!.currentSort).toEqual({ sortBy: 'storage', sortDir: 'asc' });
+    expect(adminApi.getUsers).toHaveBeenCalledWith(
+      { page: 3, pageSize: 20, role: 'User', sortBy: 'storage', sortDir: 'asc' },
+      mockFetch
+    );
+  });
+
+  it('ignores an unknown sort key and fills in a missing direction', async () => {
+    vi.mocked(adminApi.getUsers).mockResolvedValue({ users: [] } as any);
+
+    const unknown = await load(makeEvent(adminUser, { sortBy: 'password', sortDir: 'asc' }));
+    expect(unknown!.currentSort).toEqual({ sortBy: 'createdAt', sortDir: 'desc' });
+
+    const noDirection = await load(makeEvent(adminUser, { sortBy: 'role', sortDir: 'up' }));
+    expect(noDirection!.currentSort).toEqual({ sortBy: 'role', sortDir: 'asc' });
   });
 
   it('falls back to defaults for invalid page values and caps pageSize at 100', async () => {

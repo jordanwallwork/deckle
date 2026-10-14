@@ -645,6 +645,228 @@ public class AdminServiceTests : IDisposable
 
     #endregion
 
+    #region GetUsersAsync Sort Tests
+
+    /// <summary>
+    /// Seeds three users whose values give a distinct order for every sort key:
+    /// charlie@ (name "Charlie"), bravo@ (no name, sorts by email) and zed@ (name "alpha").
+    /// </summary>
+    private async Task SeedSortableUsers()
+    {
+        var charlie = await SeedUserWith("charlie@test.com", u =>
+        {
+            u.Name = "Charlie";
+            u.CreatedAt = Utc(2026, 1, 1);
+            u.LastLoginAt = Utc(2026, 5, 3);
+            u.StorageUsedBytes = 300;
+        });
+        var bravo = await SeedUserWith("bravo@test.com", u =>
+        {
+            u.CreatedAt = Utc(2026, 1, 3);
+            u.LastLoginAt = Utc(2026, 5, 1);
+            u.StorageUsedBytes = 100;
+            u.Role = UserRole.Administrator;
+        });
+        var zed = await SeedUserWith("zed@test.com", u =>
+        {
+            u.Name = "alpha";
+            u.CreatedAt = Utc(2026, 1, 2);
+            u.StorageUsedBytes = 200;
+        });
+        await AddOwnedProjects(charlie, 0);
+        await AddOwnedProjects(bravo, 2);
+        await AddOwnedProjects(zed, 1);
+    }
+
+    private async Task AddOwnedProjects(User user, int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var project = new Project
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Project {i}",
+                Code = $"p{i}",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.Projects.Add(project);
+            _context.UserProjects.Add(new UserProject
+            {
+                UserId = user.Id,
+                ProjectId = project.Id,
+                Role = ProjectRole.Owner,
+                JoinedAt = DateTime.UtcNow
+            });
+        }
+        await _context.SaveChangesAsync();
+    }
+
+    private static List<string> LocalParts(AdminUserListResponse result) =>
+        result.Users.Select(u => u.Email.Split('@')[0]).ToList();
+
+    private async Task<List<string>> SortedEmails(AdminUserQuery query) =>
+        LocalParts(await _service.GetUsersAsync(query));
+
+    [Theory]
+    [InlineData("name", "asc", "zed,bravo,charlie")]
+    [InlineData("name", "desc", "charlie,bravo,zed")]
+    [InlineData("createdAt", "asc", "charlie,zed,bravo")]
+    [InlineData("createdAt", "desc", "bravo,zed,charlie")]
+    [InlineData("lastLoginAt", "asc", "bravo,charlie,zed")]
+    [InlineData("lastLoginAt", "desc", "charlie,bravo,zed")]
+    [InlineData("storage", "asc", "bravo,zed,charlie")]
+    [InlineData("storage", "desc", "charlie,zed,bravo")]
+    [InlineData("projects", "asc", "charlie,zed,bravo")]
+    [InlineData("projects", "desc", "bravo,zed,charlie")]
+    public async Task GetUsersAsync_SortsByKeyInEachDirection(string sortBy, string sortDir, string expected)
+    {
+        await SeedSortableUsers();
+
+        var result = await _service.GetUsersAsync(new AdminUserQuery(SortBy: sortBy, SortDir: sortDir));
+
+        Assert.Equal(expected.Split(','), LocalParts(result));
+        Assert.Equal(sortBy, result.SortBy);
+        Assert.Equal(sortDir, result.SortDir);
+    }
+
+    [Fact]
+    public async Task GetUsersAsync_SortByRole_AdministratorsFirstAscending_LastDescending()
+    {
+        await SeedSortableUsers();
+
+        var asc = await SortedEmails(new AdminUserQuery(SortBy: "role", SortDir: "asc"));
+        var desc = await SortedEmails(new AdminUserQuery(SortBy: "role", SortDir: "desc"));
+
+        Assert.Equal("bravo", asc[0]);
+        Assert.Equal("bravo", desc[^1]);
+    }
+
+    [Fact]
+    public async Task GetUsersAsync_SortKeysAreCaseInsensitive_AndEchoCanonicalCasing()
+    {
+        await SeedSortableUsers();
+
+        var result = await _service.GetUsersAsync(new AdminUserQuery(SortBy: "LASTLOGINAT", SortDir: "ASC"));
+
+        Assert.Equal("lastLoginAt", result.SortBy);
+        Assert.Equal("asc", result.SortDir);
+        Assert.Equal(["bravo", "charlie", "zed"], LocalParts(result));
+    }
+
+    [Theory]
+    [InlineData("asc", "old", "new")]
+    [InlineData("desc", "new", "old")]
+    public async Task GetUsersAsync_SortByLastLogin_NeverLoggedInGoLast(string sortDir, string first, string second)
+    {
+        await SeedUserWith("never1@test.com", u => u.LastLoginAt = null);
+        await SeedUserWith("old@test.com", u => u.LastLoginAt = Utc(2026, 1, 1));
+        await SeedUserWith("never2@test.com", u => u.LastLoginAt = null);
+        await SeedUserWith("new@test.com", u => u.LastLoginAt = Utc(2026, 6, 1));
+
+        var emails = await SortedEmails(new AdminUserQuery(SortBy: "lastLoginAt", SortDir: sortDir));
+
+        Assert.Equal([first, second], emails.Take(2));
+        Assert.Equal(["never1", "never2"], emails.Skip(2).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task GetUsersAsync_SortByName_FallsBackToEmailWhenNameIsNull()
+    {
+        await SeedUserWith("mike@test.com", u => u.Name = "Mike");
+        await SeedUserWith("bob@test.com", u => u.Name = null);
+        await SeedUserWith("zara@test.com", u => u.Name = null);
+        await SeedUserWith("xavier@test.com", u => u.Name = "Adam");
+
+        var emails = await SortedEmails(new AdminUserQuery(SortBy: "name", SortDir: "asc"));
+
+        Assert.Equal(["xavier", "bob", "mike", "zara"], emails);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("bogus", "asc")]
+    [InlineData("", "")]
+    [InlineData("email", "desc")]
+    public async Task GetUsersAsync_InvalidOrMissingSort_FallsBackToCreatedAtDesc(string? sortBy, string? sortDir)
+    {
+        await SeedSortableUsers();
+
+        var result = await _service.GetUsersAsync(new AdminUserQuery(SortBy: sortBy, SortDir: sortDir));
+
+        Assert.Equal("createdAt", result.SortBy);
+        Assert.Equal("desc", result.SortDir);
+        Assert.Equal(["bravo", "zed", "charlie"], LocalParts(result));
+    }
+
+    [Theory]
+    [InlineData("name", "asc")]
+    [InlineData("role", "asc")]
+    [InlineData("createdAt", "desc")]
+    [InlineData("lastLoginAt", "desc")]
+    [InlineData("storage", "desc")]
+    [InlineData("projects", "desc")]
+    public async Task GetUsersAsync_InvalidSortDir_UsesKeysNaturalDirection(string sortBy, string expectedDir)
+    {
+        await SeedSortableUsers();
+
+        var result = await _service.GetUsersAsync(new AdminUserQuery(SortBy: sortBy, SortDir: "sideways"));
+
+        Assert.Equal(sortBy, result.SortBy);
+        Assert.Equal(expectedDir, result.SortDir);
+    }
+
+    [Fact]
+    public async Task GetUsersAsync_SortCombinedWithFilter_SortsOnlyMatchingUsers()
+    {
+        await SeedSortableUsers();
+
+        var emails = await SortedEmails(new AdminUserQuery(Role: "User", SortBy: "storage", SortDir: "asc"));
+
+        Assert.Equal(["zed", "charlie"], emails);
+    }
+
+    [Fact]
+    public async Task GetUsersAsync_SortCombinedWithPagination_PagesThroughSortedOrder()
+    {
+        for (var i = 1; i <= 5; i++)
+        {
+            var bytes = i * 100L;
+            await SeedUserWith($"s{i}@test.com", u => u.StorageUsedBytes = bytes);
+        }
+
+        var page1 = await SortedEmails(new AdminUserQuery(Page: 1, PageSize: 2, SortBy: "storage", SortDir: "desc"));
+        var page2 = await SortedEmails(new AdminUserQuery(Page: 2, PageSize: 2, SortBy: "storage", SortDir: "desc"));
+        var page3 = await SortedEmails(new AdminUserQuery(Page: 3, PageSize: 2, SortBy: "storage", SortDir: "desc"));
+
+        Assert.Equal(["s5", "s4"], page1);
+        Assert.Equal(["s3", "s2"], page2);
+        Assert.Equal(["s1"], page3);
+    }
+
+    [Fact]
+    public async Task GetUsersAsync_SortTies_AreBrokenByIdForStablePaging()
+    {
+        var ids = new List<Guid>();
+        for (var i = 0; i < 5; i++)
+        {
+            var user = await SeedUserWith($"tie{i}@test.com", u => u.StorageUsedBytes = 42);
+            ids.Add(user.Id);
+        }
+
+        var paged = new List<Guid>();
+        for (var page = 1; page <= 3; page++)
+        {
+            var result = await _service.GetUsersAsync(
+                new AdminUserQuery(Page: page, PageSize: 2, SortBy: "storage", SortDir: "asc"));
+            paged.AddRange(result.Users.Select(u => u.Id));
+        }
+
+        Assert.Equal(ids.Order(), paged);
+    }
+
+    #endregion
+
     #region GetUserDetailAsync Tests
 
     [Fact]

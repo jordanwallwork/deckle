@@ -1,23 +1,41 @@
 <script lang="ts">
   import type { AdminUser } from '$lib/types';
-  import { Avatar, Badge, Table, UsernameLink } from '$lib/components';
+  import type { AdminUserSortKey } from '$lib/api/admin';
+  import type { AdminUserSort } from '$lib/utils/adminUserFilters';
+  import { Avatar, Badge, SortableHeader, Table, UsernameLink } from '$lib/components';
   import { rowLink } from '$lib/actions/rowLink';
   import { formatDateTime } from '$lib/utils/date.utils';
   import { formatStorage, getStoragePercentage } from '$lib/utils/storage.utils';
   import RoleBadge from './RoleBadge.svelte';
   import StorageBar from './StorageBar.svelte';
 
-  let { users }: { users: AdminUser[] } = $props();
+  let {
+    users,
+    sort,
+    onSort
+  }: { users: AdminUser[]; sort: AdminUserSort; onSort: (key: AdminUserSortKey) => void } =
+    $props();
+
+  const columns: { key: AdminUserSortKey; label: string }[] = [
+    { key: 'name', label: 'User' },
+    { key: 'createdAt', label: 'Sign-up Date' },
+    { key: 'lastLoginAt', label: 'Last Login' },
+    { key: 'storage', label: 'Storage' },
+    { key: 'projects', label: 'Projects' },
+    { key: 'role', label: 'Role' }
+  ];
 </script>
 
 <Table framed minWidth="900px" label="Users">
   {#snippet head()}
-    <th>User</th>
-    <th>Sign-up Date</th>
-    <th>Last Login</th>
-    <th>Storage</th>
-    <th>Projects</th>
-    <th>Role</th>
+    {#each columns as column (column.key)}
+      <SortableHeader
+        label={column.label}
+        active={sort.sortBy === column.key}
+        direction={sort.sortDir}
+        onSort={() => onSort(column.key)}
+      />
+    {/each}
   {/snippet}
 
   {#each users as user (user.id)}

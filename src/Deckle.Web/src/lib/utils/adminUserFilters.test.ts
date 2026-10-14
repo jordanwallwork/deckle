@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildUserQuery,
+  DEFAULT_USER_SORT,
   emptyUserFilters,
   parseUserFilters,
+  parseUserSort,
+  USER_SORT_INITIAL_DIRECTION,
   toUserQueryParams,
   type AdminUserFilters
 } from './adminUserFilters';
@@ -48,6 +51,88 @@ describe('buildUserQuery', () => {
     const query = buildUserQuery(fullFilters, 2, 20);
 
     expect(parseUserFilters(new URLSearchParams(query))).toEqual(fullFilters);
+  });
+
+  it('includes a non-default sort alongside filters and page', () => {
+    const query = new URLSearchParams(
+      buildUserQuery(fullFilters, 2, 20, { sortBy: 'storage', sortDir: 'asc' })
+    );
+
+    expect(Object.fromEntries(query)).toEqual({
+      ...fullFilters,
+      sortBy: 'storage',
+      sortDir: 'asc',
+      page: '2',
+      pageSize: '20'
+    });
+  });
+
+  it('omits the default sort', () => {
+    expect(buildUserQuery(emptyUserFilters(), 1, 20, { ...DEFAULT_USER_SORT })).toBe(
+      '?page=1&pageSize=20'
+    );
+  });
+
+  it('keeps the default key when only the direction differs', () => {
+    const query = buildUserQuery(emptyUserFilters(), 1, 20, {
+      sortBy: 'createdAt',
+      sortDir: 'asc'
+    });
+
+    expect(query).toBe('?sortBy=createdAt&sortDir=asc&page=1&pageSize=20');
+  });
+
+  it('round-trips the sort through parseUserSort', () => {
+    const sort = { sortBy: 'lastLoginAt', sortDir: 'asc' } as const;
+    const query = buildUserQuery(fullFilters, 3, 20, sort);
+
+    expect(parseUserSort(new URLSearchParams(query))).toEqual(sort);
+  });
+});
+
+describe('parseUserSort', () => {
+  const parse = (params: Record<string, string>) => parseUserSort(new URLSearchParams(params));
+
+  it('defaults to sign-up date, newest first, when no sort is set', () => {
+    expect(parse({})).toEqual({ sortBy: 'createdAt', sortDir: 'desc' });
+  });
+
+  it.each(['name', 'createdAt', 'lastLoginAt', 'storage', 'projects', 'role'] as const)(
+    'accepts %s in both directions',
+    (sortBy) => {
+      expect(parse({ sortBy, sortDir: 'asc' })).toEqual({ sortBy, sortDir: 'asc' });
+      expect(parse({ sortBy, sortDir: 'desc' })).toEqual({ sortBy, sortDir: 'desc' });
+    }
+  );
+
+  it('falls back to the default sort for an unknown key, whatever the direction', () => {
+    expect(parse({ sortBy: 'email', sortDir: 'asc' })).toEqual(DEFAULT_USER_SORT);
+    expect(parse({ sortBy: 'NAME', sortDir: 'asc' })).toEqual(DEFAULT_USER_SORT);
+  });
+
+  it("uses the key's initial direction when the direction is missing or invalid", () => {
+    expect(parse({ sortBy: 'name' })).toEqual({ sortBy: 'name', sortDir: 'asc' });
+    expect(parse({ sortBy: 'storage', sortDir: 'sideways' })).toEqual({
+      sortBy: 'storage',
+      sortDir: 'desc'
+    });
+  });
+
+  it('returns a fresh object rather than the shared default', () => {
+    expect(parse({})).not.toBe(DEFAULT_USER_SORT);
+  });
+});
+
+describe('USER_SORT_INITIAL_DIRECTION', () => {
+  it('starts dates and quantities descending and text columns ascending', () => {
+    expect(USER_SORT_INITIAL_DIRECTION).toEqual({
+      name: 'asc',
+      createdAt: 'desc',
+      lastLoginAt: 'desc',
+      storage: 'desc',
+      projects: 'desc',
+      role: 'asc'
+    });
   });
 });
 

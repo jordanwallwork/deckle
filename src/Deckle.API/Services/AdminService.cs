@@ -26,6 +26,9 @@ public class AdminService : IAdminService
     public const int MaxNameLength = 100;
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
+    public const string DefaultSortBy = "createdAt";
+    private const string SortAscending = "asc";
+    private const string SortDescending = "desc";
 
     private readonly AppDbContext _dbContext;
     private readonly IEmailConfirmationService _emailConfirmationService;
@@ -67,8 +70,10 @@ public class AdminService : IAdminService
 
         var totalCount = await users.CountAsync();
 
-        var results = await users
-            .OrderByDescending(u => u.CreatedAt)
+        var (sortBy, descending) = ResolveSort(query.SortBy, query.SortDir);
+
+        var results = await ApplySort(users, sortBy, descending)
+            .ThenBy(u => u.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(ToAdminUserDto)
@@ -79,9 +84,68 @@ public class AdminService : IAdminService
             Users = results,
             TotalCount = totalCount,
             Page = page,
-            PageSize = pageSize
+            PageSize = pageSize,
+            SortBy = sortBy,
+            SortDir = descending ? SortDescending : SortAscending
         };
     }
+
+    /// <summary>Sort keys (canonical casing) and whether each defaults to descending.</summary>
+    private static readonly Dictionary<string, bool> SortKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["name"] = false,
+        ["createdAt"] = true,
+        ["lastLoginAt"] = true,
+        ["storage"] = true,
+        ["projects"] = true,
+        ["role"] = false
+    };
+
+    /// <summary>
+    /// Validates the requested sort. An unknown or missing key falls back to createdAt desc;
+    /// an unknown or missing direction falls back to the key's natural direction.
+    /// </summary>
+    private static (string SortBy, bool Descending) ResolveSort(string? sortBy, string? sortDir)
+    {
+        var key = sortBy?.Trim() ?? "";
+        if (!SortKeys.TryGetValue(key, out var defaultDescending))
+        {
+            return (DefaultSortBy, true);
+        }
+
+        var canonical = SortKeys.Keys.First(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
+        var descending = sortDir?.Trim().ToUpperInvariant() switch
+        {
+            "ASC" => false,
+            "DESC" => true,
+            _ => defaultDescending
+        };
+        return (canonical, descending);
+    }
+
+    private static IOrderedQueryable<User> ApplySort(IQueryable<User> users, string sortBy, bool descending) =>
+        sortBy switch
+        {
+#pragma warning disable CA1304, CA1311 // ToLower() in EF expression tree is translated to SQL LOWER()
+            "name" => OrderBy(users, u => (u.Name ?? u.Email).ToLower(), descending),
+#pragma warning restore CA1304, CA1311
+            // Never-logged-in users (null) go last in both directions
+            "lastLoginAt" => ThenBy(users.OrderBy(u => u.LastLoginAt == null), u => u.LastLoginAt, descending),
+            "storage" => OrderBy(users, u => u.StorageUsedBytes, descending),
+            "projects" => OrderBy(users, u => u.UserProjects.Count(up => up.Role == ProjectRole.Owner), descending),
+            // Role is stored as a string, so order on an explicit rank to keep providers consistent
+            // (ascending = Administrator first, matching alphabetical order)
+            "role" => OrderBy(users, u => u.Role == UserRole.Administrator ? 0 : 1, descending),
+            _ => OrderBy(users, u => u.CreatedAt, descending)
+        };
+
+    private static IOrderedQueryable<User> OrderBy<TKey>(
+        IQueryable<User> users, Expression<Func<User, TKey>> key, bool descending) =>
+        descending ? users.OrderByDescending(key) : users.OrderBy(key);
+
+    private static IOrderedQueryable<User> ThenBy<TKey>(
+        IOrderedQueryable<User> users, Expression<Func<User, TKey>> key, bool descending) =>
+        descending ? users.ThenByDescending(key) : users.ThenBy(key);
 
     private static IQueryable<User> ApplyFilters(IQueryable<User> users, AdminUserQuery query)
     {

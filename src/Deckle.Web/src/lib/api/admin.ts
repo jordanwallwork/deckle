@@ -8,11 +8,19 @@ import type {
   CreatePlayerMatDto,
   CardComponent,
   PlayerMatComponent,
-  GameComponent
+  GameComponent,
+  SortDirection
 } from '$lib/types';
 
 export type AdminUserRoleFilter = 'User' | 'Administrator';
 export type AdminUserStatusFilter = 'Active' | 'Unconfirmed' | 'Disabled';
+export type AdminUserSortKey =
+  | 'name'
+  | 'createdAt'
+  | 'lastLoginAt'
+  | 'storage'
+  | 'projects'
+  | 'role';
 
 export interface GetUsersParams {
   page?: number;
@@ -28,6 +36,10 @@ export interface GetUsersParams {
   lastLoginTo?: string;
   role?: AdminUserRoleFilter;
   status?: AdminUserStatusFilter;
+  /** Defaults to createdAt on the server */
+  sortBy?: AdminUserSortKey;
+  /** Defaults to the sort key's natural direction on the server */
+  sortDir?: SortDirection;
 }
 
 const USER_FILTER_KEYS = [
@@ -37,7 +49,9 @@ const USER_FILTER_KEYS = [
   'lastLoginFrom',
   'lastLoginTo',
   'role',
-  'status'
+  'status',
+  'sortBy',
+  'sortDir'
 ] as const;
 
 export interface GetSamplesParams {

@@ -74,6 +74,10 @@ public record AdminUserDto
 /// Query-string filters for <c>GET /admin/users</c>. Date ranges are inclusive (UTC days).
 /// <paramref name="Role"/> is <c>User</c> or <c>Administrator</c>; <paramref name="Status"/> is
 /// <c>Active</c>, <c>Unconfirmed</c> or <c>Disabled</c>. Unrecognised values are ignored.
+/// <paramref name="SortBy"/> is one of <c>name</c>, <c>createdAt</c>, <c>lastLoginAt</c>, <c>storage</c>,
+/// <c>projects</c> or <c>role</c> (case-insensitive); unknown or missing values sort by <c>createdAt</c> desc.
+/// <paramref name="SortDir"/> is <c>asc</c> or <c>desc</c>; when missing or invalid it defaults to <c>desc</c>
+/// for createdAt/lastLoginAt/storage/projects and <c>asc</c> for name/role.
 /// </summary>
 public record AdminUserQuery(
     int Page = 1,
@@ -84,7 +88,9 @@ public record AdminUserQuery(
     DateOnly? LastLoginFrom = null,
     DateOnly? LastLoginTo = null,
     string? Role = null,
-    string? Status = null);
+    string? Status = null,
+    string? SortBy = null,
+    string? SortDir = null);
 
 public record AdminApiKeyDto
 {
@@ -121,6 +127,10 @@ public record AdminUserListResponse
     public required int TotalCount { get; init; }
     public required int Page { get; init; }
     public required int PageSize { get; init; }
+    /// <summary>The sort actually applied (canonical key, e.g. <c>createdAt</c>)</summary>
+    public required string SortBy { get; init; }
+    /// <summary>The direction actually applied: <c>asc</c> or <c>desc</c></summary>
+    public required string SortDir { get; init; }
 }
 
 // Public profile DTOs

@@ -1,4 +1,11 @@
-import type { AdminUserRoleFilter, AdminUserStatusFilter, GetUsersParams } from '$lib/api/admin';
+import type {
+  AdminUserRoleFilter,
+  AdminUserSortKey,
+  AdminUserStatusFilter,
+  GetUsersParams
+} from '$lib/api/admin';
+import type { SortDirection, SortState } from '$lib/types';
+import { parseSortDirection } from './sort';
 
 /**
  * Filters on the admin users index. Empty strings mean "not filtered" so the
@@ -20,6 +27,26 @@ export const STATUS_FILTERS: readonly AdminUserStatusFilter[] = [
   'Unconfirmed',
   'Disabled'
 ];
+
+export type AdminUserSort = SortState<AdminUserSortKey>;
+
+/**
+ * The direction a column sorts in when first clicked: newest/largest first for dates and
+ * counts, alphabetical for name and role. Also used when the URL has a key but no valid direction.
+ */
+export const USER_SORT_INITIAL_DIRECTION: Readonly<Record<AdminUserSortKey, SortDirection>> = {
+  name: 'asc',
+  createdAt: 'desc',
+  lastLoginAt: 'desc',
+  storage: 'desc',
+  projects: 'desc',
+  role: 'asc'
+};
+
+const USER_SORT_KEYS = Object.keys(USER_SORT_INITIAL_DIRECTION) as AdminUserSortKey[];
+
+/** Matches the API's default order */
+export const DEFAULT_USER_SORT: Readonly<AdminUserSort> = { sortBy: 'createdAt', sortDir: 'desc' };
 
 const FILTER_KEYS = [
   'search',
@@ -69,6 +96,23 @@ export function parseUserFilters(searchParams: URLSearchParams): AdminUserFilter
 }
 
 /**
+ * Reads the sort from a URL's query string. An unknown or missing key gives the default sort;
+ * a valid key with an unknown or missing direction uses that key's initial direction.
+ */
+export function parseUserSort(searchParams: URLSearchParams): AdminUserSort {
+  const sortBy = oneOf(searchParams.get('sortBy'), USER_SORT_KEYS);
+  if (!sortBy) return { ...DEFAULT_USER_SORT };
+  return {
+    sortBy,
+    sortDir: parseSortDirection(searchParams.get('sortDir')) ?? USER_SORT_INITIAL_DIRECTION[sortBy]
+  };
+}
+
+function isDefaultSort(sort: AdminUserSort): boolean {
+  return sort.sortBy === DEFAULT_USER_SORT.sortBy && sort.sortDir === DEFAULT_USER_SORT.sortDir;
+}
+
+/**
  * Converts filters to API params, omitting anything not set
  */
 export function toUserQueryParams(filters: AdminUserFilters): GetUsersParams {
@@ -85,13 +129,23 @@ export function toUserQueryParams(filters: AdminUserFilters): GetUsersParams {
 
 /**
  * Builds the admin users index query string (including the leading "?") for the given
- * filters and page. Shared by filtering (page 1) and pagination so neither drops the other.
+ * filters, sort and page. Shared by filtering, sorting and pagination so none drops the others.
+ * The default sort is left out to keep URLs short.
  */
-export function buildUserQuery(filters: AdminUserFilters, page: number, pageSize: number): string {
+export function buildUserQuery(
+  filters: AdminUserFilters,
+  page: number,
+  pageSize: number,
+  sort: AdminUserSort = DEFAULT_USER_SORT
+): string {
   const params = new URLSearchParams();
   for (const key of FILTER_KEYS) {
     const value = filters[key].trim();
     if (value) params.set(key, value);
+  }
+  if (!isDefaultSort(sort)) {
+    params.set('sortBy', sort.sortBy);
+    params.set('sortDir', sort.sortDir);
   }
   params.set('page', page.toString());
   params.set('pageSize', pageSize.toString());

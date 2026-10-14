@@ -27,8 +27,13 @@ export interface FileDirectoryWithContents {
   name: string;
   createdAt: string;
   updatedAt: string;
-  childDirectories: FileDirectory[];
+  childDirectories: ChildDirectory[];
   files: File[];
+}
+
+/** A directory listed inside another, with its count of direct children (not recursive) */
+export interface ChildDirectory extends FileDirectory {
+  itemCount: number;
 }
 
 export interface FileUploader {

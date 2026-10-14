@@ -261,7 +261,7 @@ public partial class FileService : IFileService
 
         var files = await query
             .Include(f => f.UploadedBy)
-            .OrderByDescending(f => f.UploadedAt)
+            .OrderBy(f => f.FileName)
             .ToListAsync();
 
         return [.. files.Select(MapToDto)];

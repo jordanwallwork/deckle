@@ -20,9 +20,8 @@
   }: Props = $props();
 
   function handleClose() {
-    if (onclose) {
-      onclose();
-    }
+    show = false;
+    onclose?.();
   }
 
   function handleEscapeKey(e: KeyboardEvent) {

@@ -48,11 +48,13 @@ When creating a new .NET project:
 
 1. **Build**: Run `dotnet build` from `./src` — must complete with no errors or warnings
 2. **Tests**: Write unit tests for new/changed functionality; run `dotnet test`
-3. **Frontend type check** (if touching `src/Deckle.Web/src/`):
+3. **Frontend type check + lint** (if touching `src/Deckle.Web/src/`):
    ```bash
    cd src/Deckle.Web && npm run check
    ```
-   Fix all TypeScript errors. Accessibility (a11y) warnings are non-blocking.
+   Fix all TypeScript and ESLint errors. Accessibility (a11y) warnings are non-blocking.
+
+SonarCloud analyses every PR. Its C# rules also run locally during build (SonarAnalyzer.CSharp via `src/Directory.Build.props`, severities in `src/.editorconfig`) and selected TypeScript rules run via ESLint (`src/Deckle.Web/eslint.config.js`). When a recurring Sonar finding isn't caught locally, enable the matching rule there.
 
 ### Database Migrations
 
@@ -81,7 +83,7 @@ Use descriptive PascalCase names (e.g., `AddProjectEntities`, `UpdateUserTable`)
 - Verify `Up()` creates correct schema changes and `Down()` reverses them
 - Check for data loss or breaking changes
 
-Apply manually if needed:
+Apply manually if needed (set `ConnectionStrings__deckledb` to the database's connection string first — the design-time factory has no credentials):
 ```bash
 dotnet ef database update --project src/Deckle.Domain --startup-project src/Deckle.API
 ```

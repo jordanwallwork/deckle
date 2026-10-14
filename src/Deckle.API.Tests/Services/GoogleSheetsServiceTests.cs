@@ -118,7 +118,7 @@ public class GoogleSheetsServiceTests : IDisposable
         var (service, _) = CreateService();
         var url = new Uri("https://docs.google.com/spreadsheets/d/abc-DEF_123/edit");
 
-        var (spreadsheetId, sheetGid) = service.ExtractIdsFromUrl(url);
+        var (spreadsheetId, _) = service.ExtractIdsFromUrl(url);
 
         Assert.Equal("abc-DEF_123", spreadsheetId);
     }
@@ -129,7 +129,7 @@ public class GoogleSheetsServiceTests : IDisposable
         var (service, _) = CreateService();
         var url = new Uri("https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0");
 
-        var (spreadsheetId, sheetGid) = service.ExtractIdsFromUrl(url);
+        var (_, sheetGid) = service.ExtractIdsFromUrl(url);
 
         Assert.Equal(0, sheetGid);
     }

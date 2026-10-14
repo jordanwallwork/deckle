@@ -4,7 +4,7 @@ vi.mock('$lib/api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('$lib/api')>();
   return {
     ...mod,
-    projectsApi: { getUsers: vi.fn() }
+    projectsApi: { getUsers: vi.fn(), getStorage: vi.fn() }
   };
 });
 
@@ -25,19 +25,29 @@ describe('project settings page load', () => {
     vi.clearAllMocks();
   });
 
-  it('returns project and users on success', async () => {
+  it('returns project, users and storage on success', async () => {
     const users = [{ userId: 'u1', email: 'alice@example.com', role: 'Owner' }];
+    const storage = { totalBytes: 1024 };
     vi.mocked(projectsApi.getUsers).mockResolvedValue(users as any);
+    vi.mocked(projectsApi.getStorage).mockResolvedValue(storage as any);
 
     const result = await load(makeEvent());
 
-    expect(result).toEqual({ project, users });
+    expect(result).toEqual({ project, users, storage });
+    expect(projectsApi.getStorage).toHaveBeenCalledWith('p1', mockFetch);
   });
 
   it('throws the ApiError status on API failure', async () => {
     vi.mocked(projectsApi.getUsers).mockRejectedValue(new ApiError(403, 'Forbidden'));
 
     await expect(load(makeEvent())).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('throws the ApiError status when loading storage fails', async () => {
+    vi.mocked(projectsApi.getUsers).mockResolvedValue([] as any);
+    vi.mocked(projectsApi.getStorage).mockRejectedValue(new ApiError(404, 'Not found'));
+
+    await expect(load(makeEvent())).rejects.toMatchObject({ status: 404 });
   });
 
   it('throws a 500 error for unknown failures', async () => {

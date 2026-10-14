@@ -15,7 +15,9 @@
     isSelected = false,
     onSelectionChange,
     selectedIds = [],
-    allItems = []
+    allItems = [],
+    extraContextMenuItems = [],
+    batchContextMenuItems
   }: {
     directory: FileDirectory;
     itemCount?: number;
@@ -28,6 +30,9 @@
     onSelectionChange?: (selected: boolean, shiftKey: boolean) => void;
     selectedIds?: string[];
     allItems?: Array<{ type: 'file' | 'folder'; id: string }>;
+    // Shown between Rename and Delete in the single-item menu
+    extraContextMenuItems?: ContextMenuItem[];
+    batchContextMenuItems?: ContextMenuItem[];
   } = $props();
 
   let rowRef: LibraryRow | undefined = $state();
@@ -69,7 +74,9 @@
         action: () => rowRef?.startEditing()
       });
     }
+    items.push(...extraContextMenuItems);
     if (ondelete) {
+      if (extraContextMenuItems.length > 0) items.push({ divider: true });
       items.push({
         label: 'Delete',
         action: ondelete,
@@ -87,6 +94,7 @@
   onRowClick={onclick}
   onNameEdit={onrename}
   {contextMenuItems}
+  {batchContextMenuItems}
   {dragData}
   isDropTarget={true}
   {canAcceptDrop}

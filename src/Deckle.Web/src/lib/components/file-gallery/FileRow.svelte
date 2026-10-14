@@ -19,7 +19,9 @@
     isSelected = false,
     onSelectionChange,
     selectedIds = [],
-    allItems = []
+    allItems = [],
+    extraContextMenuItems = [],
+    batchContextMenuItems
   }: {
     file: File;
     isDeleting?: boolean;
@@ -32,6 +34,9 @@
     onSelectionChange?: (selected: boolean, shiftKey: boolean) => void;
     selectedIds?: string[];
     allItems?: Array<{ type: 'file' | 'folder'; id: string }>;
+    // Shown between Rename and Delete in the single-item menu
+    extraContextMenuItems?: ContextMenuItem[];
+    batchContextMenuItems?: ContextMenuItem[];
   } = $props();
 
   // Drag data for this file
@@ -43,7 +48,7 @@
   let fileNameEditRef: InlineFileNameEdit | undefined = $state();
   let isEditingFileName = $state(false);
 
-  const contextMenuItems: ContextMenuItem[] = [
+  let contextMenuItems = $derived<ContextMenuItem[]>([
     {
       label: 'View',
       action: onThumbnailClick
@@ -52,12 +57,14 @@
       label: 'Rename',
       action: () => fileNameEditRef?.startEditing()
     },
+    ...extraContextMenuItems,
+    ...(extraContextMenuItems.length > 0 ? [{ divider: true }] : []),
     {
       label: 'Delete',
       action: onDeleteClick,
       variant: 'danger'
     }
-  ];
+  ]);
 </script>
 
 <LibraryRow
@@ -66,6 +73,7 @@
   onRowClick={onThumbnailClick}
   metadata="{formatFileSize(file.fileSizeBytes)} &bull; {formatShortDate(file.uploadedAt)}"
   {contextMenuItems}
+  {batchContextMenuItems}
   {dragData}
   {selectable}
   {isSelected}

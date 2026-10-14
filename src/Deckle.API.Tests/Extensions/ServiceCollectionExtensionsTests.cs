@@ -125,7 +125,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IProjectAuthorizationService));
 
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IUserService));
 
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IProjectService));
 
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IGoogleSheetsService));
 
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IDataSourceService));
 
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IComponentService));
 
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IFileDirectoryService));
 
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IAdminService));
 
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     #endregion

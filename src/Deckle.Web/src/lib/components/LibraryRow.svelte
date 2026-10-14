@@ -21,6 +21,7 @@
     extraContent,
     nameContent,
     contextMenuItems,
+    batchContextMenuItems,
     // Drag and drop props
     dragData,
     isDropTarget = false,
@@ -45,6 +46,8 @@
     extraContent?: Snippet;
     nameContent?: Snippet<[{ startEditing: () => void }]>;
     contextMenuItems?: ContextMenuItem[];
+    // Shown instead of contextMenuItems when right-clicking one of several selected rows
+    batchContextMenuItems?: ContextMenuItem[];
     // Drag and drop props
     dragData?: DragItemData;
     isDropTarget?: boolean;
@@ -60,6 +63,11 @@
   } = $props();
 
   let contextMenuState = $state<{ x: number; y: number } | null>(null);
+  let menuItems = $derived(
+    batchContextMenuItems && isSelected && selectedIds.length > 1
+      ? batchContextMenuItems
+      : contextMenuItems
+  );
   let isDragOver = $state(false);
 
   let isEditing = $state(false);
@@ -120,7 +128,7 @@
   }
 
   function handleContextMenu(event: MouseEvent) {
-    if (!contextMenuItems || contextMenuItems.length === 0 || isDisabled) return;
+    if (!menuItems || menuItems.length === 0 || isDisabled) return;
     event.preventDefault();
     contextMenuState = { x: event.clientX, y: event.clientY };
   }
@@ -283,11 +291,11 @@
   {/if}
 </div>
 
-{#if contextMenuState && contextMenuItems}
+{#if contextMenuState && menuItems}
   <ContextMenu
     x={contextMenuState.x}
     y={contextMenuState.y}
-    items={contextMenuItems}
+    items={menuItems}
     onClose={closeContextMenu}
   />
 {/if}

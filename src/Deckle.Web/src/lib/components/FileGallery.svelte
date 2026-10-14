@@ -4,6 +4,7 @@
   import ConfirmDialog from './ConfirmDialog.svelte';
   import EmptyState from './EmptyState.svelte';
   import { FileRow, FileLightbox } from './file-gallery';
+  import type { ContextMenuItem } from './ContextMenu.svelte';
   import type { File } from '$lib/types';
 
   let {
@@ -13,7 +14,9 @@
     selectable = false,
     selectedIds = [],
     onSelectionChange,
-    allItems = []
+    allItems = [],
+    fileContextMenuItems,
+    batchContextMenuItems
   }: {
     files: File[];
     onFileDeleted?: (fileId: string) => void;
@@ -22,6 +25,9 @@
     selectedIds?: string[];
     onSelectionChange?: (fileId: string, selected: boolean, shiftKey: boolean) => void;
     allItems?: Array<{ type: 'file' | 'folder'; id: string }>;
+    // Extra single-item menu entries for a given file
+    fileContextMenuItems?: (file: File) => ContextMenuItem[];
+    batchContextMenuItems?: ContextMenuItem[];
   } = $props();
 
   // Lightbox state
@@ -98,6 +104,8 @@
           onSelectionChange={(selected, shiftKey) => onSelectionChange?.(file.id, selected, shiftKey)}
           {selectedIds}
           {allItems}
+          extraContextMenuItems={fileContextMenuItems?.(file)}
+          {batchContextMenuItems}
         />
       {/each}
     </div>

@@ -13,6 +13,18 @@
   import TagInput from '$lib/components/forms/TagInput.svelte';
   import { TabContent } from '$lib/components';
   import type { DragItemData } from '$lib/components/LibraryRow.svelte';
+  import type { ContextMenuItem } from '$lib/components/ContextMenu.svelte';
+  import BatchAddTagsDialog from './_components/BatchAddTagsDialog.svelte';
+  import BatchRemoveTagsDialog from './_components/BatchRemoveTagsDialog.svelte';
+  import MoveToDialog from './_components/MoveToDialog.svelte';
+  import DirectoryBreadcrumbs from './_components/DirectoryBreadcrumbs.svelte';
+  import {
+    mergeTags,
+    subtractTags,
+    unionTags,
+    runBatch,
+    type BatchResult
+  } from './_components/batchActions';
 
   let { data }: { data: PageData } = $props();
 
@@ -36,6 +48,7 @@
 
   // Page-wide drag-and-drop state
   let isDraggingOverPage = $state(false);
+  let pendingDropFiles = $state<globalThis.File[]>([]);
 
   // Tag filtering state
   let selectedFilterTags = $state<string[]>([]);
@@ -49,6 +62,14 @@
   // Multi-select state
   let selectedIds = $state<Set<string>>(new Set());
   let lastSelectedId = $state<string | null>(null);
+
+  // Batch action state
+  let batchDeleteConfirmOpen = $state(false);
+  let batchDeleting = $state(false);
+  let showBatchAddTags = $state(false);
+  let showBatchRemoveTags = $state(false);
+  let showMoveTo = $state(false);
+  let batchError = $state<string | null>(null);
 
   // Computed values
   let files = $derived(data.directoryContents?.files ?? []);
@@ -68,6 +89,72 @@
 
   // Get array of selected IDs for components that need it
   let selectedIdsArray = $derived(Array.from(selectedIds));
+
+  // Selection broken down for batch actions (tag actions only apply to files)
+  let selectedItems = $derived(allItems.filter((item) => selectedIds.has(item.id)));
+  let selectedFiles = $derived(files.filter((f) => selectedIds.has(f.id)));
+  let selectedFolderIds = $derived(
+    selectedItems.filter((item) => item.type === 'folder').map((item) => item.id)
+  );
+
+  // Items the move/tag dialogs act on: the selection, or the single row whose menu opened them
+  let actionTargetIds = $state<Set<string>>(new Set());
+  let actingOnSelection = $state(true);
+  let targetItems = $derived(allItems.filter((item) => actionTargetIds.has(item.id)));
+  let targetFiles = $derived(files.filter((f) => actionTargetIds.has(f.id)));
+  let targetFolderIds = $derived(
+    targetItems.filter((item) => item.type === 'folder').map((item) => item.id)
+  );
+  let targetFileTags = $derived(unionTags(targetFiles.map((f) => f.tags ?? [])));
+
+  function actOnSelection(open: () => void) {
+    actionTargetIds = new Set(selectedIds);
+    actingOnSelection = true;
+    open();
+  }
+
+  function actOnItem(id: string, open: () => void) {
+    actionTargetIds = new Set([id]);
+    actingOnSelection = false;
+    open();
+  }
+
+  let batchContextMenuItems = $derived<ContextMenuItem[]>([
+    { label: 'Move to…', action: () => actOnSelection(() => (showMoveTo = true)) },
+    {
+      label: 'Add tags…',
+      action: () => actOnSelection(() => (showBatchAddTags = true)),
+      disabled: selectedFiles.length === 0
+    },
+    {
+      label: 'Remove tags…',
+      action: () => actOnSelection(() => (showBatchRemoveTags = true)),
+      disabled: selectedFiles.length === 0
+    },
+    { divider: true },
+    {
+      label: `Delete ${selectedItems.length} items`,
+      action: () => (batchDeleteConfirmOpen = true),
+      variant: 'danger'
+    }
+  ]);
+
+  function folderContextMenuItems(folderId: string): ContextMenuItem[] {
+    return [{ label: 'Move to…', action: () => actOnItem(folderId, () => (showMoveTo = true)) }];
+  }
+
+  function fileContextMenuItems(file: (typeof files)[number]): ContextMenuItem[] {
+    return [
+      { label: 'Move to…', action: () => actOnItem(file.id, () => (showMoveTo = true)) },
+      { label: 'Add tags…', action: () => actOnItem(file.id, () => (showBatchAddTags = true)) },
+      {
+        label: 'Remove tags…',
+        action: () => actOnItem(file.id, () => (showBatchRemoveTags = true)),
+        disabled: (file.tags ?? []).length === 0
+      }
+    ];
+  }
+
   // Empty GUID string that represents root directory
   const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
@@ -204,6 +291,7 @@
 
   // Button click handler
   function openUploadModal() {
+    pendingDropFiles = [];
     showUploadModal = true;
   }
 
@@ -297,14 +385,15 @@
     }
   }
 
-  // Move item(s) to a folder
-  async function handleMoveToFolder(targetFolderId: string, dragData: DragItemData) {
-    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
-
+  // Move items to a folder (null = root), stopping to prompt for a merge on a folder name conflict
+  async function moveItems(
+    itemsToMove: Array<{ type: 'file' | 'folder'; id: string }>,
+    targetFolderId: string | null,
+    clearSelection = true
+  ) {
     for (const item of itemsToMove) {
       const result = await moveSingleItem(item, targetFolderId);
       if (!result.success && result.conflict) {
-        // Conflict - directory with same name exists, prompt for merge
         mergeConflict = result.conflict;
         pendingMergeTarget = targetFolderId;
         mergeConfirmOpen = true;
@@ -313,52 +402,24 @@
       }
     }
 
-    // Clear selection after moving
-    selectedIds = new Set();
+    if (clearSelection) selectedIds = new Set();
     await invalidateAll();
   }
 
-  // Move item(s) to root (null directory)
-  async function handleMoveToRoot(dragData: DragItemData) {
-    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
-
-    for (const item of itemsToMove) {
-      const result = await moveSingleItem(item, null);
-      if (!result.success && result.conflict) {
-        // Conflict - directory with same name exists at root, prompt for merge
-        mergeConflict = result.conflict;
-        pendingMergeTarget = null;
-        mergeConfirmOpen = true;
-        // Stop processing remaining items on conflict
-        break;
-      }
-    }
-
-    // Clear selection after moving
-    selectedIds = new Set();
-    await invalidateAll();
+  function draggedItems(dragData: DragItemData) {
+    return dragData.items ?? [{ type: dragData.type, id: dragData.id }];
   }
 
-  // Move item(s) to parent directory
-  async function handleMoveToParent(dragData: DragItemData) {
-    const parentId = data.directoryContents?.parentDirectoryId ?? null;
-    const itemsToMove = dragData.items ?? [{ type: dragData.type, id: dragData.id }];
+  function handleMoveToFolder(targetFolderId: string, dragData: DragItemData) {
+    return moveItems(draggedItems(dragData), targetFolderId);
+  }
 
-    for (const item of itemsToMove) {
-      const result = await moveSingleItem(item, parentId);
-      if (!result.success && result.conflict) {
-        // Conflict - directory with same name exists in parent, prompt for merge
-        mergeConflict = result.conflict;
-        pendingMergeTarget = parentId;
-        mergeConfirmOpen = true;
-        // Stop processing remaining items on conflict
-        break;
-      }
-    }
+  function handleMoveToRoot(dragData: DragItemData) {
+    return moveItems(draggedItems(dragData), null);
+  }
 
-    // Clear selection after moving
-    selectedIds = new Set();
-    await invalidateAll();
+  function handleMoveToParent(dragData: DragItemData) {
+    return moveItems(draggedItems(dragData), data.directoryContents?.parentDirectoryId ?? null);
   }
 
   // Handle merge confirmation
@@ -437,14 +498,27 @@
     isDraggingOverPage = false;
 
     if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      pendingDropFiles = Array.from(event.dataTransfer.files);
       showUploadModal = true;
     }
   }
 
-  // Upload complete handler
-  async function handleUploadComplete() {
+  // Batch finished: keep the modal open if anything failed so it can be retried
+  async function handleUploadComplete({ failed }: { failed: number }) {
+    if (failed === 0) {
+      showUploadModal = false;
+    }
     await invalidateAll();
-    showUploadModal = false;
+    await refreshTags();
+  }
+
+  async function refreshTags() {
+    try {
+      const { tags } = await filesApi.getTags(data.project.id);
+      availableTags = tags;
+    } catch (err) {
+      console.error('Failed to refresh tags:', err);
+    }
   }
 
   // File deleted handler
@@ -455,12 +529,73 @@
   // File updated handler (for tag changes)
   async function handleFileUpdated() {
     await invalidateAll();
+    await refreshTags();
+  }
+
+  // Keep only failed items selected so the user can retry, and report the failure count
+  async function finishBatch(
+    result: BatchResult<{ id: string }>,
+    verb: string,
+    reselectFailed = true
+  ) {
+    const total = result.succeeded.length + result.failed.length;
+    batchError =
+      result.failed.length > 0 ? `${result.failed.length} of ${total} items failed to ${verb}` : null;
+    if (reselectFailed) selectedIds = new Set(result.failed.map((item) => item.id));
+    await invalidateAll();
+    await refreshTags();
+  }
+
+  async function handleBatchDelete() {
+    batchDeleting = true;
     try {
-      const { tags } = await filesApi.getTags(data.project.id);
-      availableTags = tags;
-    } catch (err) {
-      console.error('Failed to refresh tags:', err);
+      // Files first: deleting a folder moves its contents up, so delete selected files before that
+      const fileResult = await runBatch(
+        selectedItems.filter((item) => item.type === 'file'),
+        (item) => filesApi.delete(item.id)
+      );
+      const folderResult = await runBatch(
+        selectedItems.filter((item) => item.type === 'folder'),
+        (item) => directoriesApi.delete(item.id)
+      );
+      batchDeleteConfirmOpen = false;
+      await finishBatch(
+        {
+          succeeded: [...fileResult.succeeded, ...folderResult.succeeded],
+          failed: [...fileResult.failed, ...folderResult.failed]
+        },
+        'delete'
+      );
+    } finally {
+      batchDeleting = false;
     }
+  }
+
+  // Apply a tag change to every target file, skipping files it wouldn't change
+  async function updateTargetFileTags(change: (tags: string[]) => string[]) {
+    const updates = targetFiles
+      .map((file) => ({ id: file.id, before: file.tags ?? [], after: change(file.tags ?? []) }))
+      .filter((u) => u.after.length !== u.before.length);
+    const result = await runBatch(updates, (u) => filesApi.updateTags(u.id, { tags: u.after }));
+    await finishBatch(result, 'update', actingOnSelection);
+  }
+
+  function handleBatchAddTags(tags: string[]) {
+    return updateTargetFileTags((existing) => mergeTags(existing, tags));
+  }
+
+  function handleBatchRemoveTags(tags: string[]) {
+    return updateTargetFileTags((existing) => subtractTags(existing, tags));
+  }
+
+  // Delete key deletes the selection, unless typing or a dialog/lightbox/menu is open
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Delete' || event.defaultPrevented || selectedIds.size === 0) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (document.querySelector('[role="dialog"], .context-menu')) return;
+    event.preventDefault();
+    batchDeleteConfirmOpen = true;
   }
 
   // Format bytes for display
@@ -472,6 +607,8 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>Image Library - {data.project.name} - Deckle</title>
@@ -562,11 +699,29 @@
       </div>
     {/if}
 
+    {#if batchError}
+      <div class="batch-error" role="alert">
+        <span>{batchError}. The failed items are still selected.</span>
+        <button type="button" onclick={() => (batchError = null)} aria-label="Dismiss">
+          &times;
+        </button>
+      </div>
+    {/if}
+
+    {#if data.currentPath}
+      <DirectoryBreadcrumbs
+        {baseUrl}
+        path={data.currentPath}
+        directories={data.allDirectories}
+        onItemDropped={(directoryId, dragData) => moveItems(draggedItems(dragData), directoryId)}
+      />
+    {/if}
+
     {#if filterLoading}
       <div class="loading-state">
         <p>Loading filtered files...</p>
       </div>
-    {:else if isEmpty}
+    {:else if isEmpty && !data.currentPath}
       <div class="empty-state">
         <p class="empty-message">No images yet</p>
         <p class="empty-subtitle">Upload images to use in your game components</p>
@@ -586,8 +741,7 @@
         {#each directories as directory (directory.id)}
           <FolderRow
             {directory}
-            itemCount={data.allDirectories.filter((d) => d.parentDirectoryId === directory.id)
-              .length}
+            itemCount={directory.itemCount}
             onclick={() => navigateToFolder(directory.name)}
             onrename={(name) => handleRenameFolder(directory.id, name, directory.name)}
             ondelete={() => confirmDeleteFolder(directory)}
@@ -598,6 +752,8 @@
               handleFolderSelectionChange(directory.id, selected, shiftKey)}
             selectedIds={selectedIdsArray}
             {allItems}
+            extraContextMenuItems={folderContextMenuItems(directory.id)}
+            {batchContextMenuItems}
           />
         {/each}
 
@@ -611,9 +767,18 @@
             selectedIds={selectedIdsArray}
             onSelectionChange={handleFileSelectionChange}
             {allItems}
+            {fileContextMenuItems}
+            {batchContextMenuItems}
           />
         {/if}
       </div>
+
+      {#if isEmpty}
+        <div class="empty-state">
+          <p class="empty-message">This folder is empty</p>
+          <p class="empty-subtitle">Upload images or drag items here to add them</p>
+        </div>
+      {/if}
     {/if}
   </div>
 </TabContent>
@@ -622,7 +787,9 @@
   <FileUpload
     projectId={data.project.id}
     directoryId={currentDirectoryId}
-    onUploadComplete={handleUploadComplete}
+    initialFiles={pendingDropFiles}
+    onFileUploaded={() => invalidateAll()}
+    onComplete={handleUploadComplete}
   />
 </Dialog>
 
@@ -669,6 +836,47 @@
     deleteFolderConfirmOpen = false;
     folderToDelete = null;
   }}
+/>
+
+<ConfirmDialog
+  show={batchDeleteConfirmOpen}
+  title="Delete {selectedItems.length} Items"
+  message={[
+    `Are you sure you want to delete ${selectedFiles.length} ${selectedFiles.length === 1 ? 'image' : 'images'}`,
+    selectedFolderIds.length > 0
+      ? ` and ${selectedFolderIds.length} ${selectedFolderIds.length === 1 ? 'folder' : 'folders'}? Files inside deleted folders will be moved to the parent folder.`
+      : '?',
+    ' This action cannot be undone.'
+  ].join('')}
+  confirmText={batchDeleting ? 'Deleting...' : 'Delete'}
+  confirmVariant="danger"
+  cancelText="Cancel"
+  onconfirm={handleBatchDelete}
+  oncancel={() => (batchDeleteConfirmOpen = false)}
+/>
+
+<BatchAddTagsDialog
+  bind:show={showBatchAddTags}
+  fileCount={targetFiles.length}
+  suggestions={availableTags}
+  onSubmit={handleBatchAddTags}
+/>
+
+<BatchRemoveTagsDialog
+  bind:show={showBatchRemoveTags}
+  fileCount={targetFiles.length}
+  existingTags={targetFileTags}
+  onSubmit={handleBatchRemoveTags}
+/>
+
+<MoveToDialog
+  bind:show={showMoveTo}
+  projectId={data.project.id}
+  directories={data.allDirectories}
+  excludedIds={targetFolderIds}
+  {currentDirectoryId}
+  itemCount={targetItems.length}
+  onSubmit={(targetId) => moveItems(targetItems, targetId, actingOnSelection)}
 />
 
 <ConfirmDialog
@@ -789,6 +997,29 @@
   }
 
   .radio-label input[type='radio'] {
+    cursor: pointer;
+  }
+
+  .batch-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--color-danger-bg);
+    border: 1px solid var(--color-danger);
+    border-radius: 8px;
+    color: var(--color-danger-fg);
+    font-size: 0.875rem;
+  }
+
+  .batch-error button {
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 1.25rem;
+    line-height: 1;
     cursor: pointer;
   }
 

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Deckle.API.Services;
 
@@ -19,7 +20,7 @@ public interface IUserService
     public Task<(bool Success, string? Error)> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
 }
 
-public class UserService : IUserService
+public partial class UserService : IUserService
 {
     private readonly AppDbContext _dbContext;
     private readonly IPasswordHasher<User> _passwordHasher;
@@ -285,7 +286,7 @@ public class UserService : IUserService
         }
 
         // Only allow alphanumeric characters and underscores
-        if (!System.Text.RegularExpressions.Regex.IsMatch(username, @"^[a-zA-Z0-9_]+$"))
+        if (!UsernameRegex().IsMatch(username))
         {
             return (false, "Username can only contain letters, numbers, and underscores", false);
         }
@@ -400,4 +401,7 @@ public class UserService : IUserService
 
         return null;
     }
+
+    [GeneratedRegex(@"^[a-zA-Z0-9_]+$")]
+    private static partial Regex UsernameRegex();
 }

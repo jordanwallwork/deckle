@@ -1,41 +1,39 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { filesApi, ApiError } from '$lib/api';
+  import { onDestroy, onMount } from 'svelte';
+  import { filesApi } from '$lib/api';
   import Button from './Button.svelte';
   import TagInput from './forms/TagInput.svelte';
+  import UploadQueueItem from './file-upload/UploadQueueItem.svelte';
+  import { UploadQueue, type UploadSummary } from './file-upload/uploadQueue.svelte';
   import type { File } from '$lib/types';
 
   let {
     projectId,
     directoryId = null,
-    onUploadComplete
+    initialFiles = [],
+    onFileUploaded,
+    onComplete
   }: {
     projectId: string;
     directoryId?: string | null;
-    onUploadComplete?: (file: File) => void;
+    initialFiles?: globalThis.File[];
+    onFileUploaded?: (file: File) => void;
+    onComplete?: (summary: UploadSummary) => void;
   } = $props();
 
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-  const ALLOWED_TYPES = [
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'image/svg+xml'
-  ];
+  // svelte-ignore state_referenced_locally
+  const queue = new UploadQueue(projectId);
 
   let fileInput = $state<HTMLInputElement | null>(null);
-  let selectedFile = $state<globalThis.File | null>(null);
-  let uploading = $state(false);
-  let uploadProgress = $state(0);
-  let error = $state<string | null>(null);
   let isDragging = $state(false);
   let selectedTags = $state<string[]>([]);
   let availableTags = $state<string[]>([]);
+  let lastSummary = $state<UploadSummary | null>(null);
 
-  // Load available tags on mount
+  let hasItems = $derived(queue.items.length > 0);
+
   onMount(async () => {
+    queue.add(initialFiles);
     try {
       const { tags } = await filesApi.getTags(projectId);
       availableTags = tags;
@@ -44,31 +42,13 @@
     }
   });
 
+  // Closing the modal mid-batch stops after the in-flight file
+  onDestroy(() => queue.cancel());
+
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
-    if (target.files && target.files.length > 0) {
-      selectFile(target.files[0]);
-    }
-  }
-
-  function selectFile(file: globalThis.File) {
-    error = null;
-
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      error = 'Invalid file type. Only images are allowed: JPEG, PNG, GIF, WebP, SVG.';
-      selectedFile = null;
-      return;
-    }
-
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
-      error = `File size exceeds maximum of ${MAX_FILE_SIZE / (1024 * 1024)}MB. Please compress the image or select a smaller file.`;
-      selectedFile = null;
-      return;
-    }
-
-    selectedFile = file;
+    if (target.files) queue.add(Array.from(target.files));
+    target.value = '';
   }
 
   function handleDragOver(event: DragEvent) {
@@ -84,98 +64,25 @@
   function handleDrop(event: DragEvent) {
     event.preventDefault();
     isDragging = false;
-
-    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
-      selectFile(event.dataTransfer.files[0]);
-    }
+    if (event.dataTransfer?.files) queue.add(Array.from(event.dataTransfer.files));
   }
 
-  function triggerFileInput() {
-    fileInput?.click();
-  }
-
-  function clearSelection() {
-    selectedFile = null;
+  function clearAll() {
+    queue.clear();
     selectedTags = [];
-    error = null;
-    uploadProgress = 0;
-    if (fileInput) {
-      fileInput.value = '';
-    }
+    lastSummary = null;
   }
 
-  async function uploadFile() {
-    if (!selectedFile) return;
-
-    // Capture selectedFile in a non-nullable variable for use in callbacks
-    const fileToUpload = selectedFile;
-
-    uploading = true;
-    error = null;
-    uploadProgress = 0;
-
-    try {
-      // Phase 1: Request upload URL
-      const { fileId, uploadUrl } = await filesApi.requestUploadUrl(projectId, {
-        fileName: fileToUpload.name,
-        contentType: fileToUpload.type,
-        fileSizeBytes: fileToUpload.size,
-        tags: selectedTags,
-        directoryId: directoryId
-      });
-
-      // Phase 2: Upload to storage (direct, with progress)
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            uploadProgress = Math.round((e.loaded / e.total) * 100);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            resolve();
-          } else {
-            reject(new Error(`Upload failed: ${xhr.status}`));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error('Network error'));
-
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', fileToUpload.type);
-        xhr.setRequestHeader('x-amz-meta-filesize', fileToUpload.size.toString());
-        xhr.send(fileToUpload);
-      });
-
-      // Phase 3: Confirm upload
-      const uploadedFile = await filesApi.confirmUpload(fileId);
-
-      // Success: clear form and notify parent
-      clearSelection();
-      onUploadComplete?.(uploadedFile);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        error = err.message;
-      } else if (err instanceof Error) {
-        error = err.message;
-      } else {
-        error = 'Upload failed. Please try again.';
-      }
-    } finally {
-      uploading = false;
-      uploadProgress = 0;
-    }
+  async function startUpload() {
+    lastSummary = null;
+    const summary = await queue.start({ tags: selectedTags, directoryId, onFileUploaded });
+    lastSummary = summary;
+    onComplete?.(summary);
   }
 
-  function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  function retryFailed() {
+    queue.retryFailed();
+    startUpload();
   }
 </script>
 
@@ -183,82 +90,19 @@
   <div
     class="drop-zone"
     class:dragging={isDragging}
-    class:has-file={selectedFile !== null}
+    class:compact={hasItems}
+    role="region"
+    aria-label="File drop zone"
     ondragover={handleDragOver}
     ondragleave={handleDragLeave}
     ondrop={handleDrop}
   >
-    {#if !selectedFile}
-      <div class="drop-zone-content">
-        <svg
-          class="upload-icon"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          />
-        </svg>
-        <p class="drop-zone-text">Drag and drop an image here, or click to select</p>
-        <p class="drop-zone-hint">
-          Maximum file size: 50MB. Supported formats: JPEG, PNG, GIF, WebP, SVG
-        </p>
-        <Button variant="primary" onclick={triggerFileInput}>Select File</Button>
-      </div>
+    {#if hasItems}
+      <p class="drop-zone-hint">Drop more images here, or</p>
+      <Button variant="secondary" size="sm" onclick={() => fileInput?.click()}>Add Files</Button>
     {:else}
-      <div class="file-info">
-        <div class="file-details">
-          <svg
-            class="file-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-          <div class="file-text">
-            <p class="file-name">{selectedFile.name}</p>
-            <p class="file-size">{formatFileSize(selectedFile.size)}</p>
-          </div>
-        </div>
-        {#if !uploading}
-          <div class="file-tags-section">
-            <label for="file-tags" class="tags-label">Tags (optional)</label>
-            <TagInput bind:value={selectedTags} suggestions={availableTags} />
-          </div>
-          <div class="file-actions">
-            <Button variant="primary" onclick={uploadFile}>Upload</Button>
-            <Button variant="secondary" onclick={clearSelection}>Cancel</Button>
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    {#if uploading}
-      <div class="upload-progress">
-        <div class="progress-bar">
-          <div class="progress-fill" style="width: {uploadProgress}%"></div>
-        </div>
-        <p class="progress-text">{uploadProgress}% uploaded</p>
-      </div>
-    {/if}
-  </div>
-
-  {#if error}
-    <div class="error-message">
       <svg
-        class="error-icon"
+        class="upload-icon"
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
@@ -268,10 +112,57 @@
           stroke-linecap="round"
           stroke-linejoin="round"
           stroke-width="2"
-          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
         />
       </svg>
-      <span>{error}</span>
+      <p class="drop-zone-text">Drag and drop images here, or click to select</p>
+      <p class="drop-zone-hint">
+        Maximum file size: 50MB. Supported formats: JPEG, PNG, GIF, WebP, SVG
+      </p>
+      <Button variant="primary" onclick={() => fileInput?.click()}>Select Files</Button>
+    {/if}
+  </div>
+
+  {#if hasItems}
+    <ul class="queue-list">
+      {#each queue.items as item (item.id)}
+        <UploadQueueItem {item} onremove={() => queue.remove(item.id)} />
+      {/each}
+    </ul>
+
+    {#if !queue.isUploading}
+      <div class="file-tags-section">
+        <label for="file-tags" class="tags-label">Tags (optional, applied to all files)</label>
+        <TagInput bind:value={selectedTags} suggestions={availableTags} />
+      </div>
+    {/if}
+
+    {#if queue.stopReason?.kind === 'quota-exceeded' && lastSummary}
+      <div class="stop-banner" role="alert">
+        <p class="stop-title">Upload stopped: {queue.stopReason.message}</p>
+        <p class="stop-detail">
+          {lastSummary.uploaded} uploaded, {lastSummary.failed}
+          {lastSummary.failed === 1 ? 'image was' : 'images were'} not uploaded. Delete unused files
+          to free up space, then retry.
+        </p>
+      </div>
+    {:else if lastSummary && lastSummary.failed > 0}
+      <p class="summary">{lastSummary.uploaded} uploaded, {lastSummary.failed} failed</p>
+    {/if}
+
+    <div class="file-actions">
+      {#if queue.isUploading}
+        <p class="summary">Uploading… {queue.pendingCount} remaining after this one</p>
+      {:else}
+        {#if queue.failedCount > 0}
+          <Button variant="secondary" onclick={retryFailed}>Retry Failed</Button>
+        {/if}
+        <Button variant="primary" disabled={!queue.hasUploadable} onclick={startUpload}>
+          Upload {queue.pendingCount}
+          {queue.pendingCount === 1 ? 'Image' : 'Images'}
+        </Button>
+        <Button variant="secondary" onclick={clearAll}>Clear</Button>
+      {/if}
     </div>
   {/if}
 
@@ -279,6 +170,7 @@
     bind:this={fileInput}
     type="file"
     accept="image/*"
+    multiple
     onchange={handleFileSelect}
     style="display: none;"
   />
@@ -287,9 +179,16 @@
 <style>
   .file-upload {
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
     border: 2px dashed var(--color-border);
     border-radius: var(--radius-lg);
     padding: var(--pad-content);
@@ -298,22 +197,16 @@
     background-color: var(--color-background);
   }
 
+  .drop-zone.compact {
+    flex-direction: row;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+
   .drop-zone.dragging {
     border-color: var(--color-secondary-fg);
     background-color: rgba(120, 160, 131, 0.05);
-  }
-
-  .drop-zone.has-file {
-    border-style: solid;
-    border-color: var(--color-secondary-fg);
-    background-color: rgba(120, 160, 131, 0.05);
-  }
-
-  .drop-zone-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
   }
 
   .upload-icon {
@@ -335,47 +228,14 @@
     margin: 0;
   }
 
-  .file-info {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .file-details {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .file-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    color: var(--color-secondary-fg);
-    flex-shrink: 0;
-  }
-
-  .file-text {
-    flex: 1;
-    text-align: left;
-  }
-
-  .file-name {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-text);
+  .queue-list {
+    list-style: none;
     margin: 0;
-    word-break: break-word;
-  }
-
-  .file-size {
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-    margin: 0.25rem 0 0;
-  }
-
-  .file-tags-section {
-    margin-top: 1rem;
-    width: 100%;
+    padding: 0;
+    max-height: 18rem;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
   }
 
   .tags-label {
@@ -390,48 +250,34 @@
     display: flex;
     gap: 0.5rem;
     justify-content: center;
-  }
-
-  .upload-progress {
-    margin-top: 1rem;
-  }
-
-  .progress-bar {
-    width: 100%;
-    height: 0.5rem;
-    background-color: var(--color-border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background-color: var(--color-muted-teal);
-    transition: width 0.3s ease;
-  }
-
-  .progress-text {
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-    margin: 0.5rem 0 0;
-  }
-
-  .error-message {
-    display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
+  }
+
+  .stop-banner {
     padding: 0.75rem 1rem;
-    background-color: var(--color-danger-bg);
     border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-md);
-    color: var(--color-danger-fg);
-    font-size: 0.875rem;
+    background-color: var(--color-danger-bg);
+    text-align: left;
   }
 
-  .error-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-    flex-shrink: 0;
+  .stop-title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-danger-fg);
+  }
+
+  .stop-detail {
+    margin: 0.25rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-text);
+  }
+
+  .summary {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    text-align: center;
   }
 </style>

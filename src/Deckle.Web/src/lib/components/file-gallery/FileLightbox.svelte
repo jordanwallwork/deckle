@@ -101,7 +101,15 @@
   function handleContentClick(event: MouseEvent) {
     event.stopPropagation();
   }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && !event.defaultPrevented) {
+      onClose();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="lightbox" onclick={handleBackdropClick} role="dialog" aria-modal="true">
   <button class="lightbox-close" onclick={onClose} type="button" aria-label="Close">

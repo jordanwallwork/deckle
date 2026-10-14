@@ -122,7 +122,7 @@ public static class ComponentEndpoints
         return Results.Created($"/projects/{projectId}/components/{playerMat.Id}", new PlayerMatDto(playerMat));
     }
 
-    private static async Task<IResult> HandleUpdateCard(string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdateCardRequest request)
+    private static async Task<IResult> HandleUpdateCard(Guid id, HttpContext httpContext, IComponentService componentService, UpdateCardRequest request)
     {
         var userId = httpContext.GetUserId();
         var card = await componentService.UpdateComponentAsync<Card, CardConfig>(userId, id, new(request.Name, request.Size, request.Horizontal, request.Sample));
@@ -130,7 +130,7 @@ public static class ComponentEndpoints
         return card == null ? Results.NotFound() : Results.Ok(new CardDto(card));
     }
 
-    private static async Task<IResult> HandleUpdateDice(string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdateDiceRequest request)
+    private static async Task<IResult> HandleUpdateDice(Guid id, HttpContext httpContext, IComponentService componentService, UpdateDiceRequest request)
     {
         var userId = httpContext.GetUserId();
         var dice = await componentService.UpdateComponentAsync<Dice, DiceConfig>(userId, id, new(request.Name, request.Type, request.Style, request.BaseColor, request.Number));
@@ -138,7 +138,7 @@ public static class ComponentEndpoints
         return dice == null ? Results.NotFound() : Results.Ok(new DiceDto(dice));
     }
 
-    private static async Task<IResult> HandleUpdateGameBoard(string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdateGameBoardRequest request)
+    private static async Task<IResult> HandleUpdateGameBoard(Guid id, HttpContext httpContext, IComponentService componentService, UpdateGameBoardRequest request)
     {
         var userId = httpContext.GetUserId();
 
@@ -150,7 +150,7 @@ public static class ComponentEndpoints
         return board == null ? Results.NotFound() : Results.Ok(new GameBoardDto(board));
     }
 
-    private static async Task<IResult> HandleUpdatePlayerMat(string projectId, Guid id, HttpContext httpContext, IComponentService componentService, UpdatePlayerMatRequest request)
+    private static async Task<IResult> HandleUpdatePlayerMat(Guid id, HttpContext httpContext, IComponentService componentService, UpdatePlayerMatRequest request)
     {
         var userId = httpContext.GetUserId();
 
@@ -160,7 +160,7 @@ public static class ComponentEndpoints
         return playerMat == null ? Results.NotFound() : Results.Ok(new PlayerMatDto(playerMat));
     }
 
-    private static async Task<IResult> HandleDeleteComponent(string projectId, Guid id, HttpContext httpContext, IComponentService componentService)
+    private static async Task<IResult> HandleDeleteComponent(Guid id, HttpContext httpContext, IComponentService componentService)
     {
         var userId = httpContext.GetUserId();
         await componentService.DeleteComponentAsync(userId, id);

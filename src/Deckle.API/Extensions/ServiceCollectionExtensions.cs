@@ -12,6 +12,7 @@ using Hangfire.PostgreSql;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Globalization;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
@@ -122,14 +123,21 @@ public static class ServiceCollectionExtensions
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = (context, _) =>
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+                }
+                return ValueTask.CompletedTask;
+            };
 
             // "strict" — 10 requests/minute per user.
-            // Applied to: username enumeration check, Google Sheets creation (outbound calls), file confirm.
+            // Applied to: username enumeration check, Google Sheets creation (outbound calls).
             options.AddPolicy("strict", context =>
             {
-                var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                    ?? context.Connection.RemoteIpAddress?.ToString()
-                    ?? "unknown";
+                var partitionKey = UserOrIpPartitionKey(context);
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 10,
@@ -138,10 +146,26 @@ public static class ServiceCollectionExtensions
                 });
             });
 
+            // "upload" — token bucket per user: bursts of up to 100, replenishing 2/second.
+            // Applied to: file confirm. Generous so multi-file uploads aren't throttled;
+            // storage abuse is bounded by the owner's storage quota rather than this limit.
+            options.AddPolicy("upload", context =>
+            {
+                var partitionKey = UserOrIpPartitionKey(context);
+                return RateLimitPartition.GetTokenBucketLimiter(partitionKey, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 100,
+                    TokensPerPeriod = 2,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(1),
+                    AutoReplenishment = true,
+                    QueueLimit = 0
+                });
+            });
+
             // "auth" — 5 attempts per minute per IP for register/login endpoints.
             options.AddPolicy("auth", context =>
             {
-                var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                var partitionKey = IpPartitionKey(context);
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 5,
@@ -154,9 +178,7 @@ public static class ServiceCollectionExtensions
             // Applied to: project invite endpoint.
             options.AddPolicy("invite", context =>
             {
-                var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                    ?? context.Connection.RemoteIpAddress?.ToString()
-                    ?? "unknown";
+                var partitionKey = UserOrIpPartitionKey(context);
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 5,
@@ -168,6 +190,15 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    private const string UnknownPartitionKey = "unknown";
+
+    /// <summary>Rate limit partition per signed-in user, falling back to client IP for anonymous requests</summary>
+    private static string UserOrIpPartitionKey(HttpContext context) =>
+        context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? IpPartitionKey(context);
+
+    private static string IpPartitionKey(HttpContext context) =>
+        context.Connection.RemoteIpAddress?.ToString() ?? UnknownPartitionKey;
 
     public static IServiceCollection AddDeckleApiServices(this IServiceCollection services)
     {

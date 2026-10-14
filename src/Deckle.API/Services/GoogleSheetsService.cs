@@ -10,7 +10,7 @@ public interface IGoogleSheetsService
     public Task<string> FetchCsvDataAsync(string csvExportUrl);
 }
 
-public class GoogleSheetsService : IGoogleSheetsService
+public partial class GoogleSheetsService : IGoogleSheetsService
 {
     private readonly IHttpClientFactory _httpClientFactory;
 
@@ -67,15 +67,9 @@ public class GoogleSheetsService : IGoogleSheetsService
         int? sheetGid = null;
 
         // Extract spreadsheet ID
-        var idPatterns = new[]
+        foreach (var pattern in (Regex[])[GoogleSheetsUrlIdRegex(), SpreadsheetPathIdRegex()])
         {
-            @"docs\.google\.com/spreadsheets/d/([a-zA-Z0-9-_]+)",
-            @"spreadsheets/d/([a-zA-Z0-9-_]+)"
-        };
-
-        foreach (var pattern in idPatterns)
-        {
-            var match = Regex.Match(url.ToString(), pattern);
+            var match = pattern.Match(url.ToString());
             if (match.Success)
             {
                 spreadsheetId = match.Groups[1].Value;
@@ -85,8 +79,7 @@ public class GoogleSheetsService : IGoogleSheetsService
 
         // Extract sheet GID if present
         // Supports formats: #gid=123456 or ?gid=123456 or &gid=123456
-        var gidPattern = @"[#?&]gid=(\d+)";
-        var gidMatch = Regex.Match(url.ToString(), gidPattern);
+        var gidMatch = SheetGidRegex().Match(url.ToString());
         if (gidMatch.Success && int.TryParse(gidMatch.Groups[1].Value, out var parsedGid))
         {
             sheetGid = parsedGid;
@@ -122,4 +115,13 @@ public class GoogleSheetsService : IGoogleSheetsService
             return false;
         }
     }
+
+    [GeneratedRegex(@"docs\.google\.com/spreadsheets/d/([a-zA-Z0-9-_]+)")]
+    private static partial Regex GoogleSheetsUrlIdRegex();
+
+    [GeneratedRegex(@"spreadsheets/d/([a-zA-Z0-9-_]+)")]
+    private static partial Regex SpreadsheetPathIdRegex();
+
+    [GeneratedRegex(@"[#?&]gid=(\d+)")]
+    private static partial Regex SheetGidRegex();
 }

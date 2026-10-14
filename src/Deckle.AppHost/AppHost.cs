@@ -41,4 +41,4 @@ var api = builder.AddProject<Projects.Deckle_API>("api")
 web.WithReference(api)
     .WithEnvironment("PUBLIC_API_URL", api.GetEndpoint("http"));
 
-builder.Build().Run();
+await builder.Build().RunAsync();

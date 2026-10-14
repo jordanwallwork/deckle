@@ -71,6 +71,8 @@
 			e.preventDefault();
 			selectedSuggestionIndex = Math.max(selectedSuggestionIndex - 1, -1);
 		} else if (e.key === 'Escape') {
+			// Consume Escape only when it dismisses suggestions, so enclosing modals don't also close
+			if (showSuggestions) e.preventDefault();
 			showSuggestions = false;
 			selectedSuggestionIndex = -1;
 		}

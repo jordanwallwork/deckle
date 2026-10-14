@@ -110,7 +110,7 @@ public class UserServiceTests : IDisposable
     [Fact]
     public async Task CreateOrUpdateUserAsync_ExistingUserByGoogleId_UpdatesLastLoginAt()
     {
-        var existing = await SeedUser("test@test.com", "google-id");
+        await SeedUser("test@test.com", "google-id");
         var info = MakeGoogleUserInfo("google-id", "test@test.com");
 
         var result = await _service.CreateOrUpdateUserAsync(info);

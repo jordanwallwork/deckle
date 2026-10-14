@@ -131,7 +131,6 @@ public partial class FileDirectoryService : IFileDirectoryService
             return null;
 
         var directory = await _context.FileDirectories
-            .Include(d => d.ChildDirectories)
             .Include(d => d.Files.Where(f => f.Status == FileStatus.Confirmed))
                 .ThenInclude(f => f.UploadedBy)
             .FirstOrDefaultAsync(d => d.Id == directoryId && d.ProjectId == projectId);
@@ -139,7 +138,7 @@ public partial class FileDirectoryService : IFileDirectoryService
         if (directory == null)
             return null;
 
-        return MapToWithContentsDto(directory);
+        return MapToWithContentsDto(directory, await GetChildDirectoriesAsync(projectId, directory.Id));
     }
 
     /// <summary>
@@ -183,12 +182,16 @@ public partial class FileDirectoryService : IFileDirectoryService
 
         // Load the final directory with its contents
         var directoryWithContents = await _context.FileDirectories
-            .Include(d => d.ChildDirectories)
             .Include(d => d.Files.Where(f => f.Status == FileStatus.Confirmed))
                 .ThenInclude(f => f.UploadedBy)
             .FirstOrDefaultAsync(d => d.Id == currentDirectory!.Id);
 
-        return directoryWithContents != null ? MapToWithContentsDto(directoryWithContents) : null;
+        if (directoryWithContents == null)
+            return null;
+
+        return MapToWithContentsDto(
+            directoryWithContents,
+            await GetChildDirectoriesAsync(projectId, directoryWithContents.Id));
     }
 
     /// <summary>
@@ -242,15 +245,12 @@ public partial class FileDirectoryService : IFileDirectoryService
         if (!await _authService.HasProjectAccessAsync(userId, projectId))
             return null;
 
-        var rootDirectories = await _context.FileDirectories
-            .Where(d => d.ProjectId == projectId && d.ParentDirectoryId == null)
-            .OrderBy(d => d.Name)
-            .ToListAsync();
+        var rootDirectories = await GetChildDirectoriesAsync(projectId, null);
 
         var rootFiles = await _context.Files
             .Include(f => f.UploadedBy)
             .Where(f => f.ProjectId == projectId && f.DirectoryId == null && f.Status == FileStatus.Confirmed)
-            .OrderByDescending(f => f.UploadedAt)
+            .OrderBy(f => f.FileName)
             .ToListAsync();
 
         // Return a virtual "root" directory
@@ -261,7 +261,7 @@ public partial class FileDirectoryService : IFileDirectoryService
             "",
             DateTime.MinValue,
             DateTime.MinValue,
-            rootDirectories.Select(MapToDto).ToList(),
+            rootDirectories,
             rootFiles.Select(MapFileToDto).ToList()
         );
     }
@@ -561,7 +561,30 @@ public partial class FileDirectoryService : IFileDirectoryService
         );
     }
 
-    private static FileDirectoryWithContentsDto MapToWithContentsDto(FileDirectory directory)
+    /// <summary>
+    /// Get the direct child directories of a parent (null = project root), each with a count of its
+    /// direct children. Counts are computed in the database as correlated subqueries, so this is a
+    /// single round trip regardless of how many directories or files there are.
+    /// </summary>
+    private Task<List<ChildDirectoryDto>> GetChildDirectoriesAsync(Guid projectId, Guid? parentDirectoryId)
+    {
+        return _context.FileDirectories
+            .Where(d => d.ProjectId == projectId && d.ParentDirectoryId == parentDirectoryId)
+            .OrderBy(d => d.Name)
+            .Select(d => new ChildDirectoryDto(
+                d.Id,
+                d.ProjectId,
+                d.ParentDirectoryId,
+                d.Name,
+                d.CreatedAt,
+                d.UpdatedAt,
+                d.ChildDirectories.Count + d.Files.Count(f => f.Status == FileStatus.Confirmed)))
+            .ToListAsync();
+    }
+
+    private static FileDirectoryWithContentsDto MapToWithContentsDto(
+        FileDirectory directory,
+        List<ChildDirectoryDto> childDirectories)
     {
         return new FileDirectoryWithContentsDto(
             directory.Id,
@@ -570,8 +593,8 @@ public partial class FileDirectoryService : IFileDirectoryService
             directory.Name,
             directory.CreatedAt,
             directory.UpdatedAt,
-            directory.ChildDirectories.Select(MapToDto).OrderBy(d => d.Name).ToList(),
-            directory.Files.Select(MapFileToDto).OrderByDescending(f => f.UploadedAt).ToList()
+            childDirectories,
+            directory.Files.Select(MapFileToDto).OrderBy(f => f.FileName).ToList()
         );
     }
 
@@ -653,13 +676,10 @@ public partial class FileDirectoryService : IFileDirectoryService
             .ToListAsync();
 
         // Update each file's path
-        foreach (var file in files)
+        foreach (var file in files.Where(f => f.Path.StartsWith(oldPath, StringComparison.Ordinal)))
         {
-            if (file.Path.StartsWith(oldPath, StringComparison.Ordinal))
-            {
-                // Replace the old path prefix with the new one
-                file.Path = newPath + file.Path[oldPath.Length..];
-            }
+            // Replace the old path prefix with the new one
+            file.Path = newPath + file.Path[oldPath.Length..];
         }
 
         LogFilePathsUpdated(files.Count, oldPath, newPath);

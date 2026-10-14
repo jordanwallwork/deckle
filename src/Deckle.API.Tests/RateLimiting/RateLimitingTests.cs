@@ -130,6 +130,10 @@ public sealed class RateLimitingFixture : IAsyncLifetime
             .RequireRateLimiting("invite")
             .AllowAnonymous();
 
+        _app.MapGet("/upload", () => Results.Ok())
+            .RequireRateLimiting("upload")
+            .AllowAnonymous();
+
         await _app.StartAsync();
         Client = _app.GetTestClient();
     }
@@ -259,5 +263,59 @@ public class RateLimitingBehaviorTests(RateLimitingFixture fixture)
 
         using var inviteResponse = await SendAsync("/invite", userId);
         Assert.Equal(HttpStatusCode.TooManyRequests, inviteResponse.StatusCode);
+    }
+
+    // -- upload policy: token bucket, bursts of 100 per user --
+
+    /// <summary>
+    /// Sends requests until one is rejected (or attempts run out), returning the last response.
+    /// The upload bucket replenishes continuously, so the exact rejection point isn't fixed.
+    /// </summary>
+    private async Task<HttpResponseMessage> SendUntilRejectedAsync(string path, string userId, int maxAttempts)
+    {
+        for (int i = 1; i < maxAttempts; i++)
+        {
+            var response = await SendAsync(path, userId);
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                return response;
+            response.Dispose();
+        }
+
+        return await SendAsync(path, userId);
+    }
+
+    [Fact]
+    public async Task UploadPolicy_AllowsBurstOfOneHundredForSameUser()
+    {
+        var userId = Guid.NewGuid().ToString();
+
+        for (int i = 0; i < 100; i++)
+        {
+            using var response = await SendAsync("/upload", userId);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task UploadPolicy_RejectsBeyondBurstWithRetryAfterHeader()
+    {
+        var userId = Guid.NewGuid().ToString();
+
+        using var response = await SendUntilRejectedAsync("/upload", userId, maxAttempts: 150);
+        Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+        Assert.NotNull(response.Headers.RetryAfter);
+    }
+
+    [Fact]
+    public async Task UploadPolicy_DifferentUsersHaveIndependentBuckets()
+    {
+        var userA = Guid.NewGuid().ToString();
+        var userB = Guid.NewGuid().ToString();
+
+        using var responseA = await SendUntilRejectedAsync("/upload", userA, maxAttempts: 150);
+        Assert.Equal(HttpStatusCode.TooManyRequests, responseA.StatusCode);
+
+        using var responseB = await SendAsync("/upload", userB);
+        Assert.Equal(HttpStatusCode.OK, responseB.StatusCode);
     }
 }

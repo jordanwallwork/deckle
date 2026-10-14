@@ -78,6 +78,35 @@ export interface AdminUser {
   storageQuotaMb: number;
   storageUsedBytes: number;
   projectCount: number;
+  emailConfirmed: boolean;
+  isDisabled: boolean;
+}
+
+export interface AdminApiKey {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt?: string;
+}
+
+/** A project owned by the user, as shown on the admin user detail page */
+export interface AdminUserProject {
+  id: string;
+  name: string;
+  code: string;
+  ownerUsername: string;
+  visibility: string;
+  componentCount: number;
+  createdAt: string;
+}
+
+export interface AdminUserDetail extends AdminUser {
+  emailConfirmedAt?: string;
+  disabledAt?: string;
+  hasGoogleSignIn: boolean;
+  hasPassword: boolean;
+  apiKeys: AdminApiKey[];
+  projects: AdminUserProject[];
 }
 
 export interface AdminUserListResponse {

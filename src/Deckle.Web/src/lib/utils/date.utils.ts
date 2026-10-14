@@ -21,3 +21,18 @@ export function formatRelativeTime(dateString: string): string {
     day: 'numeric'
   });
 }
+
+/**
+ * Formats a date string as a short date with time (e.g. "Mar 4, 2026, 02:15 PM"),
+ * or returns the fallback when the date is missing
+ */
+export function formatDateTime(dateString: string | null | undefined, fallback = 'Never'): string {
+  if (!dateString) return fallback;
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}

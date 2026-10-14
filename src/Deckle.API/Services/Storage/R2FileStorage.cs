@@ -19,6 +19,7 @@ public partial class R2FileStorage : IFileStorage, IDisposable
 {
     private readonly IAmazonS3 _s3Client;
     private readonly CloudflareR2Options _options;
+    // Read by the source-generated [LoggerMessage] partial methods below (SonarCloud S4487 false positive).
     private readonly ILogger<R2FileStorage> _logger;
     private bool _disposed;
 

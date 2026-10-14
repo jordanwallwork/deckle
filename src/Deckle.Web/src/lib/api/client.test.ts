@@ -39,7 +39,7 @@ describe('ApiClient.request', () => {
     ok: true,
     status,
     headers: { get: () => null },
-    json: async () => body
+    json: () => Promise.resolve(body)
   });
 
   const errorResponse = (status: number, body: unknown, headers: Record<string, string> = {}) => ({
@@ -47,7 +47,7 @@ describe('ApiClient.request', () => {
     status,
     statusText: 'Error',
     headers: { get: (name: string) => headers[name.toLowerCase()] ?? null },
-    json: async () => body
+    json: () => Promise.resolve(body)
   });
 
   it('always includes credentials in the request', async () => {
@@ -100,7 +100,7 @@ describe('ApiClient.request', () => {
   });
 
   it('returns undefined for a 204 No Content response', async () => {
-    mockFetch.mockResolvedValue({ ok: true, status: 204, headers: { get: () => null }, json: async () => ({}) });
+    mockFetch.mockResolvedValue({ ok: true, status: 204, headers: { get: () => null }, json: () => Promise.resolve({}) });
     const result = await api.delete('/projects/1', undefined, mockFetch as typeof fetch);
     expect(result).toBeUndefined();
   });
@@ -110,7 +110,7 @@ describe('ApiClient.request', () => {
       ok: true,
       status: 200,
       headers: { get: (h: string) => (h === 'content-length' ? '0' : null) },
-      json: async () => ({})
+      json: () => Promise.resolve({})
     });
     const result = await api.get('/test', undefined, mockFetch as typeof fetch);
     expect(result).toBeUndefined();

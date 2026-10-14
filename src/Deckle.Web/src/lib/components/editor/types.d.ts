@@ -92,6 +92,9 @@ export interface Shadow {
   inset?: boolean;
 }
 
+/** A single shadow or a stack of shadows. */
+export type ShadowValue = Shadow | Shadow[];
+
 export interface Background {
   color?: string;
   image?: {
@@ -163,7 +166,7 @@ export interface ContainerElement extends BaseElement {
   flexConfig?: FlexConfig; // only used when display is 'flex'
   children: TemplateElement[];
   background?: Background;
-  shadow?: Shadow | Shadow[]; // support multiple shadows
+  shadow?: ShadowValue; // support multiple shadows
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
   bleedAreaColor?: string; // Color for bleed area marking
   safeAreaColor?: string; // Color for safe area marking
@@ -221,7 +224,7 @@ export interface ImageElement extends BaseElement {
   objectPosition?: string; // e.g., "center", "50% 50%"
 
   // Optional styling
-  shadow?: Shadow | Shadow[];
+  shadow?: ShadowValue;
 }
 
 // ============================================================================
@@ -245,7 +248,7 @@ export interface ShapeElement extends BaseElement {
   shapeType: ShapeType;
   children: TemplateElement[];
   background?: Background;
-  shadow?: Shadow | Shadow[];
+  shadow?: ShadowValue;
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
 }
 

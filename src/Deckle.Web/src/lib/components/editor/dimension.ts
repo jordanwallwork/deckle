@@ -12,6 +12,9 @@ export type Unit = 'px' | 'mm' | 'percent';
  * `toStored`). Absence is represented as `undefined`, never a `{unit:'unset'}`
  * member (the app is unset-first).
  */
+/** The stored/serialized form of a length: a plain number (px) or a unit-bearing string. */
+export type StoredDimension = number | string;
+
 export interface Dimension {
   readonly unit: Unit;
   readonly value: number;
@@ -34,14 +37,16 @@ export const percent = (v: number): Dimension => ({ unit: 'percent', value: v })
  * - a bare numeric string `"12"` → `px(12)`
  * - unparseable / empty / `undefined` → `undefined`
  */
-export function toDimension(raw: number | string | undefined): Dimension | undefined {
+export function toDimension(raw: StoredDimension | undefined): Dimension | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw === 'number') return px(raw);
 
   const trimmed = raw.trim();
   if (trimmed === '') return undefined;
 
-  const match = trimmed.match(/^(-?\d+\.?\d*)\s*(px|mm|%)?$/);
+  // The fractional part is a single optional group so `\d+` and `\d*` can't
+  // compete for the same digits (avoids super-linear backtracking).
+  const match = /^(-?\d+(?:\.\d*)?)\s*(px|mm|%)?$/.exec(trimmed);
   if (!match) return undefined;
 
   const value = Number.parseFloat(match[1]);
@@ -61,7 +66,7 @@ export function toDimension(raw: number | string | undefined): Dimension | undef
  * `toStored(toDimension("10px"))` yields `10`. mm → `"<v>mm"`,
  * percent → `"<v>%"`, `undefined` → `undefined`.
  */
-export function toStored(d: Dimension | undefined): number | string | undefined {
+export function toStored(d: Dimension | undefined): StoredDimension | undefined {
   if (d === undefined) return undefined;
   switch (d.unit) {
     case 'px':

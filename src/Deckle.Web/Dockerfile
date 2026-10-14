@@ -6,8 +6,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies without running lifecycle scripts. None are needed:
+# the remaining install scripts (esbuild, core-js, protobufjs) only verify or
+# print messages, and `vite build` runs `svelte-kit sync` (the `prepare` step).
+RUN npm ci --ignore-scripts
 
 # Copy source files
 COPY . .
@@ -31,6 +33,10 @@ ENV PORT=5173
 
 # Expose the application port
 EXPOSE 5173
+
+# Run as the image's built-in non-root user. Copied files stay root-owned
+# (world-readable) so the app can read but not modify them.
+USER node
 
 # Start the application
 CMD ["node", "build"]

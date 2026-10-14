@@ -2,14 +2,15 @@ import FormulaEvaluator from 'formula-evaluator';
 
 const evaluator = new FormulaEvaluator();
 
+/** Primitive value a formula can read from row data or render as output. */
+type FormulaScalar = string | number | boolean;
+
 /**
  * Converts string rowData values to appropriate types for formula evaluation.
  * Numeric strings become numbers, "true"/"false" become booleans.
  */
-function toTypedContext(
-  rowData: Record<string, string>
-): Record<string, string | number | boolean> {
-  const context: Record<string, string | number | boolean> = {};
+function toTypedContext(rowData: Record<string, string>): Record<string, FormulaScalar> {
+  const context: Record<string, FormulaScalar> = {};
   for (const [key, value] of Object.entries(rowData)) {
     const lower = value.toLowerCase();
     if (lower === 'true') {
@@ -191,6 +192,10 @@ export function cellReferenceFields(
 /** Regex for matching merge field patterns: {{expression}} or {{expression|fallback}} */
 const MERGE_FIELD_PATTERN = /\{\{((?:\|\||[^|{}])+)(?:\|([^}]*))?\}\}/g;
 
+function isRenderableScalar(value: unknown): value is FormulaScalar {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+}
+
 /**
  * Replaces merge field patterns with values from data source row data.
  * The expression inside {{ }} is evaluated as a formula using formula-evaluator,
@@ -227,8 +232,10 @@ export function replaceMergeFields(
   return content.replace(MERGE_FIELD_PATTERN, (match, formula, fallback) => {
     const expression = formula.trim();
     try {
-      const result = evaluator.evaluate(expression, context);
-      if (result !== undefined && result !== null && result !== '') {
+      const result: unknown = evaluator.evaluate(expression, context);
+      // Only scalar results are rendered; anything else would stringify as
+      // "[object Object]", so it falls through to the fallback instead.
+      if (isRenderableScalar(result) && result !== '') {
         return String(result);
       }
     } catch {

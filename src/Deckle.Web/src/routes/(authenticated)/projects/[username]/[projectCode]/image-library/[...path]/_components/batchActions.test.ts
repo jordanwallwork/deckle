@@ -44,9 +44,9 @@ describe('unionTags', () => {
 
 describe('runBatch', () => {
   it('reports succeeded and failed items without stopping on failure', async () => {
-    const result = await runBatch([1, 2, 3, 4], async (n) => {
-      if (n % 2 === 0) throw new Error('even');
-    });
+    const result = await runBatch([1, 2, 3, 4], (n) =>
+      n % 2 === 0 ? Promise.reject(new Error('even')) : Promise.resolve()
+    );
     expect(result.succeeded.sort()).toEqual([1, 3]);
     expect(result.failed.sort()).toEqual([2, 4]);
   });

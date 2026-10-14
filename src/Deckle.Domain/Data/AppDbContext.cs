@@ -211,6 +211,14 @@ public class AppDbContext : DbContext
 
     private static void ConfigureDataSource(ModelBuilder modelBuilder)
     {
+        ConfigureDataSourceBase(modelBuilder);
+        ConfigureGoogleSheetsDataSource(modelBuilder);
+        ConfigureSampleDataSource(modelBuilder);
+        ConfigureSpreadsheetDataSource(modelBuilder);
+    }
+
+    private static void ConfigureDataSourceBase(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<DataSource>(entity =>
         {
             entity.HasKey(ds => ds.Id);
@@ -233,13 +241,7 @@ public class AppDbContext : DbContext
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null)
                 )
-                .Metadata.SetValueComparer(
-                    new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>?>(
-                        (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
-                        c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode(StringComparison.Ordinal))),
-                        c => c == null ? null : c.ToList()
-                    )
-                );
+                .Metadata.SetValueComparer(CreateStringListComparer());
 
             entity.Property(ds => ds.RowCount);
 
@@ -263,7 +265,19 @@ public class AppDbContext : DbContext
                 .HasValue<SampleDataSource>(DataSourceType.Sample)
                 .HasValue<SpreadsheetDataSource>(DataSourceType.Spreadsheet);
         });
+    }
 
+    private static ValueComparer<List<string>?> CreateStringListComparer()
+    {
+        return new ValueComparer<List<string>?>(
+            (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
+            c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode(StringComparison.Ordinal))),
+            c => c == null ? null : c.ToList()
+        );
+    }
+
+    private static void ConfigureGoogleSheetsDataSource(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<GoogleSheetsDataSource>(entity =>
         {
             entity.Property(ds => ds.GoogleSheetsId)
@@ -283,7 +297,10 @@ public class AppDbContext : DbContext
                     v => v != null ? v.ToString() : null,
                     v => v != null ? new Uri(v) : null);
         });
+    }
 
+    private static void ConfigureSampleDataSource(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<SampleDataSource>(entity =>
         {
             entity.HasOne(ds => ds.SourceDataSource)
@@ -291,7 +308,10 @@ public class AppDbContext : DbContext
                 .HasForeignKey(ds => ds.SourceDataSourceId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
+    }
 
+    private static void ConfigureSpreadsheetDataSource(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<SpreadsheetDataSource>(entity =>
         {
             entity.Property(ds => ds.JsonData)

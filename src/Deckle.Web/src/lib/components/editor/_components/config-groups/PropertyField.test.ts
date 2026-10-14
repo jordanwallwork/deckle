@@ -23,7 +23,7 @@ describe('PropertyField', () => {
     expect(queryByLabelText(/Reset Opacity/)).toBeNull();
   });
 
-  it('shows the reset affordance and clears when set', async () => {
+  it('shows the reset affordance and clears when set', () => {
     const onclear = vi.fn();
     const { getByLabelText } = render(PropertyField, {
       props: { label: 'Opacity', set: true, onclear, children: child }

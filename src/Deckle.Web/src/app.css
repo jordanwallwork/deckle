@@ -236,7 +236,10 @@ p {
    spinners are essential progress feedback, not vestibular-trigger motion, so
    their @keyframes are left running. The one decorative keyframe animation
    (dice-roll) and the JS/WAAPI shuffle are gated separately in JS via
-   prefersReducedMotion() — see lib/utils/reducedMotion.ts. */
+   prefersReducedMotion() — see lib/utils/reducedMotion.ts.
+   !important is intentional: this user-preference override must beat every
+   component-scoped transition regardless of specificity (Sonar css:S9423
+   marked false positive). */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

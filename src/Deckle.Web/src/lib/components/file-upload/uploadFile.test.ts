@@ -7,8 +7,8 @@ const rateLimited = (retryAfterSeconds?: number) =>
 
 describe('retryWhenRateLimited', () => {
   it('returns the result without sleeping when the call succeeds', async () => {
-    const sleep = vi.fn(async (_ms: number) => {});
-    const fn = vi.fn(async () => 'ok');
+    const sleep = vi.fn((_ms: number) => Promise.resolve());
+    const fn = vi.fn(() => Promise.resolve('ok'));
 
     await expect(retryWhenRateLimited(fn, sleep)).resolves.toBe('ok');
     expect(fn).toHaveBeenCalledTimes(1);
@@ -16,7 +16,7 @@ describe('retryWhenRateLimited', () => {
   });
 
   it('retries after a 429, honouring Retry-After', async () => {
-    const sleep = vi.fn(async (_ms: number) => {});
+    const sleep = vi.fn((_ms: number) => Promise.resolve());
     const fn = vi.fn().mockRejectedValueOnce(rateLimited(3)).mockResolvedValueOnce('ok');
 
     await expect(retryWhenRateLimited(fn, sleep)).resolves.toBe('ok');
@@ -25,7 +25,7 @@ describe('retryWhenRateLimited', () => {
   });
 
   it('backs off exponentially when there is no Retry-After', async () => {
-    const sleep = vi.fn(async (_ms: number) => {});
+    const sleep = vi.fn((_ms: number) => Promise.resolve());
     const fn = vi
       .fn()
       .mockRejectedValueOnce(rateLimited())
@@ -38,7 +38,7 @@ describe('retryWhenRateLimited', () => {
   });
 
   it('rethrows non-429 errors immediately', async () => {
-    const sleep = vi.fn(async (_ms: number) => {});
+    const sleep = vi.fn((_ms: number) => Promise.resolve());
     const error = new ApiError(500, 'Server error');
     const fn = vi.fn().mockRejectedValue(error);
 
@@ -48,7 +48,7 @@ describe('retryWhenRateLimited', () => {
   });
 
   it('gives up after repeated 429s', async () => {
-    const sleep = vi.fn(async (_ms: number) => {});
+    const sleep = vi.fn((_ms: number) => Promise.resolve());
     const fn = vi.fn().mockRejectedValue(rateLimited());
 
     await expect(retryWhenRateLimited(fn, sleep)).rejects.toMatchObject({ status: 429 });

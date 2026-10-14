@@ -48,8 +48,8 @@ export class UploadQueue {
   failedCount = $derived(this.items.filter((i) => i.status === 'error').length);
   hasUploadable = $derived(this.pendingCount > 0);
 
-  #projectId: string;
-  #upload: UploadFn;
+  readonly #projectId: string;
+  readonly #upload: UploadFn;
   #nextId = 0;
   #cancelled = false;
 

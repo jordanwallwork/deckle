@@ -273,8 +273,9 @@ public class DataSourceToolsTests : IDisposable
         Assert.Contains("synced", result);
         _context.ChangeTracker.Clear();
         var updated = await _context.DataSources.FindAsync(ds.Id);
-        Assert.Equal(42, updated!.RowCount);
-        Assert.Equal(3, updated!.Headers.Count);
+        Assert.NotNull(updated);
+        Assert.Equal(42, updated.RowCount);
+        Assert.Equal(3, updated.Headers?.Count);
     }
 
     [Fact]

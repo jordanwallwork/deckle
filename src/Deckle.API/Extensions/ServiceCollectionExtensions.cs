@@ -137,9 +137,7 @@ public static class ServiceCollectionExtensions
             // Applied to: username enumeration check, Google Sheets creation (outbound calls).
             options.AddPolicy("strict", context =>
             {
-                var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                    ?? context.Connection.RemoteIpAddress?.ToString()
-                    ?? "unknown";
+                var partitionKey = UserOrIpPartitionKey(context);
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 10,
@@ -153,9 +151,7 @@ public static class ServiceCollectionExtensions
             // storage abuse is bounded by the owner's storage quota rather than this limit.
             options.AddPolicy("upload", context =>
             {
-                var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                    ?? context.Connection.RemoteIpAddress?.ToString()
-                    ?? "unknown";
+                var partitionKey = UserOrIpPartitionKey(context);
                 return RateLimitPartition.GetTokenBucketLimiter(partitionKey, _ => new TokenBucketRateLimiterOptions
                 {
                     TokenLimit = 100,
@@ -169,7 +165,7 @@ public static class ServiceCollectionExtensions
             // "auth" — 5 attempts per minute per IP for register/login endpoints.
             options.AddPolicy("auth", context =>
             {
-                var partitionKey = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                var partitionKey = IpPartitionKey(context);
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 5,
@@ -182,9 +178,7 @@ public static class ServiceCollectionExtensions
             // Applied to: project invite endpoint.
             options.AddPolicy("invite", context =>
             {
-                var partitionKey = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                    ?? context.Connection.RemoteIpAddress?.ToString()
-                    ?? "unknown";
+                var partitionKey = UserOrIpPartitionKey(context);
                 return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 5,
@@ -196,6 +190,15 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    private const string UnknownPartitionKey = "unknown";
+
+    /// <summary>Rate limit partition per signed-in user, falling back to client IP for anonymous requests</summary>
+    private static string UserOrIpPartitionKey(HttpContext context) =>
+        context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? IpPartitionKey(context);
+
+    private static string IpPartitionKey(HttpContext context) =>
+        context.Connection.RemoteIpAddress?.ToString() ?? UnknownPartitionKey;
 
     public static IServiceCollection AddDeckleApiServices(this IServiceCollection services)
     {

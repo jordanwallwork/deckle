@@ -30,7 +30,7 @@ public class CorsExtensionsTests
         var corsOptions = sp.GetRequiredService<IOptions<CorsOptions>>().Value;
         var policy = corsOptions.GetPolicy(corsOptions.DefaultPolicyName);
 
-        return policy!.IsOriginAllowed!;
+        return policy!.IsOriginAllowed;
     }
 
     #region AddDeckleCors Tests

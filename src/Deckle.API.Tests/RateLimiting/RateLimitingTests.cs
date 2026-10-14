@@ -273,13 +273,15 @@ public class RateLimitingBehaviorTests(RateLimitingFixture fixture)
     /// </summary>
     private async Task<HttpResponseMessage> SendUntilRejectedAsync(string path, string userId, int maxAttempts)
     {
-        for (int i = 1; ; i++)
+        for (int i = 1; i < maxAttempts; i++)
         {
             var response = await SendAsync(path, userId);
-            if (response.StatusCode == HttpStatusCode.TooManyRequests || i == maxAttempts)
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 return response;
             response.Dispose();
         }
+
+        return await SendAsync(path, userId);
     }
 
     [Fact]

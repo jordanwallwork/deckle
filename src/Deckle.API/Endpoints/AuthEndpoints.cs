@@ -74,7 +74,7 @@ public static partial class AuthEndpoints
                 return Results.Problem("FrontendUrl is not configured", statusCode: 500);
             }
 
-            frontendUrl = "http://localhost:5173";
+            frontendUrl = FrontendDefaults.DevelopmentUrl;
             LogFrontendUrlNotConfigured(logger, frontendUrl);
         }
 

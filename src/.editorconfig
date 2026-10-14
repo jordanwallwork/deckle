@@ -1178,6 +1178,15 @@ dotnet_diagnostic.CA5404.severity = error
 dotnet_diagnostic.CA5405.severity = error
 
 ###############################
+# SonarAnalyzer Rules         #
+###############################
+# SonarAnalyzer.CSharp (Directory.Build.props) runs SonarCloud's default rules.
+# Rules below are off by default in the NuGet analyzer but enabled on SonarCloud.
+
+# S1192: String literals should not be duplicated
+dotnet_diagnostic.S1192.severity = warning
+
+###############################
 # Test Project Overrides      #
 ###############################
 

@@ -676,13 +676,10 @@ public partial class FileDirectoryService : IFileDirectoryService
             .ToListAsync();
 
         // Update each file's path
-        foreach (var file in files)
+        foreach (var file in files.Where(f => f.Path.StartsWith(oldPath, StringComparison.Ordinal)))
         {
-            if (file.Path.StartsWith(oldPath, StringComparison.Ordinal))
-            {
-                // Replace the old path prefix with the new one
-                file.Path = newPath + file.Path[oldPath.Length..];
-            }
+            // Replace the old path prefix with the new one
+            file.Path = newPath + file.Path[oldPath.Length..];
         }
 
         LogFilePathsUpdated(files.Count, oldPath, newPath);

@@ -145,7 +145,7 @@ public static class ProjectEndpoints
         string? inviterName)
     {
         // Construct invitation URL using the new username/code format
-        var frontendUrl = configuration["FrontendUrl"] ?? "http://localhost:5173";
+        var frontendUrl = configuration["FrontendUrl"] ?? FrontendDefaults.DevelopmentUrl;
         var invitationUrl = $"{frontendUrl}/projects/{project.OwnerUsername}/{project.Code}";
 
         var emailTemplate = new NewUserInviteEmail

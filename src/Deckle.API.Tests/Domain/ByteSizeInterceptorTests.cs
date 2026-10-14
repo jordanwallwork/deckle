@@ -14,7 +14,7 @@ public class ByteSizeInterceptorTests
 {
     #region Test entities
 
-    private sealed class SimpleEntity : ISizeAware
+    internal sealed class SimpleEntity : ISizeAware
     {
         public int Id { get; set; }
 
@@ -26,7 +26,7 @@ public class ByteSizeInterceptorTests
         public long TotalByteSize { get; set; }
     }
 
-    private sealed class CollectionEntity : ISizeAware
+    internal sealed class CollectionEntity : ISizeAware
     {
         public int Id { get; set; }
 
@@ -36,7 +36,7 @@ public class ByteSizeInterceptorTests
         public long TotalByteSize { get; set; }
     }
 
-    private sealed class MultiPropertyEntity : ISizeAware
+    internal sealed class MultiPropertyEntity : ISizeAware
     {
         public int Id { get; set; }
 
@@ -52,7 +52,7 @@ public class ByteSizeInterceptorTests
     }
 
     // Base declares [TrackByteSize]; derived overrides without the attribute.
-    private abstract class BaseEntity : ISizeAware
+    internal abstract class BaseEntity : ISizeAware
     {
         public int Id { get; set; }
 

@@ -166,7 +166,7 @@ public class ApiKeyAuthenticationHandlerTests : IDisposable
     [Fact]
     public async Task HandleAuthenticate_ValidKey_PrincipalHasEmailClaim()
     {
-        var (user, rawKey) = await SeedUserWithApiKey(email: "alice@example.com");
+        var (_, rawKey) = await SeedUserWithApiKey(email: "alice@example.com");
         var httpContext = new DefaultHttpContext();
         httpContext.Request.Headers["X-API-Key"] = rawKey;
         var handler = await CreateHandlerAsync(httpContext);
